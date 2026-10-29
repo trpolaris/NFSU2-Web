@@ -49,8 +49,8 @@ Bu depo kaynak kodunu içerir; derlenmiş oyun modülü ve oyun verileri hazır 
 ### 1. Kaynak kodunu alın
 
 ```bash
-git clone https://github.com/trpolaris/Need-for-Speed-Underground-2-WEB.git
-cd Need-for-Speed-Underground-2-WEB
+git clone https://github.com/trpolaris/NFSU2-Web
+cd NFSU2-Web
 ```
 
 ### 2. Python bağımlılıklarını kurun
