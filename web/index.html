@@ -1,0 +1,585 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#0b1018">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="TRPOLARIS">
+<title>TRPOLARIS | NFSU2 Web</title>
+<meta name="description" content="Need for Speed: Underground 2 browser experience with WebGPU graphics, controller support and online play.">
+<meta name="keywords" content="Need for Speed Underground 2, NFSU2, Underground 2 browser, play NFSU2 online, WebAssembly, WebGPU, free roam multiplayer, racing game">
+<meta name="application-name" content="TRPOLARIS">
+<meta name="robots" content="index, follow">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="TRPOLARIS">
+<meta property="og:locale" content="tr_TR">
+<meta property="og:title" content="TRPOLARIS | NFSU2 Web">
+<meta property="og:description" content="Need for Speed: Underground 2 browser experience with WebGPU graphics, controller support and online play.">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="TRPOLARIS | NFSU2 Web">
+<meta name="twitter:description" content="Need for Speed: Underground 2 browser experience with WebGPU graphics, controller support and online play.">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" sizes="512x512" href="/icon.png">
+<link rel="stylesheet" href="/main.css">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": ["VideoGame", "WebApplication"],
+  "name": "TRPOLARIS NFSU2 Web",
+  "alternateName": ["Need for Speed: Underground 2 in the browser", "NFSU2", "Need for Speed Underground 2"],
+  "description": "Need for Speed: Underground 2 (2004), recompiled to WebAssembly to run in Chrome and Firefox with WebGPU graphics, Web Audio, up to 120 fps widescreen, Xbox and PlayStation controller support, free roam and Online multiplayer.",
+  "applicationCategory": "GameApplication",
+  "genre": "Racing",
+  "gamePlatform": "Web browser",
+  "operatingSystem": "Windows, macOS",
+  "playMode": ["SinglePlayer", "MultiPlayer", "CoOp"]
+}
+</script>
+<script type="module" src="/main.js"></script>
+</head>
+<body data-phase="boot">
+
+<main class="app command-center" id="app">
+  <header class="top app-topbar">
+    <div class="top-row">
+      <a class="brand-logo" href="/" aria-label="TRPOLARIS NFSU2 Web">
+        <img class="brand-app-icon" src="/icon-192.png" alt="" width="48" height="48" fetchpriority="high" decoding="async">
+        <span class="brand-copy"><strong>TRPOLARIS</strong><small>NFSU2 WEB</small></span>
+      </a>
+      <div class="top-product-note"><span class="signal-dot" aria-hidden="true"></span><span>WEB EDITION</span><span class="top-divider" aria-hidden="true"></span><span class="top-meta-copy">NEED FOR SPEED / UNDERGROUND 2</span></div>
+      <div class="top-end">
+        <label class="lang-pick"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9M12 3C9.5 5.6 8.2 8.6 8.2 12s1.3 6.4 3.8 9"/></svg><select class="form-select" id="lang-pick" data-i18n-attr="aria-label" aria-label="Language"></select></label>
+        <button type="button" class="btn install-app" id="install-app" data-i18n-attr="aria-label" aria-label="Install app"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v11m-5-5 5 5 5-5M4 16v4h16v-4"/></svg><span data-i18n>Install app</span></button>
+      </div>
+    </div>
+  </header>
+
+  <nav class="quick-nav nav nav-pills" data-i18n-attr="aria-label" aria-label="Site">
+    <div class="nav-section-label">NAVIGATION</div>
+    <a class="quick-link nav-link" data-page="home" href="#home-page"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7h-6v7H4a1 1 0 0 1-1-1z"/></svg><span data-i18n>Play</span></a>
+    <div class="nav-section-label nav-section-spaced">YOUR GARAGE</div>
+    <a class="quick-link nav-link" data-page="mods" href="#mods"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 14l2-6h14l2 6v5h-3v-2H6v2H3zM7 8l1-3h8l1 3M6 13h.01M18 13h.01"/></svg><span data-i18n>Mod library</span></a>
+    <a class="quick-link nav-link" data-page="saves" href="#saves"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h12l3 3v15H4V3zm3 0v6h8V3M8 21v-7h8v7"/></svg><span data-i18n>Saves</span></a>
+    <a class="quick-link nav-link" data-page="online" href="#online"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3 20v-2a6 6 0 0 1 12 0v2M16 5.5a3 3 0 0 1 0 5.8M18 14a5 5 0 0 1 3 4.5V20"/></svg><span data-i18n>Online</span></a>
+    <a class="quick-link nav-link" data-page="controls" href="#controls"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 8h10a5 5 0 0 1 4.7 6.7l-1 2.8a2 2 0 0 1-3.3.7L15 16H9l-2.4 2.2a2 2 0 0 1-3.3-.7l-1-2.8A5 5 0 0 1 7 8zM7 11v4M5 13h4M16.5 12.5h.01M18.5 14.5h.01"/></svg><span data-i18n>Controls</span></a>
+    <div class="nav-section-label nav-section-spaced">APP</div>
+    <a class="quick-link nav-link" data-page="settings" href="#settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7zM19.4 15a8 8 0 0 0 .1-2l2-1.5-2-3.5-2.4 1a8 8 0 0 0-1.7-1L15 5h-6l-.4 3a8 8 0 0 0-1.7 1l-2.4-1-2 3.5 2 1.5a8 8 0 0 0 .1 2l-2 1.5 2 3.5 2.4-1a8 8 0 0 0 1.7 1L9 23h6l.4-3a8 8 0 0 0 1.7-1l2.4 1 2-3.5z"/></svg><span data-i18n>Settings</span></a>
+    <a class="quick-link nav-link" data-page="system" href="#diagnostics"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V5m0 14h16M7 15l4-4 3 2 5-6"/></svg><span data-i18n>System diagnostics</span></a>
+    <a class="quick-link nav-link" data-page="about" href="#about" aria-label="About this project"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5m0-8h.01"/></svg><span data-i18n>About this project</span></a>
+    <div class="nav-bottom-card">
+      <img src="/icon-192.png" alt="" width="32" height="32" loading="lazy" decoding="async">
+      <div><strong>TRPOLARIS</strong><small>NFSU2 WEB</small></div>
+      <span class="nav-version">02</span>
+    </div>
+  </nav>
+
+  <div id="home-page" class="home-page">
+    <div class="install-security-notice" id="install-security-notice" hidden role="status" aria-live="polite"></div>
+    <section class="landing-hero" aria-labelledby="landing-heading">
+      <div class="landing-copy">
+        <div class="hero-kicker"><span class="signal-dot" aria-hidden="true"></span><span class="kicker-brand">TRPOLARIS <i>/</i> NFSU2</span><span class="kicker-tag">NIGHT DRIVE / 2004</span></div>
+        <h1 class="landing-title" id="landing-heading"><span data-i18n>Own the night.</span><em data-i18n>The streets are yours.</em></h1>
+        <p class="landing-description" data-i18n>A new home for your Underground 2 experience.</p>
+        <div class="hero-capabilities" aria-label="Game features">
+          <span><b class="cap-dot cyan" aria-hidden="true"></b><span data-i18n>WebGPU rendering</span></span>
+          <span><b class="cap-dot violet" aria-hidden="true"></b><span>CONTROLLER READY</span></span>
+          <span><b class="cap-dot lime" aria-hidden="true"></b><span>LOCAL + CLOUD SAVES</span></span>
+        </div>
+        <section class="panel hero play-console" id="play-panel" data-i18n-attr="aria-label" aria-label="Play">
+          <div class="play-console-head"><div><span class="play-console-eyebrow">START YOUR ENGINE</span><h2 data-i18n>Play</h2></div><span class="play-console-mark">NFS / 02</span></div>
+          <button type="button" class="play" id="play" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l10-6.5z"/></svg><span class="play-label" data-i18n-html>Play <kbd class="key-only">Enter</kbd></span></button>
+          <div class="launch-progress-row"><span data-i18n>Game loading</span><span class="launch-progress-note">WEB RUNTIME</span></div>
+          <div class="bar launch-progress" id="progress" role="progressbar" data-i18n-attr="aria-label" aria-label="Game loading" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div class="bar-fill" id="progress-fill"></div></div>
+        </section>
+        <a class="hero-garage-link" href="#mods" data-page="mods"><span class="hero-garage-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 17 17 7M8 7h9v9"/></svg></span><span data-i18n>Mod library</span><span class="hero-link-arrow" aria-hidden="true">↗</span></a>
+      </div>
+      <div class="landing-art" aria-label="TRPOLARIS NFSU2 artwork">
+        <div class="art-grid" aria-hidden="true"></div>
+        <div class="art-scanline" aria-hidden="true"></div>
+        <div class="art-topline"><span>TRP / 02</span><span>UNDEGROUND DISTRICT</span></div>
+        <div class="speed-streak streak-one" aria-hidden="true"></div><div class="speed-streak streak-two" aria-hidden="true"></div><div class="speed-streak streak-three" aria-hidden="true"></div>
+        <svg class="hero-car" viewBox="0 0 620 330" role="img" aria-label="Neon sports car illustration" xmlns="http://www.w3.org/2000/svg">
+          <defs><linearGradient id="carBody" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#b9fff7"/><stop offset=".42" stop-color="#37d7d0"/><stop offset="1" stop-color="#2675ac"/></linearGradient><linearGradient id="carGlass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#244a69"/><stop offset="1" stop-color="#071522"/></linearGradient><filter id="carGlow" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="8"/></filter></defs>
+          <ellipse cx="325" cy="264" rx="222" ry="22" fill="#27e2d5" opacity=".18" filter="url(#carGlow)"/>
+          <path d="M75 216 115 183 192 164 250 112Q269 91 309 94L392 104Q416 107 438 132L491 174 546 197 559 222 539 241 485 250 149 256 89 244Z" fill="#05101c" stroke="#4eddd9" stroke-width="3"/>
+          <path d="M202 164 261 119Q275 108 303 110L385 119Q408 123 426 145L444 166Z" fill="url(#carGlass)" stroke="#6beee5" stroke-width="2"/>
+          <path d="M322 111 321 164M190 164 202 164 444 166" fill="none" stroke="#43becb" stroke-width="2"/>
+          <path d="M77 216 144 204 176 217 168 238 101 235 85 231ZM447 208 497 202 532 216 526 232 465 237 445 227Z" fill="#dbfffb" opacity=".9"/>
+          <path d="M94 238 523 238 478 258 151 263Z" fill="#20dcd0" opacity=".75"/>
+          <path d="M239 184 380 187 421 199 397 207 205 207Z" fill="#22c3ca" opacity=".55"/>
+          <path d="M104 224 146 221M474 225 522 220" stroke="#f1ffff" stroke-width="3" stroke-linecap="round"/>
+          <path d="M190 251a43 43 0 1 0 86 0 43 43 0 1 0-86 0M406 250a43 43 0 1 0 86 0 43 43 0 1 0-86 0" fill="#04080f" stroke="#30ddd0" stroke-width="4"/>
+          <circle cx="233" cy="251" r="25" fill="#102334" stroke="#7cece4" stroke-width="2"/><circle cx="449" cy="250" r="25" fill="#102334" stroke="#7cece4" stroke-width="2"/>
+          <circle cx="233" cy="251" r="7" fill="#30ddd0"/><circle cx="449" cy="250" r="7" fill="#30ddd0"/>
+          <path d="M98 267H164M284 278H392M500 267H555" stroke="#388ab4" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        <div class="art-plate"><span>RACE / TUNE / EXPLORE</span><strong>THE NIGHT IS YOURS</strong><small>TRPOLARIS WEB EDITION</small></div>
+        <div class="art-stamp"><strong>02</strong><span>NIGHT<br>DRIVE</span></div>
+        <img class="hero-app-icon" src="/icon-192.png" alt="" width="42" height="42" loading="lazy" decoding="async">
+      </div>
+    </section>
+
+    <section class="panel home-status-panel" id="home-status-panel" aria-labelledby="home-status-title">
+      <div class="home-status-head">
+        <div class="home-status-title-wrap"><span class="home-status-eyebrow">LIVE / CONNECTION</span><h2 id="home-status-title" data-i18n>System diagnostics</h2></div>
+        <p class="status" id="status" role="status">Loading</p>
+      </div>
+      <p class="status-sub" id="status-sub">Loading the game.</p>
+      <div class="home-status-details">
+        <p class="msg" id="lastgame" hidden></p>
+        <p class="msg" id="report" hidden data-i18n>Download the log and include it when reporting this problem.</p>
+        <p class="msg" id="newer" aria-live="polite" hidden></p>
+        <ul class="problems" id="problems" aria-live="polite"></ul>
+        <p class="msg warn" id="override" hidden></p>
+      </div>
+      <div class="home-status-actions">
+        <button type="button" class="btn" id="retry" hidden data-i18n>Retry</button>
+        <button type="button" class="btn" id="reload" hidden data-i18n>Reload</button>
+        <button type="button" class="btn" id="log-btn" hidden data-i18n>Download log</button>
+        <a class="btn status-details-link" href="#diagnostics" data-page="system" data-i18n>System diagnostics</a>
+      </div>
+    </section>
+
+    <section class="home-quick-section" aria-labelledby="home-quick-title">
+      <div class="home-quick-heading"><div><span class="home-status-eyebrow">YOUR GARAGE / SHORTCUTS</span><h2 id="home-quick-title" data-i18n>Quick access</h2></div><span class="home-quick-mark" aria-hidden="true">02</span></div>
+      <div class="home-action-grid">
+        <a class="home-action-card" href="#online" data-page="online"><span class="home-action-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 20v-2a6 6 0 0 1 12 0v2M16 5.5a3 3 0 0 1 0 5.8M18 14a5 5 0 0 1 3 4.5V20"/></svg></span><span class="home-action-copy"><strong data-i18n>Online</strong><small data-i18n>Free roam + online play</small></span><span class="home-action-arrow" aria-hidden="true">↗</span></a>
+        <a class="home-action-card" href="#mods" data-page="mods"><span class="home-action-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 14l2-6h14l2 6v5h-3v-2H6v2H3zM7 8l1-3h8l1 3M6 13h.01M18 13h.01"/></svg></span><span class="home-action-copy"><strong data-i18n>Mod library</strong><small data-i18n>Vehicle packages</small></span><span class="home-action-arrow" aria-hidden="true">↗</span></a>
+        <a class="home-action-card" href="#saves" data-page="saves"><span class="home-action-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 3h12l3 3v15H4V3zm3 0v6h8V3M8 21v-7h8v7"/></svg></span><span class="home-action-copy"><strong data-i18n>Saves</strong><small data-i18n>Local + cloud saves</small></span><span class="home-action-arrow" aria-hidden="true">↗</span></a>
+        <a class="home-action-card" href="#controls" data-page="controls"><span class="home-action-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 8h10a5 5 0 0 1 4.7 6.7l-1 2.8a2 2 0 0 1-3.3.7L15 16H9l-2.4 2.2a2 2 0 0 1-3.3-.7l-1-2.8A5 5 0 0 1 7 8zM7 11v4M5 13h4M16.5 12.5h.01M18.5 14.5h.01"/></svg></span><span class="home-action-copy"><strong data-i18n>Controls</strong><small data-i18n>Keyboard + controller</small></span><span class="home-action-arrow" aria-hidden="true">↗</span></a>
+        <a class="home-action-card" href="#settings" data-page="settings"><span class="home-action-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7zM19.4 15a8 8 0 0 0 .1-2l2-1.5-2-3.5-2.4 1a8 8 0 0 0-1.7-1L15 5h-6l-.4 3a8 8 0 0 0-1.7 1l-2.4-1-2 3.5 2 1.5a8 8 0 0 0 .1 2l-2 1.5 2 3.5 2.4-1a8 8 0 0 0 1.7 1L9 23h6l.4-3a8 8 0 0 0 1.7-1l2.4 1 2-3.5z"/></svg></span><span class="home-action-copy"><strong data-i18n>Settings</strong><small data-i18n>Accessibility</small></span><span class="home-action-arrow" aria-hidden="true">↗</span></a>
+      </div>
+    </section>
+  </div><!-- /home-page -->
+
+  <div class="app-grid" id="app-pages" hidden>
+  <div class="side">
+
+
+    <section class="panel card shadow-sm" id="controls" aria-labelledby="controls-title">
+      <h2 id="controls-title" data-i18n>Controls</h2>
+      <div id="keys">
+        <div class="tabs nav nav-tabs" role="tablist" data-i18n-attr="aria-label" aria-label="Controls">
+          <button type="button" class="tab nav-link" role="tab" data-tab="keys"><span class="key-only" data-i18n>Keyboard</span><span class="touch-only" data-i18n>Touch</span></button>
+          <button type="button" class="tab nav-link" role="tab" data-tab="pad" data-i18n>Controller</button>
+          <button type="button" class="tab nav-link" role="tab" data-tab="site" data-i18n>Site</button>
+        </div>
+        <div class="tab-panel" role="tabpanel" data-tab="keys">
+          <p class="hint touch-only" data-i18n>Tap the game's menus, or use the arrows, OK and Back beside them. While you drive, touch controls show on the game. A controller works too.</p>
+          <!-- the steering's list, the level horizon's switch and the sizes: controls.ts -->
+          <div class="set touch-only" data-steer>
+            <label class="set-label" data-i18n>Steering</label>
+            <p class="set-help" data-i18n>How you steer while driving. The button in the game's top right corner switches it too.</p>
+            <div class="set-control"><select></select></div>
+          </div>
+          <div class="set touch-only" data-level>
+            <label class="set-label" data-i18n>Level horizon</label>
+            <p class="set-help" data-i18n>With tilt steering, the view turns against the phone, so the road's horizon stays level.</p>
+            <div class="set-control"><span class="val" aria-hidden="true"></span><input type="checkbox" class="switch" role="switch"></div>
+          </div>
+          <div class="set touch-only" data-size>
+            <label class="set-label" data-i18n>Control size</label>
+            <p class="set-help" data-i18n>How big the touch controls on the game are. Auto sizes them for this screen.</p>
+            <div class="set-control"><select></select></div>
+          </div>
+          <div class="set touch-only" data-menu-size>
+            <label class="set-label" data-i18n>Menu button size</label>
+            <p class="set-help" data-i18n>How big the game's small menu buttons are: Back, Continue and the others at the bottom, and the arrows. Auto sizes them for a finger.</p>
+            <div class="set-control"><select></select></div>
+          </div>
+          <dl class="keys key-only">
+            <div><dt><kbd>↑</kbd> <kbd>↓</kbd></dt><dd data-i18n>Throttle, brake and reverse</dd></div>
+            <div><dt><kbd>←</kbd> <kbd>→</kbd></dt><dd data-i18n>Steer (or W S A D)</dd></div>
+            <div><dt><kbd>Alt</kbd></dt><dd data-i18n>Nitrous</dd></div>
+            <div><dt><kbd data-i18n>Space</kbd></dt><dd data-i18n>Handbrake</dd></div>
+            <div><dt><kbd>Shift</kbd> <kbd data-i18n>Ctrl</kbd></dt><dd data-i18n>Shift up, shift down (manual)</dd></div>
+            <div><dt><kbd>C</kbd> <kbd>B</kbd></dt><dd data-i18n>Change camera, look back</dd></div>
+            <div><dt><kbd>R</kbd></dt><dd data-i18n>Respawn</dd></div>
+            <div><dt><kbd>H</kbd> <kbd>J</kbd></dt><dd data-i18n>Hydraulics (hold, then the arrows)</dd></div>
+            <div><dt><kbd>N</kbd></dt><dd data-i18n>Horn (with other players)</dd></div>
+            <div><dt><kbd>X</kbd></dt><dd data-i18n>Drift mode (in free roam)</dd></div>
+            <div><dt><kbd>1</kbd>–<kbd>4</kbd></dt><dd data-i18n>Quick chat (with other players): a group, then a phrase</dd></div>
+            <div><dt><kbd>Enter</kbd></dt><dd data-i18n>Start an event, take an outrun</dd></div>
+            <div><dt><kbd>M</kbd> <kbd>Tab</kbd></dt><dd data-i18n>Map, messages</dd></div>
+            <div><dt><kbd>Esc</kbd> <kbd>P</kbd></dt><dd data-i18n>Pause</dd></div>
+          </dl>
+          <p class="hint key-only" data-i18n>In menus: arrow keys and Enter, Esc goes back. Change keys in the game's Options, Controls.</p>
+        </div>
+        <!-- the controller's drawing: controls.ts -->
+        <div class="tab-panel" role="tabpanel" data-tab="pad" hidden></div>
+        <div class="tab-panel" role="tabpanel" data-tab="site" hidden>
+          <dl class="keys">
+            <div class="key-only"><dt><kbd>F9</kbd></dt><dd data-i18n>Menu: full screen, controls, log, quit</dd></div>
+            <div class="touch-only"><dt><kbd>☰</kbd></dt><dd data-i18n>Menu: full screen, controls, log, quit</dd></div>
+            <div><dt data-i18n-html><kbd>Home</kbd> or both sticks pressed in</dt><dd data-i18n>The menu, on a controller</dd></div>
+            <div class="key-only"><dt><kbd>F8</kbd></dt><dd data-i18n>Frame-rate counter</dd></div>
+            <div class="key-only"><dt><kbd>F12</kbd></dt><dd data-i18n>Screenshot, shown in Saves</dd></div>
+            <div class="key-only"><dt data-i18n-html>Hold <kbd>Esc</kbd></dt><dd data-i18n>Leave full screen</dd></div>
+          </dl>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel card shadow-sm" id="changes" aria-labelledby="changes-title">
+      <h2 id="changes-title" data-i18n>Changes from the original</h2>
+      <div class="prose">
+        <p data-i18n>The PC game's own code, recompiled to run in Chrome and Firefox with WebGPU graphics and Web Audio sound. It runs at up to 120 fps in widescreen at your screen's resolution, with the original look at its highest settings.</p>
+        <p data-i18n>Drive with friends in free roam and race them in Online mode on this server, with no account, and honk at them with eight horns. Play on a keyboard, an Xbox or PlayStation controller, a steering wheel or a phone's touch controls, with your saves in this browser or in the cloud.</p>
+      </div>
+    </section>
+
+    <section class="panel card shadow-sm" id="about" aria-labelledby="about-title">
+      <h2 id="about-title" data-i18n>About this project</h2>
+      <div class="prose">
+        <p data-i18n>A community project maintained by TRPOLARIS. It brings NFSU2 to your browser and requires your own copy of the game; game files are not included.</p>
+        <p data-i18n-html>For feedback, bug reports, and feature requests, open an issue on <a href="https://github.com/trpolaris/Need-for-Speed-Underground-2-WEB/issues" target="_blank" rel="noopener noreferrer">GitHub</a>.</p>
+        <p data-i18n>TRPOLARIS is an independent fan project and is not affiliated with or endorsed by Electronic Arts.</p>
+      </div>
+      <h3 data-i18n>Credits</h3>
+      <div class="prose">
+        <p data-i18n-html>The source code and project updates are available on <a href="https://github.com/trpolaris/Need-for-Speed-Underground-2-WEB" target="_blank" rel="noopener noreferrer">GitHub</a>.</p>
+        <p data-i18n-html>The language packs are built from KyoriAsh's <a href="https://nfsmods.xyz/mod/5749" target="_blank" rel="noopener noreferrer">Multi 13 languages mod</a> (with Lee-Ryo's Thai support), from TraduMix's and MixMods' Brazilian Portuguese translation (Fyro, Beater, Kerlyston F.; Junior_Djjr, SideWinder, Elyzandro), from PLProjekt's Polish translation (Daniel Graszka, MaDeR, Marcin Piech, Nati, Mateusz Wilkowski, alter), from VileStuff's <a href="https://nfsmods.xyz/mod/5286" target="_blank" rel="noopener noreferrer">English Subtitles Fixed</a> and from muntazam's <a href="https://www.moddb.com/mods/need-for-speed-underground-2-turkish-translation-patch" target="_blank" rel="noopener noreferrer">Turkish translation</a>. The texture pack is built from LunicAura106's <a href="https://nfsmods.xyz/mod/4319" target="_blank" rel="noopener noreferrer">Upscaled HUD</a>.</p>
+      </div>
+    </section>
+  </div>
+
+  <div class="content">
+    <section class="panel card shadow-sm" id="saves" aria-labelledby="saves-title">
+      <div class="panel-head">
+        <h2 id="saves-title" data-i18n>Saves</h2>
+        <div class="row">
+          <button type="button" class="btn" id="export" data-i18n>Download backup</button>
+          <label class="btn file-btn" data-i18n-html>Restore<input type="file" id="import"></label>
+        </div>
+      </div>
+      <p class="msg" id="saves-msg" role="status"></p>
+      <ul class="profiles" id="profiles" data-i18n-attr="aria-label" aria-label="Profiles in this browser"></ul>
+      <p class="hint" data-i18n-html>To save while playing: <span class="key-only"><kbd>Esc</kbd> or </span><kbd>Start</kbd> &gt; Garage &gt; Save</p>
+      <div class="panel-head sub">
+        <h3 data-i18n>Screenshots</h3>
+        <p class="hint key-only" data-i18n-html>Screenshot with <kbd>F12</kbd></p>
+      </div>
+      <p class="hint" id="shots-info" hidden data-i18n>None yet.</p>
+      <ul class="shots" id="shots" data-i18n-attr="aria-label" aria-label="Screenshots in this browser"></ul>
+      <div class="vault" id="vault" hidden>
+        <div class="panel-head sub">
+          <h3 data-i18n>Cloud saves</h3>
+          <button type="button" class="btn" id="vault-make" data-i18n>Enable cloud saving</button>
+          <p class="hint" id="vault-when" role="status" hidden></p>
+        </div>
+        <form class="vault-row" id="vault-form">
+          <div class="keybox masked" id="vault-box">
+            <div class="keyfield">
+              <input type="text" id="vault-input" placeholder="Enter your keyphrase" spellcheck="false" autocomplete="off" autocapitalize="none" data-i18n-attr="placeholder aria-label" aria-label="Keyphrase">
+              <span class="keymask" id="vault-mask" aria-hidden="true"></span>
+            </div>
+            <button type="button" class="icon-btn" id="vault-file" data-i18n-attr="aria-label" aria-label="Download keyphrase" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg></button>
+            <button type="button" class="icon-btn eye" id="vault-eye" aria-label="Show keyphrase" aria-pressed="false"><svg class="on" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg><svg class="off" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3l18 18M10.6 5.1Q11.3 5 12 5c6.5 0 10 7 10 7a17 17 0 0 1-3.2 4.1M6.6 6.6C3.8 8.4 2 12 2 12s3.5 7 10 7c1.8 0 3.3-.5 4.6-1.2M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg></button>
+          </div>
+          <button type="submit" class="btn" id="vault-load" data-i18n>Load</button>
+        </form>
+        <p class="hint" id="vault-claim" hidden></p>
+        <div id="vault-sides"></div>
+        <p class="hint" id="vault-about" data-i18n>Make a keyphrase, or enter yours to load your saves.</p>
+        <p class="hint warn" id="vault-status" role="status"></p>
+        <div class="row" id="vault-conflict" hidden>
+          <button type="button" class="btn" id="vault-mine" data-i18n>Keep this browser's</button>
+          <button type="button" class="btn" id="vault-theirs" data-i18n>Use the cloud's</button>
+        </div>
+        <div class="row" id="vault-on" hidden>
+          <button type="button" class="text-btn" id="vault-sync" data-i18n>Sync now</button>
+          <button type="button" class="text-btn" id="vault-earlier" hidden>Go back</button>
+          <button type="button" class="text-btn" id="vault-stop" data-i18n>Stop syncing</button>
+          <button type="button" class="text-btn" id="vault-delete" data-i18n>Delete from cloud</button>
+        </div>
+        <p class="hint" id="vault-replaced" hidden><span id="vault-replaced-text"></span> <button type="button" class="text-btn" id="vault-putback" data-i18n>Put back</button></p>
+        <p class="msg" id="vault-msg" role="status"></p>
+      </div>
+      <p class="msg warn" id="storage-note" hidden></p>
+    </section>
+
+    <section class="panel card shadow-sm" id="online" aria-labelledby="online-title">
+      <h2 id="online-title" data-i18n>Online</h2>
+      <p class="hint" id="online-note" hidden></p>
+      <div id="online-body"></div>
+    </section>
+
+    <section class="panel mods-page" id="mods" aria-labelledby="mods-title">
+      <div class="mods-hero">
+        <div class="mods-title-copy">
+          <span class="mods-eyebrow">TRPOLARIS / WORKSHOP</span>
+          <h2 id="mods-title" data-i18n>Mod library</h2>
+          <p class="mods-lede" data-i18n>Save mod links, track expected files, and export your mod list.</p>
+        </div>
+        <div class="mods-hero-actions">
+          <span class="mod-count-chip" id="custom-mod-count" aria-live="polite"></span>
+          <button type="button" class="btn" id="packs-check" data-i18n>Check installed packs</button>
+        </div>
+      </div>
+
+      <div class="mods-feature-grid">
+        <section class="mod-tool-card mod-links-card" aria-labelledby="recommended-mods-title">
+          <div class="mod-tool-icon links-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.1 0l3-3A5 5 0 0 0 13 2.9l-1.7 1.7M14 11a5 5 0 0 0-7.1 0l-3 3A5 5 0 0 0 11 21.1l1.7-1.7"/></svg></div>
+          <div class="mod-tool-copy">
+            <span class="mod-tool-eyebrow">COMMUNITY PICKS</span>
+            <h3 id="recommended-mods-title" data-i18n>Recommended packs</h3>
+            <p class="hint" data-i18n>Save mod links, track expected files, and export your mod list.</p>
+            <ul class="pack-list" id="pack-list" aria-live="polite"></ul>
+          </div>
+        </section>
+      </div>
+
+
+      <section class="mods-section saved-mods-section" aria-labelledby="saved-mods-title">
+        <div class="mods-section-head saved-mods-head">
+          <div><span class="mods-eyebrow">YOUR COLLECTION</span><h3 id="saved-mods-title" data-i18n>Mod library</h3></div>
+          <label class="mod-filter-label"><span data-i18n>Filter saved mods by category</span><select id="custom-mod-filter" class="form-select"><option value="" data-i18n>All mod categories</option><option value="vehicle" data-i18n>Vehicle</option><option value="visual" data-i18n>Visuals</option><option value="audio" data-i18n>Audio</option><option value="translation" data-i18n>Translation</option><option value="gameplay" data-i18n>Gameplay</option><option value="other" data-i18n>Other</option></select></label>
+        </div>
+        <ul class="custom-mod-list" id="custom-mod-list"></ul>
+        <p class="hint mod-list-note" data-i18n>The mod list stores names and links only. It does not contain mod files.</p>
+      </section>
+
+      <details class="mod-add-details" id="mod-link-form">
+        <summary><span class="mod-add-plus" aria-hidden="true">+</span><span data-i18n>Add a mod link</span></summary>
+        <div class="mod-add-content">
+          <div class="mod-form-grid">
+            <label><span data-i18n>Mod name</span><input type="text" class="form-control" id="custom-mod-name" maxlength="80" autocomplete="off" data-i18n-attr="placeholder" placeholder="Mod name"></label>
+            <label><span data-i18n>Mod URL</span><input type="url" class="form-control" id="custom-mod-url" maxlength="2048" inputmode="url" autocomplete="url" data-i18n-attr="placeholder" placeholder="https://…"></label>
+            <label><span data-i18n>Mod category</span><select id="custom-mod-category" class="form-select"><option value="vehicle" data-i18n>Vehicle</option><option value="visual" data-i18n>Visuals</option><option value="audio" data-i18n>Audio</option><option value="translation" data-i18n>Translation</option><option value="gameplay" data-i18n>Gameplay</option><option value="other" data-i18n>Other</option></select></label>
+            <label><span data-i18n>Expected game-data path (optional)</span><input type="text" class="form-control" id="custom-mod-path" maxlength="180" autocomplete="off" data-i18n-attr="placeholder" placeholder="e.g. LANGPACKS/turkish/english.bin"></label>
+          </div>
+          <div class="mod-form-actions">
+            <button type="button" class="btn selected" id="custom-mod-add" data-i18n>Add link</button>
+            <button type="button" class="btn" id="custom-mod-export" data-i18n>Export mod list</button>
+            <label class="btn file-btn" data-i18n-html>Import mod list<input type="file" id="custom-mod-import" accept="application/json,.json"></label>
+            <p class="msg" id="custom-mod-status" role="status" aria-live="polite"></p>
+          </div>
+        </div>
+      </details>
+
+      <div class="legacy-vehicle-state" hidden aria-hidden="true">
+        <input type="search" id="garage-search" value="">
+        <input type="checkbox" id="garage-favorites-only">
+        <select id="garage-make-filter"><option value="">All manufacturers</option></select>
+        <select id="garage-class-filter"><option value="">All vehicle classes</option></select>
+        <span id="garage-count"></span><p id="preferred-vehicle-status"></p><div id="garage-cars"></div><p id="garage-empty-state"></p>
+      </div>
+    </section>
+
+    <section class="panel card shadow-sm" id="accessibility" aria-labelledby="accessibility-title">
+      <h2 id="accessibility-title" data-i18n>Accessibility</h2>
+      <p class="hint" data-i18n>These display preferences are saved in this browser and do not change game settings.</p>
+      <div class="accessibility-options">
+        <label class="accessibility-option"><input type="checkbox" id="a11y-large-text"><span data-i18n>Larger text</span></label>
+        <label class="accessibility-option"><input type="checkbox" id="a11y-reduce-motion"><span data-i18n>Reduce animations</span></label>
+        <label class="accessibility-option"><input type="checkbox" id="a11y-high-contrast"><span data-i18n>High contrast</span></label>
+      </div>
+      <p class="hint" data-i18n>Browser zoom remains available on touch devices.</p>
+    </section>
+
+    <section class="panel card shadow-sm platform-updates" id="updates" aria-labelledby="updates-title">
+      <h2 id="updates-title" data-i18n>Updates &amp; security</h2>
+      <p class="hint" data-i18n>The app update check compares this build with app-version.json served by your server.</p>
+      <div class="update-row"><div><span class="hint" data-i18n>Current build</span><strong id="build-current">2026.10.29.02</strong></div><div><span class="hint" data-i18n>Server build</span><strong id="build-server">—</strong></div></div>
+      <div class="row"><button type="button" class="btn" id="updates-check" data-i18n>Check for updates</button><button type="button" class="btn selected" id="updates-reload" data-i18n hidden>Reload</button><button type="button" class="btn" id="first-run-open" data-i18n>First-run setup</button></div>
+      <p class="msg" id="updates-status" role="status" aria-live="polite"></p>
+      <div class="panel-head sub"><h3 data-i18n>Translation quality</h3><button type="button" class="btn" id="i18n-check" data-i18n>Run translation checks</button></div>
+      <p class="hint" data-i18n>Checks available language files for missing text, formatting placeholders and markup tokens.</p>
+      <p class="msg" id="i18n-check-status" role="status" aria-live="polite"></p>
+      <div class="panel-head sub"><h3 data-i18n>Privacy &amp; security</h3><button type="button" class="btn danger" id="clear-app-preferences" data-i18n>Clear app preferences</button></div>
+      <p class="hint" data-i18n>This clears favorites, mod links, saved profiles, accessibility and onboarding preferences; game saves and settings are not deleted.</p>
+      <p class="hint" data-i18n>Game saves are separate from app preferences and are not touched here.</p>
+      <p class="msg" id="privacy-status" role="status" aria-live="polite"></p>
+    </section>
+
+    <section class="panel card shadow-sm diagnostics" id="diagnostics" aria-labelledby="diagnostics-title">
+      <div class="panel-head">
+        <h2 id="diagnostics-title" data-i18n>System diagnostics</h2>
+        <div class="diagnostic-actions">
+          <button type="button" class="btn" id="diagnostics-refresh" data-i18n aria-controls="diagnostic-list">Check again</button>
+          <button type="button" class="btn" id="diagnostics-download" data-i18n>Download diagnostic report</button>
+        </div>
+      </div>
+      <p class="hint diagnostics-intro" data-i18n>Live checks for the browser, security, graphics, storage and game module.</p>
+      <ul class="diagnostic-list" id="diagnostic-list" data-i18n-attr="aria-label" aria-label="System diagnostics"></ul>
+    </section>
+
+    <section class="panel card shadow-sm" id="settings" aria-labelledby="settings-title">
+      <h2 id="settings-title" data-i18n>Settings</h2>
+      <p class="hint" id="settings-note">Saved in this browser. Changes apply the next time you press Play.</p>
+      <div class="profile-manager" id="config-profiles" aria-labelledby="config-profiles-title">
+        <div class="panel-head sub"><h3 id="config-profiles-title" data-i18n>Configuration profiles</h3></div>
+        <p class="hint" data-i18n>This profile contains only validated, supported settings.</p>
+        <div class="profile-controls">
+          <label class="profile-name"><span data-i18n>Profile name</span><input id="config-profile-name" class="form-control" type="text" maxlength="40" autocomplete="off" data-i18n-attr="placeholder" placeholder="Profile name"></label>
+          <button type="button" class="btn" id="config-profile-save" data-i18n>Save current profile</button>
+        </div>
+        <div class="profile-controls">
+          <label class="profile-name"><span data-i18n>Saved profiles in this browser</span><select id="config-profile-pick" class="form-select"><option value="" data-i18n>No saved profiles yet.</option></select></label>
+          <button type="button" class="btn" id="config-profile-apply" data-i18n>Apply profile</button>
+          <button type="button" class="btn" id="config-profile-export" data-i18n>Export profile</button>
+          <button type="button" class="btn danger" id="config-profile-delete" data-i18n>Delete profile</button>
+          <label class="btn file-btn" data-i18n-html>Import profile<input type="file" id="config-profile-import" accept="application/json,.json"></label>
+        </div>
+        <p class="msg" id="config-profile-status" role="status" aria-live="polite"></p>
+      </div>
+      <div class="preset-panel" aria-labelledby="preset-title">
+        <div class="preset-heading">
+          <h3 id="preset-title" data-i18n>Quick presets</h3>
+          <p class="hint" data-i18n>Choose a starting point; all options remain editable below.</p>
+        </div>
+        <div class="preset-actions">
+          <button type="button" class="preset-button" data-preset="performance"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m13 2-9 12h7l-1 8 10-13h-7z"/></svg><span data-i18n>Performance</span></button>
+          <button type="button" class="preset-button" data-preset="balanced"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5v17M3.5 12h17"/></svg><span data-i18n>Balanced</span></button>
+          <button type="button" class="preset-button" data-preset="quality"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 2 2.3 6.7L21 11l-6.7 2.3L12 20l-2.3-6.7L3 11l6.7-2.3zM19 16l1.1 2.9L23 20l-2.9 1.1L19 24l-1.1-2.9L15 20l2.9-1.1z"/></svg><span data-i18n>High quality</span></button>
+        </div>
+      </div>
+      <div id="settings-body"></div>
+      <div class="raw">
+        <button type="button" class="text-btn" id="settings-reset-all" data-i18n>Reset all settings</button>
+        <details id="settings-raw">
+          <summary data-i18n>Edit settings.ini as text</summary>
+          <textarea id="settings-text" spellcheck="false" rows="20" wrap="off" aria-label="settings.ini"></textarea>
+          <div class="row">
+            <button type="button" class="btn" id="settings-text-save" data-i18n>Save file</button>
+            <span class="hint" id="settings-text-msg" role="status"></span>
+          </div>
+        </details>
+      </div>
+    </section>
+
+    <section class="panel card shadow-sm" id="game-data" aria-labelledby="game-data-title">
+      <h2 id="game-data-title" data-i18n>Game data on this PC</h2>
+      <p class="hint" id="cache-info">Counting…</p>
+      <div class="bar" id="data-bar" role="progressbar" data-i18n-attr="aria-label" aria-label="Game data preload" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" hidden>
+        <div class="bar-fill"></div>
+      </div>
+      <div class="row">
+        <button type="button" class="btn" id="fetch-all" hidden>Preload the game data</button>
+        <button type="button" class="btn" id="clear-cache" data-i18n>Delete the game data on this PC</button>
+      </div>
+      <p class="msg" id="data-msg" role="status"></p>
+    </section>
+  </div>
+  </div>
+</main>
+
+<div class="stage" id="stage" hidden>
+  <button type="button" class="stage-menu" id="stage-menu" tabindex="-1" data-i18n-attr="aria-label" aria-label="Menu" data-nfsu2-ui hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h14M5 12h14M5 17h14"/></svg></button>
+  <div class="hud-fps" id="fps" hidden></div>
+  <div class="toasts">
+    <div class="toast queue" id="queue" hidden></div>
+    <div class="toast" id="toast" hidden></div>
+  </div>
+  <div class="toast away" id="away" role="status" hidden></div>
+  <div class="toast away" id="removed" role="alert" hidden></div>
+  <div class="notices" id="notices" role="status" aria-live="polite"></div>
+  <div class="lobby" id="lobby" role="status" aria-live="polite" hidden></div>
+  <div class="lobby-cover" id="lobby-cover" role="status" aria-live="polite" hidden></div>
+</div>
+
+<div class="page-toast" id="page-toast" role="status" aria-live="polite"></div>
+
+<dialog class="dlg first-run" id="first-run-dialog" aria-labelledby="first-run-title" aria-describedby="first-run-description">
+  <form method="dialog" class="dlg-head"><h2 id="first-run-title" data-i18n>First-run setup</h2><button type="submit" class="btn" value="later" data-i18n>Later</button></form>
+  <p id="first-run-description" class="hint" data-i18n>Welcome to TRPOLARIS. Choose a language, review compatibility and select a starting performance profile.</p>
+  <div class="first-run-controls">
+    <label><span data-i18n>Language</span><select id="first-run-language" class="form-select"></select></label>
+    <label><span data-i18n>Choose a profile</span><select id="first-run-profile" class="form-select"><option value="balanced" data-i18n>Balanced</option><option value="performance" data-i18n>Performance</option><option value="quality" data-i18n>High quality</option></select></label>
+  </div>
+  <label class="accessibility-option first-run-skip"><input type="checkbox" id="first-run-skip"><span data-i18n>Don't show this again</span></label>
+  <div class="row end"><a class="btn" href="#diagnostics" id="first-run-diagnostics" data-i18n>System diagnostics</a><a class="btn" href="#settings" id="first-run-settings" data-i18n>Settings</a><button type="button" class="btn selected" id="first-run-continue" data-i18n>Continue</button></div>
+</dialog>
+
+<dialog class="dlg help" id="help" aria-labelledby="help-title">
+  <form method="dialog" class="dlg-head">
+    <h2 id="help-title" data-i18n>Controls</h2>
+    <button class="btn" value="close" data-i18n>Close</button>
+  </form>
+  <div id="help-body"></div>
+</dialog>
+
+<dialog class="dlg menu" id="menu" aria-labelledby="menu-title">
+  <h2 id="menu-title" data-i18n>Menu</h2>
+  <p class="hint" data-i18n>The game keeps running behind this menu.</p>
+  <p class="hint" id="menu-save"></p>
+  <div class="menu-actions">
+    <button type="button" class="btn selected" data-act="resume" data-i18n>Back to the game</button>
+    <button type="button" class="btn" data-act="fullscreen">Full screen</button>
+    <button type="button" class="btn" data-act="fps">Frame-rate counter: off</button>
+    <button type="button" class="btn" data-act="solid" data-i18n-attr="title" title="On: you drive through the other players' cars, and they through yours. Off: you collide with them." hidden>Ghost mode: off</button>
+    <button type="button" class="btn" data-act="crews" aria-haspopup="dialog" hidden>Crews: none</button>
+    <div class="menu-radio">
+      <button type="button" class="btn" data-act="radio" aria-pressed="false"><span id="radio-label">Radio: off</span></button>
+      <button type="button" class="icon" data-act="radio-folder" data-i18n-attr="aria-label title" aria-label="Music folder" title="Music folder"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h6l2 2h10v11H3z"/></svg></button>
+      <button type="button" class="icon" data-act="playlist" data-i18n-attr="aria-label title" aria-label="Playlist" title="Playlist"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h12M9 12h12M9 18h12M4 6h.01M4 12h.01M4 18h.01"/></svg></button>
+    </div>
+    <button type="button" class="btn" data-act="help" data-i18n>Controls</button>
+    <button type="button" class="btn" data-act="offline" hidden data-i18n>Stop waiting: play offline</button>
+    <button type="button" class="btn" data-act="log" data-i18n>Download log</button>
+    <button type="button" class="btn danger" data-act="quit">Quit game</button>
+  </div>
+</dialog>
+
+<!-- the menu's Crews (a game in free roam), over the menu; after it in the page, so it is the top dialog (padnav.ts) -->
+<dialog class="dlg crews-pop" id="crews-pop" aria-labelledby="crews-pop-title" aria-describedby="crews-pop-help">
+  <h2 id="crews-pop-title" data-i18n>Crews</h2>
+  <p class="hint" id="crews-pop-help" data-i18n>Friends who type the same crew name always see each other in free roam, however far apart, with names and map arrows in the crew's colour. Up to 4 crews. Anyone who types the name joins.</p>
+  <div class="crews-pop-box" id="crews-pop-box"></div>
+  <div class="row end">
+    <button type="button" class="btn selected" data-act="crews-done" data-i18n>Done</button>
+  </div>
+</dialog>
+
+<dialog class="dlg shot-view" id="shot-view" aria-labelledby="shot-title">
+  <form method="dialog" class="dlg-head">
+    <div>
+      <h2 id="shot-title" data-i18n>Screenshot</h2>
+      <p class="hint" id="shot-when"></p>
+    </div>
+    <button class="btn" value="close" data-i18n>Close</button>
+  </form>
+  <img id="shot-img" alt="" loading="lazy" decoding="async">
+  <div class="shot-foot">
+    <button type="button" class="btn" data-act="newer" aria-keyshortcuts="ArrowLeft" data-i18n>‹ Newer</button>
+    <button type="button" class="btn" data-act="older" aria-keyshortcuts="ArrowRight" data-i18n>Older ›</button>
+    <span class="hint" id="shot-meta"></span>
+    <button type="button" class="btn" data-act="download" data-i18n>Download</button>
+    <button type="button" class="btn danger" data-act="delete" data-i18n>Delete</button>
+  </div>
+</dialog>
+
+<dialog class="dlg confirm" id="claim-check" aria-labelledby="claim-check-title">
+  <h2 id="claim-check-title"></h2>
+  <p class="claim-about"></p>
+  <div class="claim-check"></div>
+  <div class="row end"><button type="button" class="btn claim-no"></button></div>
+</dialog>
+<!-- restored original radio playlist dialog -->
+<dialog class="dlg playlist" id="playlist" aria-labelledby="playlist-title">
+  <form method="dialog" class="dlg-head">
+    <h2 id="playlist-title" data-i18n>Playlist</h2>
+    <button class="btn" value="close" data-i18n>Back</button>
+  </form>
+  <label class="track" id="playlist-shuffle"><span data-i18n>Shuffle</span><input type="checkbox" class="switch" role="switch"></label>
+  <div id="playlist-body"></div>
+</dialog>
+<dialog class="dlg confirm" id="confirm" aria-labelledby="confirm-title">
+  <form method="dialog">
+    <h2 id="confirm-title"></h2>
+    <div id="confirm-body"></div>
+    <div class="row end">
+      <button class="btn" value="cancel" id="confirm-cancel" formnovalidate>Cancel</button>
+      <button class="btn selected" value="ok" id="confirm-ok"></button>
+    </div>
+  </form>
+</dialog>
+
+</body>
+</html>
