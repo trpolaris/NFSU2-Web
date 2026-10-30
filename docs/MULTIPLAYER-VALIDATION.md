@@ -35,16 +35,45 @@ export NFSU2_DATA="/path/to/your/Need for Speed Underground 2"
 test -f "$NFSU2_DATA/SPEED2.EXE"
 ```
 
-Önce sunucu ve birim testlerini, sonra web derlemesini hazırlayın:
+Önce WSL 2 içinde geliştirme dalının klonuna geçin. Windows'tan başlatılan WSL oturumunda örnek yol:
 
 ```bash
-bash web/server-rs/build.sh --test
+cd /mnt/c/Users/TRPOLARIS/Desktop/NFSU2-Web-stable
+git fetch origin
+git switch -C feature/online-multiplayer --track origin/feature/online-multiplayer
+```
+
+Oyun klasörünüz farklı bir konumdaysa `NFSU2_DATA` değerini ona göre ayarlayın. Bu örnek, önceki yerel kurulumda kullanılan Windows oyun klasörünü WSL yolu olarak gösterir:
+
+```bash
+export NFSU2_DATA="/mnt/c/Program Files (x86)/Need For Speed Underground 2"
+test -f "$NFSU2_DATA/SPEED2.EXE"
+```
+
+Kaynak kodundan gerçek oyun çalışma modülünü ve web paketini üretin. Bu işlem yalnızca size ait yasal oyun kopyasını okur; oyun dosyalarını depoya eklemeyin:
+
+```bash
+web/gen.sh "$NFSU2_DATA/SPEED2.EXE"
+web/build.sh
 cd web
 npm ci
 npm run check
 npm run build
 npx playwright install chrome
 cd ..
+```
+
+Ardından Rust testlerini çalıştırın ve gerçek sunucu ikilisini oluşturun:
+
+```bash
+cargo test --manifest-path web/server-rs/Cargo.toml --workspace
+bash web/server-rs/build.sh
+```
+
+İsteğe bağlı olarak web'in bütün Node regresyon testlerini de yerelde çalıştırın:
+
+```bash
+node --test --test-concurrency=1 web/test/*.test.mjs
 ```
 
 ### 2 oyunculu gerçek Online yarışı
