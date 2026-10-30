@@ -39,7 +39,6 @@ jobs:
     env:
       CARGO_TERM_COLOR: always
       RUST_BACKTRACE: 1
-      CARGO_TARGET_DIR: ${{ github.workspace }}/out/web/server-rs/target
     steps:
       - name: Check out source
         uses: actions/checkout@v5
@@ -58,7 +57,7 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: |
-            web/server-rs -> ../../out/web/server-rs/target
+            web/server-rs -> target
 
       - name: Install native build tools
         run: |
@@ -86,7 +85,7 @@ jobs:
         run: |
           cargo build --manifest-path web/server-rs/Cargo.toml -p nfsu2-server -p nfsu2-roamload
           mkdir -p out/web/server-rs
-          cp out/web/server-rs/target/debug/nfsu2-server out/web/server-rs/nfsu2-server
+          cp web/server-rs/target/debug/nfsu2-server out/web/server-rs/nfsu2-server
 
       - name: Install Chromium for browser-based tests
         working-directory: web
