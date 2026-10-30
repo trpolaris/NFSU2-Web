@@ -128,3 +128,354 @@ textarea{width:100%;min-height:120px}input::placeholder,textarea::placeholder{co
 #controls .keyboard-map-grid dd,#controls .site-shortcut-grid dd{margin:0;color:#c3cec5;text-align:right;font-size:.78rem;line-height:1.4}
 #controls .touch-options-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
 #controls .touch-setting-card{display:flex;flex-direction:column;min-width:0;padding:15px;border:1px solid var(--line);border-radius:11px;background:#121c1e}
+
+
+
+/* -------------------------------------------------------------------------
+   NIGHTSHIFT refinement pass — stable forms, compact launch, accessible UI.
+   These scoped rules deliberately win over the older compatibility theme.
+   ------------------------------------------------------------------------- */
+
+/* Language picker: no globe glyph sitting inside the native select's box. */
+.experience-shell .lang-pick{display:inline-flex;align-items:center;gap:0;min-width:0}
+.experience-shell .lang-pick svg{display:none!important}
+.experience-shell .lang-pick select{min-width:104px;max-width:150px;width:auto;padding-inline:11px 28px}
+
+/* A smaller launch console; the module transfer remains visible until it is ready. */
+.home-page .play-console{width:min(100%,410px);max-width:410px;padding:13px 14px}
+.home-page .play-console-head{margin-bottom:9px}
+.home-page .play-console-head h2{font-size:1.12rem}
+.home-page .play-console-eyebrow{font-size:.58rem}
+.home-page .play-console-mark{padding:4px 7px;font-size:.57rem}
+.home-page .play{min-height:48px;font-size:.93rem;letter-spacing:.06em}
+.home-page .play svg{width:18px;height:18px}
+.home-page .launch-progress-row{margin-top:10px;font-size:.66rem}
+.home-page .launch-progress{height:5px;margin-top:6px}
+.module-download-meta{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;min-width:0;margin-top:7px}
+.module-download-meta p{min-width:0;margin:0;color:var(--muted);font-size:.67rem;line-height:1.4;overflow-wrap:anywhere}
+#module-download-percent{flex:0 0 auto;color:var(--acid);font:700 .65rem var(--mono);font-variant-numeric:tabular-nums}
+.home-page .play-console .bar-fill{min-width:0}
+.home-page .play-console .play:disabled{filter:saturate(.35);opacity:.55;cursor:wait}
+
+/* First-run: one deterministic dialog layout on its first automatic open and later manual opens. */
+#first-run-dialog.first-run{
+  box-sizing:border-box;
+  width:min(580px,calc(100vw - 28px));
+  max-width:580px;
+  max-height:min(88dvh,760px);
+  margin:auto;
+  padding:clamp(18px,3vw,28px);
+  overflow:auto;
+  border:1px solid rgba(212,255,56,.22);
+  border-radius:20px;
+  background:linear-gradient(145deg,#172326,#0e1719);
+  color:var(--text);
+  box-shadow:0 28px 90px rgba(0,0,0,.58);
+}
+#first-run-dialog::backdrop{background:rgba(2,7,8,.78);backdrop-filter:blur(10px)}
+#first-run-dialog .dlg-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 13px}
+#first-run-dialog .dlg-head h2{margin:0;color:var(--text);font-size:clamp(1.3rem,3.4vw,1.8rem)}
+#first-run-dialog #first-run-description{margin:0 0 18px;color:var(--muted);font-size:.85rem;line-height:1.6}
+#first-run-dialog .first-run-controls{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;width:100%;margin:0 0 13px}
+#first-run-dialog .first-run-controls>label{display:grid;grid-template-columns:minmax(0,1fr);gap:6px;min-width:0;color:var(--muted);font-size:.76rem}
+#first-run-dialog .first-run-controls select{display:block;width:100%;min-width:0;max-width:100%;min-height:42px}
+#first-run-dialog .first-run-skip{display:flex;align-items:center;gap:10px;width:100%;min-width:0;margin:0 0 13px;padding:12px;border:1px solid var(--line);border-radius:10px;background:#0c1416}
+#first-run-dialog .first-run-skip input{flex:0 0 auto;margin:0;accent-color:var(--acid)}
+#first-run-dialog .row.end{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px;margin-top:6px}
+#first-run-dialog .row.end>*{flex:0 1 auto;min-width:0}
+#first-run-dialog .row.end .btn.selected{background:var(--acid);border-color:var(--acid);color:var(--acid-ink)}
+#first-run-dialog .btn{min-height:40px}
+#first-run-dialog[open]{display:block}
+
+/* Crews: chips get their own wrapping row; the join field and plus button are one control. */
+.crew-line{
+  display:flex;
+  flex-direction:column;
+  align-items:stretch;
+  gap:10px;
+  width:100%;
+  min-width:0;
+  overflow:visible;
+}
+.crew-line ul.crews{
+  display:flex!important;
+  flex:0 1 auto;
+  flex-wrap:wrap;
+  align-items:center;
+  gap:7px;
+  width:100%;
+  min-width:0;
+  margin:0;
+  padding:0;
+  list-style:none;
+  overflow:visible;
+}
+.crew-line .crew{flex:0 1 auto;min-width:0;max-width:100%}
+.crew-line .crew-add{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) 42px;
+  align-items:center;
+  gap:4px;
+  flex:0 1 440px;
+  width:min(100%,440px);
+  max-width:100%;
+  min-width:0;
+  height:46px;
+  padding:3px;
+  overflow:visible;
+  border:1px solid var(--line-strong);
+  border-radius:12px;
+  background:#0a1214;
+}
+.crew-line .crew-add input[type="text"],
+#settings .crew-line .crew-add input[type="text"],
+#crews-pop-box .crew-line .crew-add input[type="text"]{
+  display:block;
+  width:100%;
+  min-width:0;
+  max-width:100%;
+  height:38px;
+  padding:0 10px;
+  border:0;
+  border-radius:8px;
+  background:transparent;
+  color:var(--text);
+  box-shadow:none;
+}
+.crew-line .crew-add .crew-join{
+  display:grid;
+  place-items:center;
+  width:38px;
+  min-width:38px;
+  max-width:38px;
+  height:38px;
+  min-height:38px;
+  margin:0;
+  padding:0;
+  border:1px solid rgba(212,255,56,.28);
+  border-radius:9px;
+  background:#1b292b;
+  color:var(--acid);
+  flex:none;
+}
+.crew-line .crew-add .crew-join:disabled{opacity:.35}
+.crew-line .crew-add .crew-join svg{display:block;width:17px;height:17px;max-width:17px;max-height:17px}
+.crew-line+.crews-big,.crew-line+.set-note{margin-top:3px}
+#crews-pop-box .crew-line{width:100%}
+
+/* Mod workshop: explicitly size its decorative icon and give every card a stable layout. */
+#mods .mods-hero{display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:16px;padding:0 0 18px;margin:0 0 18px;border:0;border-bottom:1px solid var(--line);border-radius:0;background:transparent}
+#mods .mods-feature-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;min-width:0}
+#mods .mod-tool-card{
+  display:grid;
+  grid-template-columns:46px minmax(0,1fr);
+  align-items:start;
+  gap:14px;
+  min-width:0;
+  padding:18px;
+  border:1px solid var(--line);
+  border-radius:15px;
+  background:linear-gradient(145deg,#142023,#0e1719);
+}
+#mods .mod-tool-icon{
+  display:grid;
+  place-items:center;
+  width:44px;
+  height:44px;
+  min-width:44px;
+  min-height:44px;
+  border:1px solid rgba(212,255,56,.24);
+  border-radius:12px;
+  background:rgba(212,255,56,.06);
+  color:var(--acid);
+  overflow:hidden;
+}
+#mods .mod-tool-icon svg{display:block;width:21px!important;height:21px!important;max-width:21px!important;max-height:21px!important;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+#mods .mod-tool-copy{min-width:0}
+#mods .mod-tool-copy h3{margin:4px 0 6px}
+#mods .mod-tool-copy>.hint{margin:0 0 12px}
+#mods .pack-list{display:grid;grid-template-columns:minmax(0,1fr);gap:8px;margin:0;padding:0;list-style:none}
+#mods .pack-list>li,#mods .custom-mod-list>li{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+  min-width:0;
+  padding:13px;
+  border:1px solid var(--line);
+  border-radius:11px;
+  background:#0d1618;
+}
+#mods .pack-copy,#mods .custom-mod-info{display:grid;gap:5px;min-width:0}
+#mods .pack-copy h4{margin:0;color:var(--text);font-size:.86rem}
+#mods .pack-copy p{margin:0;line-height:1.5}
+#mods .pack-actions,#mods .custom-mod-actions{display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:7px;min-width:0}
+#mods .pack-actions .btn{min-height:34px;padding:7px 10px;font-size:.7rem}
+#mods .pack-status{display:inline-flex;align-items:center;max-width:100%;padding:5px 8px;border:1px solid var(--line);border-radius:7px;color:var(--muted);font-size:.66rem;line-height:1.25;overflow-wrap:anywhere}
+#mods .pack-status[data-state="installed"]{color:var(--acid);border-color:#d4ff3845}
+#mods .pack-status[data-state="missing"]{color:var(--warn);border-color:#f3c86a45}
+#mods .saved-mods-head{display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:12px}
+#mods .mod-filter-label{display:grid;gap:6px;min-width:min(100%,220px)}
+#mods .custom-mod-list{display:grid;grid-template-columns:minmax(0,1fr);gap:8px;margin:0;padding:0;list-style:none}
+#mods .custom-mod-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:12px;min-width:0}
+#mods .custom-mod-info>a{min-width:0;color:var(--text);font-weight:800;overflow-wrap:anywhere}
+#mods .custom-mod-meta{display:flex;flex-wrap:wrap;align-items:center;gap:7px;color:var(--muted);font-size:.7rem}
+#mods .custom-mod-actions{justify-content:flex-end}
+#mods .mod-add-details{margin-top:16px;border:1px solid var(--line);border-radius:13px;background:#0d1618}
+#mods .mod-add-details>summary{display:flex;align-items:center;gap:10px;min-height:48px;padding:10px 14px;color:var(--text)}
+#mods .mod-add-content{margin:0;border:0;border-top:1px solid var(--line);border-radius:0;background:transparent}
+#mods .mod-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+#mods .mod-form-grid label{display:grid;gap:6px;min-width:0}
+#mods .mod-form-grid input,#mods .mod-form-grid select{width:100%;min-width:0}
+#mods .mod-list-note{margin-top:12px}
+
+/* Cloud keyphrase: input, masked text, optional key download, and eye remain aligned. */
+#saves .vault{min-width:0;width:100%;padding:18px;border:1px solid var(--line);border-radius:14px;background:#101a1c}
+#saves .vault-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:stretch;gap:9px;width:100%;min-width:0;margin:12px 0}
+#saves .keybox{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) 36px 36px;
+  align-items:center;
+  gap:3px;
+  width:100%;
+  min-width:0;
+  min-height:44px;
+  height:44px;
+  padding:3px;
+  border:1px solid var(--line-strong);
+  border-radius:11px;
+  background:#0a1214;
+}
+#saves .keyfield{position:relative;display:block;align-self:stretch;width:100%;min-width:0;overflow:hidden}
+#saves .keyfield input,#saves .keymask{
+  display:block;
+  box-sizing:border-box;
+  width:100%;
+  min-width:0;
+  height:38px;
+  padding:0 10px;
+  border:0;
+  border-radius:8px;
+  font: .78rem/38px var(--mono);
+}
+#saves .keyfield input{background:transparent;color:var(--acid);box-shadow:none}
+#saves .keymask{position:absolute;inset:0;overflow:hidden;white-space:pre;color:var(--acid);pointer-events:none}
+#saves .keybox.masked input{color:transparent;caret-color:var(--acid)}
+#saves .keybox:not(.masked) .keymask{display:none}
+#saves .keybox .icon-btn{
+  display:grid;
+  place-items:center;
+  flex:none;
+  width:34px;
+  min-width:34px;
+  max-width:34px;
+  height:34px;
+  min-height:34px;
+  margin:0;
+  padding:0;
+  border:1px solid var(--line);
+  border-radius:8px;
+  background:#172427;
+  color:var(--muted);
+}
+#saves .keybox .icon-btn svg{display:block;width:17px;height:17px;max-width:17px;max-height:17px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+#saves .keybox .icon-btn[hidden]{display:none!important}
+#saves #vault-load{min-width:66px;min-height:44px}
+#saves .vault-row+.hint{margin-top:8px}
+#saves .vault .panel-head{align-items:center}
+
+/* The controller page: clear keyboard caps, spaced tabs and the same diagram for both families. */
+#controls .controls-tabs .tab{gap:10px}
+#controls .controls-tabs .tab-number{flex:0 0 auto;margin-left:6px;padding-left:7px;border-left:1px solid currentColor;opacity:.7}
+#controls .keyboard-map-grid>div,#controls .site-shortcut-grid>div{min-height:66px}
+#controls .keyboard-map-grid dt,#controls .site-shortcut-grid dt{display:flex;flex-wrap:wrap;align-items:center;gap:5px}
+#controls .pad{max-width:900px}
+#controls .pad-foot{gap:14px}
+#controls .wheel{min-width:0}
+#controls .wheel .keys{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+
+/* Project pages: concise feature cards, a real project intro and readable credits. */
+.about-section-kicker,.about-feature-index{display:block;color:var(--acid);font:800 .6rem/1.4 var(--mono);letter-spacing:.15em}
+.about-section-kicker{margin-bottom:8px}
+.about-changes-page>h2,.about-project-page>h2{padding-bottom:14px;border-bottom:1px solid var(--line)}
+.about-lead{max-width:86ch;margin:0 0 18px;color:#c6d1c8}
+.about-feature-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.about-feature{display:grid;align-content:start;gap:8px;min-width:0;padding:15px;border:1px solid var(--line);border-radius:12px;background:#101a1c}
+.about-feature strong{color:var(--text);font-size:.88rem}
+.about-project-lead{display:flex;align-items:flex-start;gap:15px;padding:16px;border:1px solid var(--line);border-radius:13px;background:#101a1c}
+.about-project-mark{display:grid;place-items:center;flex:0 0 58px;width:58px;height:58px;border:1px solid rgba(212,255,56,.22);border-radius:14px;background:#0b1315}
+.about-project-mark img{display:block;width:46px;height:46px;object-fit:contain}
+.about-project-lead .prose{min-width:0;max-width:76ch}
+.about-info-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin-top:12px}
+.about-info-card{display:grid;align-content:start;gap:8px;min-width:0;padding:15px;border:1px solid var(--line);border-radius:12px;background:#101a1c}
+.about-info-card h3{margin:0;color:var(--text);font-size:.9rem}
+.about-info-card .prose{min-width:0;font-size:.78rem;line-height:1.6;overflow-wrap:anywhere}
+.about-info-card .prose a{overflow-wrap:anywhere}
+.about-credits{margin-top:18px;padding:17px;border:1px solid var(--line);border-radius:13px;background:#0d1618}
+.about-credits-heading{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:10px}
+.about-credits-heading h3{margin:0}
+.about-credits .prose{max-width:100%;font-size:.77rem;line-height:1.7;color:var(--muted)}
+
+/* Accessibility preferences now have direct visual effects, not just stored flags. */
+html[data-large-text]{font-size:112.5%}
+html[data-large-text] body{font-size:1rem}
+html[data-large-text] .hint,html[data-large-text] .msg,html[data-large-text] .controls-lede,
+html[data-large-text] .mods-lede,html[data-large-text] .about-info-card .prose{font-size:1rem;line-height:1.65}
+html[data-large-text] .quick-link,html[data-large-text] .btn,html[data-large-text] .text-btn{font-size:.86rem}
+html[data-reduce-motion] *,html[data-reduce-motion] *::before,html[data-reduce-motion] *::after{
+  scroll-behavior:auto!important;
+  animation-duration:.001ms!important;
+  animation-iteration-count:1!important;
+  transition-duration:.001ms!important;
+  caret-color:auto!important;
+}
+html[data-high-contrast]{
+  --text:#fff;
+  --muted:#e0e8e1;
+  --quiet:#c3d0c7;
+  --line:rgba(235,248,239,.3);
+  --line2:rgba(235,248,239,.52);
+}
+html[data-high-contrast] .panel,
+html[data-high-contrast] .home-quick-section,
+html[data-high-contrast] .landing-hero,
+html[data-high-contrast] .controls-tab-panel,
+html[data-high-contrast] .about-feature,
+html[data-high-contrast] .about-info-card{
+  border-color:rgba(235,248,239,.5);
+}
+html[data-high-contrast] .hint,html[data-high-contrast] .msg,
+html[data-high-contrast] .about-credits .prose{color:#edf5ee}
+html[data-high-contrast] .btn,html[data-high-contrast] .form-control,
+html[data-high-contrast] .form-select,html[data-high-contrast] input,html[data-high-contrast] select{
+  border-color:rgba(235,248,239,.65);
+}
+html[data-high-contrast] a{color:#e4ff85;text-decoration:underline}
+
+/* Responsive repairs for the newly rebuilt controls, forms and project cards. */
+@media(max-width:700px){
+  #first-run-dialog.first-run{width:calc(100vw - 20px);max-height:90dvh;padding:17px}
+  #first-run-dialog .first-run-controls{grid-template-columns:minmax(0,1fr);gap:10px}
+  #first-run-dialog .row.end{justify-content:stretch}
+  #first-run-dialog .row.end>*{flex:1 1 115px;text-align:center}
+  .home-page .play-console{width:100%;max-width:390px}
+  #mods .mod-tool-card{grid-template-columns:38px minmax(0,1fr);gap:10px;padding:13px}
+  #mods .mod-tool-icon{width:38px;height:38px;min-width:38px;min-height:38px}
+  #mods .mod-tool-icon svg{width:19px!important;height:19px!important}
+  #mods .pack-list>li,#mods .custom-mod-list>li{flex-direction:column;align-items:stretch}
+  #mods .pack-actions,#mods .custom-mod-actions{justify-content:flex-start}
+  #mods .custom-mod-row{grid-template-columns:minmax(0,1fr)}
+  #controls .keyboard-map-grid>div,#controls .site-shortcut-grid>div{align-items:flex-start}
+  .about-feature-grid,.about-info-grid{grid-template-columns:minmax(0,1fr)}
+  .about-project-lead{gap:10px;padding:13px}
+  .about-project-mark{flex-basis:46px;width:46px;height:46px}
+  .about-project-mark img{width:36px;height:36px}
+}
+@media(max-width:420px){
+  #saves .vault-row{grid-template-columns:minmax(0,1fr)}
+  #saves #vault-load{width:100%}
+  .module-download-meta p{font-size:.62rem}
+  #controls .controls-tabs .tab{padding-inline:7px;font-size:.68rem}
+  #controls .controls-tabs .tab-number{margin-left:3px;padding-left:4px}
+  .about-project-lead{flex-direction:column}
+}
