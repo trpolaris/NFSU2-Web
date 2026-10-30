@@ -11,7 +11,7 @@
 //! - `PRI` is only ever the HTTP/2 preface: a 400 either way
 //! - header lines end in CRLF (a bare LF or CR is a 400), names are tokens followed at once by `:`, values are
 //!   tab, space, visible ASCII or obs-text; a line that starts with whitespace (obsolete folding) is a 400
-//! - Content-Length: digits and trailing spaces, once, never with Transfer-Encoding; Transfer-Encoding: chunked only
+//! - Content-Length: digits and trailing spaces or tabs, once, never with Transfer-Encoding; Transfer-Encoding: chunked only
 //!   as the last coding, once (a request whose last coding is not chunked is read, then answered 400)
 //! - chunk sizes in hex, extensions as tokens or quoted strings, CRLF everywhere, trailers as header lines
 
@@ -693,8 +693,8 @@ impl Parser {
                         continue;
                     }
                     if b == b'\r' {
-                        if self.special == Special::ContentLength {
-                            // llhttp: "Empty Content-Length"
+                        if matches!(self.special, Special::ContentLength | Special::TransferEncoding) {
+                            // llhttp: "Empty Content-Length" / "Empty Transfer-Encoding"
                             return (i, self.fail(ClientError::Parse));
                         }
                         self.st = St::ValueLf;
@@ -898,7 +898,7 @@ impl Parser {
                     }
                     self.cl = Cl::Digits;
                 }
-                (Cl::Digits | Cl::Spaces, b' ') => self.cl = Cl::Spaces,
+                (Cl::Digits | Cl::Spaces, b' ' | b'\t') => self.cl = Cl::Spaces,
                 _ => return Some(ClientError::Parse),
             },
             Special::TransferEncoding => loop {
@@ -1067,25 +1067,19 @@ fn run_of(s: &[u8], ok: impl Fn(u8) -> bool) -> usize {
     s.iter().position(|&b| !ok(b)).unwrap_or(s.len())
 }
 
-/// The tokens of a Connection header as llhttp reads them: close, keep-alive or upgrade, each between commas, with
-/// leading whitespace and trailing spaces (not tabs: llhttp's rule), case-insensitive.
+/// Node recognizes Connection tokens with a non-word boundary around each token, including tabs and punctuation.
+/// Match its behavior with the same helper used for Node's other token checks.
 pub(crate) fn connection_flags(v: &[u8]) -> u16 {
+    let v = latin1(v);
     let mut flags = 0;
-    for token in v.split(|&b| b == b',') {
-        let mut t = token;
-        while let [b' ' | b'\t', rest @ ..] = t {
-            t = rest;
-        }
-        while let [rest @ .., b' '] = t {
-            t = rest;
-        }
-        if t.eq_ignore_ascii_case(b"close") {
-            flags |= F_CONNECTION_CLOSE;
-        } else if t.eq_ignore_ascii_case(b"keep-alive") {
-            flags |= F_CONNECTION_KEEP_ALIVE;
-        } else if t.eq_ignore_ascii_case(b"upgrade") {
-            flags |= F_CONNECTION_UPGRADE;
-        }
+    if crate::head::has_token(&v, "close") {
+        flags |= F_CONNECTION_CLOSE;
+    }
+    if crate::head::has_token(&v, "keep-alive") {
+        flags |= F_CONNECTION_KEEP_ALIVE;
+    }
+    if crate::head::has_token(&v, "upgrade") {
+        flags |= F_CONNECTION_UPGRADE;
     }
     flags
 }
