@@ -38,6 +38,7 @@ test('t(), tn() and tvars(): English, then a language\'s text and plural forms',
   const I = await import('data:text/javascript;base64,' + Buffer.from(out.outputFiles[0].text).toString('base64'));
   assert.deepEqual([...I.LANGUAGES].filter(l => l !== 'english').sort(), [...LANGUAGE_FILES].sort());
   for (const l of I.LANGUAGES) assert.ok(I.LOCALE[l] && I.NATIVE[l], l);
+  assert.equal(I.lastLanguage(), 'turkish', 'a browser without a saved language starts in Turkish');
   assert.equal(I.t('Saved: {what}, {value}.', { what: 'Movies', value: 'off' }), 'Saved: Movies, off.');
   assert.equal(I.tn(1, '{n} lap', '{n} laps'), '1 lap');
   assert.equal(I.tn(5, '{n} lap', '{n} laps'), '5 laps');
