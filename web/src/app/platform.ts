@@ -7,7 +7,7 @@ import { checkSetting } from './settings';
 
 
 
-export const APP_BUILD_VERSION = '2026.10.29.05';
+export const APP_BUILD_VERSION = '2026.10.30.02';
 // Keep messages used through conditional/dynamic paths in the translation catalogue.
 const PLATFORM_TEXT_KEYS = [
   N('Add to favorites'), N('Remove from favorites'), N('Not found on server'), N('Manifest unavailable in this preview.'),
@@ -502,7 +502,7 @@ async function checkUpdates() {
     else $('#updates-status').textContent = t("You're up to date.");
   } catch (e) {
     $('#build-server').textContent = '—';
-    $('#updates-status').textContent = t('Version information is not available on this server.');
+    $('#updates-status').textContent = `${t('Version information is not available on this server.')} (${e instanceof Error ? e.message : String(e)})`;
   } finally { button.disabled = false; button.removeAttribute('aria-busy'); }
 }
 
@@ -552,7 +552,19 @@ function wireFirstRun(settings: SettingsPanel, log: (line: string) => void) {
   };
   populate();
   onLanguage(populate);
-  $<HTMLButtonElement>('#first-run-open').onclick = () => { populate(); if (!dialog.open) dialog.showModal(); };
+  const showFirstRun = async () => {
+    populate();
+    if (dialog.open) return;
+    // Wait for the page's fonts and first layout pass: the automatic first open
+    // must have the same measured layout as a dialog opened later by the user.
+    try { await document.fonts.ready; } catch { /* system fonts remain usable */ }
+    await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+    if (!dialog.open) {
+      dialog.showModal();
+      dialog.getBoundingClientRect();
+    }
+  };
+  $<HTMLButtonElement>('#first-run-open').onclick = () => { void showFirstRun(); };
   $<HTMLAnchorElement>('#first-run-settings').onclick = () => dialog.close('settings');
   $<HTMLAnchorElement>('#first-run-diagnostics').onclick = () => dialog.close('diagnostics');
   $<HTMLButtonElement>('#first-run-continue').onclick = async () => {
@@ -578,7 +590,7 @@ function wireFirstRun(settings: SettingsPanel, log: (line: string) => void) {
     if ($<HTMLInputElement>('#first-run-skip').checked) { try { localStorage.setItem(STORE.onboarding, '1'); } catch { /* optional */ } }
   });
   let alreadySeen = false; try { alreadySeen = localStorage.getItem(STORE.onboarding) === '1'; } catch { /* optional */ }
-  if (!alreadySeen && !isAutomatedTest()) setTimeout(() => { if (!dialog.open) dialog.showModal(); }, 900);
+  if (!alreadySeen && !isAutomatedTest()) setTimeout(() => { void showFirstRun(); }, 900);
 }
 function isAutomatedTest(): boolean { return location.search.includes('test=') || location.pathname.startsWith('/test/'); }
 
