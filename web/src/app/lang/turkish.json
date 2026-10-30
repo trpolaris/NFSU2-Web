@@ -1234,5 +1234,11 @@
   "The streets are yours.": "Sokaklar senin.",
   "A new home for your Underground 2 experience.": "Underground 2 deneyimin için yeni bir merkez.",
   "Quick access": "Hızlı erişim",
-  "Vehicle packages": "Araç paketleri"
+  "Vehicle packages": "Araç paketleri",
+  "Game data": "Oyun verileri",
+  "Checking installed game files.": "Yüklü oyun dosyaları kontrol ediliyor.",
+  "Required game files are present in the server manifest.": "Gerekli oyun dosyaları sunucu listesinde mevcut.",
+  "Required game files are missing: {files}. Restore a complete NFSU2 game-data folder on the server.": "Gerekli oyun dosyaları bulunamadı: {files}. Sunucuya NFSU2 oyun klasörünün eksiksiz kopyasını yükleyin.",
+  "Some optional music or speech files are not present: {files}.": "Bazı isteğe bağlı müzik veya konuşma dosyaları bulunamadı: {files}.",
+  "The server game-data manifest could not be read; file availability could not be verified: {error}.": "Sunucunun oyun dosyası listesi okunamadı; dosyaların varlığı doğrulanamadı: {error}."
 }
