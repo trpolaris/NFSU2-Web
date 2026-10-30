@@ -229,8 +229,16 @@ async fn stream_segments_from_many_clients_at_a_receiver_that_reads() {
 async fn a_receiver_that_stopped_reading_goes_not_the_player_streaming_to_it() {
     use tokio::io::AsyncWriteExt;
     let _s = serial().await;
-    let sw = start(stream_opts()).await;
-    let guest = raw_peer(sw.port, "Guest", "?g=guest").await;
+    let sw = start(LanOptions {
+        // Keep both TCP buffers small: otherwise Linux can absorb the whole test stream
+        // in the kernel and the switch never sees a stalled receiver.
+        send_buffer_os: 64 << 10,
+        // Exercise the receiver-wide queue and stall detection, not the sender's share.
+        stream_share: 1 << 20,
+        ..stream_opts()
+    })
+    .await;
+    let guest = raw_peer_with(sw.port, "Guest", "?g=guest", Some(64 << 10)).await;
     // stops reading, still sends: text pings every 200 ms
     let (_gr, mut gw) = guest.into_split();
     let keep = tokio::spawn(async move {
@@ -263,7 +271,8 @@ async fn a_receiver_that_stopped_reading_goes_not_the_player_streaming_to_it() {
     );
     assert!(host.is_open(), "the host stays");
     assert!(!sw.has(pg.vip), "the guest that stopped reading goes");
-    assert_eq!(info["cuts"]["hog"], 0);
+    assert_eq!(info["cuts"]["stall"], 1, "the unread receiver queue is classified as stalled");
+    assert_eq!(info["cuts"]["hog"], 0, "the streaming host is not blamed");
     host.close().await;
     sw.close().await;
 }
