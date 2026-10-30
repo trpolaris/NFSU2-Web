@@ -90,7 +90,7 @@ jobs:
       - name: Run synthetic Online protocol load and abuse smoke test
         run: |
           mkdir -p out/ci/fixture-game
-          printf 'MZ synthetic CI fixture\\n' > out/ci/fixture-game/SPEED2.EXE
+          printf 'MZ' > out/ci/fixture-game/SPEED2.EXE
           node web/tools/online-load.mjs --clients 40 --seconds 20 --data "$PWD/out/ci/fixture-game" --out out/ci/online-load --ci
 
       - name: Install Chromium for browser-based tests
