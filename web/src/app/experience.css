@@ -479,3 +479,8 @@ html[data-high-contrast] a{color:#e4ff85;text-decoration:underline}
   #controls .controls-tabs .tab-number{margin-left:3px;padding-left:4px}
   .about-project-lead{flex-direction:column}
 }
+
+/* Keep exactly one eye state visible; the compatibility stylesheet also styles these SVGs. */
+#saves .keybox .eye .off,
+#saves .keybox .eye[aria-pressed="true"] .on{display:none!important}
+#saves .keybox .eye[aria-pressed="true"] .off{display:block!important}
