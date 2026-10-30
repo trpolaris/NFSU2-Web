@@ -1,7 +1,7 @@
 // The extra platform tools: a local garage/favorites catalogue, a safe mod-link library,
 // validated settings profiles, accessibility preferences, update checks and translation audits.
 // This module never writes to the server's game folder; the browser is a client, not an installer.
-import { LANGUAGES, LOCALE, NATIVE, N, onLanguage, setLanguage, t } from './i18n';
+import { LANGUAGES, LOCALE, NATIVE, N, lastLanguage, onLanguage, setLanguage, t } from './i18n';
 import { PROFILE_SETTING_KEYS, type SettingsPanel } from './settings-ui';
 import { checkSetting } from './settings';
 
@@ -546,8 +546,12 @@ function wireFirstRun(settings: SettingsPanel, log: (line: string) => void) {
   const languageSelect = $<HTMLSelectElement>('#first-run-language');
   const populate = () => {
     const prior = languageSelect.value;
+    const topLanguage = document.querySelector<HTMLSelectElement>('#lang-pick')?.value ?? '';
     languageSelect.replaceChildren(...LANGUAGES.map(l => new Option(NATIVE[l], l)));
-    languageSelect.value = LANGUAGES.includes(prior as typeof LANGUAGES[number]) ? prior : (document.querySelector<HTMLSelectElement>('#lang-pick')?.value ?? 'turkish');
+    const chosen = LANGUAGES.includes(prior as typeof LANGUAGES[number]) ? prior
+      : LANGUAGES.includes(topLanguage as typeof LANGUAGES[number]) ? topLanguage
+      : lastLanguage();
+    languageSelect.value = chosen;
     for (const option of [...languageSelect.options]) option.lang = LOCALE[option.value as keyof typeof LOCALE];
   };
   populate();
