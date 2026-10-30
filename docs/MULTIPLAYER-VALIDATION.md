@@ -37,7 +37,7 @@ cd web
 npm ci
 npm run check
 npm run build
-npx playwright install chromium
+npx playwright install chrome
 cd ..
 ```
 
