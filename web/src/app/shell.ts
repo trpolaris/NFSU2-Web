@@ -185,7 +185,7 @@ function setCheck(c: Check) {
 /** Verify the server's actual game-data manifest before the WASM guest touches files.
  *  The I/O worker already resolves case-insensitively; a missing path here is genuinely absent from /data. */
 async function checkGameData(): Promise<Check> {
-  const required = ['SPEED2.EXE', 'NFSUNDER/ZDIR.BIN', 'sdata/sdat.viv'];
+  const required = ['SPEED2.EXE', 'SDATA/sdat.viv'];
   const optional = ['PFData/MusicSFX.mpf', 'speech/UG2_Speech.big'];
   try {
     const response = await fetch('/data-manifest', { cache: 'no-store', signal: AbortSignal.timeout(5000) });
@@ -197,7 +197,7 @@ async function checkGameData(): Promise<Check> {
     const missing = required.filter(file => !present.has(normalize(file)));
     if (missing.length) {
       return check('game-data', N('Game data'), 'fail',
-        N('Required game files are missing: {files}. Restore a complete NFSU2 game-data folder on the server.'),
+        N('Required game files are missing: {files}. Restore the missing files from your complete PC NFSU2 game folder on the server.'),
         'GAME-DATA-MISSING', { files: missing.join(', ') });
     }
     const missingOptional = optional.filter(file => !present.has(normalize(file)));
