@@ -25,6 +25,7 @@ RUN npm ci --no-audit --no-fund
 COPY app/registry-defaults.txt /src/app/
 COPY web/build.mjs web/index.html ./
 COPY web/src src
+COPY web/tools tools
 RUN node build.mjs && mkdir /state
 
 FROM --platform=$BUILDPLATFORM rust:1-bookworm AS server
