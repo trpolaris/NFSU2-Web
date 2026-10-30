@@ -1284,4 +1284,4 @@ mod tests {
         assert_eq!(connection_flags(b"\xffclose"), 0);
         assert_eq!(connection_flags(b"closed"), 0);
     }
-}}
+}
