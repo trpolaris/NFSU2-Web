@@ -9,6 +9,7 @@ const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
 const css = fs.readFileSync(path.join(ROOT, 'src/app/experience.css'), 'utf8');
 const main = fs.readFileSync(path.join(ROOT, 'src/main.ts'), 'utf8');
 const controls = fs.readFileSync(path.join(ROOT, 'src/app/controls.ts'), 'utf8');
+const settingsUi = fs.readFileSync(path.join(ROOT, 'src/app/settings-ui.ts'), 'utf8');
 const wheel = fs.readFileSync(path.join(ROOT, 'src/app/wheel-setup.ts'), 'utf8');
 const shell = fs.readFileSync(path.join(ROOT, 'src/app/shell.ts'), 'utf8');
 const platform = fs.readFileSync(path.join(ROOT, 'src/app/platform.ts'), 'utf8');
@@ -81,4 +82,24 @@ test('mod workshop, cloud keyphrase, team join and about cards have bounded resp
   assert.match(css, /\.about-feature-grid/);
   assert.match(css, /\.about-info-grid/);
   assert.match(html, /id="about"/);
+});
+
+test('missing core NFSU2 data is diagnosed before the game process starts', () => {
+  assert.match(shell, /async function checkGameData\(\)/);
+  for (const required of ['SPEED2\\.EXE','NFSUNDER\\/ZDIR\\.BIN','sdata\\/sdat\\.viv']) assert.match(shell, new RegExp(required));
+  assert.match(shell, /GAME-DATA-MISSING/);
+  assert.match(shell, /const ORDER = \['browser', 'isolation', 'gpu', 'storage', 'game-data', 'module'\]/);
+  const playStart = shell.indexOf('async function startGame()');
+  const preflight = shell.indexOf('const gameData = await checkGameData()', playStart);
+  const guestStart = shell.indexOf('GameSession.start({', playStart);
+  assert.ok(preflight > playStart && guestStart > preflight, 'game data is checked before the guest process is created');
+  assert.match(shell, /setCheck\(gameData\)/);
+});
+
+test('empty crew chips do not create a full-width blank panel, and Community Picks stays compact', () => {
+  assert.match(settingsUi, /const chips = document\.createElement\('div'\); chips\.className = 'crew-chips'/);
+  assert.match(settingsUi, /line\.append\(chips, box\)/);
+  assert.match(css, /\.crew-line \.crew-chips:has\(ul\.crews:empty\)\{display:none\}/);
+  assert.match(css, /#mods \.mods-feature-grid\{max-width:1080px/);
+  assert.match(css, /#mods \.favorite-button svg\{[\s\S]*?width:17px!important/);
 });
