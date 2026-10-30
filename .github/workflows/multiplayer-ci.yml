@@ -76,17 +76,17 @@ jobs:
         working-directory: web
         run: npm run build
 
+      - name: Resolve and capture Cargo lockfile
+        run: |
+          cargo metadata --format-version 1 --manifest-path web/server-rs/Cargo.toml > /dev/null
+          printf '\n__RESOLVED_CARGO_LOCK_BEGIN__\n'
+          cat web/server-rs/Cargo.lock
+          printf '\n__RESOLVED_CARGO_LOCK_END__\n'
+
       - name: Run Rust workspace tests
         run: |
           mkdir -p out/ci
           cargo test --manifest-path web/server-rs/Cargo.toml --workspace 2>&1 | tee out/ci/rust-tests.log
-
-      - name: Capture resolved Cargo lockfile
-        if: always()
-        run: |
-          printf '\n__RESOLVED_CARGO_LOCK_BEGIN__\n'
-          cat web/server-rs/Cargo.lock
-          printf '\n__RESOLVED_CARGO_LOCK_END__\n'
 
       - name: Build server binaries for Node integration tests
         run: |
