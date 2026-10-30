@@ -1071,8 +1071,8 @@ fn run_of(s: &[u8], ok: impl Fn(u8) -> bool) -> usize {
 /// whitespace around each item. A word boundary alone is not enough ("x close" is not "close").
 fn has_connection_token(value: &[u8], wanted: &[u8]) -> bool {
     value.split(|&b| b == b',').any(|field| {
-        let start = field.iter().position(|&b| b != b' ' && b != b'\\t').unwrap_or(field.len());
-        let end = field.iter().rposition(|&b| b != b' ' && b != b'\\t').map_or(start, |i| i + 1);
+        let start = field.iter().position(|&b| b != b' ' && b != b'\t').unwrap_or(field.len());
+        let end = field.iter().rposition(|&b| b != b' ' && b != b'\t').map_or(start, |i| i + 1);
         field[start..end].eq_ignore_ascii_case(wanted)
     })
 }
@@ -1270,8 +1270,8 @@ mod tests {
     fn connection_tokens() {
         assert_eq!(connection_flags(b"close"), F_CONNECTION_CLOSE);
         assert_eq!(connection_flags(b"x, Keep-Alive "), F_CONNECTION_KEEP_ALIVE);
-        assert_eq!(connection_flags(b"close\\t"), F_CONNECTION_CLOSE);
-        assert_eq!(connection_flags(b"close\\t,x"), F_CONNECTION_CLOSE);
+        assert_eq!(connection_flags(b"close\t"), F_CONNECTION_CLOSE);
+        assert_eq!(connection_flags(b"close\t,x"), F_CONNECTION_CLOSE);
         assert_eq!(connection_flags(b"x,, close"), F_CONNECTION_CLOSE);
         assert_eq!(connection_flags(b"Upgrade, HTTP2-Settings"), F_CONNECTION_UPGRADE);
         // A token must be a complete comma-separated item, not merely a word inside a value.
@@ -1281,7 +1281,7 @@ mod tests {
         assert_eq!(connection_flags(b"close%"), 0);
         assert_eq!(connection_flags(b"2 Upgrade"), 0);
         assert_eq!(connection_flags(b"} Upgrade"), 0);
-        assert_eq!(connection_flags(b"\\\\xffclose"), 0);
+        assert_eq!(connection_flags(b"\xffclose"), 0);
         assert_eq!(connection_flags(b"closed"), 0);
     }
 }}
