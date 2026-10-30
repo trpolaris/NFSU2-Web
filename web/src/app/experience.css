@@ -484,3 +484,19 @@ html[data-high-contrast] a{color:#e4ff85;text-decoration:underline}
 #saves .keybox .eye .off,
 #saves .keybox .eye[aria-pressed="true"] .on{display:none!important}
 #saves .keybox .eye[aria-pressed="true"] .off{display:block!important}
+
+/* The diagnostics list uses the same asphalt surfaces as every other new page. */
+#diagnostics .diagnostics-intro{max-width:76ch;margin:0 0 16px}
+#diagnostics #diagnostic-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:0;padding:0;list-style:none}
+#diagnostics .diagnostic-item{min-width:0;border:1px solid var(--line);border-radius:12px;background:#101a1c}
+#diagnostics .diagnostic-copy strong{color:var(--text);font-size:.82rem}
+#diagnostics .diagnostic-copy p{color:var(--muted);font-size:.74rem;line-height:1.5}
+#diagnostics .diagnostic-state{border-color:var(--line);color:var(--muted);font-family:var(--mono);font-size:.62rem}
+#diagnostics .diagnostic-ok .diagnostic-icon{color:var(--acid);background:#d4ff3815}
+#diagnostics .diagnostic-warn .diagnostic-icon{color:var(--warn);background:#f3c86a15}
+#diagnostics .diagnostic-fail .diagnostic-icon{color:var(--danger);background:#ff7c7215}
+#diagnostics .diagnostic-pending .diagnostic-icon{color:var(--blue);background:#7ec6ca15}
+#diagnostics .diagnostic-ok .diagnostic-state{color:var(--acid)}
+#diagnostics .diagnostic-warn .diagnostic-state{color:var(--warn)}
+#diagnostics .diagnostic-fail .diagnostic-state{color:var(--danger)}
+@media(max-width:700px){#diagnostics #diagnostic-list{grid-template-columns:minmax(0,1fr)}}
