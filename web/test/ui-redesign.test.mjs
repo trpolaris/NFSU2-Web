@@ -23,6 +23,7 @@ test('controls workspace retains keyboard, controller, site and touch preference
   for (const hook of ['data-steer','data-level','data-size','data-menu-size']) assert.ok(html.includes(hook), hook);
   assert.match(html, /role="tablist"/);
   assert.match(html, /role="tabpanel"/);
+  assert.equal((html.match(/data-pad-mount/g) || []).length, 1, 'controller SVG has a dedicated mount');
   assert.match(css, /#controls \.pad/);
   assert.match(css, /\.keyboard-map-grid/);
 });
