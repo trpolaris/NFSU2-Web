@@ -4,6 +4,7 @@
 // requestAnimationFrame rate, and says so.
 
 import type { StatusReader } from './status';
+import { linkStateLabel, networkQualityLabel } from './network-quality';
 
 export type FpsMode = 'off' | 'on' | 'detailed';
 export const FPS_MODES: FpsMode[] = ['off', 'on', 'detailed'];
@@ -75,7 +76,7 @@ export class FpsOverlay {
         if (df > 0 && b.tris >= a.tris) add('tris/frame', Math.round((b.tris - a.tris) / df).toLocaleString('en-US'));
       }
       if (st) for (const [k, v] of st) if (k !== 'frames' && k !== 'frames_t' && k !== 'tris') add(k.replace(/_/g, ' '), fmt(v));
-      for (const [k, v] of Object.entries(this.extra())) add(k.replace(/_/g, ' '), fmt(v));
+      for (const [k, v] of Object.entries(this.extra())) add(k.replace(/_/g, ' '), fmtExtra(k, v));
       if (this.memory) add('memory', `${(this.memory.buffer.byteLength / 1048576).toFixed(0)} MB`);
       parts.push(dl);
     }
@@ -83,6 +84,12 @@ export class FpsOverlay {
     this.el.dataset.fps = fps.toFixed(1);
     this.el.dataset.source = game ? 'game' : 'page';
   }
+}
+
+function fmtExtra(key: string, value: number): string {
+  if (key === 'lan link state') return linkStateLabel(value);
+  if (key === 'lan quality') return networkQualityLabel(value);
+  return fmt(value);
 }
 
 function fmt(v: number) { return Number.isInteger(v) ? v.toLocaleString('en-US') : v.toFixed(2); }
