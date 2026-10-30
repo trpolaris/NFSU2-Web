@@ -7,7 +7,7 @@ import { checkSetting } from './settings';
 
 
 
-export const APP_BUILD_VERSION = '2026.10.30.03';
+export const APP_BUILD_VERSION = '2026.10.30.04';
 // Keep messages used through conditional/dynamic paths in the translation catalogue.
 const PLATFORM_TEXT_KEYS = [
   N('Add to favorites'), N('Remove from favorites'), N('Not found on server'), N('Manifest unavailable in this preview.'),
