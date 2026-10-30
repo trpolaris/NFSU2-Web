@@ -8,6 +8,8 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
 const css = fs.readFileSync(path.join(ROOT, 'src/app/experience.css'), 'utf8');
 const main = fs.readFileSync(path.join(ROOT, 'src/main.ts'), 'utf8');
+const controls = fs.readFileSync(path.join(ROOT, 'src/app/controls.ts'), 'utf8');
+const wheel = fs.readFileSync(path.join(ROOT, 'src/app/wheel-setup.ts'), 'utf8');
 
 test('Nightshift shell keeps the runtime anchors used by the game modules', () => {
   for (const id of [
@@ -24,6 +26,9 @@ test('controls workspace retains keyboard, controller, site and touch preference
   assert.match(html, /role="tablist"/);
   assert.match(html, /role="tabpanel"/);
   assert.equal((html.match(/data-pad-mount/g) || []).length, 1, 'controller SVG has a dedicated mount');
+  assert.match(controls, /querySelector<HTMLElement>\('\[data-pad-mount\]'\)/);
+  assert.match(wheel, /querySelector<HTMLElement>\('\[data-pad-mount\]'\)/);
+  assert.match(wheel, /for \(const el of mount\.children\)/, 'a connected wheel only hides the drawing area');
   assert.match(css, /#controls \.pad/);
   assert.match(css, /\.keyboard-map-grid/);
 });
