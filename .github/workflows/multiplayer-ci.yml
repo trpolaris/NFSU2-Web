@@ -87,6 +87,12 @@ jobs:
           mkdir -p out/web/server-rs
           cp web/server-rs/target/debug/nfsu2-server out/web/server-rs/nfsu2-server
 
+      - name: Run synthetic Online protocol load and abuse smoke test
+        run: |
+          mkdir -p out/ci/fixture-game
+          printf 'MZ synthetic CI fixture\\n' > out/ci/fixture-game/SPEED2.EXE
+          node web/tools/online-load.mjs --clients 40 --seconds 20 --data "$PWD/out/ci/fixture-game" --out out/ci/online-load --ci
+
       - name: Install Chromium for browser-based tests
         working-directory: web
         run: npx playwright install --with-deps chromium
