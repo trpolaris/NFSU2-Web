@@ -22,7 +22,7 @@
 //!
 //! The Online lobby's chat is read with the same lists, a word at a time ([`chat_slur`]); here only.
 
-use unicode_general_category::{GeneralCategory, get_general_category};
+use icu_properties::{CodePointMapData, props::GeneralCategory};
 use unicode_normalization::UnicodeNormalization;
 
 #[cfg(test)]
@@ -273,15 +273,22 @@ fn lookalike(ch: char) -> char {
 }
 
 /// `\p{M}`: a mark (Mn, Mc, Me)
-fn is_mark(ch: char) -> bool {
-    matches!(get_general_category(ch), GeneralCategory::NonspacingMark | GeneralCategory::SpacingMark | GeneralCategory::EnclosingMark)
+fn category(ch: char) -> GeneralCategory {
+    CodePointMapData::<GeneralCategory>::new().get(ch)
 }
 
-/// A character the mark table's Unicode has not assigned yet.  unicode-normalization's tables can be newer than
-/// that (and than Node's ICU, which is the same Unicode, 16.0 as this is written): ICU leaves a character it does
-/// not know as it is, with no decomposition and combining class 0, so it also ends a run of marks to reorder.
+/// `\\p{M}` (Mn, Mc, Me), using the Unicode 17 property data aligned with Node's ICU.
+fn is_mark(ch: char) -> bool {
+    matches!(
+        category(ch),
+        GeneralCategory::NonspacingMark | GeneralCategory::SpacingMark | GeneralCategory::EnclosingMark
+    )
+}
+
+/// A character the current Unicode data has not assigned yet. ICU leaves it unchanged, with no decomposition
+/// and combining class 0, so it also ends a run of marks to reorder.
 fn unknown(ch: char) -> bool {
-    !ch.is_ascii() && get_general_category(ch) == GeneralCategory::Unassigned
+    !ch.is_ascii() && category(ch) == GeneralCategory::Unassigned
 }
 
 /// The name's characters as names.mjs reads them, `[...name.normalize('NFKD').replace(/\p{M}/gu, '')]` with the

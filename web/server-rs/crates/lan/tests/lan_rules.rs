@@ -130,8 +130,10 @@ fn stream_opts() -> LanOptions {
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn a_burst_of_stream_segments_the_sender_is_cut_not_the_receiver() {
     let _s = serial().await;
-    let sw = start(stream_opts()).await;
-    let victim = raw_peer(sw.port, "Victim", "?g=victim").await;
+    // Keep the kernel socket buffers small: otherwise Linux can absorb this whole burst before
+    // the switch's stream_share queue fills, so the test never exercises the sender-cut rule.
+    let sw = start(LanOptions { send_buffer_os: 64 << 10, ..stream_opts() }).await;
+    let victim = raw_peer_with(sw.port, "Victim", "?g=victim", Some(64 << 10)).await;
     let mut attacker = Client::with(sw.port, "Attacker", "?g=attacker", Opts::default()).await;
     attacker.welcome().await;
     sleep(100).await;
@@ -227,8 +229,16 @@ async fn stream_segments_from_many_clients_at_a_receiver_that_reads() {
 async fn a_receiver_that_stopped_reading_goes_not_the_player_streaming_to_it() {
     use tokio::io::AsyncWriteExt;
     let _s = serial().await;
-    let sw = start(stream_opts()).await;
-    let guest = raw_peer(sw.port, "Guest", "?g=guest").await;
+    let sw = start(LanOptions {
+        // Keep both TCP buffers small: otherwise Linux can absorb the whole test stream
+        // in the kernel and the switch never sees a stalled receiver.
+        send_buffer_os: 64 << 10,
+        // Exercise the receiver-wide queue and stall detection, not the sender's share.
+        stream_share: 1 << 20,
+        ..stream_opts()
+    })
+    .await;
+    let guest = raw_peer_with(sw.port, "Guest", "?g=guest", Some(64 << 10)).await;
     // stops reading, still sends: text pings every 200 ms
     let (_gr, mut gw) = guest.into_split();
     let keep = tokio::spawn(async move {
@@ -261,7 +271,8 @@ async fn a_receiver_that_stopped_reading_goes_not_the_player_streaming_to_it() {
     );
     assert!(host.is_open(), "the host stays");
     assert!(!sw.has(pg.vip), "the guest that stopped reading goes");
-    assert_eq!(info["cuts"]["hog"], 0);
+    assert_eq!(info["cuts"]["stall"], 1, "the unread receiver queue is classified as stalled");
+    assert_eq!(info["cuts"]["hog"], 0, "the streaming host is not blamed");
     host.close().await;
     sw.close().await;
 }
@@ -278,6 +289,9 @@ async fn a_broadcast_costs_its_size_for_every_player_it_reaches() {
         group_frame_rate: 100000.0,
         site_byte_rate: RATE as f64,
         site_frame_rate: 100000.0,
+        // This test measures sender/group/site budgets, not the receiver's free-roam queue.
+        // Keep the receiver queue above the 400 KB burst so scheduling cannot shed it first.
+        roam_queue: 1 << 20,
         max_peers: 16,
         ..opts()
     })
@@ -326,11 +340,19 @@ async fn a_broadcast_costs_its_size_for_every_player_it_reaches() {
     let before = dst.frames();
     blast(&g1);
     blast(&g2);
+    // Flush is a barrier behind the queued WebSocket sends; a fixed sleep alone does not guarantee
+    // the fake clients have put the whole burst on their sockets before we measure it.
+    g1.flush().await;
+    g2.flush().await;
     sleep(500).await;
     let from_group = dst.got().frames[before..].iter().filter(|f| [g1.vip, g2.vip].contains(&src(&f.0))).count();
     let before2 = dst.frames();
     blast(&other);
-    sleep(500).await;
+    other.flush().await;
+    // Wait for the independent group to deliver enough frames instead of sampling too early.
+    dst.until_ms(2000, |g| {
+        (g.frames[before2..].iter().filter(|f| src(&f.0) == other.vip).count() >= 100).then_some(())
+    }).await;
     let from_other = dst.got().frames[before2..].iter().filter(|f| src(&f.0) == other.vip).count();
     println!(
         "one address with two connections got {from_group} frames through, another address alone {from_other} (the budget of one address: {} KB burst)",
@@ -693,7 +715,7 @@ async fn bundles_lan_play_datagrams_do_not_wait_for_the_clock() {
     let _s = serial().await;
     // a fixed tick of 400 ms: 8 datagrams 50 ms apart that wait for it wait 350 ms or more, one of them at least (no
     // probes: a ping wakes the writer, which takes the datagrams queued along)
-    let sw = start(LanOptions { bundle_ms: 400, bundle_max_ms: 400, probe_ms: 0, ..opts() }).await;
+    let sw = start(LanOptions { bundle_ms: 400, bundle_max_ms: 400, bundle_jitter: 0.0, probe_ms: 0, ..opts() }).await;
     let mut a = Client::connect(sw.port, "A").await;
     let mut b = Client::with(sw.port, "B", "", bundles()).await;
     a.welcome().await;

@@ -1,0 +1,114 @@
+name: Multiplayer and Regression CI
+
+on:
+  push:
+    branches:
+      - main
+      - 'feature/**'
+    tags:
+      - 'v*'
+    paths:
+      - '.github/workflows/multiplayer-ci.yml'
+      - 'web/**'
+      - 'runtime/**'
+      - 'app/registry-defaults.txt'
+      - 'tools/**'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/multiplayer-ci.yml'
+      - 'web/**'
+      - 'runtime/**'
+      - 'app/registry-defaults.txt'
+      - 'tools/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: multiplayer-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Rust, web and multiplayer regressions
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      CARGO_TERM_COLOR: always
+      RUST_BACKTRACE: 1
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24.22.2
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            web/server-rs -> target
+
+      - name: Install native build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes build-essential clang cmake pkg-config
+
+      - name: Install web dependencies
+        working-directory: web
+        run: npm ci
+
+      - name: Check TypeScript
+        working-directory: web
+        run: npm run check
+
+      - name: Build web application
+        working-directory: web
+        run: npm run build
+
+      - name: Verify Cargo.lock is current
+        run: cargo metadata --locked --format-version 1 --manifest-path web/server-rs/Cargo.toml > /dev/null
+
+      - name: Run Rust workspace tests
+        run: |
+          mkdir -p out/ci
+          cargo test --manifest-path web/server-rs/Cargo.toml --workspace 2>&1 | tee out/ci/rust-tests.log
+
+      - name: Build server binaries for Node integration tests
+        run: |
+          cargo build --manifest-path web/server-rs/Cargo.toml -p nfsu2-server -p nfsu2-roamload
+          mkdir -p out/web/server-rs
+          cp web/server-rs/target/debug/nfsu2-server out/web/server-rs/nfsu2-server
+
+      - name: Run synthetic Online protocol load and abuse smoke test
+        run: |
+          mkdir -p out/ci/fixture-game
+          printf 'MZ' > out/ci/fixture-game/SPEED2.EXE
+          node web/tools/online-load.mjs --clients 40 --seconds 20 --data "$PWD/out/ci/fixture-game" --out out/ci/online-load --ci
+
+      - name: Install Chromium for browser-based tests
+        working-directory: web
+        run: npx playwright install --with-deps chromium
+
+      - name: Run web regression tests
+        run: |
+          node --test --test-concurrency=1 web/test/*.test.mjs 2>&1 | tee out/ci/web-tests.log
+
+      - name: Keep test logs if validation fails
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: multiplayer-ci-failure-logs
+          path: out/ci/*.log
+          if-no-files-found: ignore
+          retention-days: 7
