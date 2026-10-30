@@ -192,7 +192,7 @@ async function checkGameData(): Promise<Check> {
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const manifest = await response.json() as { files?: { p?: string; d?: number }[] };
     if (!Array.isArray(manifest.files)) throw new Error('manifest has no files array');
-    const normalize = (value: string) => value.trim().replace(/^\\/+/, '').toLowerCase();
+    const normalize = (value: string) => value.trim().toLowerCase();
     const present = new Set(manifest.files.filter(file => !file.d && typeof file.p === 'string').map(file => normalize(file.p!)));
     const missing = required.filter(file => !present.has(normalize(file)));
     if (missing.length) {
