@@ -1067,18 +1067,26 @@ fn run_of(s: &[u8], ok: impl Fn(u8) -> bool) -> usize {
     s.iter().position(|&b| !ok(b)).unwrap_or(s.len())
 }
 
-/// Node recognizes Connection tokens with a non-word boundary around each token, including tabs and punctuation.
-/// Match its behavior with the same helper used for Node's other token checks.
+/// Node/llhttp treats Connection as a comma-separated list of complete tokens, with optional
+/// whitespace around each item. A word boundary alone is not enough ("x close" is not "close").
+fn has_connection_token(value: &[u8], wanted: &[u8]) -> bool {
+    value.split(|&b| b == b',').any(|field| {
+        let start = field.iter().position(|&b| b != b' ' && b != b'\\t').unwrap_or(field.len());
+        let end = field.iter().rposition(|&b| b != b' ' && b != b'\\t').map_or(start, |i| i + 1);
+        field[start..end].eq_ignore_ascii_case(wanted)
+    })
+}
+
+/// Node recognizes only complete comma-separated Connection tokens.
 pub(crate) fn connection_flags(v: &[u8]) -> u16 {
-    let v = latin1(v);
     let mut flags = 0;
-    if crate::head::has_token(&v, "close") {
+    if has_connection_token(v, b"close") {
         flags |= F_CONNECTION_CLOSE;
     }
-    if crate::head::has_token(&v, "keep-alive") {
+    if has_connection_token(v, b"keep-alive") {
         flags |= F_CONNECTION_KEEP_ALIVE;
     }
-    if crate::head::has_token(&v, "upgrade") {
+    if has_connection_token(v, b"upgrade") {
         flags |= F_CONNECTION_UPGRADE;
     }
     flags
@@ -1262,11 +1270,18 @@ mod tests {
     fn connection_tokens() {
         assert_eq!(connection_flags(b"close"), F_CONNECTION_CLOSE);
         assert_eq!(connection_flags(b"x, Keep-Alive "), F_CONNECTION_KEEP_ALIVE);
-        assert_eq!(connection_flags(b"close\t"), F_CONNECTION_CLOSE);
-        assert_eq!(connection_flags(b"close\t,x"), F_CONNECTION_CLOSE);
-        assert_eq!(connection_flags(b"x-close"), F_CONNECTION_CLOSE);
-        assert_eq!(connection_flags(b"closed"), 0);
+        assert_eq!(connection_flags(b"close\\t"), F_CONNECTION_CLOSE);
+        assert_eq!(connection_flags(b"close\\t,x"), F_CONNECTION_CLOSE);
         assert_eq!(connection_flags(b"x,, close"), F_CONNECTION_CLOSE);
         assert_eq!(connection_flags(b"Upgrade, HTTP2-Settings"), F_CONNECTION_UPGRADE);
+        // A token must be a complete comma-separated item, not merely a word inside a value.
+        assert_eq!(connection_flags(b"close x"), 0);
+        assert_eq!(connection_flags(b"x close"), 0);
+        assert_eq!(connection_flags(b"x-close"), 0);
+        assert_eq!(connection_flags(b"close%"), 0);
+        assert_eq!(connection_flags(b"2 Upgrade"), 0);
+        assert_eq!(connection_flags(b"} Upgrade"), 0);
+        assert_eq!(connection_flags(b"\\\\xffclose"), 0);
+        assert_eq!(connection_flags(b"closed"), 0);
     }
-}
+}}
