@@ -10,6 +10,10 @@ const css = fs.readFileSync(path.join(ROOT, 'src/app/experience.css'), 'utf8');
 const main = fs.readFileSync(path.join(ROOT, 'src/main.ts'), 'utf8');
 const controls = fs.readFileSync(path.join(ROOT, 'src/app/controls.ts'), 'utf8');
 const wheel = fs.readFileSync(path.join(ROOT, 'src/app/wheel-setup.ts'), 'utf8');
+const shell = fs.readFileSync(path.join(ROOT, 'src/app/shell.ts'), 'utf8');
+const platform = fs.readFileSync(path.join(ROOT, 'src/app/platform.ts'), 'utf8');
+const sw = fs.readFileSync(path.join(ROOT, 'src/sw.ts'), 'utf8');
+const version = JSON.parse(fs.readFileSync(path.join(ROOT, 'src/static/app-version.json'), 'utf8'));
 
 test('Nightshift shell keeps the runtime anchors used by the game modules', () => {
   for (const id of [
@@ -38,4 +42,39 @@ test('the page shell uses horizontal navigation and a single-column workspace', 
   assert.match(css, /\.app-grid>\.side,\.app-grid>\.content\{display:contents\}/);
   assert.match(css, /@media\(max-width:700px\)/);
   assert.match(css, /@media\(max-width:380px\)/);
+});
+
+test('diagnostics are populated, refreshable and downloadable; module bytes remain visible under Play', () => {
+  for (const id of ['diagnostic-list','diagnostics-refresh','diagnostics-download','module-download-status','module-download-percent']) {
+    assert.match(html, new RegExp('id="' + id + '"'), id);
+  }
+  assert.match(shell, /function renderDiagnostics\(/);
+  assert.match(shell, /function refreshDiagnostics\(/);
+  assert.match(shell, /function downloadDiagnostics\(/);
+  assert.match(shell, /#diagnostics-refresh/);
+  assert.match(shell, /#module-download-status/);
+  assert.match(shell, /#module-download-percent/);
+  assert.match(shell, /#play'\)\.disabled = !ok/);
+});
+
+test('first-run, language default, accessibility and version metadata stay aligned', () => {
+  assert.match(html, /id="first-run-dialog"/);
+  assert.match(css, /#first-run-dialog\.first-run/);
+  assert.match(css, /\.first-run-controls\{display:grid/);
+  assert.match(css, /html\[data-large-text\]/);
+  assert.match(css, /html\[data-reduce-motion\]/);
+  assert.match(css, /html\[data-high-contrast\]/);
+  assert.match(platform, /APP_BUILD_VERSION = '2026\.10\.30\.02'/);
+  assert.equal(version.version, '2026.10.30.02');
+  assert.match(sw, /nfsu2-offline-17/);
+});
+
+test('mod workshop, cloud keyphrase, team join and about cards have bounded responsive layouts', () => {
+  assert.match(css, /#mods \.mod-tool-icon svg\{[^}]*width:21px!important/);
+  assert.match(css, /#saves \.vault-row\{display:grid/);
+  assert.match(css, /#saves \.keybox\{/);
+  assert.match(css, /\.crew-line \.crew-add\{/);
+  assert.match(css, /\.about-feature-grid/);
+  assert.match(css, /\.about-info-grid/);
+  assert.match(html, /id="about"/);
 });
