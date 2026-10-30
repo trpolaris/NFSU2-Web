@@ -152,7 +152,7 @@ export async function setLanguage(l: string, log?: (s: string) => void): Promise
 /** the language this browser showed last (the page asks for its file at once, before settings.ini is read) */
 const STORE = 'nfsu2-page-language';
 export function lastLanguage(): Language {
-  try { const v = localStorage.getItem(STORE) ?? ''; return isLanguage(v) ? v : 'english'; } catch { return 'english'; }
+  try { const v = localStorage.getItem(STORE) ?? ''; return isLanguage(v) ? v : 'turkish'; } catch { return 'turkish'; }
 }
 
 // ------------------------------------------------------------------------------------------------ the markup --
