@@ -76,12 +76,8 @@ jobs:
         working-directory: web
         run: npm run build
 
-      - name: Resolve and capture Cargo lockfile
-        run: |
-          cargo metadata --format-version 1 --manifest-path web/server-rs/Cargo.toml > /dev/null
-          printf '\n__RESOLVED_CARGO_LOCK_BEGIN__\n'
-          cat web/server-rs/Cargo.lock
-          printf '\n__RESOLVED_CARGO_LOCK_END__\n'
+      - name: Verify Cargo.lock is current
+        run: cargo metadata --locked --format-version 1 --manifest-path web/server-rs/Cargo.toml > /dev/null
 
       - name: Run Rust workspace tests
         run: |
@@ -116,22 +112,3 @@ jobs:
           path: out/ci/*.log
           if-no-files-found: ignore
           retention-days: 7
-  
-  resolve-lockfile:
-    name: Resolve Cargo lockfile
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - name: Check out source
-        uses: actions/checkout@v5
-
-      - name: Set up Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Resolve and print Cargo lockfile
-        run: |
-          cargo metadata --format-version 1 --manifest-path web/server-rs/Cargo.toml > /dev/null
-          printf '\n__RESOLVED_CARGO_LOCK_BEGIN__\n'
-          cat web/server-rs/Cargo.lock
-          printf '\n__RESOLVED_CARGO_LOCK_END__\n'
-
