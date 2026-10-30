@@ -20,6 +20,12 @@ Bu belge, NFSU2-Web'in mevcut Online, LAN ve serbest dolaşım altyapısını ka
 
 GitHub-hosted runner'a NFSU2 oyun dosyaları veya gerçek oyun WASM'ı verilmez. Bu nedenle `NFSU2_DATA` ve `out/web/nfsu2.wasm` gerektiren deploy, gerçek oyun ve bazı tarayıcı entegrasyon testleri SKIP olabilir. CI'nin başarılı olması bu gerçek oyun senaryolarının test edildiği anlamına gelmez.
 
+## CI'daki sentetik Online protokol testi
+
+GitHub Actions, lisanslı oyun dosyası yüklemeden Online sunucu protokolünü de sınar. Runner geçici bir oyun klasörüne yalnızca sahte bir `SPEED2.EXE` imza dosyası koyar; bu dosya oynanabilir oyun verisi değildir ve CI artifact'ına alınmaz. Ardından `online-load.mjs --ci` ile 40 sahte istemciyi gerçek Rust sunucusuna bağlar. Kontroller girişlerin tamamlanmasını, yarış başlangıçlarını ve sonuç raporlarını; sohbet flood engelini, fazla oturum reddini ve aşırı büyük frame bağlantısının kesilmesini kapsar.
+
+Bu test gerçek oyun istemcisini, grafik/oynanış doğruluğunu veya iki farklı internet sağlayıcısı arasındaki bağlantıyı kanıtlamaz. Bunun için aşağıdaki yerel ve uzak ağ testleri gereklidir.
+
 ## Yerel tam doğrulama
 
 Komutları, lisanslı oyun dosyalarının bulunduğu ve kaynak kod deposunun klonlandığı WSL/Linux çalışma ağacında çalıştırın. `NFSU2_DATA`, doğrudan `SPEED2.EXE` ve oyunun PC veri klasörlerini içeren kökü göstermelidir.
