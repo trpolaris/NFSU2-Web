@@ -11,7 +11,7 @@
 // source address (it never reaches anyone as that address).
 //
 //   node web/tools/online-load.mjs [--clients 200] [--seconds 60] [--http-port 8679] [--base URL]
-//        [--chat-every 5000] [--out <dir>]
+//        [--chat-every 5000] [--out <dir>] [--ci]  fail unless login, races, reports and abuse controls pass
 // Without --base it starts its own server (--max-peers 250 --dev, state in <out>/state) and samples its
 // memory and CPU.  Prints login and chat latencies (p50/p95/max), races started and reported, what the
 // abusive clients got, the server's resident memory and CPU time; writes <out>/load.json.
@@ -279,7 +279,20 @@ const result = {
   races: stats.races, reports: stats.reports, messagesIn: stats.msgs, resets: stats.resets, abuse,
   server: { before, afterLogins: peak, after },
 };
+if (argv.includes('--ci')) {
+  const checks = {
+    allClientsLoggedIn: stats.loginsOk === N && stats.loginsFailed === 0,
+    raceStarted: stats.races > 0,
+    raceReportsReceived: stats.reports > 0,
+    chatFloodMuted: abuse.chatFloodMuted === true,
+    messageFloodDropped: abuse.messageFloodDropped === true,
+    oversizedFrameDropped: abuse.oversizedDropped === true,
+    excessSessionsRefused: abuse.sessionsPerBrowserRefused > 0,
+    abuseHarnessCompleted: !abuse.error,
+  };
+  result.ci = { checks, pass: Object.values(checks).every(Boolean) };
+}
 if (server) { const gone = new Promise(r => server.once('exit', r)); server.kill('SIGTERM'); await gone; }
 fs.writeFileSync(path.join(OUT, 'load.json'), JSON.stringify(result, null, 2));
 console.log(JSON.stringify(result, null, 2));
-process.exit(0);
+process.exit(argv.includes('--ci') && !result.ci?.pass ? 1 : 0);
