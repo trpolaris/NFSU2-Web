@@ -12,6 +12,7 @@ const controls = fs.readFileSync(path.join(ROOT, 'src/app/controls.ts'), 'utf8')
 const wheel = fs.readFileSync(path.join(ROOT, 'src/app/wheel-setup.ts'), 'utf8');
 const shell = fs.readFileSync(path.join(ROOT, 'src/app/shell.ts'), 'utf8');
 const platform = fs.readFileSync(path.join(ROOT, 'src/app/platform.ts'), 'utf8');
+const i18n = fs.readFileSync(path.join(ROOT, 'src/app/i18n.ts'), 'utf8');
 const sw = fs.readFileSync(path.join(ROOT, 'src/sw.ts'), 'utf8');
 const version = JSON.parse(fs.readFileSync(path.join(ROOT, 'src/static/app-version.json'), 'utf8'));
 
@@ -66,6 +67,9 @@ test('first-run, language default, accessibility and version metadata stay align
   assert.match(css, /html\[data-high-contrast\]/);
   assert.match(platform, /APP_BUILD_VERSION = '2026\.10\.30\.02'/);
   assert.equal(version.version, '2026.10.30.02');
+  assert.match(platform, /lastLanguage\(\)/, 'first-run language falls back to the saved language');
+  assert.match(platform, /: lastLanguage\(\)/, 'an empty top picker does not blank the first-run language');
+  assert.match(i18n, /return isLanguage\(v\) \? v : 'turkish'/, 'new visitors default to Turkish');
   assert.match(sw, /nfsu2-offline-17/);
 });
 
