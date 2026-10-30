@@ -67,11 +67,11 @@ test('first-run, language default, accessibility and version metadata stay align
   assert.match(css, /html\[data-reduce-motion\]/);
   assert.match(css, /html\[data-high-contrast\]/);
   assert.match(platform, /APP_BUILD_VERSION = '2026\.10\.30\.02'/);
-  assert.equal(version.version, '2026.10.30.03');
+  assert.equal(version.version, '2026.10.30.04');
   assert.match(platform, /lastLanguage\(\)/, 'first-run language falls back to the saved language');
   assert.match(platform, /: lastLanguage\(\)/, 'an empty top picker does not blank the first-run language');
   assert.match(i18n, /return isLanguage\(v\) \? v : 'turkish'/, 'new visitors default to Turkish');
-  assert.match(sw, /nfsu2-offline-18/);
+  assert.match(sw, /nfsu2-offline-19/);
 });
 
 test('mod workshop, cloud keyphrase, team join and about cards have bounded responsive layouts', () => {
