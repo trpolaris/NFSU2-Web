@@ -596,7 +596,7 @@ async fn compare(rust: std::net::SocketAddr, node: std::net::SocketAddr, cases: 
 /// not arbitrary chunk boundaries chosen by each server's write buffering.
 fn decode_chunked_response(text: &str) -> Option<(String, String, String)> {
     let chars: Vec<char> = text.chars().collect();
-    let head_end = chars.windows(4).position(|w| w == ['\r', '\n', '\r', '\n'])? + 4;
+    let head_end = chars.windows(4).position(|w| w[0] == '\r' && w[1] == '\n' && w[2] == '\r' && w[3] == '\n')? + 4;
     let head: String = chars[..head_end].iter().collect();
     let is_chunked = head.split("\r\n").skip(1).any(|line| {
         line.split_once(':').is_some_and(|(name, value)| {
@@ -635,7 +635,7 @@ fn decode_chunked_response(text: &str) -> Option<(String, String, String)> {
             return Some((head, body, trailers));
         }
         let end = pos.checked_add(size)?;
-        if end + 2 > chars.len() || chars.get(end..end + 2)? != ['\r', '\n'] {
+        if end + 2 > chars.len() || chars.get(end) != Some(&'\r') || chars.get(end + 1) != Some(&'\n') {
             return None;
         }
         body.extend(chars[pos..end].iter().copied());
