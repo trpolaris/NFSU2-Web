@@ -275,7 +275,7 @@ function downloadDiagnostics() {
   const lines = [
     'TRPOLARIS NFSU2 Web — diagnostic report',
     `Generated: ${new Date().toISOString()}`,
-    `Page: ${location.href}`,
+    `Page: ${location.origin}${location.pathname}`,
     `Browser: ${browserBrief(navigator.userAgent, navigator.maxTouchPoints, isPhone())}`,
     `Screen: ${screen.width}x${screen.height}, DPR ${window.devicePixelRatio}`,
     `Cross-origin isolated: ${String(crossOriginIsolated)}`,
@@ -287,8 +287,6 @@ function downloadDiagnostics() {
       return item ? `[${item.state.toUpperCase()}] ${item.label}: ${item.detail}${item.code ? ` (${item.code})` : ''}` : `[NOT RUN] ${id}`;
     }),
     '',
-    'RECENT LOG',
-    ...log.tail(80),
   ];
   downloadBlob(lines.join('\n') + '\n', `trpolaris-diagnostics-${stamp()}.txt`, 'text/plain;charset=utf-8');
 }
