@@ -28,7 +28,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: multiplayer-ci-${{ github.ref }}
+  group: multiplayer-ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -39,6 +39,7 @@ jobs:
     env:
       CARGO_TERM_COLOR: always
       RUST_BACKTRACE: 1
+      CARGO_TARGET_DIR: ${{ github.workspace }}/out/web/server-rs/target
     steps:
       - name: Check out source
         uses: actions/checkout@v5
@@ -57,7 +58,7 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: |
-            web/server-rs -> target
+            web/server-rs -> ../../out/web/server-rs/target
 
       - name: Install native build tools
         run: |
@@ -76,22 +77,30 @@ jobs:
         working-directory: web
         run: npm run build
 
-      - name: Build server and run Rust workspace tests
-        run: bash web/server-rs/build.sh --test
+      - name: Run Rust workspace tests
+        run: |
+          mkdir -p out/ci
+          cargo test --manifest-path web/server-rs/Cargo.toml --workspace 2>&1 | tee out/ci/rust-tests.log
+
+      - name: Build server binaries for Node integration tests
+        run: |
+          cargo build --manifest-path web/server-rs/Cargo.toml -p nfsu2-server -p nfsu2-roamload
+          mkdir -p out/web/server-rs
+          cp out/web/server-rs/target/debug/nfsu2-server out/web/server-rs/nfsu2-server
 
       - name: Install Chromium for browser-based tests
-        run: npx --prefix web playwright install --with-deps chromium
+        working-directory: web
+        run: npx playwright install --with-deps chromium
 
       - name: Run web regression tests
         run: |
-          mkdir -p out/ci
           node --test --test-concurrency=1 web/test/*.test.mjs 2>&1 | tee out/ci/web-tests.log
 
-      - name: Keep test log if validation fails
+      - name: Keep test logs if validation fails
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: multiplayer-ci-failure-log
-          path: out/ci/web-tests.log
+          name: multiplayer-ci-failure-logs
+          path: out/ci/*.log
           if-no-files-found: ignore
           retention-days: 7
