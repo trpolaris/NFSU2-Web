@@ -1164,6 +1164,9 @@ mod tests {
         let e = all_steps(b"POST / HTTP/1.1\r\nContent-Length: 3\r\n\r\nabcGET / HTTP/1.0\r\n\r\n");
         assert_eq!(e[1], "head POST / 1.1 [(\"content-length\", \"3\")] ka=true up=false close=false Length(3)");
         assert_eq!(e[2], "body abc");
+        let tabbed = all_steps(b"POST / HTTP/1.1\r\nContent-Length: 3\t\r\n\r\nabc");
+        assert!(tabbed[1].contains("Length(3)"), "{tabbed:?}");
+        assert_eq!(tabbed[2], "body abc");
         assert!(e.contains(&"head GET / 1.0 [] ka=false up=false close=false None".to_string()));
         let e = all_steps(b"POST / HTTP/1.1\r\nTransfer-Encoding: gzip, chunked\r\n\r\n3;a=\"b;c\"\r\nabc\r\n2\r\nde\r\n0\r\nT: 1\r\n\r\n");
         assert_eq!(e[2], "body abcde");
@@ -1182,6 +1185,8 @@ mod tests {
             b"GET / HTTP/1.1\r\nX: a\r\n b\r\n\r\n",
             b"GET / HTTP/1.1\r\nContent-Length: 5\r\nContent-Length: 5\r\n\r\n",
             b"GET / HTTP/1.1\r\nContent-Length: 5\r\nTransfer-Encoding: chunked\r\n\r\n",
+            b"GET / HTTP/1.1\r\nTransfer-Encoding:\r\n\r\n",
+            b"GET / HTTP/1.1\r\nTransfer-Encoding: \t\r\n\r\n",
             b"GET / HTTP/1.1\r\nTransfer-Encoding: chunked, gzip\r\n\r\n",
             b"GET /\x7f HTTP/1.1\r\n\r\n",
             b"GET / HTTP/1.2\r\n\r\n",
@@ -1257,7 +1262,9 @@ mod tests {
     fn connection_tokens() {
         assert_eq!(connection_flags(b"close"), F_CONNECTION_CLOSE);
         assert_eq!(connection_flags(b"x, Keep-Alive "), F_CONNECTION_KEEP_ALIVE);
-        assert_eq!(connection_flags(b"close\t"), 0);
+        assert_eq!(connection_flags(b"close\t"), F_CONNECTION_CLOSE);
+        assert_eq!(connection_flags(b"close\t,x"), F_CONNECTION_CLOSE);
+        assert_eq!(connection_flags(b"x-close"), F_CONNECTION_CLOSE);
         assert_eq!(connection_flags(b"closed"), 0);
         assert_eq!(connection_flags(b"x,, close"), F_CONNECTION_CLOSE);
         assert_eq!(connection_flags(b"Upgrade, HTTP2-Settings"), F_CONNECTION_UPGRADE);
