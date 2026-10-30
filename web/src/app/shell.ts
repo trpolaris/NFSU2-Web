@@ -154,8 +154,10 @@ let saved: { name: string; at: number; count: number } | null = null;
 // ------------------------------------------------------------- progress --
 function setProgress(f: number) {
   const v = Math.max(0, Math.min(1, f));
+  const pct = Math.round(v * 100);
   $('#progress-fill').style.width = `${(v * 100).toFixed(1)}%`;
-  $('#progress').setAttribute('aria-valuenow', String(Math.round(v * 100)));
+  $('#progress').setAttribute('aria-valuenow', String(pct));
+  $('#module-download-percent').textContent = `${pct}%`;
 }
 
 // --------------------------------------------------------------- status --
@@ -176,6 +178,7 @@ function setSub(sub: Msg, code?: string) {
 function setCheck(c: Check) {
   checks.set(c.id, c);
   renderProblems();
+  renderDiagnostics();
   evaluate();
 }
 const ORDER = ['browser', 'isolation', 'gpu', 'storage', 'module'];
@@ -218,6 +221,76 @@ function recheckGpu(since = performance.now()) {
     log.add(`[app] the graphics are back after ${((performance.now() - since) / 1000).toFixed(0)} s`);
     setCheck(c);
   }, 10_000);
+}
+/** Every real startup check is also listed on the dedicated diagnostics page. */
+function renderDiagnostics() {
+  const root = $('#diagnostic-list');
+  const items = ORDER.map(id => checks.get(id)).filter((x): x is Check => !!x);
+  root.replaceChildren(...items.map(c => {
+    const li = document.createElement('li');
+    li.className = `diagnostic-item diagnostic-${c.state}`;
+    li.dataset.id = c.id;
+    const icon = document.createElement('span');
+    icon.className = 'diagnostic-icon';
+    icon.setAttribute('aria-hidden', 'true');
+    icon.textContent = c.state === 'ok' ? '✓' : c.state === 'warn' ? '!' : c.state === 'fail' ? '×' : '…';
+    const copy = document.createElement('div');
+    copy.className = 'diagnostic-copy';
+    const title = document.createElement('strong');
+    title.textContent = label(c);
+    const detailLine = document.createElement('p');
+    detailLine.textContent = detail(c);
+    if (c.code) detailLine.append(' ', codeOf(c.code));
+    copy.append(title, detailLine);
+    const state = document.createElement('span');
+    state.className = 'diagnostic-state';
+    state.textContent = c.state.toUpperCase();
+    li.append(icon, copy, state);
+    return li;
+  }));
+}
+async function refreshDiagnostics() {
+  const button = $<HTMLButtonElement>('#diagnostics-refresh');
+  button.disabled = true;
+  button.setAttribute('aria-busy', 'true');
+  try {
+    setCheck(checkBrowser());
+    setCheck(checkIsolation());
+    setCheck(check('gpu', N('Graphics (WebGPU)'), 'pending', N('Checking.')));
+    setCheck(check('storage', N('Browser storage'), 'pending', N('Checking.')));
+    const [gpu, storage] = await Promise.all([
+      checkGpu(lastGame?.ended?.why === 'GPU-LOST'),
+      checkStorage(),
+    ]);
+    setCheck(gpu);
+    const { answer, ...base } = storage;
+    setCheck(base);
+    void answer?.then(setCheck);
+  } finally {
+    button.disabled = false;
+    button.removeAttribute('aria-busy');
+  }
+}
+function downloadDiagnostics() {
+  const lines = [
+    'TRPOLARIS NFSU2 Web — diagnostic report',
+    `Generated: ${new Date().toISOString()}`,
+    `Page: ${location.href}`,
+    `Browser: ${browserBrief(navigator.userAgent, navigator.maxTouchPoints, isPhone())}`,
+    `Screen: ${screen.width}x${screen.height}, DPR ${window.devicePixelRatio}`,
+    `Cross-origin isolated: ${String(crossOriginIsolated)}`,
+    `Game module: ${loaded?.info.rev ?? 'not loaded'}`,
+    '',
+    'CHECKS',
+    ...ORDER.map(id => {
+      const item = checks.get(id);
+      return item ? `[${item.state.toUpperCase()}] ${item.label}: ${item.detail}${item.code ? ` (${item.code})` : ''}` : `[NOT RUN] ${id}`;
+    }),
+    '',
+    'RECENT LOG',
+    ...log.tail(80),
+  ];
+  downloadBlob(lines.join('\n') + '\n', `trpolaris-diagnostics-${stamp()}.txt`, 'text/plain;charset=utf-8');
 }
 function blocking(): Check | undefined { return ORDER.map(id => checks.get(id)).find(c => c?.state === 'fail'); }
 
@@ -1309,12 +1382,19 @@ async function loadModule() {
   moduleLoading = true;
   setCheck(moduleFails ? check('module', N('Game module'), 'pending', N('Loading again (attempt {n}).'), undefined, { n: moduleFails + 1 })
     : check('module', N('Game module'), 'pending', N('Loading.')));
+  live($('#module-download-status'), () => t('Loading the game.'));
+  setProgress(0);
   try {
     loaded = await loadGame((got, total) => {
       setProgress(total ? got / total : 0);
-      if (phase === 'boot') setSub(T('Loading the game: {got} of {total}.', { got: fmtBytes(got), total: fmtBytes(total) }));
+      const message = total
+        ? t('Loading the game: {got} of {total}.', { got: fmtBytes(got), total: fmtBytes(total) })
+        : t('Loading the game.');
+      live($('#module-download-status'), () => message);
+      if (phase === 'boot') setSub(() => message);
     });
     setProgress(1);
+    live($('#module-download-status'), () => `${t('Ready')} · ${fmtBytes(loaded!.info.size)}`);
     log.add(`[app] game module ${loaded.info.rev}: ${fmtBytes(loaded.info.size)} in ${loaded.ms.toFixed(0)} ms, ${loaded.transferred} bytes transferred${moduleFails ? `, after ${moduleFails} failed attempts` : ''}`);
     moduleFails = 0;
     moduleLoading = false;
@@ -1328,6 +1408,7 @@ async function loadModule() {
     log.add(`[app] the game module did not load (attempt ${moduleFails}): ${e}; next try in ${wait} s`);
     moduleLoading = false;
     setProgress(0);
+    live($('#module-download-status'), () => t('The game did not load ({error}). Trying again in {n} s, or press Retry.', { error: String(e), n: wait }));
     setCheck(check('module', N('Game module'), 'fail', N('The game did not load ({error}). Trying again in {n} s, or press Retry.'), 'MODULE-LOAD', { error: String(e), n: wait }));
     moduleTimer = setTimeout(() => void loadModule(), wait * 1000);
   }
@@ -1544,6 +1625,8 @@ export async function boot() {
   $<HTMLButtonElement>('#retry').onclick = () => void loadModule();
   $<HTMLButtonElement>('#reload').onclick = () => void reload();
   $<HTMLButtonElement>('#log-btn').onclick = downloadLog;
+  $<HTMLButtonElement>('#diagnostics-refresh').onclick = () => void refreshDiagnostics();
+  $<HTMLButtonElement>('#diagnostics-download').onclick = downloadDiagnostics;
   $('#menu').addEventListener('click', e => { const a = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-act]'); if (a) void menuAction(a.dataset.act!); });
   $('#playlist-body').addEventListener('change', setTrackMode);
   $('#playlist-shuffle').addEventListener('change', setShuffle);
@@ -1623,7 +1706,9 @@ export async function boot() {
   setCheck(check('storage', N('Browser storage'), 'pending', N('Checking.')));
   setCheck(check('module', N('Game module'), 'pending', N('Loading.')));
   setPhase('boot', T('Loading'), T('Loading the game.'));
+  live($('#module-download-status'), T('Loading the game.'));
   setProgress(0);
+  renderDiagnostics();
 
   showOverrides(given, dev);
   if (given.length) log.add(dev ? `[app] test settings from the page address: ${given.join(', ')}` : `[app] the page address's test settings (${given.join(', ')}) are ignored: not a development server`);
