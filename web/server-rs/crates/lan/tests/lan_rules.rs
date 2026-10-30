@@ -280,6 +280,9 @@ async fn a_broadcast_costs_its_size_for_every_player_it_reaches() {
         group_frame_rate: 100000.0,
         site_byte_rate: RATE as f64,
         site_frame_rate: 100000.0,
+        // This test measures sender/group/site budgets, not the receiver's free-roam queue.
+        // Keep the receiver queue above the 400 KB burst so scheduling cannot shed it first.
+        roam_queue: 1 << 20,
         max_peers: 16,
         ..opts()
     })
