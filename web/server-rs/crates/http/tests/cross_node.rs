@@ -562,9 +562,14 @@ async fn compare(rust: std::net::SocketAddr, node: std::net::SocketAddr, cases: 
     }
     let mut diffs = Vec::new();
     let mut known = 0;
+    let mut chunk_boundaries = 0;
     while let Some(r) = set.join_next().await {
         let Ok((i, case, a, b)) = r else { continue };
-        if a != b && known_deviation(&a, &b) {
+        if a != b && a.closed == b.closed && same_chunked_response(&a.text, &b.text) {
+            // HTTP chunk boundaries are transport framing, not entity content. Node may coalesce adjacent
+            // writes into one chunk while this server emits one chunk per write; compare decoded payloads.
+            chunk_boundaries += 1;
+        } else if a != b && known_deviation(&a, &b) {
             known += 1;
         } else if a != b {
             diffs.push(format!(
@@ -580,8 +585,69 @@ async fn compare(rust: std::net::SocketAddr, node: std::net::SocketAddr, cases: 
     if known > 0 {
         eprintln!("{known} cases differ the way the engine differs on purpose (known_deviation)");
     }
+    if chunk_boundaries > 0 {
+        eprintln!("{chunk_boundaries} chunked response(s) differ only in legal chunk boundaries; decoded bodies match");
+    }
     diffs.sort();
     diffs
+}
+
+/// Decode one complete chunked response so the differential test compares the HTTP entity body,
+/// not arbitrary chunk boundaries chosen by each server's write buffering.
+fn decode_chunked_response(text: &str) -> Option<(String, String, String)> {
+    let chars: Vec<char> = text.chars().collect();
+    let head_end = chars.windows(4).position(|w| w == ['\\r', '\\n', '\\r', '\\n'])? + 4;
+    let head: String = chars[..head_end].iter().collect();
+    let is_chunked = head.split("\\r\\n").skip(1).any(|line| {
+        line.split_once(':').is_some_and(|(name, value)| {
+            name.eq_ignore_ascii_case("transfer-encoding") && value.trim().eq_ignore_ascii_case("chunked")
+        })
+    });
+    if !is_chunked {
+        return None;
+    }
+
+    let find_crlf = |from: usize| {
+        (from..chars.len().saturating_sub(1)).find(|&i| chars[i] == '\\r' && chars[i + 1] == '\\n')
+    };
+    let mut pos = head_end;
+    let mut body = String::new();
+    loop {
+        let line_end = find_crlf(pos)?;
+        let size_line: String = chars[pos..line_end].iter().collect();
+        let size = usize::from_str_radix(size_line.split(';').next()?.trim(), 16).ok()?;
+        pos = line_end + 2;
+        if size == 0 {
+            let trailer_start = pos;
+            loop {
+                let end = find_crlf(pos)?;
+                if end == pos {
+                    pos += 2;
+                    break;
+                }
+                pos = end + 2;
+            }
+            // This helper deliberately handles a single response. Do not normalize a pipeline or trailing bytes.
+            if pos != chars.len() {
+                return None;
+            }
+            let trailers: String = chars[trailer_start..pos].iter().collect();
+            return Some((head, body, trailers));
+        }
+        let end = pos.checked_add(size)?;
+        if end + 2 > chars.len() || chars.get(end..end + 2)? != ['\\r', '\\n'] {
+            return None;
+        }
+        body.extend(chars[pos..end].iter().copied());
+        pos = end + 2;
+    }
+}
+
+fn same_chunked_response(a: &str, b: &str) -> bool {
+    match (decode_chunked_response(a), decode_chunked_response(b)) {
+        (Some(a), Some(b)) => a == b,
+        _ => false,
+    }
 }
 
 fn clip(g: &Got) -> String {
