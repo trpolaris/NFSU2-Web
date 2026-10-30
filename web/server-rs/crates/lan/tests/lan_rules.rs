@@ -130,8 +130,10 @@ fn stream_opts() -> LanOptions {
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn a_burst_of_stream_segments_the_sender_is_cut_not_the_receiver() {
     let _s = serial().await;
-    let sw = start(stream_opts()).await;
-    let victim = raw_peer(sw.port, "Victim", "?g=victim").await;
+    // Keep the kernel socket buffers small: otherwise Linux can absorb this whole burst before
+    // the switch's stream_share queue fills, so the test never exercises the sender-cut rule.
+    let sw = start(LanOptions { send_buffer_os: 64 << 10, ..stream_opts() }).await;
+    let victim = raw_peer_with(sw.port, "Victim", "?g=victim", Some(64 << 10)).await;
     let mut attacker = Client::with(sw.port, "Attacker", "?g=attacker", Opts::default()).await;
     attacker.welcome().await;
     sleep(100).await;
@@ -326,11 +328,19 @@ async fn a_broadcast_costs_its_size_for_every_player_it_reaches() {
     let before = dst.frames();
     blast(&g1);
     blast(&g2);
+    // Flush is a barrier behind the queued WebSocket sends; a fixed sleep alone does not guarantee
+    // the fake clients have put the whole burst on their sockets before we measure it.
+    g1.flush().await;
+    g2.flush().await;
     sleep(500).await;
     let from_group = dst.got().frames[before..].iter().filter(|f| [g1.vip, g2.vip].contains(&src(&f.0))).count();
     let before2 = dst.frames();
     blast(&other);
-    sleep(500).await;
+    other.flush().await;
+    // Wait for the independent group to deliver enough frames instead of sampling too early.
+    dst.until_ms(2000, |g| {
+        (g.frames[before2..].iter().filter(|f| src(&f.0) == other.vip).count() >= 100).then_some(())
+    }).await;
     let from_other = dst.got().frames[before2..].iter().filter(|f| src(&f.0) == other.vip).count();
     println!(
         "one address with two connections got {from_group} frames through, another address alone {from_other} (the budget of one address: {} KB burst)",
