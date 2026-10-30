@@ -181,7 +181,39 @@ function setCheck(c: Check) {
   renderDiagnostics();
   evaluate();
 }
-const ORDER = ['browser', 'isolation', 'gpu', 'storage', 'module'];
+
+/** Verify the server's actual game-data manifest before the WASM guest touches files.
+ *  The I/O worker already resolves case-insensitively; a missing path here is genuinely absent from /data. */
+async function checkGameData(): Promise<Check> {
+  const required = ['SPEED2.EXE', 'NFSUNDER/ZDIR.BIN', 'sdata/sdat.viv'];
+  const optional = ['PFData/MusicSFX.mpf', 'speech/UG2_Speech.big'];
+  try {
+    const response = await fetch('/data-manifest', { cache: 'no-store', signal: AbortSignal.timeout(5000) });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const manifest = await response.json() as { files?: { p?: string; d?: number }[] };
+    if (!Array.isArray(manifest.files)) throw new Error('manifest has no files array');
+    const normalize = (value: string) => value.replace(/\\\\/g, '/').replace(/^\\.\\//, '').replace(/^\\/+/, '').toLowerCase();
+    const present = new Set(manifest.files.filter(file => !file.d && typeof file.p === 'string').map(file => normalize(file.p!)));
+    const missing = required.filter(file => !present.has(normalize(file)));
+    if (missing.length) {
+      return check('game-data', N('Game data'), 'fail',
+        N('Required game files are missing: {files}. Restore a complete NFSU2 game-data folder on the server.'),
+        'GAME-DATA-MISSING', { files: missing.join(', ') });
+    }
+    const missingOptional = optional.filter(file => !present.has(normalize(file)));
+    if (missingOptional.length) {
+      return check('game-data', N('Game data'), 'warn',
+        N('Some optional music or speech files are not present: {files}.'),
+        'GAME-DATA-OPTIONAL', { files: missingOptional.join(', ') });
+    }
+    return check('game-data', N('Game data'), 'ok', N('Required game files are present in the server manifest.'));
+  } catch (error) {
+    return check('game-data', N('Game data'), 'warn',
+      N('The server game-data manifest could not be read; file availability could not be verified: {error}.'),
+      'GAME-DATA-UNKNOWN', { error: String(error) });
+  }
+}
+const ORDER = ['browser', 'isolation', 'gpu', 'storage', 'game-data', 'module'];
 let problemsShown = '';
 const problemsLogged = new Set<string>();
 /** a check's label and detail in the page's language */
@@ -258,13 +290,16 @@ async function refreshDiagnostics() {
     setCheck(checkIsolation());
     setCheck(check('gpu', N('Graphics (WebGPU)'), 'pending', N('Checking.')));
     setCheck(check('storage', N('Browser storage'), 'pending', N('Checking.')));
-    const [gpu, storage] = await Promise.all([
+    setCheck(check('game-data', N('Game data'), 'pending', N('Checking installed game files.')));
+    const [gpu, storage, gameData] = await Promise.all([
       checkGpu(lastGame?.ended?.why === 'GPU-LOST'),
       checkStorage(),
+      checkGameData(),
     ]);
     setCheck(gpu);
     const { answer, ...base } = storage;
     setCheck(base);
+    setCheck(gameData);
     void answer?.then(setCheck);
   } finally {
     button.disabled = false;
@@ -557,6 +592,14 @@ async function startGame() {
     offline || testPage() ? null : serverRev(1000),
     offline || testPage() ? null : players?.fresh(1000) ?? null,
   ]);
+  const gameData = await checkGameData();
+  setCheck(gameData);
+  if (gameData.state === 'fail') {
+    log.add(`[app] Play blocked: ${gameData.code}: ${gameData.detail}`);
+    setPhase('error', T('Not ready'), () => detail(gameData), gameData.code);
+    $('#log-btn').hidden = $('#report').hidden = false;
+    return;
+  }
   if (rev && rev !== loaded!.info.rev && rev !== tried) {
     newer = rev; updated = false;
     // before a game ran here nothing is lost; after one, the offer with its word on the log first (the next Play reloads)
@@ -1700,6 +1743,7 @@ export async function boot() {
   setCheck(checkIsolation());
   setCheck(check('gpu', N('Graphics (WebGPU)'), 'pending', N('Checking.')));
   setCheck(check('storage', N('Browser storage'), 'pending', N('Checking.')));
+  setCheck(check('game-data', N('Game data'), 'pending', N('Checking installed game files.')));
   setCheck(check('module', N('Game module'), 'pending', N('Loading.')));
   setPhase('boot', T('Loading'), T('Loading the game.'));
   live($('#module-download-status'), T('Loading the game.'));
@@ -1717,6 +1761,7 @@ export async function boot() {
   void checkGpu(lastGame?.ended?.why === 'GPU-LOST').then(c => { setCheck(c); if (c.code === 'GPU-ADAPTER-AFTER-LOST') recheckGpu(); });
   // Firefox's answer to its storage prompt comes later: the check again then
   void checkStorage().then(({ answer, ...c }) => { setCheck(c); void answer?.then(setCheck); });
+  void checkGameData().then(setCheck);
   refreshMeasured = measureRefresh(60).then(r => { displayHz = r.hz; log.add(`[app] display refresh ${r.raw.toFixed(1)} Hz -> ${r.hz}`); });
 
   if (crossOriginIsolated) await loadModule();
