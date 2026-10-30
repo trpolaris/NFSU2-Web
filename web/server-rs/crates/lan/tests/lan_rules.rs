@@ -703,7 +703,7 @@ async fn bundles_lan_play_datagrams_do_not_wait_for_the_clock() {
     let _s = serial().await;
     // a fixed tick of 400 ms: 8 datagrams 50 ms apart that wait for it wait 350 ms or more, one of them at least (no
     // probes: a ping wakes the writer, which takes the datagrams queued along)
-    let sw = start(LanOptions { bundle_ms: 400, bundle_max_ms: 400, probe_ms: 0, ..opts() }).await;
+    let sw = start(LanOptions { bundle_ms: 400, bundle_max_ms: 400, bundle_jitter: 0.0, probe_ms: 0, ..opts() }).await;
     let mut a = Client::connect(sw.port, "A").await;
     let mut b = Client::with(sw.port, "B", "", bundles()).await;
     a.welcome().await;
