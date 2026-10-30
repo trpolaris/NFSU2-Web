@@ -86,7 +86,8 @@ test('mod workshop, cloud keyphrase, team join and about cards have bounded resp
 
 test('missing core NFSU2 data is diagnosed before the game process starts', () => {
   assert.match(shell, /async function checkGameData\(\)/);
-  for (const required of ['SPEED2\\.EXE','NFSUNDER\\/ZDIR\\.BIN','sdata\\/sdat\\.viv']) assert.match(shell, new RegExp(required));
+  for (const required of ['SPEED2\\.EXE','SDATA\\/sdat\\.viv']) assert.match(shell, new RegExp(required));
+  assert.doesNotMatch(shell, /NFSUNDER\\/ZDIR/);
   assert.match(shell, /GAME-DATA-MISSING/);
   assert.match(shell, /const ORDER = \['browser', 'isolation', 'gpu', 'storage', 'game-data', 'module'\]/);
   const playStart = shell.indexOf('async function startGame()');
