@@ -1388,9 +1388,6 @@ async function loadModule() {
     loaded = await loadGame((got, total) => {
       setProgress(total ? got / total : 0);
       const values = { got: fmtBytes(got), total: fmtBytes(total) };
-      const message = total
-        ? t('Loading the game: {got} of {total}.', values)
-        : t('Loading the game.');
       live($('#module-download-status'), () => total ? t('Loading the game: {got} of {total}.', values) : t('Loading the game.'));
       if (phase === 'boot') setSub(() => total ? t('Loading the game: {got} of {total}.', values) : t('Loading the game.'));
     });
