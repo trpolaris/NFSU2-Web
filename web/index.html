@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="dark">
-<meta name="theme-color" content="#0b1018">
+<meta name="theme-color" content="#090c0d">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -45,14 +45,14 @@
 </head>
 <body data-phase="boot">
 
-<main class="app command-center" id="app">
+<main class="app experience-shell command-center" id="app">
   <header class="top app-topbar">
     <div class="top-row">
       <a class="brand-logo" href="/" aria-label="TRPOLARIS NFSU2 Web">
         <img class="brand-app-icon" src="/icon-192.png" alt="" width="48" height="48" fetchpriority="high" decoding="async">
-        <span class="brand-copy"><strong>TRPOLARIS</strong><small>NFSU2 WEB</small></span>
+        <span class="brand-copy"><strong>TRPOLARIS</strong><small>NFSU2 WEB / BROWSER EDITION</small></span>
       </a>
-      <div class="top-product-note"><span class="signal-dot" aria-hidden="true"></span><span>WEB EDITION</span><span class="top-divider" aria-hidden="true"></span><span class="top-meta-copy">NEED FOR SPEED / UNDERGROUND 2</span></div>
+      <div class="top-product-note"><span class="signal-dot" aria-hidden="true"></span><span>UNDERGROUND // 02</span><span class="top-divider" aria-hidden="true"></span><span class="top-meta-copy">YOUR CITY. YOUR RULES.</span></div>
       <div class="top-end">
         <label class="lang-pick"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9M12 3C9.5 5.6 8.2 8.6 8.2 12s1.3 6.4 3.8 9"/></svg><select class="form-select" id="lang-pick" data-i18n-attr="aria-label" aria-label="Language"></select></label>
         <button type="button" class="btn install-app" id="install-app" data-i18n-attr="aria-label" aria-label="Install app"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v11m-5-5 5 5 5-5M4 16v4h16v-4"/></svg><span data-i18n>Install app</span></button>
@@ -61,29 +61,23 @@
   </header>
 
   <nav class="quick-nav nav nav-pills" data-i18n-attr="aria-label" aria-label="Site">
-    <div class="nav-section-label">NAVIGATION</div>
+    <span class="nav-overline" aria-hidden="true">GARAGE MENU</span>
     <a class="quick-link nav-link" data-page="home" href="#home-page"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7h-6v7H4a1 1 0 0 1-1-1z"/></svg><span data-i18n>Play</span></a>
-    <div class="nav-section-label nav-section-spaced">YOUR GARAGE</div>
+    <a class="quick-link nav-link" data-page="online" href="#online"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3 20v-2a6 6 0 0 1 12 0v2M16 5.5a3 3 0 0 1 0 5.8M18 14a5 5 0 0 1 3 4.5V20"/></svg><span data-i18n>Online</span></a>
     <a class="quick-link nav-link" data-page="mods" href="#mods"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 14l2-6h14l2 6v5h-3v-2H6v2H3zM7 8l1-3h8l1 3M6 13h.01M18 13h.01"/></svg><span data-i18n>Mod library</span></a>
     <a class="quick-link nav-link" data-page="saves" href="#saves"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h12l3 3v15H4V3zm3 0v6h8V3M8 21v-7h8v7"/></svg><span data-i18n>Saves</span></a>
-    <a class="quick-link nav-link" data-page="online" href="#online"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3 20v-2a6 6 0 0 1 12 0v2M16 5.5a3 3 0 0 1 0 5.8M18 14a5 5 0 0 1 3 4.5V20"/></svg><span data-i18n>Online</span></a>
     <a class="quick-link nav-link" data-page="controls" href="#controls"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 8h10a5 5 0 0 1 4.7 6.7l-1 2.8a2 2 0 0 1-3.3.7L15 16H9l-2.4 2.2a2 2 0 0 1-3.3-.7l-1-2.8A5 5 0 0 1 7 8zM7 11v4M5 13h4M16.5 12.5h.01M18.5 14.5h.01"/></svg><span data-i18n>Controls</span></a>
-    <div class="nav-section-label nav-section-spaced">APP</div>
-    <a class="quick-link nav-link" data-page="settings" href="#settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7zM19.4 15a8 8 0 0 0 .1-2l2-1.5-2-3.5-2.4 1a8 8 0 0 0-1.7-1L15 5h-6l-.4 3a8 8 0 0 0-1.7 1l-2.4-1-2 3.5 2 1.5a8 8 0 0 0 .1 2l-2 1.5 2 3.5 2.4-1a8 8 0 0 0 1.7 1L9 23h6l.4-3a8 8 0 0 0 1.7-1l2.4 1 2-3.5z"/></svg><span data-i18n>Settings</span></a>
+    <a class="quick-link nav-link" data-page="settings" href="#settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7zM19.4 15a8 8 0 0 0 .1-2l-2-1.5-2-3.5-2.4 1a8 8 0 0 0-1.7-1L15 5h-6l-.4 3a8 8 0 0 0-1.7 1l-2.4-1-2 3.5 2 1.5a8 8 0 0 0 .1 2l-2 1.5 2 3.5 2.4-1a8 8 0 0 0 1.7 1L9 23h6l.4-3a8 8 0 0 0 1.7-1l2.4 1-2 3.5z"/></svg><span data-i18n>Settings</span></a>
     <a class="quick-link nav-link" data-page="system" href="#diagnostics"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V5m0 14h16M7 15l4-4 3 2 5-6"/></svg><span data-i18n>System diagnostics</span></a>
     <a class="quick-link nav-link" data-page="about" href="#about" aria-label="About this project"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5m0-8h.01"/></svg><span data-i18n>About this project</span></a>
-    <div class="nav-bottom-card">
-      <img src="/icon-192.png" alt="" width="32" height="32" loading="lazy" decoding="async">
-      <div><strong>TRPOLARIS</strong><small>NFSU2 WEB</small></div>
-      <span class="nav-version">02</span>
-    </div>
   </nav>
 
   <div id="home-page" class="home-page">
     <div class="install-security-notice" id="install-security-notice" hidden role="status" aria-live="polite"></div>
     <section class="landing-hero" aria-labelledby="landing-heading">
       <div class="landing-copy">
-        <div class="hero-kicker"><span class="signal-dot" aria-hidden="true"></span><span class="kicker-brand">TRPOLARIS <i>/</i> NFSU2</span><span class="kicker-tag">NIGHT DRIVE / 2004</span></div>
+        <div class="hero-kicker"><span class="signal-dot" aria-hidden="true"></span><span class="kicker-brand">TRPOLARIS <i>/</i> NFSU2</span><span class="kicker-tag">STREET RACING / 2004</span></div>
+        <p class="hero-overline">THE CITY NEVER SLEEPS</p>
         <h1 class="landing-title" id="landing-heading"><span data-i18n>Own the night.</span><em data-i18n>The streets are yours.</em></h1>
         <p class="landing-description" data-i18n>A new home for your Underground 2 experience.</p>
         <div class="hero-capabilities" aria-label="Game features">
@@ -92,12 +86,15 @@
           <span><b class="cap-dot lime" aria-hidden="true"></b><span>LOCAL + CLOUD SAVES</span></span>
         </div>
         <section class="panel hero play-console" id="play-panel" data-i18n-attr="aria-label" aria-label="Play">
-          <div class="play-console-head"><div><span class="play-console-eyebrow">START YOUR ENGINE</span><h2 data-i18n>Play</h2></div><span class="play-console-mark">NFS / 02</span></div>
+          <div class="play-console-head"><div><span class="play-console-eyebrow">01 / START YOUR ENGINE</span><h2 data-i18n>Play</h2></div><span class="play-console-mark">NFSU2 / WEB</span></div>
           <button type="button" class="play" id="play" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l10-6.5z"/></svg><span class="play-label" data-i18n-html>Play <kbd class="key-only">Enter</kbd></span></button>
-          <div class="launch-progress-row"><span data-i18n>Game loading</span><span class="launch-progress-note">WEB RUNTIME</span></div>
+          <div class="launch-progress-row"><span data-i18n>Game loading</span><span class="launch-progress-note">RUNTIME STATUS</span></div>
           <div class="bar launch-progress" id="progress" role="progressbar" data-i18n-attr="aria-label" aria-label="Game loading" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div class="bar-fill" id="progress-fill"></div></div>
         </section>
-        <a class="hero-garage-link" href="#mods" data-page="mods"><span class="hero-garage-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 17 17 7M8 7h9v9"/></svg></span><span data-i18n>Mod library</span><span class="hero-link-arrow" aria-hidden="true">↗</span></a>
+        <div class="hero-shortcuts">
+          <a class="hero-garage-link" href="#controls" data-page="controls"><span class="hero-garage-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 17 17 7M8 7h9v9"/></svg></span><span data-i18n>Controls</span><span class="hero-link-arrow" aria-hidden="true">↗</span></a>
+          <a class="hero-garage-link" href="#online" data-page="online"><span class="hero-garage-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 20v-2a6 6 0 0 1 12 0v2M16 5.5a3 3 0 0 1 0 5.8"/></svg></span><span data-i18n>Online</span><span class="hero-link-arrow" aria-hidden="true">↗</span></a>
+        </div>
       </div>
       <div class="landing-art" aria-label="TRPOLARIS NFSU2 artwork">
         <div class="art-grid" aria-hidden="true"></div>
@@ -124,76 +121,68 @@
         <img class="hero-app-icon" src="/icon-192.png" alt="" width="42" height="42" loading="lazy" decoding="async">
       </div>
     </section>
-
-    <section class="panel home-status-panel" id="home-status-panel" aria-labelledby="home-status-title">
-      <div class="home-status-head">
-        <div class="home-status-title-wrap"><span class="home-status-eyebrow">LIVE / CONNECTION</span><h2 id="home-status-title" data-i18n>System diagnostics</h2></div>
-        <p class="status" id="status" role="status">Loading</p>
-      </div>
-      <p class="status-sub" id="status-sub">Loading the game.</p>
-      <div class="home-status-details">
-        <p class="msg" id="lastgame" hidden></p>
-        <p class="msg" id="report" hidden data-i18n>Download the log and include it when reporting this problem.</p>
-        <p class="msg" id="newer" aria-live="polite" hidden></p>
-        <ul class="problems" id="problems" aria-live="polite"></ul>
-        <p class="msg warn" id="override" hidden></p>
-      </div>
-      <div class="home-status-actions">
-        <button type="button" class="btn" id="retry" hidden data-i18n>Retry</button>
-        <button type="button" class="btn" id="reload" hidden data-i18n>Reload</button>
-        <button type="button" class="btn" id="log-btn" hidden data-i18n>Download log</button>
-        <a class="btn status-details-link" href="#diagnostics" data-page="system" data-i18n>System diagnostics</a>
-      </div>
-    </section>
-
-    <section class="home-quick-section" aria-labelledby="home-quick-title">
-      <div class="home-quick-heading"><div><span class="home-status-eyebrow">YOUR GARAGE / SHORTCUTS</span><h2 id="home-quick-title" data-i18n>Quick access</h2></div><span class="home-quick-mark" aria-hidden="true">02</span></div>
-      <div class="home-action-grid">
-        <a class="home-action-card" href="#online" data-page="online"><span class="home-action-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 20v-2a6 6 0 0 1 12 0v2M16 5.5a3 3 0 0 1 0 5.8M18 14a5 5 0 0 1 3 4.5V20"/></svg></span><span class="home-action-copy"><strong data-i18n>Online</strong><small data-i18n>Free roam + online play</small></span><span class="home-action-arrow" aria-hidden="true">↗</span></a>
-        <a class="home-action-card" href="#mods" data-page="mods"><span class="home-action-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 14l2-6h14l2 6v5h-3v-2H6v2H3zM7 8l1-3h8l1 3M6 13h.01M18 13h.01"/></svg></span><span class="home-action-copy"><strong data-i18n>Mod library</strong><small data-i18n>Vehicle packages</small></span><span class="home-action-arrow" aria-hidden="true">↗</span></a>
-        <a class="home-action-card" href="#saves" data-page="saves"><span class="home-action-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 3h12l3 3v15H4V3zm3 0v6h8V3M8 21v-7h8v7"/></svg></span><span class="home-action-copy"><strong data-i18n>Saves</strong><small data-i18n>Local + cloud saves</small></span><span class="home-action-arrow" aria-hidden="true">↗</span></a>
-        <a class="home-action-card" href="#controls" data-page="controls"><span class="home-action-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 8h10a5 5 0 0 1 4.7 6.7l-1 2.8a2 2 0 0 1-3.3.7L15 16H9l-2.4 2.2a2 2 0 0 1-3.3-.7l-1-2.8A5 5 0 0 1 7 8zM7 11v4M5 13h4M16.5 12.5h.01M18.5 14.5h.01"/></svg></span><span class="home-action-copy"><strong data-i18n>Controls</strong><small data-i18n>Keyboard + controller</small></span><span class="home-action-arrow" aria-hidden="true">↗</span></a>
-        <a class="home-action-card" href="#settings" data-page="settings"><span class="home-action-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7zM19.4 15a8 8 0 0 0 .1-2l2-1.5-2-3.5-2.4 1a8 8 0 0 0-1.7-1L15 5h-6l-.4 3a8 8 0 0 0-1.7 1l-2.4-1-2 3.5 2 1.5a8 8 0 0 0 .1 2l-2 1.5 2 3.5 2.4-1a8 8 0 0 0 1.7 1L9 23h6l.4-3a8 8 0 0 0 1.7-1l2.4 1 2-3.5z"/></svg></span><span class="home-action-copy"><strong data-i18n>Settings</strong><small data-i18n>Accessibility</small></span><span class="home-action-arrow" aria-hidden="true">↗</span></a>
-      </div>
-    </section>
+    <div class="home-overview-grid">
+      <section class="panel home-status-panel" id="home-status-panel" aria-labelledby="home-status-title">
+        <div class="home-status-head">
+          <div class="home-status-title-wrap"><span class="home-status-eyebrow">LIVE / CONNECTION</span><h2 id="home-status-title" data-i18n>System diagnostics</h2></div>
+          <p class="status" id="status" role="status">Loading</p>
+        </div>
+        <p class="status-sub" id="status-sub">Loading the game.</p>
+        <div class="home-status-details">
+          <p class="msg" id="lastgame" hidden></p>
+          <p class="msg" id="report" hidden data-i18n>Download the log and include it when reporting this problem.</p>
+          <p class="msg" id="newer" aria-live="polite" hidden></p>
+          <ul class="problems" id="problems" aria-live="polite"></ul>
+          <p class="msg warn" id="override" hidden></p>
+        </div>
+        <div class="home-status-actions">
+          <button type="button" class="btn" id="retry" hidden data-i18n>Retry</button>
+          <button type="button" class="btn" id="reload" hidden data-i18n>Reload</button>
+          <button type="button" class="btn" id="log-btn" hidden data-i18n>Download log</button>
+          <a class="btn status-details-link" href="#diagnostics" data-page="system" data-i18n>System diagnostics</a>
+        </div>
+      </section>
+      <section class="home-quick-section" aria-labelledby="home-quick-title">
+        <div class="home-quick-heading"><div><span class="home-status-eyebrow">GARAGE / QUICK ACCESS</span><h2 id="home-quick-title" data-i18n>Quick access</h2></div><span class="home-quick-mark" aria-hidden="true">02</span></div>
+        <div class="home-action-grid">
+          <a class="home-action-card" href="#online" data-page="online"><span class="home-action-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 20v-2a6 6 0 0 1 12 0v2M16 5.5a3 3 0 0 1 0 5.8M18 14a5 5 0 0 1 3 4.5V20"/></svg></span><span class="home-action-copy"><strong data-i18n>Online</strong><small data-i18n>Free roam + online play</small></span><span class="home-action-arrow" aria-hidden="true">↗</span></a>
+          <a class="home-action-card" href="#mods" data-page="mods"><span class="home-action-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 14l2-6h14l2 6v5h-3v-2H6v2H3zM7 8l1-3h8l1 3M6 13h.01M18 13h.01"/></svg></span><span class="home-action-copy"><strong data-i18n>Mod library</strong><small data-i18n>Vehicle packages</small></span><span class="home-action-arrow" aria-hidden="true">↗</span></a>
+          <a class="home-action-card" href="#saves" data-page="saves"><span class="home-action-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 3h12l3 3v15H4V3zm3 0v6h8V3M8 21v-7h8v7"/></svg></span><span class="home-action-copy"><strong data-i18n>Saves</strong><small data-i18n>Local + cloud saves</small></span><span class="home-action-arrow" aria-hidden="true">↗</span></a>
+          <a class="home-action-card" href="#controls" data-page="controls"><span class="home-action-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 8h10a5 5 0 0 1 4.7 6.7l-1 2.8a2 2 0 0 1-3.3.7L15 16H9l-2.4 2.2a2 2 0 0 1-3.3-.7l-1-2.8A5 5 0 0 1 7 8zM7 11v4M5 13h4M16.5 12.5h.01M18.5 14.5h.01"/></svg></span><span class="home-action-copy"><strong data-i18n>Controls</strong><small data-i18n>Keyboard + controller</small></span><span class="home-action-arrow" aria-hidden="true">↗</span></a>
+          <a class="home-action-card" href="#settings" data-page="settings"><span class="home-action-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7zM19.4 15a8 8 0 0 0 .1-2l-2-1.5-2-3.5-2.4 1a8 8 0 0 0-1.7-1L15 5h-6l-.4 3a8 8 0 0 0-1.7 1l-2.4-1-2 3.5 2 1.5a8 8 0 0 0 .1 2l-2 1.5 2 3.5 2.4-1a8 8 0 0 0 1.7 1L9 23h6l.4-3a8 8 0 0 0 1.7-1l2.4 1-2 3.5z"/></svg></span><span class="home-action-copy"><strong data-i18n>Settings</strong><small data-i18n>Accessibility</small></span><span class="home-action-arrow" aria-hidden="true">↗</span></a>
+        </div>
+      </section>
+    </div>
   </div><!-- /home-page -->
 
   <div class="app-grid" id="app-pages" hidden>
   <div class="side">
 
 
-    <section class="panel card shadow-sm" id="controls" aria-labelledby="controls-title">
-      <h2 id="controls-title" data-i18n>Controls</h2>
-      <div id="keys">
-        <div class="tabs nav nav-tabs" role="tablist" data-i18n-attr="aria-label" aria-label="Controls">
-          <button type="button" class="tab nav-link" role="tab" data-tab="keys"><span class="key-only" data-i18n>Keyboard</span><span class="touch-only" data-i18n>Touch</span></button>
-          <button type="button" class="tab nav-link" role="tab" data-tab="pad" data-i18n>Controller</button>
-          <button type="button" class="tab nav-link" role="tab" data-tab="site" data-i18n>Site</button>
+    <section class="panel control-page" id="controls" aria-labelledby="controls-title">
+      <div class="controls-heading">
+        <div class="controls-heading-copy"><span class="controls-eyebrow">INPUT CONFIGURATION / 03</span><h2 id="controls-title" data-i18n>Controls</h2><p class="controls-lede" data-i18n>Keyboard + controller</p></div>
+        <div class="controls-heading-stamp" aria-hidden="true"><span>TRP</span><strong>CTRL</strong><small>NFSU2 / WEB</small></div>
+      </div>
+      <div id="keys" class="controls-workspace">
+        <div class="tabs controls-tabs nav nav-tabs" role="tablist" data-i18n-attr="aria-label" aria-label="Controls">
+          <button type="button" class="tab nav-link" role="tab" data-tab="keys"><span class="key-only" data-i18n>Keyboard</span><span class="touch-only" data-i18n>Touch</span><span class="tab-number">01</span></button>
+          <button type="button" class="tab nav-link" role="tab" data-tab="pad" data-i18n>Controller<span class="tab-number">02</span></button>
+          <button type="button" class="tab nav-link" role="tab" data-tab="site" data-i18n>Site<span class="tab-number">03</span></button>
         </div>
-        <div class="tab-panel" role="tabpanel" data-tab="keys">
-          <p class="hint touch-only" data-i18n>Tap the game's menus, or use the arrows, OK and Back beside them. While you drive, touch controls show on the game. A controller works too.</p>
-          <!-- the steering's list, the level horizon's switch and the sizes: controls.ts -->
-          <div class="set touch-only" data-steer>
-            <label class="set-label" data-i18n>Steering</label>
-            <p class="set-help" data-i18n>How you steer while driving. The button in the game's top right corner switches it too.</p>
-            <div class="set-control"><select></select></div>
+        <div class="tab-panel controls-tab-panel" role="tabpanel" data-tab="keys">
+          <div class="controls-panel-intro">
+            <div><span class="controls-panel-index">01 / INPUT MAP</span><h3 class="key-only" data-i18n>Keyboard</h3><h3 class="touch-only" data-i18n>Touch</h3></div>
+            <p class="hint key-only" data-i18n>In menus: arrow keys and Enter, Esc goes back. Change keys in the game's Options, Controls.</p>
+            <p class="hint touch-only" data-i18n>Tap the game's menus, or use the arrows, OK and Back beside them. While you drive, touch controls show on the game. A controller works too.</p>
           </div>
-          <div class="set touch-only" data-level>
-            <label class="set-label" data-i18n>Level horizon</label>
-            <p class="set-help" data-i18n>With tilt steering, the view turns against the phone, so the road's horizon stays level.</p>
-            <div class="set-control"><span class="val" aria-hidden="true"></span><input type="checkbox" class="switch" role="switch"></div>
+          <div class="touch-options-grid touch-only">
+            <div class="set touch-setting-card" data-steer><span class="set-card-index">A / STEERING</span><label class="set-label" data-i18n>Steering</label><p class="set-help" data-i18n>How you steer while driving. The button in the game's top right corner switches it too.</p><div class="set-control"><select></select></div></div>
+            <div class="set touch-setting-card" data-level><span class="set-card-index">B / HORIZON</span><label class="set-label" data-i18n>Level horizon</label><p class="set-help" data-i18n>With tilt steering, the view turns against the phone, so the road's horizon stays level.</p><div class="set-control"><span class="val" aria-hidden="true"></span><input type="checkbox" class="switch" role="switch"></div></div>
+            <div class="set touch-setting-card" data-size><span class="set-card-index">C / TOUCH SIZE</span><label class="set-label" data-i18n>Control size</label><p class="set-help" data-i18n>How big the touch controls on the game are. Auto sizes them for this screen.</p><div class="set-control"><select></select></div></div>
+            <div class="set touch-setting-card" data-menu-size><span class="set-card-index">D / MENU SIZE</span><label class="set-label" data-i18n>Menu button size</label><p class="set-help" data-i18n>How big the game's small menu buttons are: Back, Continue and the others at the bottom, and the arrows. Auto sizes them for a finger.</p><div class="set-control"><select></select></div></div>
           </div>
-          <div class="set touch-only" data-size>
-            <label class="set-label" data-i18n>Control size</label>
-            <p class="set-help" data-i18n>How big the touch controls on the game are. Auto sizes them for this screen.</p>
-            <div class="set-control"><select></select></div>
-          </div>
-          <div class="set touch-only" data-menu-size>
-            <label class="set-label" data-i18n>Menu button size</label>
-            <p class="set-help" data-i18n>How big the game's small menu buttons are: Back, Continue and the others at the bottom, and the arrows. Auto sizes them for a finger.</p>
-            <div class="set-control"><select></select></div>
-          </div>
-          <dl class="keys key-only">
+          <dl class="keys key-only keyboard-map-grid">
             <div><dt><kbd>↑</kbd> <kbd>↓</kbd></dt><dd data-i18n>Throttle, brake and reverse</dd></div>
             <div><dt><kbd>←</kbd> <kbd>→</kbd></dt><dd data-i18n>Steer (or W S A D)</dd></div>
             <div><dt><kbd>Alt</kbd></dt><dd data-i18n>Nitrous</dd></div>
@@ -209,12 +198,13 @@
             <div><dt><kbd>M</kbd> <kbd>Tab</kbd></dt><dd data-i18n>Map, messages</dd></div>
             <div><dt><kbd>Esc</kbd> <kbd>P</kbd></dt><dd data-i18n>Pause</dd></div>
           </dl>
-          <p class="hint key-only" data-i18n>In menus: arrow keys and Enter, Esc goes back. Change keys in the game's Options, Controls.</p>
         </div>
-        <!-- the controller's drawing: controls.ts -->
-        <div class="tab-panel" role="tabpanel" data-tab="pad" hidden></div>
-        <div class="tab-panel" role="tabpanel" data-tab="site" hidden>
-          <dl class="keys">
+        <div class="tab-panel controls-tab-panel controller-panel" role="tabpanel" data-tab="pad" hidden>
+          <div class="controls-panel-intro"><div><span class="controls-panel-index">02 / GAMEPAD MAP</span><h3 data-i18n>Controller</h3></div><p class="hint" data-i18n>Connect an Xbox or PlayStation controller. Button names follow the controller you use.</p></div>
+        </div>
+        <div class="tab-panel controls-tab-panel" role="tabpanel" data-tab="site" hidden>
+          <div class="controls-panel-intro"><div><span class="controls-panel-index">03 / BROWSER SHORTCUTS</span><h3 data-i18n>Site</h3></div><p class="hint" data-i18n>Menu: full screen, controls, log, quit</p></div>
+          <dl class="keys site-shortcut-grid">
             <div class="key-only"><dt><kbd>F9</kbd></dt><dd data-i18n>Menu: full screen, controls, log, quit</dd></div>
             <div class="touch-only"><dt><kbd>☰</kbd></dt><dd data-i18n>Menu: full screen, controls, log, quit</dd></div>
             <div><dt data-i18n-html><kbd>Home</kbd> or both sticks pressed in</dt><dd data-i18n>The menu, on a controller</dd></div>
