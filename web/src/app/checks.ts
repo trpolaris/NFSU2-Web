@@ -5,6 +5,7 @@
 // which one it is.
 
 import { homeScreenInstead } from './display';
+import { adapterOptionsFor } from '../gpu/adapter-options';
 import { fill, N, type Vars } from './i18n';
 
 export type CheckState = 'pending' | 'ok' | 'warn' | 'fail';
@@ -109,7 +110,7 @@ export async function checkGpu(lostBefore = false): Promise<Check & { adapter?: 
         ? fail(N('This browser has no WebGPU, which the game needs. It comes with iOS 26 and iPadOS 26: update this device (Settings, General, Software Update).'), 'GPU-OFF-IOS')
         : fail(N('This browser has no WebGPU, which the game needs. Play in Chrome or Firefox.'), 'GPU-OFF-OTHER');
   let ad: GPUAdapter | null = null;
-  try { ad = await gpu.requestAdapter({ powerPreference: 'high-performance' }); } catch { /* reported below */ }
+  try { ad = await gpu.requestAdapter(adapterOptionsFor(navigator.userAgent)); } catch { /* reported below */ }
   if (!ad) {
     // the graphics went during the last game, and the reloaded page gets no adapter: the browser keeps them off for a
     // while, not graphics too old (two players' Intel Iris Xe, a hung Direct3D 12 device, then GPU-ADAPTER-WIN in Chrome

@@ -1330,5 +1330,13 @@
   "Poor": "低い",
   "Fair": "普通",
   "Good": "良好",
-  "Excellent": "非常に良好"
+  "Excellent": "非常に良好",
+  "Guest CPU usage": "ゲームのCPU使用率（1コア）",
+  "Guest CPU time per frame": "フレームあたりのゲームCPU時間",
+  "GPU frames waited": "GPU待機中のフレーム数",
+  "GPU longest wait": "GPUの最長待機時間",
+  "GPU frames not shown": "表示されなかったGPUフレーム数",
+  "GPU frames in flight": "処理中のGPUフレーム数",
+  "GPU pipeline build time": "GPUパイプライン構築時間",
+  "GPU pipeline build maximum": "GPUパイプライン構築の最大時間"
 }

@@ -17,6 +17,7 @@ import { HostKind } from '../host/abi';
 import * as P from './proto';
 import { C, F } from './proto';
 import { Encoder } from './encoder';
+import { adapterOptionsFor } from './adapter-options';
 import type { FromPng, ToPng } from './png-worker';
 
 export interface RendererOptions {
@@ -149,7 +150,7 @@ export async function attachRenderer(proc: GameProcess, canvas: HTMLCanvasElemen
   const log = opts.log ?? ((s: string) => console.log(s));
   const attachedAt = performance.now();
   if (!navigator.gpu) throw new Error('WebGPU is not available in this browser');
-  const adapter = await navigator.gpu.requestAdapter({ powerPreference: 'high-performance' });
+  const adapter = await navigator.gpu.requestAdapter(adapterOptionsFor(navigator.userAgent));
   if (!adapter) throw new Error('no WebGPU adapter');
   // without BC the encoder unpacks the DXT textures as they upload (dxt.ts), but for DXT1 on a GPU with ASTC (Apple's),
   // which it rewrites as ASTC 4x4 (astc.ts): a quarter of the memory unpacked takes
@@ -432,7 +433,9 @@ export async function attachRenderer(proc: GameProcess, canvas: HTMLCanvasElemen
   const encodeAndSubmit = (b: number) => {
     const t0 = performance.now();
     const ce = device.createCommandEncoder();
-    const slot = timing && !qBusy[qNext] ? qNext : -1;
+    // Timestamp query resolve/map work has a cost. One sample in four preserves
+    // a useful GPU-time estimate without instrumenting every game frame.
+    const slot = timing && frames % 4 === 0 && !qBusy[qNext] ? qNext : -1;
     if (slot >= 0) { qNext = (qNext + 1) % TQ; enc.firstPassTs = { querySet: qs!, beginningOfPassWriteIndex: 2 * slot }; }
     fitPicture(b);
     const cur = ctx.getCurrentTexture();

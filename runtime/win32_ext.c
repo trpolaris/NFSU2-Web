@@ -11,6 +11,7 @@
 #include <unistd.h>
 #include <sys/mount.h>
 #include <stddef.h>
+#include <stdatomic.h>
 
 void dispatch_indirect(CPU*,uint32_t);
 void mem_commit(uint32_t,uint32_t);
@@ -191,11 +192,11 @@ static double g_gil_rel_ms;                      /* last unlock (written by the 
  * present wait) releases it, so this is the guest thread's CPU time. */
 static _Thread_local double tl_acq_ms, tl_acq_blk, tl_busy_ms; static _Thread_local int tl_holding;
 static _Thread_local int tl_barged;              /* taken ahead of the queue (gil_acquire_frame) */
-static double g_busy_all_ms;                     /* every guest thread (updated by the owner) */
+static _Atomic uint64_t g_busy_all_us;            /* guest-thread busy time, microseconds */
 static double held_busy(double now){ return (now - tl_acq_ms) - (nfsu2_blocked_ms() - tl_acq_blk); }
 static double gil_host_wait_ms(void){ return tl_holding ? nfsu2_blocked_ms() - tl_acq_blk : 0.0; }
 double win32_thread_busy_ms(void){ return tl_busy_ms + (tl_holding ? held_busy(nfsu2_now_ms()) : 0.0); }
-double win32_busy_all_ms(void){ return g_busy_all_ms + (tl_holding ? held_busy(nfsu2_now_ms()) : 0.0); }
+double win32_busy_all_ms(void){ return (double)atomic_load(&g_busy_all_us) / 1000.0 + (tl_holding ? held_busy(nfsu2_now_ms()) : 0.0); }
 uint64_t g_gil_fair_yields;                      /* fair yields that handed the lock over */
 static int gil_bucket(double ms){ double us = ms * 1000.0; int k = 0; while (us >= 2.0 && k < 23){ us *= 0.5; k++; } return k; }
 static void gil_note(GilStat *s, double w, double h){
@@ -291,7 +292,7 @@ static void gil_release(void){
     double now = nfsu2_now_ms();
     if (tl_holding){
         double b = held_busy(now);
-        if (b > 0){ tl_busy_ms += b; g_busy_all_ms += b; }
+        if (b > 0){ tl_busy_ms += b; atomic_fetch_add(&g_busy_all_us, (uint64_t)(b * 1000.0)); }
         tl_holding = 0;
     }
     g_gil_rel_ms = now;

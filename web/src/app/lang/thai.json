@@ -1330,5 +1330,13 @@
   "Poor": "แย่",
   "Fair": "พอใช้",
   "Good": "ดี",
-  "Excellent": "ยอดเยี่ยม"
+  "Excellent": "ยอดเยี่ยม",
+  "Guest CPU usage": "การใช้ CPU ของเกม (หนึ่งคอร์)",
+  "Guest CPU time per frame": "เวลา CPU ของเกมต่อเฟรม",
+  "GPU frames waited": "จำนวนเฟรมที่รอ GPU",
+  "GPU longest wait": "เวลารอ GPU สูงสุด",
+  "GPU frames not shown": "จำนวนเฟรม GPU ที่ไม่ได้แสดง",
+  "GPU frames in flight": "จำนวนเฟรมที่ GPU กำลังประมวลผล",
+  "GPU pipeline build time": "เวลาในการสร้าง GPU pipeline",
+  "GPU pipeline build maximum": "เวลาสร้าง GPU pipeline สูงสุด"
 }

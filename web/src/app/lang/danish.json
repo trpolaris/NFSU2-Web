@@ -1399,5 +1399,13 @@
   "Poor": "Dårlig",
   "Fair": "Rimelig",
   "Good": "God",
-  "Excellent": "Fremragende"
+  "Excellent": "Fremragende",
+  "Guest CPU usage": "Spillets CPU-forbrug (én kerne)",
+  "Guest CPU time per frame": "Spillets CPU-tid pr. frame",
+  "GPU frames waited": "Frames, der venter på GPU'en",
+  "GPU longest wait": "Længste GPU-ventetid",
+  "GPU frames not shown": "GPU-frames, der ikke blev vist",
+  "GPU frames in flight": "GPU-frames under behandling",
+  "GPU pipeline build time": "Tid til oprettelse af GPU-pipeline",
+  "GPU pipeline build maximum": "Maksimal tid til oprettelse af GPU-pipeline"
 }

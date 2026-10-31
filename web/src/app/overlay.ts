@@ -14,6 +14,8 @@ export type FpsMode = 'off' | 'on' | 'detailed';
 export const FPS_MODES: FpsMode[] = ['off', 'on', 'detailed'];
 
 const METRIC_LABELS: Record<string, string> = {
+  "gcpu_pct": N("Guest CPU usage"),
+  "gcpu_ms_pf": N("Guest CPU time per frame"),
   "frames_dropped": N("Frames dropped"),
   "textures": N("Texture count"),
   "drive": N("Drive state"),
@@ -52,6 +54,12 @@ const METRIC_LABELS: Record<string, string> = {
   "passes": N("Render passes"),
   "pipelines": N("GPU pipelines"),
   "gpu errors": N("GPU errors"),
+  "gpu wait count": N("GPU frames waited"),
+  "gpu wait max ms": N("GPU longest wait"),
+  "gpu frames not shown": N("GPU frames not shown"),
+  "gpu frames in flight": N("GPU frames in flight"),
+  "gpu pipeline build ms": N("GPU pipeline build time"),
+  "gpu pipeline build max ms": N("GPU pipeline build maximum"),
   "js heap used MB": N("JavaScript heap used"),
   "js heap committed MB": N("JavaScript heap committed"),
   "js heap limit MB": N("JavaScript heap limit"),
@@ -154,6 +162,8 @@ export class FpsOverlay {
 }
 
 function fmtExtra(key: string, value: number): string {
+  if (key === 'gcpu_pct') return `${fixed(value)}%`;
+  if (key === 'gcpu_ms_pf') return `${fixed(value)} ms`;
   if (key === 'lan online') return value ? t(N('Online')) : t(N('Offline'));
   if (key === 'lan link state') return linkStateLabel(value);
   if (key === 'lan quality') return networkQualityLabel(value);

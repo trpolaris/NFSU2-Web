@@ -1337,5 +1337,13 @@
   "Poor": "Zayıf",
   "Fair": "Orta",
   "Good": "İyi",
-  "Excellent": "Mükemmel"
+  "Excellent": "Mükemmel",
+  "Guest CPU usage": "Oyun CPU kullanımı (tek çekirdek)",
+  "Guest CPU time per frame": "Kare başına oyun CPU süresi",
+  "GPU frames waited": "GPU bekleyen kare sayısı",
+  "GPU longest wait": "En uzun GPU bekleme süresi",
+  "GPU frames not shown": "Görüntülenmeyen GPU kareleri",
+  "GPU frames in flight": "GPU işlemdeki kare sayısı",
+  "GPU pipeline build time": "GPU pipeline oluşturma süresi",
+  "GPU pipeline build maximum": "En yüksek GPU pipeline oluşturma süresi"
 }

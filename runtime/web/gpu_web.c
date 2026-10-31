@@ -1000,6 +1000,7 @@ int metal_read_texture(unsigned id, void *dst, unsigned pitch, unsigned rows){
 }
 
 long metal_frames(void){ return g_on && g_ctl ? (long)g_ctl->frames_done : g_presents; }
+long metal_presents(void){ return g_presents; }
 long metal_frames_dropped(void){ return g_dropped; }
 long metal_tris(void){ return g_tris; }
 unsigned long long metal_wait_present_ns(void){ return (unsigned long long)(g_wait_present_ms * 1e6); }

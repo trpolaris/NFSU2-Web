@@ -1399,5 +1399,13 @@
   "Poor": "Slecht",
   "Fair": "Redelijk",
   "Good": "Goed",
-  "Excellent": "Uitstekend"
+  "Excellent": "Uitstekend",
+  "Guest CPU usage": "CPU-gebruik van de game (één kern)",
+  "Guest CPU time per frame": "CPU-tijd van de game per frame",
+  "GPU frames waited": "Frames die op de GPU wachten",
+  "GPU longest wait": "Langste GPU-wachttijd",
+  "GPU frames not shown": "Niet-weergegeven GPU-frames",
+  "GPU frames in flight": "GPU-frames in verwerking",
+  "GPU pipeline build time": "Opbouwtijd van de GPU-pipeline",
+  "GPU pipeline build maximum": "Maximale opbouwtijd van de GPU-pipeline"
 }
