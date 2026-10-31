@@ -1445,5 +1445,13 @@
   "Poor": "Słaba",
   "Fair": "Przeciętna",
   "Good": "Dobra",
-  "Excellent": "Doskonała"
+  "Excellent": "Doskonała",
+  "Guest CPU usage": "Użycie CPU gry (jeden rdzeń)",
+  "Guest CPU time per frame": "Czas CPU gry na klatkę",
+  "GPU frames waited": "Klatki oczekujące na GPU",
+  "GPU longest wait": "Najdłuższe oczekiwanie na GPU",
+  "GPU frames not shown": "Niewyświetlone klatki GPU",
+  "GPU frames in flight": "Klatki przetwarzane przez GPU",
+  "GPU pipeline build time": "Czas tworzenia potoków GPU",
+  "GPU pipeline build maximum": "Maksymalny czas tworzenia potoków GPU"
 }
