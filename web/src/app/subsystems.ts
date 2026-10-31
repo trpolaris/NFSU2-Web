@@ -20,7 +20,7 @@ export type {
 } from './contract';
 
 export const attachRenderer: AttachRenderer = async (proc, canvas, o) => {
-  const r = await gpuAttach(proc, canvas, { log: o.log, artifacts: o.artifacts, dumpScale: o.dumpScale, onLost: o.onLost, onMarks: o.onMarks });
+  const r = await gpuAttach(proc, canvas, { log: o.log, artifacts: o.artifacts, dumpScale: o.dumpScale, onLost: o.onLost, onMarks: o.onMarks, gpuTiming: true });
   return {
     detach: () => r.detach(),
     imageRect: () => r.imageRect(),
@@ -29,7 +29,13 @@ export const attachRenderer: AttachRenderer = async (proc, canvas, o) => {
     textures: () => { const s = r.stats(); return { bytes: s.texBytes, unpacked: s.unpackBytes, astc: s.astcBytes }; },
     stats: () => {
       const s = r.stats();
-      return { 'gpu encode ms': s.encodeMsAvg, 'draws': s.drawsLast, 'passes': s.passesLast, 'pipelines': s.pipelines, 'gpu errors': s.errors };
+      const out: Record<string, number> = { 'gpu encode ms': s.encodeMsAvg, 'draws': s.drawsLast, 'passes': s.passesLast, 'pipelines': s.pipelines, 'gpu errors': s.errors };
+      // Timestamp queries are optional in WebGPU; zero means the adapter/browser did not provide a sample.
+      if (s.gpuMsAvg > 0) { out['gpu render ms'] = s.gpuMsAvg; out['gpu render max ms'] = s.gpuMsMax; }
+      // These are the renderer's tracked game-texture allocations, not total device VRAM.
+      if (s.texBytes > 0) out['gpu texture memory MB'] = s.texBytes / 1048576;
+      if (s.unpackBytes > 0) out['gpu unpacked texture MB'] = s.unpackBytes / 1048576;
+      return out;
     },
   };
 };

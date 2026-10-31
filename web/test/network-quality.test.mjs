@@ -9,9 +9,9 @@ test('link states map to stable diagnostic labels', () => {
     online: 1, queued: 2, connecting: 3, waiting: 4, offline: 5, idle: 6, away: 7, closed: 8,
   })) {
     assert.equal(linkStateCode(state), code, state);
-    assert.equal(linkStateLabel(code), state, state);
+    assert.equal(linkStateLabel(code), state.charAt(0).toUpperCase() + state.slice(1), state);
   }
-  assert.equal(linkStateLabel(99), 'unknown');
+  assert.equal(linkStateLabel(99), 'Unknown');
 });
 
 test('network quality follows the documented switch RTT thresholds', () => {
@@ -22,11 +22,11 @@ test('network quality follows the documented switch RTT thresholds', () => {
   assert.equal(networkQualityCode('online', 101), 2);
   assert.equal(networkQualityCode('online', 180), 2);
   assert.equal(networkQualityCode('online', 181), 1);
-  assert.equal(networkQualityLabel(4), 'excellent');
-  assert.equal(networkQualityLabel(3), 'good');
-  assert.equal(networkQualityLabel(2), 'fair');
-  assert.equal(networkQualityLabel(1), 'poor');
-  assert.equal(networkQualityLabel(0), 'unknown');
+  assert.equal(networkQualityLabel(4), 'Excellent');
+  assert.equal(networkQualityLabel(3), 'Good');
+  assert.equal(networkQualityLabel(2), 'Fair');
+  assert.equal(networkQualityLabel(1), 'Poor');
+  assert.equal(networkQualityLabel(0), 'Unknown');
 });
 
 test('quality remains unknown when the link is not online or RTT is unavailable', () => {

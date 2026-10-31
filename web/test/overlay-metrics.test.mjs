@@ -76,6 +76,13 @@ test('complete network, audio, and GPU metrics are retained', () => {
     'audio latency ms': 50,
     'audio underruns': 0,
     'gpu errors': 0,
+    'gpu render ms': 0.5,
+    'gpu render max ms': 1.2,
+    'gpu texture memory MB': 480,
+    'gpu unpacked texture MB': 64,
+    'js heap used MB': 128,
+    'js heap committed MB': 192,
+    'js heap limit MB': 2048,
   };
   const values = new Map(overlayMetrics(null, extra));
 

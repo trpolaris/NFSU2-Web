@@ -48,6 +48,13 @@ const SUBSYSTEM_KEYS = new Set([
   'passes',
   'pipelines',
   'gpu errors',
+  'gpu render ms',
+  'gpu render max ms',
+  'gpu texture memory MB',
+  'gpu unpacked texture MB',
+  'js heap used MB',
+  'js heap committed MB',
+  'js heap limit MB',
 ]);
 
 /**
