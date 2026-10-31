@@ -13,7 +13,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as esbuild from 'esbuild';
-import { catalog, check, langFile, LANGUAGE_FILES } from '../tools/i18n-keys.mjs';
+import { catalog, check, htmlKeys, langFile, LANGUAGE_FILES } from '../tools/i18n-keys.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const { keys, bad } = catalog();
@@ -62,4 +62,16 @@ test('t(), tn() and tvars(): English, then a language\'s text and plural forms',
   assert.equal(await I.setLanguage('english'), true);
   assert.equal(I.tn(5, '{n} lap', '{n} laps'), '5 laps');
   assert.equal(I.listOf(['a', 'b', 'c']), 'a, b and c');
+});
+
+
+test('visible HTML labels are translated in every language (except technical tokens)', () => {
+  const html = fs.readFileSync(path.join(HERE, '../index.html'), 'utf8');
+  const visible = [...new Set(htmlKeys(html).map(x => x.key).filter(Boolean))];
+  const unchanged = new Set(['Ctrl', 'https://…', 'Site']);
+  for (const lang of LANGUAGE_FILES) {
+    const dict = JSON.parse(fs.readFileSync(langFile(lang), 'utf8'));
+    const untranslated = visible.filter(key => dict[key] === key && !unchanged.has(key));
+    assert.deepEqual(untranslated, [], `${lang}: visible text still falls back to English`);
+  }
 });
