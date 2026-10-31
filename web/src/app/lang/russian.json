@@ -1445,5 +1445,13 @@
   "Poor": "Плохо",
   "Fair": "Удовлетворительно",
   "Good": "Хорошо",
-  "Excellent": "Отлично"
+  "Excellent": "Отлично",
+  "Guest CPU usage": "Загрузка CPU игры (одно ядро)",
+  "Guest CPU time per frame": "Время CPU игры на кадр",
+  "GPU frames waited": "Кадры в ожидании GPU",
+  "GPU longest wait": "Максимальное ожидание GPU",
+  "GPU frames not shown": "Неотображённые кадры GPU",
+  "GPU frames in flight": "Кадры в обработке GPU",
+  "GPU pipeline build time": "Время создания конвейеров GPU",
+  "GPU pipeline build maximum": "Максимальное время создания конвейеров GPU"
 }
