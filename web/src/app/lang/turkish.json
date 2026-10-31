@@ -1300,7 +1300,7 @@
   "LAN link state": "LAN bağlantı durumu",
   "LAN link quality": "LAN bağlantı kalitesi",
   "LAN players": "LAN oyuncuları",
-  "LAN RTT": "LAN RTT",
+  "LAN RTT": "LAN gidiş-dönüş süresi",
   "LAN RTT average": "Ortalama LAN RTT",
   "LAN RTT maximum": "En yüksek LAN RTT",
   "LAN reconnects": "LAN yeniden bağlantıları",
