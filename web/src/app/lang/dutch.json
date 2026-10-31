@@ -1337,5 +1337,14 @@
   "TRPOLARIS / WORKSHOP": "TRPOLARIS / WERKPLAATS",
   "COMMUNITY PICKS": "COMMUNITYKEUZES",
   "YOUR COLLECTION": "JOUW COLLECTIE",
-  "Counting…": "Tellen…"
+  "Counting…": "Tellen…",
+  "Page FPS": "Pagina-FPS",
+  "Frame time": "Frametijd",
+  "Page refresh": "Pagina-verversing",
+  "Triangles per frame": "Driehoeken per frame",
+  "Page frame P50": "Paginaframe P50",
+  "Page frame P95": "Paginaframe P95",
+  "Page frame max": "Maximaal paginaframe",
+  "Page frames over 50 ms": "Paginaframes boven 50 ms",
+  "WASM allocated memory": "Toegewezen WASM-geheugen"
 }
