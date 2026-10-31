@@ -8,9 +8,58 @@ import { linkStateLabel, networkQualityLabel } from './network-quality';
 import { overlayMetrics } from './overlay-metrics';
 import { FramePacing } from './frame-pacing';
 import { N, dateLocale, t } from './i18n';
+import { browserHeapStats } from './browser-memory';
 
 export type FpsMode = 'off' | 'on' | 'detailed';
 export const FPS_MODES: FpsMode[] = ['off', 'on', 'detailed'];
+
+const METRIC_LABELS: Record<string, string> = {
+  "frames_dropped": N("Frames dropped"),
+  "textures": N("Texture count"),
+  "drive": N("Drive state"),
+  "rate": N("Game update rate"),
+  "pause": N("Pause state"),
+  "roam_cars": N("Free roam cars"),
+  "roam_friends": N("Free roam players"),
+  "input_events": N("Input events"),
+  "keys_held": N("Keys held"),
+  "pad_connected": N("Controller connected"),
+  "input_dropped": N("Input events dropped"),
+  "lan online": N("LAN connection"),
+  "lan link state": N("LAN link state"),
+  "lan quality": N("LAN link quality"),
+  "lan friends": N("LAN players"),
+  "lan rtt ms": N("LAN RTT"),
+  "lan rtt avg ms": N("LAN RTT average"),
+  "lan rtt max ms": N("LAN RTT maximum"),
+  "lan reconnects": N("LAN reconnects"),
+  "lan frames in": N("LAN frames received"),
+  "lan frames out": N("LAN frames sent"),
+  "lan rx drops": N("LAN receive drops"),
+  "lan tx wait avg ms": N("LAN send wait average"),
+  "lan tx wait max ms": N("LAN send wait maximum"),
+  "audio fill ms": N("Audio buffer fill"),
+  "audio underruns": N("Audio underruns"),
+  "audio latency ms": N("Audio latency"),
+  "audio running": N("Audio output running"),
+  "audio rate": N("Audio sample rate"),
+  "gpu encode ms": N("WebGPU command encoding"),
+  "gpu render ms": N("GPU execution average"),
+  "gpu render max ms": N("GPU execution maximum"),
+  "gpu texture memory MB": N("Tracked GPU texture memory"),
+  "gpu unpacked texture MB": N("Unpacked GPU texture memory"),
+  "draws": N("Draw calls"),
+  "passes": N("Render passes"),
+  "pipelines": N("GPU pipelines"),
+  "gpu errors": N("GPU errors"),
+  "js heap used MB": N("JavaScript heap used"),
+  "js heap committed MB": N("JavaScript heap committed"),
+  "js heap limit MB": N("JavaScript heap limit"),
+};
+
+function metricLabel(key: string): string {
+  return t(METRIC_LABELS[key] ?? N(key.replace(/_/g, ' ')));
+}
 
 export class FpsOverlay {
   mode: FpsMode = 'off';
@@ -91,9 +140,9 @@ export class FpsOverlay {
         const df = b.frames - a.frames;
         if (df > 0 && b.tris >= a.tris) add(t(N('Triangles per frame')), fmt(Math.round((b.tris - a.tris) / df)));
       }
-      for (const [key, value] of overlayMetrics(st, this.extra())) {
-        const label = key.replace(/_/g, ' ');
-        add(label, value === null ? '—' : fmtExtra(key, value));
+      const extra = { ...this.extra(), ...browserHeapStats(performance) };
+      for (const [key, value] of overlayMetrics(st, extra)) {
+        add(metricLabel(key), value === null ? '—' : fmtExtra(key, value));
       }
       if (this.memory) add(t(N('WASM allocated memory')), `${fmt(this.memory.buffer.byteLength / 1048576)} MB`);
       parts.push(dl);
