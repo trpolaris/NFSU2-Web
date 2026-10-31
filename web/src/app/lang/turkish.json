@@ -1275,5 +1275,14 @@
   "TRPOLARIS / WORKSHOP": "TRPOLARIS / ATÖLYE",
   "COMMUNITY PICKS": "TOPLULUK SEÇKİSİ",
   "YOUR COLLECTION": "KOLEKSİYONUN",
-  "Counting…": "Sayılıyor…"
+  "Counting…": "Sayılıyor…",
+  "Page FPS": "Sayfa FPS",
+  "Frame time": "Kare süresi",
+  "Page refresh": "Sayfa yenileme hızı",
+  "Triangles per frame": "Kare başına üçgen",
+  "Page frame P50": "Sayfa kare süresi P50",
+  "Page frame P95": "Sayfa kare süresi P95",
+  "Page frame max": "En yüksek sayfa kare süresi",
+  "Page frames over 50 ms": "50 ms üzerindeki sayfa kareleri",
+  "WASM allocated memory": "Ayrılmış WASM belleği"
 }
