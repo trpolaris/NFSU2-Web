@@ -120,3 +120,17 @@ test('Night Circuit 2.0 shares one restrained midnight-teal palette across the w
   assert.match(css, /@media \(prefers-reduced-motion: reduce\)/);
   assert.match(html, /UNDERGROUND DISTRICT/);
 });
+
+
+test('Play uses a dedicated responsive launch dock without changing runtime anchors', () => {
+  assert.match(html, /id="play-panel"/);
+  assert.match(html, /id="play"/);
+  assert.match(html, /id="progress"/);
+  assert.match(html, /id="progress-fill"/);
+  assert.match(html, /id="module-download-status"/);
+  assert.match(css, /NIGHT CIRCUIT 2\.0 — Play \/ launch dock/);
+  assert.match(css, /grid-template-areas:[\s\S]*"head head"[\s\S]*"play progress-label"[\s\S]*"play progress-bar"[\s\S]*"play progress-meta"/);
+  assert.match(css, /\.home-page \.play:not\(:disabled\)/);
+  assert.match(css, /@media \(max-width: 390px\)[\s\S]*?grid-template-areas: "head" "play" "progress-label" "progress-bar" "progress-meta"/);
+  assert.match(css, /@media \(prefers-reduced-motion: reduce\)[\s\S]*?\.home-page \.play svg \{ transition: none/);
+});

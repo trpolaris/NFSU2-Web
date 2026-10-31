@@ -1120,3 +1120,258 @@ body {
     transition-duration: .01ms !important;
   }
 }
+
+
+/* NIGHT CIRCUIT 2.0 — Play / launch dock
+   Keep the existing runtime anchors; this is a presentation-only layout. */
+.home-page .play-console {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  grid-template-columns: minmax(112px, .62fr) minmax(0, 1.38fr);
+  grid-template-rows: auto minmax(0, 1fr) 7px auto;
+  grid-template-areas:
+    "head head"
+    "play progress-label"
+    "play progress-bar"
+    "play progress-meta";
+  align-items: center;
+  column-gap: 15px;
+  row-gap: 0;
+  width: min(100%, 520px);
+  max-width: 520px;
+  margin-top: 18px;
+  padding: 16px;
+  overflow: hidden;
+  border: 1px solid rgba(135, 167, 190, .25);
+  border-radius: 15px;
+  background:
+    linear-gradient(135deg, rgba(24, 43, 58, .97), rgba(12, 24, 36, .98) 72%),
+    var(--surface);
+  box-shadow: 0 13px 32px rgba(0, 0, 0, .28), inset 0 1px rgba(255, 255, 255, .035);
+}
+.home-page .play-console::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 0 auto 0 0;
+  width: 2px;
+  background: linear-gradient(180deg, var(--acid), rgba(99, 217, 198, .08));
+}
+.home-page .play-console::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  top: -75px;
+  left: -85px;
+  width: 210px;
+  height: 210px;
+  border-radius: 50%;
+  background: rgba(99, 217, 198, .055);
+  filter: blur(28px);
+  pointer-events: none;
+}
+.home-page .play-console-head {
+  grid-area: head;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 13px;
+}
+.home-page .play-console-eyebrow {
+  display: block;
+  color: #839caf;
+  font-size: .59rem;
+  letter-spacing: .14em;
+}
+.home-page .play-console-head h2 {
+  margin: 4px 0 0;
+  color: #eef5f8;
+  font-size: 1.15rem;
+  letter-spacing: -.035em;
+}
+.home-page .play-console-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 9px;
+  border: 1px solid var(--stroke);
+  border-radius: 7px;
+  background: rgba(7, 15, 24, .45);
+  color: #9cb3c3;
+  font-size: .55rem;
+  letter-spacing: .12em;
+}
+.home-page .play-console-mark::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--acid);
+  box-shadow: 0 0 10px rgba(99, 217, 198, .45);
+}
+.home-page .play {
+  grid-area: play;
+  grid-row: 2 / 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-width: 0;
+  min-height: 103px;
+  height: 100%;
+  padding: 12px 8px;
+  border: 1px solid rgba(99, 217, 198, .42);
+  border-radius: 11px;
+  background: linear-gradient(155deg, rgba(42, 78, 86, .9), rgba(23, 47, 59, .96));
+  color: #9cb8bd;
+  font-size: .82rem;
+  font-weight: 850;
+  letter-spacing: .08em;
+  box-shadow: inset 0 1px rgba(255, 255, 255, .05);
+  transition: background .18s ease, border-color .18s ease, box-shadow .18s ease, transform .18s ease, color .18s ease;
+}
+.home-page .play svg {
+  width: 27px;
+  height: 27px;
+  padding: 5px;
+  border-radius: 8px;
+  background: rgba(4, 16, 22, .25);
+  fill: currentColor;
+  transition: transform .18s ease;
+}
+.home-page .play-label {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  line-height: 1.25;
+}
+.home-page .play kbd {
+  padding: 2px 5px;
+  border: 1px solid rgba(8, 30, 34, .22);
+  border-radius: 4px;
+  background: rgba(8, 30, 34, .12);
+  color: inherit;
+  font-size: .58rem;
+  line-height: 1.3;
+}
+.home-page .play:not(:disabled) {
+  border-color: rgba(121, 237, 215, .75);
+  background: linear-gradient(145deg, #8af0dc 0%, #5ed9c5 52%, #43b9b4 100%);
+  color: #071b1b;
+  box-shadow: 0 8px 22px rgba(63, 204, 184, .18), inset 0 1px rgba(255, 255, 255, .46);
+}
+.home-page .play:not(:disabled):hover {
+  border-color: #b0fff0;
+  background: linear-gradient(145deg, #a4f7e8, #68e4d0 58%, #4cc6bf);
+  box-shadow: 0 10px 26px rgba(63, 204, 184, .25), inset 0 1px rgba(255, 255, 255, .5);
+  transform: translateY(-1px);
+}
+.home-page .play:not(:disabled):hover svg { transform: translateX(2px) scale(1.04); }
+.home-page .play:active:not(:disabled) { transform: translateY(0) scale(.985); }
+.home-page .play:focus-visible { outline: 2px solid #a8fff0; outline-offset: 3px; }
+.home-page .play:disabled {
+  cursor: wait;
+  filter: none;
+  opacity: 1;
+}
+.home-page .launch-progress-row {
+  grid-area: progress-label;
+  align-self: end;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 9px;
+  min-width: 0;
+  margin: 0;
+  color: #c4d1da;
+  font-size: .68rem;
+  font-weight: 700;
+}
+.home-page .launch-progress-note {
+  color: #7f96a8;
+  font-size: .53rem;
+  letter-spacing: .1em;
+}
+.home-page .launch-progress {
+  grid-area: progress-bar;
+  width: 100%;
+  height: 6px;
+  margin: 8px 0 0;
+  overflow: hidden;
+  border: 1px solid rgba(147, 172, 194, .08);
+  border-radius: 999px;
+  background: rgba(4, 12, 21, .72);
+}
+.home-page .launch-progress .bar-fill {
+  min-width: 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #3b9eaa, #63d9c6 68%, #b0f4de);
+  box-shadow: 0 0 12px rgba(99, 217, 198, .28);
+}
+.home-page .module-download-meta {
+  grid-area: progress-meta;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 9px;
+  min-width: 0;
+  margin: 8px 0 0;
+  color: #91a8b8;
+  font-size: .65rem;
+}
+.home-page .module-download-meta p {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.home-page .module-download-meta > span {
+  flex: 0 0 auto;
+  padding: 3px 7px;
+  border: 1px solid var(--stroke);
+  border-radius: 6px;
+  background: rgba(6, 15, 24, .55);
+  color: var(--acid);
+  font-family: var(--mono);
+  font-size: .62rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 700px) {
+  .home-page .play-console {
+    width: 100%;
+    max-width: none;
+    grid-template-columns: minmax(104px, .58fr) minmax(0, 1.42fr);
+    column-gap: 11px;
+    padding: 13px;
+  }
+  .home-page .play { min-height: 96px; padding: 10px 6px; }
+  .home-page .play-console-head { margin-bottom: 11px; }
+}
+@media (max-width: 390px) {
+  .home-page .play-console {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto auto 6px auto;
+    grid-template-areas: "head" "play" "progress-label" "progress-bar" "progress-meta";
+    row-gap: 0;
+  }
+  .home-page .play-console-head { margin-bottom: 10px; }
+  .home-page .play {
+    grid-row: auto;
+    flex-direction: row;
+    min-height: 54px;
+    padding: 9px 13px;
+    gap: 9px;
+  }
+  .home-page .play svg { width: 22px; height: 22px; }
+  .home-page .launch-progress-row { margin-top: 12px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .home-page .play,
+  .home-page .play svg { transition: none; }
+}
