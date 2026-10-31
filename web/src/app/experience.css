@@ -1375,3 +1375,21 @@ body {
   .home-page .play,
   .home-page .play svg { transition: none; }
 }
+
+/* The separate car-art panel is intentionally removed: keep the launch area as the hero focus. */
+.landing-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-height: 0;
+}
+.landing-copy {
+  width: min(100%, 880px);
+  margin: 0 auto;
+  padding: clamp(28px, 4vw, 44px);
+}
+.landing-art { display: none !important; }
+
+@media (max-width: 700px) {
+  .landing-hero { display: grid; grid-template-columns: minmax(0, 1fr); }
+  .landing-copy { width: 100%; padding: 24px 20px; }
+}

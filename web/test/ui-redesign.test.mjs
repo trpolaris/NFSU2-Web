@@ -118,7 +118,7 @@ test('Night Circuit 2.0 shares one restrained midnight-teal palette across the w
   assert.match(css, /#mods \.mods-feature-grid\s*\{[\s\S]*?max-width: 960px/);
   assert.match(css, /\.crew-line\s*\{[\s\S]*?flex-direction: row/);
   assert.match(css, /@media \(prefers-reduced-motion: reduce\)/);
-  assert.match(html, /UNDERGROUND DISTRICT/);
+  assert.doesNotMatch(html, /class="landing-art"|class="hero-car"|class="art-grid"/);
 });
 
 
@@ -133,4 +133,16 @@ test('Play uses a dedicated responsive launch dock without changing runtime anch
   assert.match(css, /\.home-page \.play:not\(:disabled\)/);
   assert.match(css, /@media \(max-width: 390px\)[\s\S]*?grid-template-areas: "head" "play" "progress-label" "progress-bar" "progress-meta"/);
   assert.match(css, /@media \(prefers-reduced-motion: reduce\)[\s\S]*?\.home-page \.play svg \{ transition: none/);
+});
+
+ 
+test('landing hero removes the decorative car-art panel and retains the Play launch dock', () => {
+  assert.doesNotMatch(html, /class="landing-art"|class="hero-car"|class="art-grid"/);
+  assert.match(css, /The separate car-art panel is intentionally removed/);
+  assert.match(css, /\.landing-hero\s*\{[\s\S]*?grid-template-columns: minmax\(0, 1fr\)/);
+  assert.match(html, /id="play-panel"/);
+  assert.match(html, /id="play"/);
+  assert.match(html, /id="progress"/);
+  assert.match(css, /NIGHT CIRCUIT 2\.0 — Play \/ launch dock/);
+  assert.match(css, /\.home-page \.play:not\(:disabled\)/);
 });
