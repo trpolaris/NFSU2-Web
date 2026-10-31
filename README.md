@@ -11,7 +11,7 @@
 [![WebAssembly](https://img.shields.io/badge/Runtime-WebAssembly-654ff0?style=flat-square&logo=webassembly&logoColor=white)](https://webassembly.org/)
 [![WebGPU](https://img.shields.io/badge/Graphics-WebGPU-2563eb?style=flat-square)](https://developer.mozilla.org/docs/Web/API/WebGPU_API)
 
-[🚘 Proje](#-proje-hakkında) · [✨ Özellikler](#-öne-çıkan-özellikler) · [📋 Gereksinimler](#-gereksinimler) · [🧰 Yerel Kurulum](#-yerel-kurulum) · [🌐 VPS Kurulumu](#-vps-ve-docker-kurulumu) · [🎮 Oynama](#-oynama-ve-kontroller) · [🛠️ Geliştirme](#️-geliştirme) · [⚖️ Lisans](#️-lisans-ve-telif)
+[🚘 Proje](#-proje-hakkında) · [✨ Özellikler](#-öne-çıkan-özellikler) · [🖥️ Control Center](#control-center) · [📋 Gereksinimler](#-gereksinimler) · [🧰 Yerel Kurulum](#-yerel-kurulum) · [🌐 VPS Kurulumu](#-vps-ve-docker-kurulumu) · [🎮 Oynama](#-oynama-ve-kontroller) · [🛠️ Geliştirme](#️-geliştirme) · [⚖️ Lisans](#️-lisans-ve-telif)
 
 </div>
 
@@ -63,6 +63,93 @@ Oyun sırasında **F8** ile kare hızı göstergesi açılabilir; ayrıntılı g
 > **RTT notu:** F8 ekranındaki RTT, oyuncunun doğrudan başka bir oyuncuya yaptığı ping değildir. Ölçüm, istemci ile sanal LAN sunucusu arasındaki WebSocket gidiş-dönüşünü temsil eder. Oyun kare süresi veya tek başına paket kaybı yüzdesi olarak yorumlanmamalıdır.
 
 Ayrıntılar: [Ağ Tanılama Rehberi](docs/web/NETWORK-DIAGNOSTICS.md).
+
+<a id="control-center"></a>
+## 🖥️ TRPOLARIS Control Center
+
+**TRPOLARIS Control Center**, NFSU2 Web projesini Windows bilgisayarda kurmak, başlatmak, izlemek ve yönetmek için geliştirilmiş bağımsız bir masaüstü uygulamasıdır. C# / WPF ve **.NET 10** ile hazırlanır. Web oyun arayüzünün veya Rust sunucusunun bir parçası değildir; Windows tarafında WSL / Ubuntu ve Docker bileşenlerini yöneterek kurulum sürecini kolaylaştırır.
+
+Control Center özellikle oyunu kendi bilgisayarında veya yerel ağında çalıştırmak, Docker komutlarını elle yürütmeden sunucu kurulumunu yapmak ve servis durumunu tek arayüzden takip etmek isteyen Windows kullanıcıları içindir.
+
+### Ne işe yarar?
+
+- NFSU2 Web kaynaklarını proje dizinine alır ve kurulum için gerekli araç zincirini hazırlar.
+- Kullanıcının kendi oyun klasörünü seçmesini ve desteklenen `SPEED2.EXE` dosyasının kontrol edilmesini sağlar.
+- Oyun verilerinden WebAssembly modülünün üretilmesi, web uygulamasının / Rust sunucusunun hazırlanması ve Docker imajı ile container'ın başlatılması akışını yönetir.
+- Yerel, LAN / HTTPS ve isteğe bağlı Cloudflare Tunnel erişim profillerini yönetir.
+- WSL, Ubuntu, Docker Engine, port, oyun dosyası ve NFSU2 sunucu container'ı için tanılama araçları sunar.
+- PowerShell ve WSL işlemlerinin çıktılarını canlı günlük ekranında bir araya getirir.
+
+### Ekranlar
+
+| Ekran | Kullanım amacı |
+|---|---|
+| **Dashboard** | WSL 2, Ubuntu, Docker ve NFSU2 sunucusunun durumunu; yerel adresi, LAN IP bilgisini ve hızlı işlemleri gösterir. |
+| **Install** | Web portunu ve oyun klasörünü seçerek kaynakların alınmasını, bağımlılıkların hazırlanmasını, WASM derlemesini ve Docker sunucusunun kurulmasını başlatır. |
+| **Access** | Local, LAN / HTTPS ve geçici Cloudflare Tunnel erişim profillerini yönetir. |
+| **Diagnostics & Maintenance** | WSL, Ubuntu, Docker Engine, portlar, oyun dosyaları ve container sağlığını kontrol eder; güvenli bakım adımlarını sunar. |
+| **Uninstall Center** | NFSU2 projesine ait container, image, tunnel, state ve proje dosyaları gibi kaynaklar için seçmeli kaldırma seçenekleri sunar. |
+| **Live Logs** | PowerShell ve WSL üzerinden yürütülen işlemlerin çıktılarını canlı olarak gösterir. |
+
+### Gereksinimler
+
+- Windows x64 bilgisayar ve etkinleştirilmiş **WSL 2**.
+- WSL içinde Ubuntu dağıtımı.
+- WSL tarafından erişilebilen çalışan bir Docker Engine; Docker Desktop veya uygun bir WSL Docker kurulumu kullanılabilir.
+- Kurulum sırasında gerekli kaynakları ve araçları indirebilmek için internet bağlantısı.
+- WebAssembly üretimi için desteklenen kendi PC oyun kopyanız. Oyun dosyaları Control Center veya GitHub üzerinden dağıtılmaz.
+- Control Center kaynak kodundan derleme yapmak isteyen geliştiriciler için **.NET 10 SDK**.
+
+> [!NOTE]
+> Control Center projesi .NET 10 hedefler. Hazır Windows EXE'sinin .NET çalışma zamanını kendi içinde taşıyıp taşımadığı, yayımlanan paketin publish ayarına bağlıdır. Kaynak kodundan derleme için .NET 10 SDK gerekir.
+
+### İndirme ve kurulum
+
+Control Center, NFSU2 Web ile aynı GitHub deposunda tutulur ancak **ayrı Windows uygulaması ve ayrı sürüm hattı** olarak yayımlanır. Windows sürümleri `control-center-vX.Y.Z` etiketiyle yayınlanır; web oyununun sürümleriyle karıştırılmaz.
+
+**[Control Center v1.5.6 GitHub Release sayfası](https://github.com/trpolaris/NFSU2-Web/releases/tag/control-center-v1.5.6)** · [Control Center kaynakları](control-center/) · [Control Center kullanım ve geliştirme rehberi](control-center/README.md)
+
+> [!IMPORTANT]
+> `control-center-v1.5.6` bağlantısı, ilgili GitHub Release yayımlandığında indirme sayfası olacaktır. Release henüz oluşturulmadıysa sayfa boş veya erişilemez görünebilir. Yayın paketinde `TRPOLARIS.NFSU2.WebControlCenter.exe`, `SHA256SUMS.txt` ve `RELEASE-NOTES.md` bulunması hedeflenir.
+
+1. GitHub Release sayfasından Windows x64 EXE dosyasını indirin ve Windows bilgisayarınızda erişilebilir bir klasöre kaydedin.
+2. WSL 2, Ubuntu ve Docker Engine'in kurulu ve çalışır durumda olduğunu kontrol edin. Control Center'ın **Dashboard** ve **Diagnostics & Maintenance** ekranları bu bileşenlerin durumunu gösterir.
+3. Control Center'ı açın ve **Install** ekranında NFSU2 oyun klasörünüzü seçin. Klasörde uyumlu `SPEED2.EXE` bulunmalıdır; varsa `server.dll` dosyasını da aynı oyun klasöründe bırakın.
+4. Kurulum işlemini başlatın. Uygulama kaynak kodunu ve gerekli bağımlılıkları hazırlar, oyun kodundan WebAssembly üretim akışını çalıştırır, Docker imajını oluşturur ve NFSU2 sunucu container'ını başlatır.
+5. Kurulumun tamamlandığını kabul etmeden önce container sağlık durumunun **healthy** olduğunu doğrulayın. Ardından **Access** ekranından Local veya LAN / HTTPS erişimini seçin.
+
+Varsayılan proje dizini `C:\nfsu2` olarak tanımlıdır. Varsayılan yerel HTTP portu **9093**, LAN HTTPS portu **8443**'tür. Bu değerler uygulama ayarlarına göre değişebilir.
+
+### Kullanım ve günlük yönetim
+
+- **Yerel oynama:** Dashboard'da sunucunun çalıştığını doğrulayın ve Local erişim adresini kullanın.
+- **Aynı ağdaki cihazlardan oynama:** LAN / HTTPS profilini etkinleştirin; diğer cihazlardan Control Center'ın gösterdiği LAN adresini açın.
+- **İnternet üzerinden erişim:** Uygun ağ ve DNS yapılandırmasıyla Cloudflare Tunnel profilini kullanabilirsiniz. Public erişimi açmadan önce aşağıdaki güvenlik uyarısını okuyun.
+- **Sorun giderme:** Diagnostics & Maintenance ekranında bileşen ve container durumlarını kontrol edin; ayrıntılı işlem çıktıları Live Logs ekranındadır.
+
+Günlük dosyaları varsayılan olarak şu Windows klasöründe tutulur:
+
+```text
+%LOCALAPPDATA%\TRPOLARIS\NFSU2-Web-Control-Center\logs
+```
+
+### Güvenlik ve kaldırma konusunda önemli notlar
+
+> [!WARNING]
+> **Public Cloudflare Tunnel profili varsayılan olarak uygulama seviyesinde kullanıcı adı / parola doğrulaması eklemez.** Bağlantı adresini bilen kişiler sunucuya erişebilir. İnternete açık kullanımda Cloudflare Access veya eşdeğer bir kimlik doğrulama ve erişim politikası yapılandırın.
+
+> [!CAUTION]
+> Uninstall Center'daki seçenekleri işaretlemeden önce her kaynağın etkisini okuyun ve önemli oyun / sunucu verilerini yedekleyin. **Ubuntu WSL dağıtımını kaldırmak o dağıtımın içindeki tüm Linux dosyalarını siler. Docker Desktop'ı kaldırmak ise NFSU2 dışındaki Docker projelerini de etkileyebilir.** Bu seçenekleri yalnızca gerçekten tüm ilgili ortamı kaldırmak istediğinizde kullanın.
+
+v1.5.6 kaynaklarında state temizliği belirli NFSU2 volume adlarıyla sınırlandırılmıştır: `nfsu2-web-local_state`, `nfsu2-web_state` ve `nfsu2-web-local-state`. Oyun verisi, modül ve sertifika hacimleri ayrı kaynaklardır; bunların da silinmesi gerektiğini varsaymayın. Başka projelere ait Docker volume'larını, container'larını, image'larını veya kullanıcı oyun klasörlerini topluca temizleyen işlemler çalıştırmayın.
+
+### Geliştirme ve bağımsız yayınlama
+
+Control Center kaynak kodu `control-center/` altında bulunacak ve web oyununun `web/`, `runtime/` ve `tools/` derleme akışlarından ayrı tutulacaktır. Windows CI, .NET 10 restore / Release build ve WPF kontrollerini çalıştırır; yayın süreci `control-center-vX.Y.Z` etiketiyle Windows x64 EXE ve SHA-256 özeti üretir. Bu ayrım sayesinde iki uygulama tek depoda bulunurken bağımsız derlenip yayımlanabilir.
+
+Windows derlemesi, temiz kurulum ve kaldırma kapsamı testleri ilgili sürümün yayın notlarında doğrulanmadan tamamlanmış kabul edilmemelidir. Geliştirme adımları ve Control Center'a özel ayrıntılar için [control-center/README.md](control-center/README.md) dosyasına bakın.
+
+---
 
 ## 📋 Gereksinimler
 
@@ -431,6 +518,15 @@ NFSU2-Web/
 │   ├── gen.sh               # WebAssembly için oyun kodu üretimi
 │   ├── build.sh             # WebAssembly modülünü derleme
 │   └── start.sh             # Yerel web sunucusunu hazırlama ve başlatma
+├── control-center/          # Bağımsız Windows WPF / .NET 10 yönetim uygulaması
+│   ├── src/                 # Control Center WPF kaynak projesi
+│   ├── assets/              # Simge ve uygulama varlıkları
+│   ├── scripts/             # Yardımcı ve yayın betikleri
+│   ├── tests/               # Control Center doğrulama testleri
+│   ├── docs/                # Uygulamaya özel belgeler
+│   ├── installer/           # Windows paketleme / kurulum dosyaları
+│   └── README.md            # Kurulum, kullanım ve geliştirme rehberi
+├── .github/workflows/       # Web ve Control Center için bağımsız CI iş akışları
 ├── runtime/                 # Ortak oyun çalışma zamanı ve platform uyarlamaları
 ├── tools/                   # Python analiz, kod üretimi ve dönüştürme araçları
 ├── LANGPACKS/turkish/       # Türkçe dil paketi
@@ -487,6 +583,7 @@ CI iş akışı ayrıca Rust workspace testlerini, TypeScript kontrolünü, web 
 
 - [Multiplayer and Regression CI](.github/workflows/multiplayer-ci.yml)
 - [Rust Container Image](.github/workflows/image-rs.yml)
+- [Control Center Windows CI](.github/workflows/control-center-ci.yml) — Control Center kaynakları depoya eklendiğinde bağımsız Windows derleme ve yayın kontrolleri için.
 
 ### Teknik dokümantasyon
 
