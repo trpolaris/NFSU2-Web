@@ -16,8 +16,10 @@ const GAME_NAMES = /(^|\/)SPEED2\.EXE$|\.(BUN|BIN|LZC|VIV|MUS|ASF|VP6|ABK|GIN|CS
 // the Dockerfile, its ignore file, and what may go into its build (sources only, never gen/ (the lifted game code),
 // out/ (the module) or the game folder)
 const DOCKERFILE = 'web/server-rs/Dockerfile', IGNORE = 'web/server-rs/Dockerfile.dockerignore';
-const ALLOWED = ['app/registry-defaults.txt', 'web/package.json', 'web/package-lock.json', 'web/build.mjs', 'web/index.html', 'web/src/',
+const ALLOWED = ['app/registry-defaults.txt', 'web/package.json', 'web/package-lock.json', 'web/build.mjs', 'web/index.html', 'web/src/', 'web/tools/i18n-keys.mjs',
   'web/server-rs/'];
+const ALLOWED_IGNORE_DIRS = ['web/tools/'];
+const CONTEXT_ROOTS = ['app/registry-defaults.txt', 'web/package.json', 'web/package-lock.json', 'web/build.mjs', 'web/index.html', 'web/tools/i18n-keys.mjs', 'web/src/', 'web/server-rs/'];
 
 const ignore = fs.readFileSync(path.join(REPO, IGNORE), 'utf8').split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('#'));
 // after "*": exceptions (!x), and exclusions inside one of them (a build folder), which only narrow what goes in
@@ -26,7 +28,7 @@ const excluded = ignore.slice(1).filter(l => !l.startsWith('!')).map(l => l.repl
 test(`${IGNORE} leaves everything out, then lets in only the allowed sources`, () => {
   assert.equal(ignore[0], '*', 'the first pattern leaves everything out');
   for (const l of ignore.slice(1)) {
-    if (l.startsWith('!')) assert.ok(ALLOWED.includes(l.slice(1)), `"${l.slice(1)}" is not one of the server's or the page's sources`);
+    if (l.startsWith('!')) assert.ok(ALLOWED.includes(l.slice(1)) || ALLOWED_IGNORE_DIRS.includes(l.slice(1)), `"${l.slice(1)}" is not one of the server's or the page's sources`);
     else assert.ok(ALLOWED.some(a => a.endsWith('/') && l.startsWith(a)), `"${l}": after "*", only exceptions, or exclusions inside them`);
   }
 });
@@ -48,8 +50,17 @@ test('the build context has no game file names and no links', () => {
     if (st.isDirectory()) for (const e of fs.readdirSync(path.join(REPO, rel))) walk(`${rel}/${e}`);
     else files.push(rel);
   };
-  for (const a of ALLOWED) walk(a.replace(/\/$/, ''));
+  for (const a of CONTEXT_ROOTS) walk(a.replace(/\/$/, ''));
   assert.ok(files.length > 20, `${files.length} files`);
   const bad = files.filter(f => GAME_NAMES.test(f));
   assert.deepEqual(bad, []);
+});
+
+
+test('only the imported i18n-keys helper from web/tools is included', () => {
+  const dockerfile = fs.readFileSync(path.join(REPO, DOCKERFILE), 'utf8');
+  assert.match(dockerfile, /COPY\s+web\/tools\/i18n-keys\.mjs\s+tools\/i18n-keys\.mjs/);
+  assert.ok(ignore.includes('!web/tools/'));
+  assert.ok(ignore.includes('!web/tools/i18n-keys.mjs'));
+  assert.ok(!ALLOWED.includes('web/tools/'), 'the entire tools directory must not enter the Docker build context');
 });

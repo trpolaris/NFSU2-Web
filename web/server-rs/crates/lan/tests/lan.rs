@@ -594,31 +594,75 @@ async fn a_receiver_that_never_reads_is_cut_by_the_keepalive_tick() {
     sleep(50).await;
     let pa = sw.peers().into_iter().find(|p| p.name != "B").unwrap();
     let buffered = |sw: &Switch| sw.peers().iter().find(|p| p.vip == pa.vip).map_or(0, |p| p.buffered);
+    let pa_vip = ip_str(pa.vip);
+    // Count a frame only after the switch has routed it to A.  Without this acknowledgement,
+    // B can enqueue its next frame before the test observes the previous frame crossing
+    // send_buffer; that next send is then cut as Slow instead of letting keepalive cut Queue.
+    let frames_out = |state: &Value| {
+        state["peers"]
+            .as_array()?
+            .iter()
+            .find(|p| p["vip"].as_str() == Some(pa_vip.as_str()))
+            .and_then(|p| p["framesOut"].as_u64())
+    };
     let mut n = 0;
+    let mut max_q = 0usize;
     let t_flood = Instant::now();
     while n < 20000 {
-        if buffered(&sw) > 16 << 10 {
+        if !sw.has(pa.vip) {
+            break;
+        }
+        let q = buffered(&sw);
+        max_q = max_q.max(q);
+        if q > 16 << 10 {
             // over the limit: for good once the kernel's buffers are full (an ACK still frees them a moment later
             // while they are not)
             sleep(100).await;
-            if buffered(&sw) > 16 << 10 {
+            let q = buffered(&sw);
+            max_q = max_q.max(q);
+            if q > 16 << 10 || !sw.has(pa.vip) {
                 break;
             }
             continue;
         }
+        let before = frames_out(&sw.info().await).expect("A is still on the switch");
         let mut f = vec![0u8; 8000];
         f[0] = 1;
         f[8..12].copy_from_slice(&pa.vip.to_be_bytes());
         b.binary(f);
-        n += 1;
         // let the switch take it
         b.binary(Vec::new());
         b.flush().await;
-        sleep(1).await;
+
+        let deadline = Instant::now() + std::time::Duration::from_secs(2);
+        loop {
+            if !sw.has(pa.vip) {
+                break;
+            }
+            let state = sw.info().await;
+            if frames_out(&state).is_some_and(|count| count > before) {
+                break;
+            }
+            assert!(Instant::now() < deadline, "A did not receive B's frame");
+            sleep(1).await;
+        }
+        if !sw.has(pa.vip) {
+            break;
+        }
+        n += 1;
+        max_q = max_q.max(buffered(&sw));
     }
     let q = buffered(&sw);
-    println!("A's queue {q} bytes after {n} frames in {:.0} ms", ms_since(t_flood));
-    assert!(q > 16 << 10, "A's queue grew ({q} bytes after {n} frames)");
+    max_q = max_q.max(q);
+    println!(
+        "A's queue {q} bytes (peak {max_q}) after {n} frames in {:.0} ms",
+        ms_since(t_flood)
+    );
+    let cuts_at_flood = sw.info().await["cuts"].clone();
+    assert!(
+        max_q > 16 << 10 || cuts_at_flood["queue"] == 1,
+        "A's queue never crossed its limit (peak {max_q} bytes after {n} frames); cuts={cuts_at_flood}"
+    );
     let t0 = Instant::now();
     let mut seen = Vec::new();
     while sw.has(pa.vip) && t0.elapsed().as_millis() < 1500 {
@@ -628,6 +672,7 @@ async fn a_receiver_that_never_reads_is_cut_by_the_keepalive_tick() {
     println!("A's queue every 20 ms until it went: {seen:?}");
     assert!(!sw.has(pa.vip), "A is off the switch");
     let cuts = sw.info().await["cuts"].clone();
+    assert_eq!(cuts["slow"], 0, "not cut by a subsequent send: {cuts}");
     assert_eq!(cuts["queue"], 1, "cut by the tick for its queue: {cuts}");
     b.close().await;
     drop(a);

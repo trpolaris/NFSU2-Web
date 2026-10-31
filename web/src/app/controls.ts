@@ -161,20 +161,23 @@ export function controlsSheet(root: HTMLElement, id: string, opts: { tab?: Tab; 
   }
   for (const t of tabs) { t.id = `${id}-tab-${t.dataset.tab}`; t.setAttribute('aria-controls', `${id}-${t.dataset.tab}`); }
   const pad = panels.find(p => p.dataset.tab === 'pad')!;
+  // The page can provide a dedicated mount so its new heading and explanatory copy survive redraws.
+  // Older help dialogs have no mount and keep the original whole-panel behavior.
+  const mount = pad.querySelector<HTMLElement>('[data-pad-mount]') ?? pad;
   const wheel = wheelSection(pad, cap);
   let svg: SVGElement, radios: HTMLInputElement[] = [];
   /** the drawing and its foot, in the page's language; the wheel's part after them */
   const draw = () => {
     const menus = esc(t('In menus: D-pad and {a}, {b} goes back.')).replace('{a}', cap('A', 'cross')).replace('{b}', cap('B', 'circle'));
-    pad.innerHTML = padSvg() + `<div class="pad-foot">
+    mount.innerHTML = padSvg() + `<div class="pad-foot">
     <p class="hint">${menus}</p>
     <div class="seg" role="radiogroup" aria-label="${esc(t('Button names'))}">
       <label class="opt"><input type="radio" name="${id}-fam" value="xb">Xbox</label>
       <label class="opt"><input type="radio" name="${id}-fam" value="ps">PlayStation</label>
     </div></div>`;
-    pad.append(wheel.box);
-    svg = pad.querySelector('svg')!;
-    radios = [...pad.querySelectorAll<HTMLInputElement>('input[type="radio"]')];
+    mount.append(wheel.box);
+    svg = mount.querySelector('svg')!;
+    radios = [...mount.querySelectorAll<HTMLInputElement>('input[type="radio"]')];
     for (const r of radios) r.onchange = () => { if (r.checked) sheet.family(r.value as Family); };
     wheel.relabel();
     requestAnimationFrame(fit);

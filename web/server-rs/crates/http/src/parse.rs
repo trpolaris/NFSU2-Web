@@ -11,7 +11,7 @@
 //! - `PRI` is only ever the HTTP/2 preface: a 400 either way
 //! - header lines end in CRLF (a bare LF or CR is a 400), names are tokens followed at once by `:`, values are
 //!   tab, space, visible ASCII or obs-text; a line that starts with whitespace (obsolete folding) is a 400
-//! - Content-Length: digits and trailing spaces, once, never with Transfer-Encoding; Transfer-Encoding: chunked only
+//! - Content-Length: digits and trailing spaces or tabs, once, never with Transfer-Encoding; Transfer-Encoding: chunked only
 //!   as the last coding, once (a request whose last coding is not chunked is read, then answered 400)
 //! - chunk sizes in hex, extensions as tokens or quoted strings, CRLF everywhere, trailers as header lines
 
@@ -693,8 +693,8 @@ impl Parser {
                         continue;
                     }
                     if b == b'\r' {
-                        if self.special == Special::ContentLength {
-                            // llhttp: "Empty Content-Length"
+                        if matches!(self.special, Special::ContentLength | Special::TransferEncoding) {
+                            // llhttp: "Empty Content-Length" / "Empty Transfer-Encoding"
                             return (i, self.fail(ClientError::Parse));
                         }
                         self.st = St::ValueLf;
@@ -898,7 +898,7 @@ impl Parser {
                     }
                     self.cl = Cl::Digits;
                 }
-                (Cl::Digits | Cl::Spaces, b' ') => self.cl = Cl::Spaces,
+                (Cl::Digits | Cl::Spaces, b' ' | b'\t') => self.cl = Cl::Spaces,
                 _ => return Some(ClientError::Parse),
             },
             Special::TransferEncoding => loop {
@@ -1067,25 +1067,27 @@ fn run_of(s: &[u8], ok: impl Fn(u8) -> bool) -> usize {
     s.iter().position(|&b| !ok(b)).unwrap_or(s.len())
 }
 
-/// The tokens of a Connection header as llhttp reads them: close, keep-alive or upgrade, each between commas, with
-/// leading whitespace and trailing spaces (not tabs: llhttp's rule), case-insensitive.
+/// Node/llhttp treats Connection as a comma-separated list of complete tokens, with optional
+/// whitespace around each item. A word boundary alone is not enough ("x close" is not "close").
+fn has_connection_token(value: &[u8], wanted: &[u8]) -> bool {
+    value.split(|&b| b == b',').any(|field| {
+        let start = field.iter().position(|&b| b != b' ' && b != b'\t').unwrap_or(field.len());
+        let end = field.iter().rposition(|&b| b != b' ' && b != b'\t').map_or(start, |i| i + 1);
+        field[start..end].eq_ignore_ascii_case(wanted)
+    })
+}
+
+/// Node recognizes only complete comma-separated Connection tokens.
 pub(crate) fn connection_flags(v: &[u8]) -> u16 {
     let mut flags = 0;
-    for token in v.split(|&b| b == b',') {
-        let mut t = token;
-        while let [b' ' | b'\t', rest @ ..] = t {
-            t = rest;
-        }
-        while let [rest @ .., b' '] = t {
-            t = rest;
-        }
-        if t.eq_ignore_ascii_case(b"close") {
-            flags |= F_CONNECTION_CLOSE;
-        } else if t.eq_ignore_ascii_case(b"keep-alive") {
-            flags |= F_CONNECTION_KEEP_ALIVE;
-        } else if t.eq_ignore_ascii_case(b"upgrade") {
-            flags |= F_CONNECTION_UPGRADE;
-        }
+    if has_connection_token(v, b"close") {
+        flags |= F_CONNECTION_CLOSE;
+    }
+    if has_connection_token(v, b"keep-alive") {
+        flags |= F_CONNECTION_KEEP_ALIVE;
+    }
+    if has_connection_token(v, b"upgrade") {
+        flags |= F_CONNECTION_UPGRADE;
     }
     flags
 }
@@ -1170,6 +1172,9 @@ mod tests {
         let e = all_steps(b"POST / HTTP/1.1\r\nContent-Length: 3\r\n\r\nabcGET / HTTP/1.0\r\n\r\n");
         assert_eq!(e[1], "head POST / 1.1 [(\"content-length\", \"3\")] ka=true up=false close=false Length(3)");
         assert_eq!(e[2], "body abc");
+        let tabbed = all_steps(b"POST / HTTP/1.1\r\nContent-Length: 3\t\r\n\r\nabc");
+        assert!(tabbed[1].contains("Length(3)"), "{tabbed:?}");
+        assert_eq!(tabbed[2], "body abc");
         assert!(e.contains(&"head GET / 1.0 [] ka=false up=false close=false None".to_string()));
         let e = all_steps(b"POST / HTTP/1.1\r\nTransfer-Encoding: gzip, chunked\r\n\r\n3;a=\"b;c\"\r\nabc\r\n2\r\nde\r\n0\r\nT: 1\r\n\r\n");
         assert_eq!(e[2], "body abcde");
@@ -1188,6 +1193,8 @@ mod tests {
             b"GET / HTTP/1.1\r\nX: a\r\n b\r\n\r\n",
             b"GET / HTTP/1.1\r\nContent-Length: 5\r\nContent-Length: 5\r\n\r\n",
             b"GET / HTTP/1.1\r\nContent-Length: 5\r\nTransfer-Encoding: chunked\r\n\r\n",
+            b"GET / HTTP/1.1\r\nTransfer-Encoding:\r\n\r\n",
+            b"GET / HTTP/1.1\r\nTransfer-Encoding: \t\r\n\r\n",
             b"GET / HTTP/1.1\r\nTransfer-Encoding: chunked, gzip\r\n\r\n",
             b"GET /\x7f HTTP/1.1\r\n\r\n",
             b"GET / HTTP/1.2\r\n\r\n",
@@ -1263,9 +1270,18 @@ mod tests {
     fn connection_tokens() {
         assert_eq!(connection_flags(b"close"), F_CONNECTION_CLOSE);
         assert_eq!(connection_flags(b"x, Keep-Alive "), F_CONNECTION_KEEP_ALIVE);
-        assert_eq!(connection_flags(b"close\t"), 0);
-        assert_eq!(connection_flags(b"closed"), 0);
+        assert_eq!(connection_flags(b"close\t"), F_CONNECTION_CLOSE);
+        assert_eq!(connection_flags(b"close\t,x"), F_CONNECTION_CLOSE);
         assert_eq!(connection_flags(b"x,, close"), F_CONNECTION_CLOSE);
         assert_eq!(connection_flags(b"Upgrade, HTTP2-Settings"), F_CONNECTION_UPGRADE);
+        // A token must be a complete comma-separated item, not merely a word inside a value.
+        assert_eq!(connection_flags(b"close x"), 0);
+        assert_eq!(connection_flags(b"x close"), 0);
+        assert_eq!(connection_flags(b"x-close"), 0);
+        assert_eq!(connection_flags(b"close%"), 0);
+        assert_eq!(connection_flags(b"2 Upgrade"), 0);
+        assert_eq!(connection_flags(b"} Upgrade"), 0);
+        assert_eq!(connection_flags(b"\xffclose"), 0);
+        assert_eq!(connection_flags(b"closed"), 0);
     }
 }

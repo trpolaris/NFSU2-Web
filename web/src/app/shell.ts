@@ -154,8 +154,10 @@ let saved: { name: string; at: number; count: number } | null = null;
 // ------------------------------------------------------------- progress --
 function setProgress(f: number) {
   const v = Math.max(0, Math.min(1, f));
+  const pct = Math.round(v * 100);
   $('#progress-fill').style.width = `${(v * 100).toFixed(1)}%`;
-  $('#progress').setAttribute('aria-valuenow', String(Math.round(v * 100)));
+  $('#progress').setAttribute('aria-valuenow', String(pct));
+  $('#module-download-percent').textContent = `${pct}%`;
 }
 
 // --------------------------------------------------------------- status --
@@ -176,9 +178,42 @@ function setSub(sub: Msg, code?: string) {
 function setCheck(c: Check) {
   checks.set(c.id, c);
   renderProblems();
+  renderDiagnostics();
   evaluate();
 }
-const ORDER = ['browser', 'isolation', 'gpu', 'storage', 'module'];
+
+/** Verify the server's actual game-data manifest before the WASM guest touches files.
+ *  The I/O worker already resolves case-insensitively; a missing path here is genuinely absent from /data. */
+async function checkGameData(): Promise<Check> {
+  const required = ['SPEED2.EXE', 'SDATA/sdat.viv'];
+  const optional = ['PFData/MusicSFX.mpf', 'speech/UG2_Speech.big'];
+  try {
+    const response = await fetch('/data-manifest', { cache: 'no-store', signal: AbortSignal.timeout(5000) });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const manifest = await response.json() as { files?: { p?: string; d?: number }[] };
+    if (!Array.isArray(manifest.files)) throw new Error('manifest has no files array');
+    const normalize = (value: string) => value.trim().toLowerCase();
+    const present = new Set(manifest.files.filter(file => !file.d && typeof file.p === 'string').map(file => normalize(file.p!)));
+    const missing = required.filter(file => !present.has(normalize(file)));
+    if (missing.length) {
+      return check('game-data', N('Game data'), 'fail',
+        N('Required game files are missing: {files}. Restore the missing files from your complete PC NFSU2 game folder on the server.'),
+        'GAME-DATA-MISSING', { files: missing.join(', ') });
+    }
+    const missingOptional = optional.filter(file => !present.has(normalize(file)));
+    if (missingOptional.length) {
+      return check('game-data', N('Game data'), 'warn',
+        N('Some optional music or speech files are not present: {files}.'),
+        'GAME-DATA-OPTIONAL', { files: missingOptional.join(', ') });
+    }
+    return check('game-data', N('Game data'), 'ok', N('Required game files are present in the server manifest.'));
+  } catch (error) {
+    return check('game-data', N('Game data'), 'warn',
+      N('The server game-data manifest could not be read; file availability could not be verified: {error}.'),
+      'GAME-DATA-UNKNOWN', { error: String(error) });
+  }
+}
+const ORDER = ['browser', 'isolation', 'gpu', 'storage', 'game-data', 'module'];
 let problemsShown = '';
 const problemsLogged = new Set<string>();
 /** a check's label and detail in the page's language */
@@ -218,6 +253,77 @@ function recheckGpu(since = performance.now()) {
     log.add(`[app] the graphics are back after ${((performance.now() - since) / 1000).toFixed(0)} s`);
     setCheck(c);
   }, 10_000);
+}
+/** Every real startup check is also listed on the dedicated diagnostics page. */
+function renderDiagnostics() {
+  const root = $('#diagnostic-list');
+  const items = ORDER.map(id => checks.get(id)).filter((x): x is Check => !!x);
+  root.replaceChildren(...items.map(c => {
+    const li = document.createElement('li');
+    li.className = `diagnostic-item diagnostic-${c.state}`;
+    li.dataset.id = c.id;
+    const icon = document.createElement('span');
+    icon.className = 'diagnostic-icon';
+    icon.setAttribute('aria-hidden', 'true');
+    icon.textContent = c.state === 'ok' ? '✓' : c.state === 'warn' ? '!' : c.state === 'fail' ? '×' : '…';
+    const copy = document.createElement('div');
+    copy.className = 'diagnostic-copy';
+    const title = document.createElement('strong');
+    title.textContent = label(c);
+    const detailLine = document.createElement('p');
+    detailLine.textContent = detail(c);
+    if (c.code) detailLine.append(' ', codeOf(c.code));
+    copy.append(title, detailLine);
+    const state = document.createElement('span');
+    state.className = 'diagnostic-state';
+    state.textContent = c.state.toUpperCase();
+    li.append(icon, copy, state);
+    return li;
+  }));
+}
+async function refreshDiagnostics() {
+  const button = $<HTMLButtonElement>('#diagnostics-refresh');
+  button.disabled = true;
+  button.setAttribute('aria-busy', 'true');
+  try {
+    setCheck(checkBrowser());
+    setCheck(checkIsolation());
+    setCheck(check('gpu', N('Graphics (WebGPU)'), 'pending', N('Checking.')));
+    setCheck(check('storage', N('Browser storage'), 'pending', N('Checking.')));
+    setCheck(check('game-data', N('Game data'), 'pending', N('Checking installed game files.')));
+    const [gpu, storage, gameData] = await Promise.all([
+      checkGpu(lastGame?.ended?.why === 'GPU-LOST'),
+      checkStorage(),
+      checkGameData(),
+    ]);
+    setCheck(gpu);
+    const { answer, ...base } = storage;
+    setCheck(base);
+    setCheck(gameData);
+    void answer?.then(setCheck);
+  } finally {
+    button.disabled = false;
+    button.removeAttribute('aria-busy');
+  }
+}
+function downloadDiagnostics() {
+  const lines = [
+    'TRPOLARIS NFSU2 Web — diagnostic report',
+    `Generated: ${new Date().toISOString()}`,
+    `Page: ${location.origin}${location.pathname}`,
+    `Browser: ${browserBrief(navigator.userAgent, navigator.maxTouchPoints, isPhone())}`,
+    `Screen: ${screen.width}x${screen.height}, DPR ${window.devicePixelRatio}`,
+    `Cross-origin isolated: ${String(crossOriginIsolated)}`,
+    `Game module: ${loaded?.info.rev ?? 'not loaded'}`,
+    '',
+    'CHECKS',
+    ...ORDER.map(id => {
+      const item = checks.get(id);
+      return item ? `[${item.state.toUpperCase()}] ${item.label}: ${item.detail}${item.code ? ` (${item.code})` : ''}` : `[NOT RUN] ${id}`;
+    }),
+    '',
+  ];
+  downloadBlob(lines.join('\n') + '\n', `trpolaris-diagnostics-${stamp()}.txt`, 'text/plain;charset=utf-8');
 }
 function blocking(): Check | undefined { return ORDER.map(id => checks.get(id)).find(c => c?.state === 'fail'); }
 
@@ -271,7 +377,7 @@ async function loadSettings(): Promise<string | null> {
 const DEVICE = deviceDefaults();
 function resolved(host: Record<string, string> = {}): Resolved { return resolveEnv(settingsText, ENVIRONMENT, host, DEVICE); }
 /** the game's language (runtime/language.c): which language pack the page fetches ahead and counts */
-const language = (r: Resolved = resolved()) => (r.env.NFSU2_LANGUAGE ?? 'english').toLowerCase();
+const language = (r: Resolved = resolved()) => (r.env.NFSU2_LANGUAGE ?? 'turkish').toLowerCase();
 /** the texture pack picked (runtime/web/texrep_web.c), '' for none: the one the page fetches ahead and counts */
 const texpack = (r: Resolved = resolved()) => { const v = (r.env.NFSU2_UI_TEXTURES ?? '').toLowerCase(); return v === 'original' ? '' : v; };
 
@@ -486,6 +592,14 @@ async function startGame() {
     offline || testPage() ? null : serverRev(1000),
     offline || testPage() ? null : players?.fresh(1000) ?? null,
   ]);
+  const gameData = await checkGameData();
+  setCheck(gameData);
+  if (gameData.state === 'fail') {
+    log.add(`[app] Play blocked: ${gameData.code}: ${gameData.detail}`);
+    setPhase('error', T('Not ready'), () => detail(gameData), gameData.code);
+    $('#log-btn').hidden = $('#report').hidden = false;
+    return;
+  }
   if (rev && rev !== loaded!.info.rev && rev !== tried) {
     newer = rev; updated = false;
     // before a game ran here nothing is lost; after one, the offer with its word on the log first (the next Play reloads)
@@ -1309,12 +1423,17 @@ async function loadModule() {
   moduleLoading = true;
   setCheck(moduleFails ? check('module', N('Game module'), 'pending', N('Loading again (attempt {n}).'), undefined, { n: moduleFails + 1 })
     : check('module', N('Game module'), 'pending', N('Loading.')));
+  live($('#module-download-status'), () => t('Loading the game.'));
+  setProgress(0);
   try {
     loaded = await loadGame((got, total) => {
       setProgress(total ? got / total : 0);
-      if (phase === 'boot') setSub(T('Loading the game: {got} of {total}.', { got: fmtBytes(got), total: fmtBytes(total) }));
+      const values = { got: fmtBytes(got), total: fmtBytes(total) };
+      live($('#module-download-status'), () => total ? t('Loading the game: {got} of {total}.', values) : t('Loading the game.'));
+      if (phase === 'boot') setSub(() => total ? t('Loading the game: {got} of {total}.', values) : t('Loading the game.'));
     });
     setProgress(1);
+    live($('#module-download-status'), () => `${t('Ready')} · ${fmtBytes(loaded!.info.size)}`);
     log.add(`[app] game module ${loaded.info.rev}: ${fmtBytes(loaded.info.size)} in ${loaded.ms.toFixed(0)} ms, ${loaded.transferred} bytes transferred${moduleFails ? `, after ${moduleFails} failed attempts` : ''}`);
     moduleFails = 0;
     moduleLoading = false;
@@ -1328,6 +1447,7 @@ async function loadModule() {
     log.add(`[app] the game module did not load (attempt ${moduleFails}): ${e}; next try in ${wait} s`);
     moduleLoading = false;
     setProgress(0);
+    live($('#module-download-status'), () => t('The game did not load ({error}). Trying again in {n} s, or press Retry.', { error: String(e), n: wait }));
     setCheck(check('module', N('Game module'), 'fail', N('The game did not load ({error}). Trying again in {n} s, or press Retry.'), 'MODULE-LOAD', { error: String(e), n: wait }));
     moduleTimer = setTimeout(() => void loadModule(), wait * 1000);
   }
@@ -1544,6 +1664,8 @@ export async function boot() {
   $<HTMLButtonElement>('#retry').onclick = () => void loadModule();
   $<HTMLButtonElement>('#reload').onclick = () => void reload();
   $<HTMLButtonElement>('#log-btn').onclick = downloadLog;
+  $<HTMLButtonElement>('#diagnostics-refresh').onclick = () => void refreshDiagnostics();
+  $<HTMLButtonElement>('#diagnostics-download').onclick = downloadDiagnostics;
   $('#menu').addEventListener('click', e => { const a = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-act]'); if (a) void menuAction(a.dataset.act!); });
   $('#playlist-body').addEventListener('change', setTrackMode);
   $('#playlist-shuffle').addEventListener('change', setShuffle);
@@ -1621,9 +1743,12 @@ export async function boot() {
   setCheck(checkIsolation());
   setCheck(check('gpu', N('Graphics (WebGPU)'), 'pending', N('Checking.')));
   setCheck(check('storage', N('Browser storage'), 'pending', N('Checking.')));
+  setCheck(check('game-data', N('Game data'), 'pending', N('Checking installed game files.')));
   setCheck(check('module', N('Game module'), 'pending', N('Loading.')));
   setPhase('boot', T('Loading'), T('Loading the game.'));
+  live($('#module-download-status'), T('Loading the game.'));
   setProgress(0);
+  renderDiagnostics();
 
   showOverrides(given, dev);
   if (given.length) log.add(dev ? `[app] test settings from the page address: ${given.join(', ')}` : `[app] the page address's test settings (${given.join(', ')}) are ignored: not a development server`);
@@ -1636,6 +1761,7 @@ export async function boot() {
   void checkGpu(lastGame?.ended?.why === 'GPU-LOST').then(c => { setCheck(c); if (c.code === 'GPU-ADAPTER-AFTER-LOST') recheckGpu(); });
   // Firefox's answer to its storage prompt comes later: the check again then
   void checkStorage().then(({ answer, ...c }) => { setCheck(c); void answer?.then(setCheck); });
+  void checkGameData().then(setCheck);
   refreshMeasured = measureRefresh(60).then(r => { displayHz = r.hz; log.add(`[app] display refresh ${r.raw.toFixed(1)} Hz -> ${r.hz}`); });
 
   if (crossOriginIsolated) await loadModule();

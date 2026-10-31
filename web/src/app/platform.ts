@@ -1,13 +1,13 @@
 // The extra platform tools: a local garage/favorites catalogue, a safe mod-link library,
 // validated settings profiles, accessibility preferences, update checks and translation audits.
 // This module never writes to the server's game folder; the browser is a client, not an installer.
-import { LANGUAGES, LOCALE, NATIVE, N, onLanguage, setLanguage, t } from './i18n';
+import { LANGUAGES, LOCALE, NATIVE, N, lastLanguage, onLanguage, setLanguage, t } from './i18n';
 import { PROFILE_SETTING_KEYS, type SettingsPanel } from './settings-ui';
 import { checkSetting } from './settings';
 
 
 
-export const APP_BUILD_VERSION = '2026.10.29.05';
+export const APP_BUILD_VERSION = '2026.10.30.04';
 // Keep messages used through conditional/dynamic paths in the translation catalogue.
 const PLATFORM_TEXT_KEYS = [
   N('Add to favorites'), N('Remove from favorites'), N('Not found on server'), N('Manifest unavailable in this preview.'),
@@ -502,7 +502,7 @@ async function checkUpdates() {
     else $('#updates-status').textContent = t("You're up to date.");
   } catch (e) {
     $('#build-server').textContent = '—';
-    $('#updates-status').textContent = t('Version information is not available on this server.');
+    $('#updates-status').textContent = `${t('Version information is not available on this server.')} (${e instanceof Error ? e.message : String(e)})`;
   } finally { button.disabled = false; button.removeAttribute('aria-busy'); }
 }
 
@@ -546,13 +546,29 @@ function wireFirstRun(settings: SettingsPanel, log: (line: string) => void) {
   const languageSelect = $<HTMLSelectElement>('#first-run-language');
   const populate = () => {
     const prior = languageSelect.value;
+    const topLanguage = document.querySelector<HTMLSelectElement>('#lang-pick')?.value ?? '';
     languageSelect.replaceChildren(...LANGUAGES.map(l => new Option(NATIVE[l], l)));
-    languageSelect.value = LANGUAGES.includes(prior as typeof LANGUAGES[number]) ? prior : (document.querySelector<HTMLSelectElement>('#lang-pick')?.value ?? 'turkish');
+    const chosen = LANGUAGES.includes(prior as typeof LANGUAGES[number]) ? prior
+      : LANGUAGES.includes(topLanguage as typeof LANGUAGES[number]) ? topLanguage
+      : lastLanguage();
+    languageSelect.value = chosen;
     for (const option of [...languageSelect.options]) option.lang = LOCALE[option.value as keyof typeof LOCALE];
   };
   populate();
   onLanguage(populate);
-  $<HTMLButtonElement>('#first-run-open').onclick = () => { populate(); if (!dialog.open) dialog.showModal(); };
+  const showFirstRun = async () => {
+    populate();
+    if (dialog.open) return;
+    // Wait for the page's fonts and first layout pass: the automatic first open
+    // must have the same measured layout as a dialog opened later by the user.
+    try { await document.fonts.ready; } catch { /* system fonts remain usable */ }
+    await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+    if (!dialog.open) {
+      dialog.showModal();
+      dialog.getBoundingClientRect();
+    }
+  };
+  $<HTMLButtonElement>('#first-run-open').onclick = () => { void showFirstRun(); };
   $<HTMLAnchorElement>('#first-run-settings').onclick = () => dialog.close('settings');
   $<HTMLAnchorElement>('#first-run-diagnostics').onclick = () => dialog.close('diagnostics');
   $<HTMLButtonElement>('#first-run-continue').onclick = async () => {
@@ -578,7 +594,7 @@ function wireFirstRun(settings: SettingsPanel, log: (line: string) => void) {
     if ($<HTMLInputElement>('#first-run-skip').checked) { try { localStorage.setItem(STORE.onboarding, '1'); } catch { /* optional */ } }
   });
   let alreadySeen = false; try { alreadySeen = localStorage.getItem(STORE.onboarding) === '1'; } catch { /* optional */ }
-  if (!alreadySeen && !isAutomatedTest()) setTimeout(() => { if (!dialog.open) dialog.showModal(); }, 900);
+  if (!alreadySeen && !isAutomatedTest()) setTimeout(() => { void showFirstRun(); }, 900);
 }
 function isAutomatedTest(): boolean { return location.search.includes('test=') || location.pathname.startsWith('/test/'); }
 

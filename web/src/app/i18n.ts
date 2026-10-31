@@ -1,5 +1,5 @@
 // The start page in the player's language.  It is the game's own (settings.ini language, settings.ts LANGUAGES), so
-// one choice sets both, in Settings and in the list at the top; English until the player picks another.  English is
+// one choice sets both, in Settings and in the list at the top; Turkish on a first visit.  English is
 // the source: each text is written in English where it is used, and t() looks that English up in the language's file
 // (web/src/app/lang/<language>.json, served as /lang/<language>.json, fetched once the language is picked), {name}
 // for the parts that change.  A text the file does not have stays English.  The start page's own markup is marked in
@@ -152,7 +152,7 @@ export async function setLanguage(l: string, log?: (s: string) => void): Promise
 /** the language this browser showed last (the page asks for its file at once, before settings.ini is read) */
 const STORE = 'nfsu2-page-language';
 export function lastLanguage(): Language {
-  try { const v = localStorage.getItem(STORE) ?? ''; return isLanguage(v) ? v : 'english'; } catch { return 'english'; }
+  try { const v = localStorage.getItem(STORE) ?? ''; return isLanguage(v) ? v : 'turkish'; } catch { return 'turkish'; }
 }
 
 // ------------------------------------------------------------------------------------------------ the markup --

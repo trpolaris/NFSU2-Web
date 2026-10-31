@@ -25,7 +25,7 @@
 declare const self: ServiceWorkerGlobalScope;
 export {};
 
-const CACHE = 'nfsu2-offline-16';
+const CACHE = 'nfsu2-offline-19';
 const PAGE = '/', MODULE = '/game.wasm';
 /** what a start needs, and the module; the page loads the first five itself before Play */
 const KEPT = ['/', '/main.js', '/main.css', '/game.json', '/data-manifest', '/manifest.json', '/app-version.json', '/i18n-key-manifest.json', '/favicon.ico', '/icon.png', '/icon-180.png', '/icon-192.png', '/icon-512.png', '/icon-maskable-512.png',

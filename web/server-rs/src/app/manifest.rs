@@ -26,7 +26,7 @@ use super::etag;
 use crate::options::within;
 
 /// what /data/ and /data-blocks/ serve: the top-level entries of the install folder that are the game's
-pub const GAME_ENTRIES: [&str; 18] = [
+pub const GAME_ENTRIES: [&str; 19] = [
     "speed2.exe",
     "server.dll",
     "server.cfg",
@@ -40,6 +40,7 @@ pub const GAME_ENTRIES: [&str; 18] = [
     "movies",
     "nis",
     "pfdata",
+    "sdata", // the standard PC game music archive (SDATA/sdat.viv)
     "sound",
     "speech",
     "subtitles",
@@ -216,7 +217,7 @@ mod tests {
         let d = tempfile::tempdir().unwrap();
         let p = |r: &str| d.path().join(r);
         std::fs::write(p("SPEED2.EXE"), "MZ fake").unwrap();
-        for dir in ["GLOBAL", "TRACKS/sub", "SAVE", "scripts", "Movies"] {
+        for dir in ["GLOBAL", "TRACKS/sub", "SAVE", "scripts", "Movies", "SDATA"] {
             std::fs::create_dir_all(p(dir)).unwrap();
         }
         std::fs::write(p("GLOBAL/Game.txt"), "inside").unwrap();
@@ -233,6 +234,7 @@ mod tests {
         std::fs::write(p(".hidden"), "SECRET").unwrap();
         std::fs::write(p("TRACKS/sub/L4RA.BUN"), [1u8; 3000]).unwrap();
         std::fs::write(p("Movies/INTRO.VP6"), [2u8; 50]).unwrap();
+        std::fs::write(p("SDATA/sdat.viv"), [3u8; 64]).unwrap();
         std::fs::write(p("unins000.dat"), "SECRET").unwrap();
         std::fs::write(p("SAVE/profile"), "SECRET").unwrap();
         std::fs::write(p("scripts/mod.ini"), "SECRET").unwrap();
@@ -261,6 +263,8 @@ mod tests {
             "GLOBAL/\u{e9}t\u{e9}",
             "Movies",
             "Movies/INTRO.VP6",
+            "SDATA",
+            "SDATA/sdat.viv",
             "SPEED2.EXE",
             "TRACKS",
             "TRACKS/sub",
@@ -294,7 +298,7 @@ mod tests {
         let script = r#"
 import fsp from 'node:fs/promises'; import path from 'node:path';
 const GAME_ENTRIES = ['speed2.exe', 'server.dll', 'server.cfg',
-  'cars', 'credits', 'frontend', 'global', 'langpacks', 'languages', 'memcard', 'movies', 'nis', 'pfdata', 'sound', 'speech', 'subtitles', 'tracks'];
+  'cars', 'credits', 'frontend', 'global', 'langpacks', 'languages', 'memcard', 'movies', 'nis', 'pfdata', 'sdata', 'sound', 'speech', 'subtitles', 'tracks'];
 const GAME_TOP = new Set(GAME_ENTRIES);
 const gameEntry = name => GAME_TOP.has(name.toLowerCase());
 const within = (a, b) => { const x = a.toLowerCase(), y = b.toLowerCase(); return x === y || x.startsWith(y.endsWith(path.sep) ? y : y + path.sep); };

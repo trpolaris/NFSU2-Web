@@ -7,5 +7,7 @@
 !web/build.mjs
 !web/index.html
 !web/src/
+!web/tools/
+!web/tools/i18n-keys.mjs
 !web/server-rs/
 web/server-rs/target/

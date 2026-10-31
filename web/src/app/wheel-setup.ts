@@ -57,6 +57,9 @@ export function wheelSection(pad: HTMLElement, cap: (xb: string, ps: string) => 
   const box = document.createElement('div');
   box.className = 'wheel';
   box.hidden = true;
+  // The redesigned controls page mounts the controller SVG separately from its heading.
+  // Keep the old panel behavior in the in-game help dialog, which has no dedicated mount.
+  const mount = pad.querySelector<HTMLElement>('[data-pad-mount]') ?? pad;
   const $ = <T extends HTMLElement>(s: string) => box.querySelector<T>(s)!;
   const uid = `wheel${++sections}`;
   let learnBox: HTMLElement, step: HTMLElement, fill: HTMLElement, learnBtn: HTMLButtonElement, guessBtn: HTMLButtonElement;
@@ -112,7 +115,7 @@ export function wheelSection(pad: HTMLElement, cap: (xb: string, ps: string) => 
     const g = connectedWheel();
     id = g?.id ?? '';
     box.hidden = !g;
-    for (const el of pad.children) if (el !== box) (el as HTMLElement | SVGElement).style.display = g ? 'none' : '';
+    for (const el of mount.children) if (el !== box) (el as HTMLElement | SVGElement).style.display = g ? 'none' : '';
     if (!g) return;
     $('.wheel-name').textContent = familyOf(g.id).name;
     $('.wheel-other').hidden = !otherPad(g.index);

@@ -12,6 +12,7 @@ import { attachAudio as audioAttach } from '../audio/index';
 import { attachInput as inputAttach } from '../input/index';
 import { attachNet as netAttach } from '../net/index';
 import type { AttachAudio, AttachInput, AttachNet, AttachRenderer } from './contract';
+import { linkStateCode, networkQualityCode } from './network-quality';
 
 export type {
   Subsystem, RendererSubsystem, AudioSubsystem, InputSubsystem, NetSubsystem,
@@ -57,7 +58,21 @@ export const attachNet: AttachNet = (proc, o) => {
     crews: (hashes: readonly number[], rgbs: readonly number[]) => link.setCrews(hashes, rgbs),
     stats: () => {
       const s = link.stats();
-      return { 'lan online': s.state === 'online' ? 1 : 0, 'lan friends': friends().length, 'lan rtt ms': s.switchRttMs };
+      return {
+        'lan online': s.state === 'online' ? 1 : 0,
+        'lan link state': linkStateCode(s.state),
+        'lan quality': networkQualityCode(s.state, s.switchRttMs),
+        'lan friends': friends().length,
+        'lan rtt ms': s.switchRttMs,
+        'lan rtt avg ms': s.switchRttMeanMs,
+        'lan rtt max ms': s.switchRttMaxMs,
+        'lan reconnects': s.reconnects,
+        'lan frames in': s.framesIn,
+        'lan frames out': s.framesOut,
+        'lan rx drops': s.rxFullDrop + s.rxOversize,
+        'lan tx wait avg ms': s.txWaitMeanMs,
+        'lan tx wait max ms': s.txWaitMaxMs,
+      };
     },
   };
 };

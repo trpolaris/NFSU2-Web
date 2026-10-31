@@ -235,7 +235,10 @@ export function crewControl(o: CrewControl, ctl: HTMLElement): HTMLInputElement 
   inp.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); add(); } };
   join.onclick = add;
   box.append(inp, join);
-  line.append(ul, box);
+  // Keep the list inside its own wrapper: when there are no crews, an empty UL must not occupy a full row.
+  const chips = document.createElement('div'); chips.className = 'crew-chips';
+  chips.append(ul);
+  line.append(chips, box);
   ctl.append(line, big, note);
   if (o.counts) showCrewCounts(ctl, o.counts);
   check();

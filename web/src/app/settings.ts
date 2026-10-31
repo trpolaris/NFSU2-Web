@@ -206,7 +206,7 @@ export const TEMPLATE = `# NFSU2 settings, read at every launch.
 # and Russian come with their dubbed voices and movies where the server has
 # the language packs; Russian, Portuguese, Polish and Turkish take their text
 # from them too.  [NFSU2_LANGUAGE]
-#language = english
+#language = turkish
 
 # The movies' subtitles: the PSA, the tutorials and the story, in every
 # language but French, German, Italian and Spanish (whose movies are dubbed).
