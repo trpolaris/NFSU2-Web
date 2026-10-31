@@ -143,9 +143,18 @@ rustc --version
 cargo --version
 ~~~
 
-### 3. WASI SDK 34 kurun
+### 3. Depoyu klonlayın
 
-WebAssembly modülünü derlemek için **WASI SDK 34** gereklidir. Resmî paketler: [WebAssembly / wasi-sdk – Releases](https://github.com/WebAssembly/wasi-sdk/releases/tag/wasi-sdk-34).
+~~~bash
+git clone https://github.com/trpolaris/NFSU2-Web.git
+cd NFSU2-Web
+~~~
+
+
+
+### 4. WASI SDK 34 kurun
+
+WebAssembly modülünü derlemek için **WASI SDK 34** gereklidir. Aşağıdaki komutları az önce klonladığınız **NFSU2-Web** depo kök dizininde çalıştırın; SDK, derleme betiğinin otomatik bulacağı **deps/** klasörüne çıkarılır. Resmî paketler: [WebAssembly / wasi-sdk – Releases](https://github.com/WebAssembly/wasi-sdk/releases/tag/wasi-sdk-34).
 
 Linux x86-64 veya WSL2 x86-64 için:
 
@@ -164,25 +173,6 @@ WASI="$PWD/deps/wasi-sdk-34.0-arm64-linux" web/build.sh
 ~~~
 
 **web/build.sh**, desteklenen standart Linux x86-64 ve Apple Silicon macOS paket dizinlerini **deps/** altında otomatik bulabilir.
-
-### 4. Depoyu klonlayın
-
-~~~bash
-git clone https://github.com/trpolaris/NFSU2-Web.git
-cd NFSU2-Web
-~~~
-
-Önceki adımlarda **deps/** klasörünü depo dışında oluşturduysanız SDK'yı bu deponun **deps/** klasörüne yerleştirin. Önerilen dizin düzeni:
-
-~~~text
-NFSU2-Web/
-├── deps/
-│   └── wasi-sdk-34.0-x86_64-linux/
-├── web/
-├── runtime/
-├── tools/
-└── ...
-~~~
 
 ### 5. Python sanal ortamını oluşturun
 
