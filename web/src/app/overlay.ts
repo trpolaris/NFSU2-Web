@@ -154,7 +154,7 @@ export class FpsOverlay {
 }
 
 function fmtExtra(key: string, value: number): string {
-  if (key === 'lan online') return t(N(value ? 'Online' : 'Offline'));
+  if (key === 'lan online') return value ? t(N('Online')) : t(N('Offline'));
   if (key === 'lan link state') return linkStateLabel(value);
   if (key === 'lan quality') return networkQualityLabel(value);
   return fmt(value);
