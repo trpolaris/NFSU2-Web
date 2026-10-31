@@ -6,6 +6,8 @@
 import type { StatusReader } from './status';
 import { linkStateLabel, networkQualityLabel } from './network-quality';
 import { overlayMetrics } from './overlay-metrics';
+import { FramePacing } from './frame-pacing';
+import { N, dateLocale, t } from './i18n';
 
 export type FpsMode = 'off' | 'on' | 'detailed';
 export const FPS_MODES: FpsMode[] = ['off', 'on', 'detailed'];
@@ -14,6 +16,7 @@ export class FpsOverlay {
   mode: FpsMode = 'off';
   private raf = 0;
   private rafTimes: number[] = [];
+  private pacing = new FramePacing();
   private samples: { t: number; frames: number; tris: number }[] = [];
   private lastPaint = 0;
   reader: StatusReader | null = null;
@@ -29,13 +32,18 @@ export class FpsOverlay {
     this.mode = mode;
     this.el.hidden = mode === 'off';
     if (mode !== 'off' && !this.raf) this.raf = requestAnimationFrame(this.tick);
-    if (mode === 'off' && this.raf) { cancelAnimationFrame(this.raf); this.raf = 0; }
+    if (mode === 'off') {
+      if (this.raf) cancelAnimationFrame(this.raf);
+      this.raf = 0;
+      this.pacing.reset();
+    }
   }
   cycle(): FpsMode { const m = FPS_MODES[(FPS_MODES.indexOf(this.mode) + 1) % FPS_MODES.length]; this.set(m); return m; }
-  stop() { if (this.raf) cancelAnimationFrame(this.raf); this.raf = 0; this.samples = []; this.rafTimes = []; this.el.hidden = true; }
+  stop() { if (this.raf) cancelAnimationFrame(this.raf); this.raf = 0; this.samples = []; this.rafTimes = []; this.pacing.reset(); this.el.hidden = true; }
 
   private tick = (now: number) => {
     this.raf = requestAnimationFrame(this.tick);
+    this.pacing.push(now);
     this.rafTimes.push(now);
     while (this.rafTimes.length > 2 && now - this.rafTimes[0] > 1000) this.rafTimes.shift();
     if (now - this.lastPaint < 250) return;
@@ -63,24 +71,31 @@ export class FpsOverlay {
     const fps = game ? this.gameFps : this.pageFps;
     const big = document.createElement('div');
     big.textContent = String(Math.round(fps));
-    const small = document.createElement('small'); small.textContent = game ? 'fps' : 'fps page';
+    const small = document.createElement('small'); small.textContent = game ? 'fps' : t(N('Page FPS'));
     big.append(small);
     const parts: Node[] = [big];
     if (this.mode === 'detailed') {
       const dl = document.createElement('dl');
       const add = (k: string, v: string) => { const dt = document.createElement('dt'); dt.textContent = k; const dd = document.createElement('dd'); dd.textContent = v; dl.append(dt, dd); };
-      if (game && this.gameFps > 0) add('frame', `${(1000 / this.gameFps).toFixed(2)} ms`);
-      add('display', `${this.pageFps.toFixed(0)} Hz`);
+      if (game && this.gameFps > 0) add(t(N('Frame time')), `${fixed(1000 / this.gameFps)} ms`);
+      add(t(N('Page refresh')), `${fmt(this.pageFps)} Hz`);
+      const pacing = this.pacing.snapshot();
+      if (pacing) {
+        add(t(N('Page frame P50')), `${fixed(pacing.p50Ms)} ms`);
+        add(t(N('Page frame P95')), `${fixed(pacing.p95Ms)} ms`);
+        add(t(N('Page frame max')), `${fixed(pacing.maxMs)} ms`);
+        add(t(N('Page frames over 50 ms')), fmt(pacing.over50Ms));
+      }
       if (game && this.samples.length > 1) {
         const a = this.samples[0], b = this.samples[this.samples.length - 1];
         const df = b.frames - a.frames;
-        if (df > 0 && b.tris >= a.tris) add('tris/frame', Math.round((b.tris - a.tris) / df).toLocaleString('en-US'));
+        if (df > 0 && b.tris >= a.tris) add(t(N('Triangles per frame')), fmt(Math.round((b.tris - a.tris) / df)));
       }
       for (const [key, value] of overlayMetrics(st, this.extra())) {
         const label = key.replace(/_/g, ' ');
         add(label, value === null ? '—' : fmtExtra(key, value));
       }
-      if (this.memory) add('memory', `${(this.memory.buffer.byteLength / 1048576).toFixed(0)} MB`);
+      if (this.memory) add(t(N('WASM allocated memory')), `${fmt(this.memory.buffer.byteLength / 1048576)} MB`);
       parts.push(dl);
     }
     this.el.replaceChildren(...parts);
@@ -95,4 +110,5 @@ function fmtExtra(key: string, value: number): string {
   return fmt(value);
 }
 
-function fmt(v: number) { return Number.isInteger(v) ? v.toLocaleString('en-US') : v.toFixed(2); }
+function fmt(v: number) { return v.toLocaleString(dateLocale(), { maximumFractionDigits: Number.isInteger(v) ? 0 : 2 }); }
+function fixed(v: number) { return v.toLocaleString(dateLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
