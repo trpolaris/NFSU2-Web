@@ -29,7 +29,13 @@ export const attachRenderer: AttachRenderer = async (proc, canvas, o) => {
     textures: () => { const s = r.stats(); return { bytes: s.texBytes, unpacked: s.unpackBytes, astc: s.astcBytes }; },
     stats: () => {
       const s = r.stats();
-      const out: Record<string, number> = { 'gpu encode ms': s.encodeMsAvg, 'draws': s.drawsLast, 'passes': s.passesLast, 'pipelines': s.pipelines, 'gpu errors': s.errors };
+      const out: Record<string, number> = {
+        'gpu encode ms': s.encodeMsAvg, 'draws': s.drawsLast, 'passes': s.passesLast,
+        'pipelines': s.pipelines, 'gpu errors': s.errors,
+        'gpu wait count': s.slotWaits, 'gpu wait max ms': s.slotWaitMsMax,
+        'gpu frames not shown': s.unshown, 'gpu frames in flight': s.inFlight,
+        'gpu pipeline build ms': s.pipelineMs, 'gpu pipeline build max ms': s.pipelineMsMax,
+      };
       // Timestamp queries are optional in WebGPU; zero means the adapter/browser did not provide a sample.
       if (s.gpuMsAvg > 0) { out['gpu render ms'] = s.gpuMsAvg; out['gpu render max ms'] = s.gpuMsMax; }
       // These are the renderer's tracked game-texture allocations, not total device VRAM.
