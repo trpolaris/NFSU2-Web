@@ -1268,5 +1268,14 @@
   "TRPOLARIS / WORKSHOP": "TRPOLARIS / 工坊",
   "COMMUNITY PICKS": "社群精選",
   "YOUR COLLECTION": "你的收藏",
-  "Counting…": "計算中…"
+  "Counting…": "計算中…",
+  "Page FPS": "頁面 FPS",
+  "Frame time": "影格時間",
+  "Page refresh": "頁面更新週期",
+  "Triangles per frame": "每影格三角形",
+  "Page frame P50": "頁面影格 P50",
+  "Page frame P95": "頁面影格 P95",
+  "Page frame max": "頁面影格最大值",
+  "Page frames over 50 ms": "超過 50 毫秒的頁面影格",
+  "WASM allocated memory": "已配置的 WASM 記憶體"
 }
