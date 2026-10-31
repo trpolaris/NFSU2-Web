@@ -1078,7 +1078,7 @@
   "saved {when}": "sauvegardé : {when}",
   "Newer": "Plus récent",
   "This browser": "Ce navigateur",
-  "Cloud": "Cloud",
+  "Cloud": "Nuage",
   "The saves this browser had before cloud saves replaced them ({when}) come back in place of the ones here. The saves here now are kept instead, so you can switch back.": "Les sauvegardes que ce navigateur avait avant que celles du cloud ne les remplacent ({when}) reviennent à la place de celles d'ici. Les sauvegardes d'ici sont conservées à la place : vous pourrez y revenir.",
   "Put back the replaced saves?": "Remettre les sauvegardes remplacées ?",
   "Put back": "Remettre",
