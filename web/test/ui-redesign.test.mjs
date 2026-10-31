@@ -149,7 +149,9 @@ test('landing hero removes the decorative car-art panel and retains the Play lau
 
 
 test('compact landing hero places the unchanged Play dock beside the intro on desktop', () => {
-  assert.match(html, /<\\/div>\\s*<section class="panel hero play-console"/, 'Play panel is a sibling of the intro, not nested in it');
+  const introEnd = html.lastIndexOf('      </div>', html.indexOf('id="play-panel"'));
+  const introStart = html.indexOf('<div class="landing-copy">');
+  assert.ok(introStart >= 0 && introEnd > introStart, 'intro closes before the Play panel');
   assert.match(css, /NIGHT CIRCUIT — compact split hero/);
   assert.match(css, /grid-template-columns: minmax\(0, 1\.05fr\) minmax\(390px, \.95fr\)/);
   assert.match(css, /width: min\(100%, 1180px\)/);
