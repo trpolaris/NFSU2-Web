@@ -14,8 +14,9 @@
 #include <time.h>
 #include <unistd.h>
 
-long metal_frames(void); long metal_tris(void); long metal_tex_created(void);
+long metal_frames(void); long metal_presents(void); long metal_tris(void); long metal_tex_created(void);
 unsigned long metal_tex_released(void); long metal_frames_dropped(void);
+double win32_busy_all_ms(void);
 
 static HostStatus g_st;
 static pthread_mutex_t g_mu = PTHREAD_MUTEX_INITIALIZER;
@@ -147,6 +148,42 @@ static void roam_state(void){
  * game, 0 none, so the page asks for it no more (web/src/app/playtime.ts) */
 int sms_delivered(void);
 void status_web_frame(void){
+    /* Page diagnostics and touch-control hints are not game logic. Sample
+     * every fourth present to avoid walking front-end/roam state and taking
+     * the status mutex on every game frame. Worst-case UI staleness: 3 frames. */
+    static unsigned cadence = 0;
+    if ((cadence++ & 3u) != 0u) return;
+
+    /* Measure guest CPU while this thread owns the serialized guest lock.
+     * win32_busy_all_ms includes completed guest-thread holds plus this
+     * thread's current partial hold; no timer-thread race or per-frame
+     * profiler hook is needed. This is busy share of one core, not OS CPU. */
+    static int cpu_slots[2] = { -2, -2 };
+    static double cpu_prev_ms = -1.0, wall_prev_ms = 0.0;
+    static long present_prev = -1;
+    if (cpu_slots[0] == -2) {
+        cpu_slots[0] = host_status_slot("gcpu_pct");
+        cpu_slots[1] = host_status_slot("gcpu_ms_pf");
+    }
+    struct timespec cpu_ts;
+    clock_gettime(CLOCK_MONOTONIC, &cpu_ts);
+    double wall_ms = cpu_ts.tv_sec * 1e3 + cpu_ts.tv_nsec * 1e-6;
+    double busy_ms = win32_busy_all_ms();
+    long presents = metal_presents();
+    if (cpu_prev_ms >= 0.0 && wall_prev_ms > 0.0 && wall_ms > wall_prev_ms &&
+        busy_ms >= cpu_prev_ms && present_prev >= 0 && presents > present_prev) {
+        double elapsed = wall_ms - wall_prev_ms;
+        double busy = busy_ms - cpu_prev_ms;
+        double pct = elapsed > 0.0 ? 100.0 * busy / elapsed : 0.0;
+        if (pct < 0.0) pct = 0.0;
+        if (pct > 100.0) pct = 100.0;
+        double values[2] = { pct, busy / (double)(presents - present_prev) };
+        host_status_set_n(cpu_slots, values, 2);
+    }
+    cpu_prev_ms = busy_ms;
+    wall_prev_ms = wall_ms;
+    present_prev = presents;
+
     static int slot = -2, last = -1, rslot = -2, rlast = -1, pslot = -2, plast = -1, sslot = -2, slast = -1;
     if (slot == -2){ slot = host_status_slot("drive"); rslot = host_status_slot("rate"); pslot = host_status_slot("pause"); sslot = host_status_slot("sms"); }
     int v = drive_state();
