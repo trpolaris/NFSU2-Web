@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
 const css = fs.readFileSync(path.join(ROOT, 'src/app/experience.css'), 'utf8');
+const theme = fs.readFileSync(path.join(ROOT, 'src/app/modern-theme.css'), 'utf8');
 const main = fs.readFileSync(path.join(ROOT, 'src/main.ts'), 'utf8');
 const controls = fs.readFileSync(path.join(ROOT, 'src/app/controls.ts'), 'utf8');
 const settingsUi = fs.readFileSync(path.join(ROOT, 'src/app/settings-ui.ts'), 'utf8');
@@ -103,4 +104,19 @@ test('empty crew chips do not create a full-width blank panel, and Community Pic
   assert.match(css, /\.crew-line \.crew-chips:has\(ul\.crews:empty\)\{display:none\}/);
   assert.match(css, /#mods \.mods-feature-grid\{max-width:1080px/);
   assert.match(css, /#mods \.favorite-button svg\{[\s\S]*?width:17px!important/);
+});
+
+
+test('Night Circuit 2.0 shares one restrained midnight-teal palette across the web shell', () => {
+  assert.match(theme, /--bg: #09111a/);
+  assert.match(theme, /--lime: #63d9c6/);
+  assert.match(theme, /--surface-raised: rgba\(25, 41, 57, \.98\)/);
+  assert.match(css, /--night: var\(--bg\)/);
+  assert.match(css, /--acid: var\(--lime\)/);
+  assert.match(css, /NIGHT CIRCUIT 2\.0/);
+  assert.match(css, /\.home-overview-grid\s*\{[\s\S]*?grid-template-columns: minmax\(0, \.9fr\) minmax\(0, 1\.1fr\)/);
+  assert.match(css, /#mods \.mods-feature-grid\s*\{[\s\S]*?max-width: 960px/);
+  assert.match(css, /\.crew-line\s*\{[\s\S]*?flex-direction: row/);
+  assert.match(css, /@media \(prefers-reduced-motion: reduce\)/);
+  assert.match(html, /UNDERGROUND DISTRICT/);
 });
