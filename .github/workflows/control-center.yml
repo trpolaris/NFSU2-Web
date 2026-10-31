@@ -1,0 +1,152 @@
+name: Control Center CI and Release
+
+on:
+  push:
+    branches:
+      - main
+      - 'feature/**'
+    tags:
+      - 'control-center-v*'
+    paths:
+      - 'control-center/**'
+      - '.github/workflows/control-center.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'control-center/**'
+      - '.github/workflows/control-center.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: control-center-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Windows x64 WPF validation and publish
+    if: ${{ hashFiles('control-center/**/*.csproj') != '' }}
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Validate PowerShell scripts
+        shell: pwsh
+        run: |
+          $files = Get-ChildItem control-center -Recurse -Filter *.ps1
+          if (-not $files) { throw "No PowerShell scripts found." }
+          foreach ($file in $files) {
+            $tokens = $null
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile(
+              $file.FullName,
+              [ref]$tokens,
+              [ref]$errors
+            ) | Out-Null
+            if ($errors.Count -gt 0) {
+              $errors | ForEach-Object { Write-Error "$($file.FullName): $_" }
+              throw "PowerShell parse failed."
+            }
+          }
+
+      - name: Validate XML project and WPF files
+        shell: pwsh
+        run: |
+          $files = @()
+          $files += Get-ChildItem control-center -Recurse -Include *.csproj,*.xaml,*.manifest,*.pubxml
+          foreach ($file in $files) {
+            try {
+              [xml](Get-Content -LiteralPath $file.FullName -Raw) | Out-Null
+            } catch {
+              throw "Invalid XML in $($file.FullName): $_"
+            }
+          }
+
+      - name: Validate bundled Bash scripts
+        shell: bash
+        run: |
+          find control-center -type f -name '*.sh' -print0 | while IFS= read -r -d '' script; do
+            bash -n "$script"
+          done
+
+      - name: Restore WPF solution
+        run: dotnet restore control-center/TRPOLARIS.NFSU2.WebControlCenter.sln
+
+      - name: Build and publish self-contained Windows x64 application
+        shell: pwsh
+        run: |
+          $project = "control-center/src/TRPOLARIS.NFSU2.WebControlCenter/TRPOLARIS.NFSU2.WebControlCenter.csproj"
+          [xml]$xml = Get-Content -LiteralPath $project -Raw
+          $version = [string]($xml.Project.PropertyGroup | Where-Object { $_.Version } | Select-Object -First 1).Version
+          if ([string]::IsNullOrWhiteSpace($version)) { throw "Project Version is missing." }
+
+          if ($env:GITHUB_REF -like "refs/tags/control-center-v*") {
+            $tagVersion = $env:GITHUB_REF -replace '^refs/tags/control-center-v', ''
+            if ($tagVersion -ne $version) {
+              throw "Tag version $tagVersion does not match project version $version."
+            }
+          }
+
+          dotnet publish $project -c Release -r win-x64 --self-contained true `
+            -p:PublishSingleFile=true `
+            -p:IncludeNativeLibrariesForSelfExtract=true `
+            -p:EnableCompressionInSingleFile=true `
+            -p:DebugType=None `
+            -p:DebugSymbols=false `
+            -p:Version=$version `
+            -o control-center/artifacts/publish
+
+          if ($LASTEXITCODE -ne 0) { throw "dotnet publish failed: $LASTEXITCODE" }
+
+          $exe = "control-center/artifacts/publish/TRPOLARIS.NFSU2.WebControlCenter.exe"
+          if (-not (Test-Path $exe)) { throw "Published EXE not found: $exe" }
+          $hash = (Get-FileHash -Algorithm SHA256 $exe).Hash.ToLowerInvariant()
+          "$hash  TRPOLARIS.NFSU2.WebControlCenter.exe" | Set-Content "control-center/artifacts/publish/SHA256SUMS.txt"
+
+          @"
+          # TRPOLARIS NFSU2 Web Control Center v$version
+
+          Windows x64 self-contained WPF application.
+          "@ | Set-Content "control-center/artifacts/publish/RELEASE-NOTES.md"
+
+      - name: Upload Windows build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: control-center-win-x64
+          path: control-center/artifacts/publish/*
+          if-no-files-found: error
+          retention-days: 14
+
+  release:
+    name: Publish GitHub Release
+    if: ${{ startsWith(github.ref, 'refs/tags/control-center-v') }}
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download Windows build
+        uses: actions/download-artifact@v4
+        with:
+          name: control-center-win-x64
+          path: release-assets
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: TRPOLARIS NFSU2 Web Control Center ${{ github.ref_name }}
+          generate_release_notes: true
+          files: |
+            release-assets/TRPOLARIS.NFSU2.WebControlCenter.exe
+            release-assets/SHA256SUMS.txt
+            release-assets/RELEASE-NOTES.md
