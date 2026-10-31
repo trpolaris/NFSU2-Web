@@ -1330,5 +1330,13 @@
   "Poor": "差",
   "Fair": "普通",
   "Good": "良好",
-  "Excellent": "極佳"
+  "Excellent": "極佳",
+  "Guest CPU usage": "游戏 CPU 使用率（单核）",
+  "Guest CPU time per frame": "每帧游戏 CPU 时间",
+  "GPU frames waited": "等待 GPU 的帧数",
+  "GPU longest wait": "GPU 最长等待时间",
+  "GPU frames not shown": "未显示的 GPU 帧数",
+  "GPU frames in flight": "GPU 正在处理的帧数",
+  "GPU pipeline build time": "GPU 管线创建时间",
+  "GPU pipeline build maximum": "GPU 管线创建最长时间"
 }
