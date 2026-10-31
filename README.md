@@ -68,7 +68,6 @@ Ayrıntılar: [Ağ Tanılama Rehberi](docs/web/NETWORK-DIAGNOSTICS.md).
 
 **TRPOLARIS NFSU2 Web Control Center**, NFSU2 Web sunucusunu Windows üzerinden kurmak ve yönetmek için geliştirilen ayrı bir masaüstü uygulamasıdır. Web oyununun parçası değildir; Windows tarafında WSL2 / Ubuntu ve Docker altyapısını yöneterek NFSU2 Web kurulumunu kolaylaştırır.
 
-<|-- placeholder --|>
 
 ### Başlıca özellikler
 
