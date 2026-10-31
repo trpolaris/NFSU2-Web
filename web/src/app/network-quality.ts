@@ -1,4 +1,5 @@
 import type { NetState } from '../net';
+import { N, t } from './i18n';
 
 /** Stable numeric codes for the existing detailed in-game overlay. */
 const STATE_CODES: Record<NetState, number> = {
@@ -13,22 +14,22 @@ const STATE_CODES: Record<NetState, number> = {
 };
 
 const STATE_LABELS: Record<number, string> = {
-  1: 'online',
-  2: 'queued',
-  3: 'connecting',
-  4: 'waiting',
-  5: 'offline',
-  6: 'idle',
-  7: 'away',
-  8: 'closed',
+  1: N('Online'),
+  2: N('Queued'),
+  3: N('Connecting'),
+  4: N('Waiting'),
+  5: N('Offline'),
+  6: N('Idle'),
+  7: N('Away'),
+  8: N('Closed'),
 };
 
 const QUALITY_LABELS: Record<number, string> = {
-  0: 'unknown',
-  1: 'poor',
-  2: 'fair',
-  3: 'good',
-  4: 'excellent',
+  0: N('Unknown'),
+  1: N('Poor'),
+  2: N('Fair'),
+  3: N('Good'),
+  4: N('Excellent'),
 };
 
 /** Encode the link state for the numeric metrics contract used by FpsOverlay.extra. */
@@ -50,9 +51,9 @@ export function networkQualityCode(state: NetState, rttMs: number): number {
 }
 
 export function linkStateLabel(code: number): string {
-  return STATE_LABELS[code] ?? 'unknown';
+  return t(STATE_LABELS[code] ?? N('Unknown'));
 }
 
 export function networkQualityLabel(code: number): string {
-  return QUALITY_LABELS[code] ?? 'unknown';
+  return t(QUALITY_LABELS[code] ?? N('Unknown'));
 }
