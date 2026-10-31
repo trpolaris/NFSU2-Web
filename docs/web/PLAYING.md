@@ -105,7 +105,7 @@ While you drive:
 | Esc or P | Pause; Esc also goes back in menus |
 | Enter | Choose (menus); in free roam, start an event at its marker or take an outrun |
 | F12 | Photo mode while you drive (see below), and in it the photo; elsewhere a screenshot. Both are PNGs kept with your saves and shown in Saves on the start page |
-| **F8** | Frame-rate counter: off, on, detailed |
+| **F8** | Frame-rate counter: off, on, detailed; detailed mode also shows live LAN/Online connection diagnostics while the network link is in use ([what the metrics mean](NETWORK-DIAGNOSTICS.md)) |
 | **F9** | The page menu: when the game last saved, full screen, counter, ghost mode and crews (in free roam), radio, controls, log, **Quit game**, and Stop waiting: play offline while you wait in line; on a controller Home, or both sticks pressed in; on a touch screen the ☰ button |
 | **Hold Esc** | Leave full screen (a short press still goes to the game) |
 
