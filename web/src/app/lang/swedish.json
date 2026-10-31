@@ -1399,5 +1399,13 @@
   "Poor": "Dålig",
   "Fair": "Acceptabel",
   "Good": "Bra",
-  "Excellent": "Utmärkt"
+  "Excellent": "Utmärkt",
+  "Guest CPU usage": "Spelets CPU-användning (en kärna)",
+  "Guest CPU time per frame": "Spelets CPU-tid per bildruta",
+  "GPU frames waited": "Bildrutor som väntar på GPU",
+  "GPU longest wait": "Längsta GPU-väntetid",
+  "GPU frames not shown": "GPU-bildrutor som inte visades",
+  "GPU frames in flight": "GPU-bildrutor under behandling",
+  "GPU pipeline build time": "Tid för att skapa GPU-pipelines",
+  "GPU pipeline build maximum": "Maximal tid för att skapa GPU-pipelines"
 }
