@@ -1337,5 +1337,14 @@
   "TRPOLARIS / WORKSHOP": "TRPOLARIS / VÆRKSTED",
   "COMMUNITY PICKS": "FÆLLESSKABETS VALG",
   "YOUR COLLECTION": "DIN SAMLING",
-  "Counting…": "Tæller…"
+  "Counting…": "Tæller…",
+  "Page FPS": "Sidens FPS",
+  "Frame time": "Billedtid",
+  "Page refresh": "Sideopdatering",
+  "Triangles per frame": "Trekanter pr. frame",
+  "Page frame P50": "Sideframe P50",
+  "Page frame P95": "Sideframe P95",
+  "Page frame max": "Sideframe maks.",
+  "Page frames over 50 ms": "Sideframes over 50 ms",
+  "WASM allocated memory": "Tildelt WASM-hukommelse"
 }
