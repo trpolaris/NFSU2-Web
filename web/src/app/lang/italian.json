@@ -1360,5 +1360,14 @@
   "TRPOLARIS / WORKSHOP": "TRPOLARIS / OFFICINA",
   "COMMUNITY PICKS": "SCELTE DELLA COMMUNITY",
   "YOUR COLLECTION": "LA TUA COLLEZIONE",
-  "Counting…": "Conteggio…"
+  "Counting…": "Conteggio…",
+  "Page FPS": "FPS della pagina",
+  "Frame time": "Tempo del fotogramma",
+  "Page refresh": "Aggiornamento della pagina",
+  "Triangles per frame": "Triangoli per fotogramma",
+  "Page frame P50": "Fotogramma pagina P50",
+  "Page frame P95": "Fotogramma pagina P95",
+  "Page frame max": "Fotogramma pagina massimo",
+  "Page frames over 50 ms": "Fotogrammi pagina oltre 50 ms",
+  "WASM allocated memory": "Memoria WASM allocata"
 }
