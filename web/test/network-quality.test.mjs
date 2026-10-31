@@ -26,7 +26,7 @@ test('network quality follows the documented switch RTT thresholds', () => {
   assert.equal(networkQualityLabel(3), 'Good');
   assert.equal(networkQualityLabel(2), 'Fair');
   assert.equal(networkQualityLabel(1), 'Poor');
-  assert.equal(networkQualityLabel(0), 'unknown');
+  assert.equal(networkQualityLabel(0), 'Unknown');
 });
 
 test('quality remains unknown when the link is not online or RTT is unavailable', () => {
