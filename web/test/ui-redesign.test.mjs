@@ -165,3 +165,8 @@ test('compact landing hero places the unchanged Play dock beside the intro on de
 test('landing hero uses the same full content width as the other page panels', () => {
   assert.match(css, /\.landing-hero\s*\{[\s\S]*?width: 100%;[\s\S]*?max-width: none;/);
 });
+
+
+test('landing hero stays full-width at tablet breakpoints too', () => {
+  assert.match(css, /@media \(max-width: 980px\)\s*\{[\s\S]*?\.landing-hero\s*\{\s*width: 100%;\s*max-width: none;/);
+});
