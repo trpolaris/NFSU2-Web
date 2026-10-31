@@ -1383,5 +1383,14 @@
   "TRPOLARIS / WORKSHOP": "TRPOLARIS / МАСТЕРСКАЯ",
   "COMMUNITY PICKS": "ВЫБОР СООБЩЕСТВА",
   "YOUR COLLECTION": "ВАША КОЛЛЕКЦИЯ",
-  "Counting…": "Подсчёт…"
+  "Counting…": "Подсчёт…",
+  "Page FPS": "FPS страницы",
+  "Frame time": "Время кадра",
+  "Page refresh": "Частота обновления страницы",
+  "Triangles per frame": "Треугольников на кадр",
+  "Page frame P50": "Кадр страницы P50",
+  "Page frame P95": "Кадр страницы P95",
+  "Page frame max": "Максимальный кадр страницы",
+  "Page frames over 50 ms": "Кадры страницы дольше 50 мс",
+  "WASM allocated memory": "Выделенная память WASM"
 }
