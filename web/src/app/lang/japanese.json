@@ -1268,5 +1268,14 @@
   "TRPOLARIS / WORKSHOP": "TRPOLARIS / ワークショップ",
   "COMMUNITY PICKS": "コミュニティおすすめ",
   "YOUR COLLECTION": "あなたのコレクション",
-  "Counting…": "集計中…"
+  "Counting…": "集計中…",
+  "Page FPS": "ページ FPS",
+  "Frame time": "フレーム時間",
+  "Page refresh": "ページ更新周期",
+  "Triangles per frame": "フレームあたりの三角形",
+  "Page frame P50": "ページフレーム P50",
+  "Page frame P95": "ページフレーム P95",
+  "Page frame max": "ページフレーム最大値",
+  "Page frames over 50 ms": "50 ms を超えるページフレーム",
+  "WASM allocated memory": "割り当て済み WASM メモリ"
 }
