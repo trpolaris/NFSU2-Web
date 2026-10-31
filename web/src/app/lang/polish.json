@@ -1383,5 +1383,14 @@
   "TRPOLARIS / WORKSHOP": "TRPOLARIS / WARSZTAT",
   "COMMUNITY PICKS": "WYBÓR SPOŁECZNOŚCI",
   "YOUR COLLECTION": "TWOJA KOLEKCJA",
-  "Counting…": "Zliczanie…"
+  "Counting…": "Zliczanie…",
+  "Page FPS": "FPS strony",
+  "Frame time": "Czas klatki",
+  "Page refresh": "Odświeżanie strony",
+  "Triangles per frame": "Trójkąty na klatkę",
+  "Page frame P50": "Klatka strony P50",
+  "Page frame P95": "Klatka strony P95",
+  "Page frame max": "Maksymalna klatka strony",
+  "Page frames over 50 ms": "Klatki strony powyżej 50 ms",
+  "WASM allocated memory": "Przydzielona pamięć WASM"
 }
