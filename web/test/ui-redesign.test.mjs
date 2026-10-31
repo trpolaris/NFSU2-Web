@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
 const css = fs.readFileSync(path.join(ROOT, 'src/app/experience.css'), 'utf8');
+const theme = fs.readFileSync(path.join(ROOT, 'src/app/modern-theme.css'), 'utf8');
 const main = fs.readFileSync(path.join(ROOT, 'src/main.ts'), 'utf8');
 const controls = fs.readFileSync(path.join(ROOT, 'src/app/controls.ts'), 'utf8');
 const settingsUi = fs.readFileSync(path.join(ROOT, 'src/app/settings-ui.ts'), 'utf8');
@@ -103,4 +104,69 @@ test('empty crew chips do not create a full-width blank panel, and Community Pic
   assert.match(css, /\.crew-line \.crew-chips:has\(ul\.crews:empty\)\{display:none\}/);
   assert.match(css, /#mods \.mods-feature-grid\{max-width:1080px/);
   assert.match(css, /#mods \.favorite-button svg\{[\s\S]*?width:17px!important/);
+});
+
+
+test('Night Circuit 2.0 shares one restrained midnight-teal palette across the web shell', () => {
+  assert.match(theme, /--bg: #09111a/);
+  assert.match(theme, /--lime: #63d9c6/);
+  assert.match(theme, /--surface-raised: rgba\(25, 41, 57, \.98\)/);
+  assert.match(css, /--night: var\(--bg\)/);
+  assert.match(css, /--acid: var\(--lime\)/);
+  assert.match(css, /NIGHT CIRCUIT 2\.0/);
+  assert.match(css, /\.home-overview-grid\s*\{[\s\S]*?grid-template-columns: minmax\(0, \.9fr\) minmax\(0, 1\.1fr\)/);
+  assert.match(css, /#mods \.mods-feature-grid\s*\{[\s\S]*?max-width: 960px/);
+  assert.match(css, /\.crew-line\s*\{[\s\S]*?flex-direction: row/);
+  assert.match(css, /@media \(prefers-reduced-motion: reduce\)/);
+  assert.doesNotMatch(html, /class="landing-art"|class="hero-car"|class="art-grid"/);
+});
+
+
+test('Play uses a dedicated responsive launch dock without changing runtime anchors', () => {
+  assert.match(html, /id="play-panel"/);
+  assert.match(html, /id="play"/);
+  assert.match(html, /id="progress"/);
+  assert.match(html, /id="progress-fill"/);
+  assert.match(html, /id="module-download-status"/);
+  assert.match(css, /NIGHT CIRCUIT 2\.0 — Play \/ launch dock/);
+  assert.match(css, /grid-template-areas:[\s\S]*"head head"[\s\S]*"play progress-label"[\s\S]*"play progress-bar"[\s\S]*"play progress-meta"/);
+  assert.match(css, /\.home-page \.play:not\(:disabled\)/);
+  assert.match(css, /@media \(max-width: 390px\)[\s\S]*?grid-template-areas: "head" "play" "progress-label" "progress-bar" "progress-meta"/);
+  assert.match(css, /@media \(prefers-reduced-motion: reduce\)[\s\S]*?\.home-page \.play svg \{ transition: none/);
+});
+
+ 
+test('landing hero removes the decorative car-art panel and retains the Play launch dock', () => {
+  assert.doesNotMatch(html, /class="landing-art"|class="hero-car"|class="art-grid"/);
+  assert.match(css, /The separate car-art panel is intentionally removed/);
+  assert.match(css, /\.landing-hero\s*\{[\s\S]*?grid-template-columns: minmax\(0, 1fr\)/);
+  assert.match(html, /id="play-panel"/);
+  assert.match(html, /id="play"/);
+  assert.match(html, /id="progress"/);
+  assert.match(css, /NIGHT CIRCUIT 2\.0 — Play \/ launch dock/);
+  assert.match(css, /\.home-page \.play:not\(:disabled\)/);
+});
+
+
+test('compact landing hero places the unchanged Play dock beside the intro on desktop', () => {
+  const introEnd = html.lastIndexOf('      </div>', html.indexOf('id="play-panel"'));
+  const introStart = html.indexOf('<div class="landing-copy">');
+  assert.ok(introStart >= 0 && introEnd > introStart, 'intro closes before the Play panel');
+  assert.match(css, /NIGHT CIRCUIT — compact split hero/);
+  assert.match(css, /grid-template-columns: minmax\(0, 1\.05fr\) minmax\(390px, \.95fr\)/);
+  assert.match(css, /width: 100%;[\s\S]*?max-width: none;/);
+  assert.match(css, /\.home-page \.play-console\s*\{[\s\S]*?margin: 0/);
+  assert.match(html, /id="play"/);
+  assert.match(html, /id="progress"/);
+  assert.match(css, /NIGHT CIRCUIT 2\.0 — Play \/ launch dock/);
+});
+
+
+test('landing hero uses the same full content width as the other page panels', () => {
+  assert.match(css, /\.landing-hero\s*\{[\s\S]*?width: 100%;[\s\S]*?max-width: none;/);
+});
+
+
+test('landing hero stays full-width at tablet breakpoints too', () => {
+  assert.match(css, /@media \(max-width: 980px\)\s*\{[\s\S]*?\.landing-hero\s*\{\s*width: 100%;\s*max-width: none;/);
 });

@@ -13,7 +13,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as esbuild from 'esbuild';
-import { catalog, check, langFile, LANGUAGE_FILES } from '../tools/i18n-keys.mjs';
+import { catalog, check, htmlKeys, langFile, LANGUAGE_FILES } from '../tools/i18n-keys.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const { keys, bad } = catalog();
@@ -62,4 +62,52 @@ test('t(), tn() and tvars(): English, then a language\'s text and plural forms',
   assert.equal(await I.setLanguage('english'), true);
   assert.equal(I.tn(5, '{n} lap', '{n} laps'), '5 laps');
   assert.equal(I.listOf(['a', 'b', 'c']), 'a, b and c');
+});
+
+
+test('visible HTML labels are translated in every language (except technical tokens)', () => {
+  const html = fs.readFileSync(path.join(HERE, '../index.html'), 'utf8');
+  const visible = [...new Set(htmlKeys(html).map(x => x.key).filter(Boolean))];
+  // Native cognates and technical input tokens may legitimately look the same in these locales.
+  const unchanged = new Set(['Ctrl', 'https://…', 'Site', 'B / HORIZON', 'Pause', 'PROJECT / TRPOLARIS', 'Audio', 'Menu', 'Later']);
+  for (const lang of LANGUAGE_FILES) {
+    const dict = JSON.parse(fs.readFileSync(langFile(lang), 'utf8'));
+    const untranslated = visible.filter(key => dict[key] === key && !unchanged.has(key));
+    assert.deepEqual(untranslated, [], `${lang}: visible text still falls back to English`);
+  }
+});
+
+
+test('Turkish never falls back to the English source text for app messages', () => {
+  const dict = JSON.parse(fs.readFileSync(langFile('turkish'), 'utf8'));
+  const unchanged = new Set(['Street X', 'La Cucaracha', 'Ctrl', 'https://…', 'Sedan']);
+  const untranslated = [...keys.keys()].filter(key => dict[key] === key && !unchanged.has(key));
+  assert.deepEqual(untranslated, [], 'Turkish UI has an untranslated English fallback');
+});
+
+
+test('every locale translates app messages except native terms and technical identifiers', () => {
+  const nativeOrTechnical = {
+    turkish: ['Street X', 'La Cucaracha', 'Ctrl', 'https://…', 'Sedan'],
+    french: ['Triangle', 'Messages', 'Pause', 'Street X', 'La Cucaracha', 'Cyan', 'Magenta', 'Violet', 'Site', 'Ctrl', 'Menu', 'OK', 'Total', 'Zoom', 'Respect.', 'https://…', 'Compact', 'SUV', 'Roadster', 'Audio', 'B / HORIZON'],
+    german: ['Pause', 'Street X', 'La Cucaracha', 'Cyan', 'Magenta', 'Original', 'Robust', 'Hotplug', 'Start', 'OK', 'DRIFT', 'Zoom', 'Okay', 'Radio: {mode}', 'https://…', 'SUV', 'Roadster', 'Audio', '0–100 km/h: {value} s'],
+    italian: ['Street X', 'La Cucaracha', 'Magenta', '{n} min', '{n} s', 'Ctrl', 'Menu', 'OK', 'No', 'Zoom', 'Nooo!', 'Radio: {mode}', 'https://…', 'SUV', 'Roadster', 'Audio', '0–100 km/h: {value} s'],
+    spanish: ['La Cucaracha', 'Magenta', 'Original', '{n} min', '{n} s', 'Ctrl', 'No', 'Total', 'Zoom', 'Radio: {mode}', 'https://…', 'Roadster', 'Audio', '0–100 km/h: {value} s'],
+    dutch: ['Camera', 'La Cucaracha', 'Magenta', 'Violet', 'Hotplug', '{n} min', '{n} s', 'Start', 'Ctrl', 'Menu', 'OK', 'DRIFT', 'Zoom', 'Meet', 'Respect.', 'Radio: {mode}', 'https://…', 'Later', 'Compact', 'SUV', 'Hatchback', 'Sedan', 'Roadster', 'Audio', 'B / HORIZON', 'PROJECT / TRPOLARIS'],
+    swedish: ['La Cucaracha', 'Cyan', 'Magenta', 'Original', 'Robust', '{n} min', '{n} s', 'Start', 'Ctrl', 'OK', 'DRIFT', 'Zoom', 'Radio: {mode}', 'https://…', 'SUV', 'Sedan', 'Roadster', '0–100 km/h: {value} s'],
+    danish: ['Pause', 'La Cucaracha', 'Cyan', 'Magenta', 'Violet', 'Original', 'Robust', 'Hotplug', 'Stop', '{n} min', 'Start', 'Send', 'Ctrl', 'Menu', 'OK', 'DRIFT', 'Zoom', 'Okay', 'Radio: {mode}', 'https://…', 'SUV', 'Hatchback', 'Sedan', 'Roadster'],
+    korean: ['La Cucaracha', 'Ctrl', 'https://…', 'SUV'],
+    chinese: ['La Cucaracha', 'Ctrl', 'https://…'],
+    japanese: ['La Cucaracha', 'Ctrl', 'OK', 'https://…', 'SUV'],
+    russian: ['La Cucaracha', 'Ctrl', 'https://…'],
+    thai: ['Street X', 'La Cucaracha', 'Ctrl', 'https://…'],
+    portuguese: ['Street X', 'La Cucaracha', 'Magenta', 'Original', '{n} min', '{n} s', 'Site', 'Ctrl', 'Menu', 'OK', 'Total', 'DRIFT', 'Zoom', 'https://…', 'SUV', 'Hatchback', 'Sedan', 'Roadster', '0–100 km/h: {value} s'],
+    polish: ['Street X', 'La Cucaracha', 'Magenta', '{n} min', '{n} s', 'Start', 'Ctrl', 'Menu', 'OK', 'DRIFT', 'Sprint?', 'Radio: {mode}', 'https://…', 'SUV', 'Hatchback', 'Sedan', 'Coupe', 'Roadster', '0–100 km/h: {value} s'],
+  };
+  for (const lang of LANGUAGE_FILES) {
+    const dict = JSON.parse(fs.readFileSync(langFile(lang), 'utf8'));
+    const allowed = new Set(nativeOrTechnical[lang] ?? []);
+    const untranslated = [...keys.keys()].filter(key => typeof dict[key] === 'string' && dict[key] === key && !allowed.has(key));
+    assert.deepEqual(untranslated, [], `${lang}: an app message still falls back to English`);
+  }
 });

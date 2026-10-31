@@ -2,32 +2,32 @@
    Fresh command-centre layout for desktop and touch screens. This file is loaded
    after style.css: game input, dialogs, touch controls and renderer semantics stay owned by it. */
 :root {
-  --bg: #0b1018;
-  --frame: #121a24;
-  --panel: #182230;
-  --field: #0e1621;
-  --line: #2b3848;
-  --edge: #52667c;
-  --text: #f1f4f8;
-  --muted: #aab6c4;
-  --lime: #f1b76f;
-  --lime-fill: #3a2d20;
-  --lime-glow: rgba(241, 183, 111, .22);
-  --cyan: #88b7f0;
-  --blue: #688fca;
-  --violet: #9b95c9;
-  --bad: #ff858d;
-  --warn: #ffce75;
+  --bg: #09111a;
+  --frame: #101b27;
+  --panel: #162432;
+  --field: #0c1722;
+  --line: #2b3d4e;
+  --edge: #62798c;
+  --text: #ecf2f6;
+  --muted: #a6b6c4;
+  --lime: #63d9c6;
+  --lime-fill: #193a3b;
+  --lime-glow: rgba(99, 217, 198, .16);
+  --cyan: #8abce0;
+  --blue: #6e9fc5;
+  --violet: #929dbe;
+  --bad: #f17c86;
+  --warn: #ebc16d;
   --font: Inter, "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  --surface: rgba(22, 32, 45, .96);
-  --surface-raised: rgba(29, 41, 56, .96);
-  --stroke: rgba(145, 165, 189, .19);
-  --stroke-strong: rgba(145, 165, 189, .32);
-  --radius-lg: 22px;
-  --radius-md: 16px;
-  --radius-sm: 11px;
-  --shadow: 0 18px 48px rgba(0, 0, 0, .24);
+  --surface: rgba(20, 32, 45, .97);
+  --surface-raised: rgba(25, 41, 57, .98);
+  --stroke: rgba(147, 172, 194, .17);
+  --stroke-strong: rgba(147, 172, 194, .29);
+  --radius-lg: 18px;
+  --radius-md: 12px;
+  --radius-sm: 8px;
+  --shadow: 0 16px 40px rgba(0, 0, 0, .28);
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
