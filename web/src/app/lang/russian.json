@@ -525,7 +525,7 @@
     "other": "Сейчас сервер заполнен: {n} игрока ждут в очереди на место."
   },
   "The server is full right now.": "Сейчас сервер заполнен.",
-  "{Error}.": "{Error}.",
+  "{Error}.": "Ошибка: {Error}.",
   "You can change this any time under Online on the start page.": "Это можно изменить в любой момент в разделе «Онлайн» на стартовой странице.",
   "Free roam with others?": "Свободная езда с другими?",
   "Turn on": "Включить",
