@@ -1330,5 +1330,13 @@
   "Poor": "나쁨",
   "Fair": "보통",
   "Good": "좋음",
-  "Excellent": "매우 좋음"
+  "Excellent": "매우 좋음",
+  "Guest CPU usage": "게임 CPU 사용률(코어 1개)",
+  "Guest CPU time per frame": "프레임당 게임 CPU 시간",
+  "GPU frames waited": "GPU 대기 프레임 수",
+  "GPU longest wait": "GPU 최대 대기 시간",
+  "GPU frames not shown": "표시되지 않은 GPU 프레임 수",
+  "GPU frames in flight": "처리 중인 GPU 프레임 수",
+  "GPU pipeline build time": "GPU 파이프라인 생성 시간",
+  "GPU pipeline build maximum": "GPU 파이프라인 생성 최대 시간"
 }
