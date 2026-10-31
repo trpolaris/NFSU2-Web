@@ -1,6 +1,17 @@
+# .NET / Visual Studio build output
 bin/
 obj/
 .vs/
+TestResults/
+artifacts/
 publish/
+**/bin/
+**/obj/
 **/publish/
+
+# Local user and diagnostic files
+*.user
+*.suo
 *.log
+*.tmp
+*.cache

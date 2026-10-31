@@ -17,6 +17,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Media;
+using Ellipse = System.Windows.Shapes.Ellipse;
 using System.Windows.Threading;
 
 namespace TRPOLARIS.NFSU2.WebControlCenter;
@@ -72,6 +73,7 @@ public partial class MainWindow : Window
     private readonly SemaphoreSlim _statusLock = new(1, 1);
     private readonly List<(TextBlock State, TextBlock Detail, Border Dot, string Kind)> _statusLabels = new();
     private TextBox? _liveLogBox;
+    private TextBlock? _logsCurrentFileLabel;
     private string _logView = "ALL";
     private readonly List<(Button Button, string Key)> _logFilterButtons = new();
     private string _currentPage = "Dashboard";
@@ -220,7 +222,7 @@ public partial class MainWindow : Window
         {
             if (_operationProgressState is not ("running" or "stop-requested")) return;
             bool stopPending = _operationProgressState == "stop-requested";
-            var accent = BrushHex(stopPending ? "#F4C15D" : "#1BCBC3");
+            var accent = BrushHex(stopPending ? "#F4C15D" : "#42C9C0");
             OperationProgressPanel.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
             OperationProgressPanel.Background = BrushHex(stopPending ? "#282114" : "#0D1A22");
             OperationProgressPanel.BorderBrush = BrushHex(stopPending ? "#755B2B" : "#25434A");
@@ -247,7 +249,7 @@ public partial class MainWindow : Window
                     "indeterminate" => "Bu aşama sayısal yüzde sağlamıyor. Animasyon işlem gerçekten çalışırken sürer; sahte zaman yüzdesi kullanılmaz.",
                     _ => "Toplam yüzde tamamlanan işlem aşamalarına göre ilerler; belirsiz alt işlemler sahte yüzdeler üretmez."
                 };
-            UpdateLogsProgressUi(label, OperationProgressStatus.Text, _operationProgressValue, stopPending ? "#F4C15D" : "#1BCBC3", !stopPending && _operationProgressQuality == "indeterminate");
+            UpdateLogsProgressUi(label, OperationProgressStatus.Text, _operationProgressValue, stopPending ? "#F4C15D" : "#42C9C0", !stopPending && _operationProgressQuality == "indeterminate");
         }
         if (Dispatcher.CheckAccess()) Apply(); else Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(Apply));
     }
@@ -473,9 +475,13 @@ public partial class MainWindow : Window
 
     private void UpdateMaximizeButtonGlyph()
     {
-        if (MaximizeWindowButton is not null)
+        if (MaximizeWindowGlyph is not null)
         {
-            MaximizeWindowButton.Content = WindowState == WindowState.Maximized ? "❐" : "□";
+            // Use vector geometry so caption icons do not depend on optional symbol fonts.
+            var geometry = WindowState == WindowState.Maximized
+                ? "M4,1 H11 V8 M1,4 H8 V11 H1 Z"
+                : "M2,2 H10 V10 H2 Z";
+            MaximizeWindowGlyph.Data = System.Windows.Media.Geometry.Parse(geometry);
             MaximizeWindowButton.ToolTip = WindowState == WindowState.Maximized ? "Geri yükle" : "Büyüt";
         }
     }
@@ -488,9 +494,13 @@ public partial class MainWindow : Window
     private void ShowPage(string page)
     {
         _logsVisible = page == "Logs";
-        if (page != "Logs") _liveLogBox = null;
+        if (page != "Logs")
+        {
+            _liveLogBox = null;
+            _logsCurrentFileLabel = null;
+        }
         _currentPage = page;
-        PageHost.Margin = page == "Logs" ? new Thickness(0) : new Thickness(26, 24, 26, 22);
+        PageHost.Margin = page == "Logs" ? new Thickness(0) : new Thickness(20, 18, 20, 16);
         _statusLabels.Clear();
         _portBox = null;
         _gameDirBox = null;
@@ -535,8 +545,7 @@ public partial class MainWindow : Window
         }
         SetNavState(page);
         if (page == "Dashboard") UpdateAccessLabels();
-        if (page == "Logs" && _liveLogBox is not null)
-            Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() => _liveLogBox?.ScrollToEnd()));
+        if (page == "Logs") ScrollLiveLogToEnd();
     }
 
     private void SetNavState(string selected)
@@ -545,36 +554,36 @@ public partial class MainWindow : Window
         foreach (var b in nav)
         {
             bool active = Equals(b.Tag, selected);
-            b.Background = active ? new SolidColorBrush(Color.FromRgb(18, 48, 58)) : Brushes.Transparent;
-            b.BorderBrush = active ? (Brush)FindResource("AccentBrush") : Brushes.Transparent;
-            b.Foreground = active ? (Brush)FindResource("AccentBrush") : new SolidColorBrush(Color.FromRgb(169, 188, 213));
+            b.Background = active ? BrushHex("#1A2B33") : Brushes.Transparent;
+            b.BorderBrush = active ? BrushHex("#36535A") : Brushes.Transparent;
+            b.Foreground = active ? BrushHex("#70D9D0") : BrushHex("#A7B5C1");
         }
     }
 
     private UIElement BuildDashboardPage()
     {
-        var root = NewStack(16);
+        var root = NewStack(12);
         root.Children.Add(Heading("Sunucu durumu", "Tarayıcıdan oynanan NFSU2 sunucusunun anlık durumu ve erişim bilgileri."));
         var hero = new Border
         {
-            CornerRadius = new CornerRadius(15), Padding = new Thickness(22),
-            BorderThickness = new Thickness(1), BorderBrush = BrushHex("#3B4A55"),
-            Background = new LinearGradientBrush(BrushHex("#1B2933").Color, BrushHex("#111B24").Color, 0)
+            CornerRadius = new CornerRadius(10), Padding = new Thickness(17),
+            BorderThickness = new Thickness(1), BorderBrush = BrushHex("#344550"),
+            Background = new LinearGradientBrush(BrushHex("#1A2834").Color, BrushHex("#151F2A").Color, 0)
         };
         var heroGrid = new Grid();
         heroGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         heroGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         var heroText = NewStack(6);
         heroText.Children.Add(MutedLabel("TRPOLARIS  /  NFSU2 WEB SERVER"));
-        heroText.Children.Add(new TextBlock { Text = "Sunucunu tek merkezden yönet.", FontSize = 21, FontWeight = FontWeights.SemiBold, Foreground = BrushHex("#F1F3F4") });
-        heroText.Children.Add(new TextBlock { Text = "Kurulum, erişim profilleri, yapılandırma dosyaları ve sunucu yaşam döngüsü aynı kontrol panelinde.", FontSize = 11, Foreground = BrushHex("#A9B6BF"), TextWrapping = TextWrapping.Wrap, MaxWidth = 620 });
+        heroText.Children.Add(new TextBlock { Text = "Sunucunu tek merkezden yönet.", FontSize = 18, FontWeight = FontWeights.SemiBold, Foreground = BrushHex("#F1F3F4") });
+        heroText.Children.Add(new TextBlock { Text = "Kurulum, erişim profilleri, yapılandırma dosyaları ve sunucu yaşam döngüsü aynı kontrol panelinde.", FontSize = 10, Foreground = BrushHex("#A2AFBA"), TextWrapping = TextWrapping.Wrap, MaxWidth = 620 });
         heroGrid.Children.Add(heroText);
         var heroActions = new StackPanel { Orientation = Orientation.Vertical, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(20, 0, 0, 0) };
         heroActions.Children.Add(MakeButton("Sunucu yönetimi", "ModernButton", (_, _) => ShowPage("Server")));
-        heroActions.Children.Add(MakeButton("Yeni kurulum", "SecondaryButton", (_, _) => ShowPage("Install"), new Thickness(0, 8, 0, 0)));
+        heroActions.Children.Add(MakeButton("Yeni kurulum", "SecondaryButton", (_, _) => ShowPage("Install"), new Thickness(0, 6, 0, 0)));
         Grid.SetColumn(heroActions, 1); heroGrid.Children.Add(heroActions); hero.Child = heroGrid;
         root.Children.Add(hero);
-        var statusGrid = new UniformGrid { Columns = 4, Rows = 1, Margin = new Thickness(0, 4, 0, 0) };
+        var statusGrid = new UniformGrid { Columns = 4, Rows = 1, Margin = new Thickness(0) };
         statusGrid.Children.Add(BuildStatusCard("WSL 2", "WSL", "Windows Linux altyapısı"));
         statusGrid.Children.Add(BuildStatusCard("Ubuntu", "Ubuntu", "Derleme dağıtımı"));
         statusGrid.Children.Add(BuildStatusCard("Docker Engine", "Docker", "Konteyner motoru"));
@@ -587,7 +596,7 @@ public partial class MainWindow : Window
         accessGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(0.9, GridUnitType.Star) });
         var left = NewStack(8);
         left.Children.Add(MutedLabel("AKTİF SUNUCU ADRESİ"));
-        _dashboardUrl = new TextBlock { Text = "http://localhost:9093/", FontSize = 20, FontWeight = FontWeights.SemiBold, Foreground = BrushHex("#65E8E1"), TextWrapping = TextWrapping.Wrap };
+        _dashboardUrl = new TextBlock { Text = "http://localhost:9093/", FontSize = 17, FontWeight = FontWeights.SemiBold, Foreground = BrushHex("#4DD1C7"), TextWrapping = TextWrapping.Wrap };
         left.Children.Add(_dashboardUrl);
         var quick = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 7, 0, 0) };
         quick.Children.Add(MakeButton("Tarayıcıda aç", "ModernButton", OpenBrowser_Click));
@@ -597,7 +606,7 @@ public partial class MainWindow : Window
         Grid.SetColumn(left, 0); accessGrid.Children.Add(left);
         var right = NewStack(8); Grid.SetColumn(right, 1);
         right.Children.Add(MutedLabel("AKTİF LAN ADRESİ"));
-        _dashboardLan = new TextBlock { Text = "Denetleniyor...", FontSize = 14, FontWeight = FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap };
+        _dashboardLan = new TextBlock { Text = "Denetleniyor...", FontSize = 13, FontWeight = FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap };
         right.Children.Add(_dashboardLan);
         right.Children.Add(MutedLabel("PUBLIC TUNNEL / HTTPS"));
         _dashboardPublic = new TextBlock { Text = "Aktif değil", FontSize = 13, Foreground = (Brush)FindResource("MutedBrush"), TextWrapping = TextWrapping.Wrap };
@@ -606,28 +615,28 @@ public partial class MainWindow : Window
         accessGrid.Children.Add(right); AddCardChild(accessCard, accessGrid); root.Children.Add(accessCard);
 
         var quickCard = MakeCard("HIZLI İŞLEMLER", "Sık kullanılan işlemler. Uzun görevler arka planda çalışır; aşamalar ilerledikçe toplam ilerleme göstergesi güncellenir.");
-        var actions = new UniformGrid { Columns = 4 };
+        var actions = new UniformGrid { Columns = 5 };
         actions.Children.Add(QuickAction("Sunucuyu yönet", "Sunucuyu başlat, durdur, yeniden başlat; günlüklerini izle ve GitHub sürümünü uygula.", "Sunucu Yönetimi", () => ShowPage("Server")));
         actions.Children.Add(QuickAction("Kurulumu başlat", "Kod deposunu hazırlar, bağımlılıkları kurar, oyun modülünü derler ve sunucuyu başlatır.", "Tek Tık Kurulum", () => ShowPage("Install")));
         actions.Children.Add(QuickAction("Sistem denetimi", "WSL, Ubuntu, Docker Engine, port ve oyun dosyalarını kontrol eder.", "Tanılama ve Bakım", () => ShowPage("Diagnostics")));
         actions.Children.Add(QuickAction("Dosyaları düzenle", "Compose, ortam, Docker ve Rust sunucu dosyalarını yedekleyerek düzenle.", "Dosya Yöneticisi", () => ShowPage("Files")));
-        actions.Children.Add(QuickAction("Canlı günlük", "PowerShell ve WSL çıktılarını tek tam boy akış penceresinde gösterir.", "İşlem Günlüğü", () => ShowPage("Logs")));
+        actions.Children.Add(QuickAction("Canlı günlük", "PowerShell ve WSL çıktılarını tek akışta izle.", "İşlem Günlüğü", () => ShowPage("Logs")));
         AddCardChild(quickCard, actions); root.Children.Add(quickCard);
         return WrapScrollable(root);
     }
 
     private Border BuildStatusCard(string title, string kind, string detail)
     {
-        var card = new Border { Style = (Style)FindResource("CardBorder"), Margin = new Thickness(0, 0, 10, 0), Padding = new Thickness(15) };
-        var stack = NewStack(8);
-        stack.Children.Add(new TextBlock { Text = title, FontSize = 12, FontWeight = FontWeights.SemiBold, Foreground = (Brush)FindResource("MutedBrush") });
+        var card = new Border { Style = (Style)FindResource("CardBorder"), Margin = new Thickness(0, 0, 8, 0), Padding = new Thickness(12) };
+        var stack = NewStack(6);
+        stack.Children.Add(new TextBlock { Text = title, FontSize = 11, FontWeight = FontWeights.SemiBold, Foreground = (Brush)FindResource("MutedBrush") });
         var row = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
         var dot = new Border { Width = 8, Height = 8, CornerRadius = new CornerRadius(4), Background = (Brush)FindResource("WarningBrush"), Margin = new Thickness(0, 0, 9, 0), VerticalAlignment = VerticalAlignment.Center };
-        var state = new TextBlock { Text = "DENETLENİYOR", FontSize = 13, FontWeight = FontWeights.Bold, Foreground = (Brush)FindResource("WarningBrush") };
+        var state = new TextBlock { Text = "DENETLENİYOR", FontSize = 12, FontWeight = FontWeights.Bold, Foreground = (Brush)FindResource("WarningBrush") };
         row.Children.Add(dot); row.Children.Add(state); stack.Children.Add(row);
-        var sub = new TextBlock { Text = detail, FontSize = 10, Foreground = (Brush)FindResource("MutedBrush"), TextWrapping = TextWrapping.Wrap };
+        var sub = new TextBlock { Text = detail, FontSize = 9, Foreground = (Brush)FindResource("MutedBrush"), TextWrapping = TextWrapping.Wrap };
         stack.Children.Add(sub); card.Child = stack;
-        AddCardHover(card, "#111E32", "#1C2C37");
+        AddCardHover(card, "#141F2A", "#1B2B36");
         _statusLabels.Add((state, sub, dot, kind));
         return card;
     }
@@ -710,7 +719,7 @@ public partial class MainWindow : Window
 
         var location = MakeCard("SUNUCU PROJE KLASÖRÜ", "Bu klasör doğrudan WSL içindeki GitHub çalışma kopyasıdır. Windows üzerinden açılan dosyalar aynı depoya yazılır; ayrıca kopyalama gerekmez.");
         var pathRow = new DockPanel { LastChildFill = true };
-        _projectPathBox = new TextBox { Text = "/", MinHeight = 34, Padding = new Thickness(9, 6, 9, 6), Background = BrushHex("#0B1119"), Foreground = BrushHex("#D9E2EA"), BorderBrush = BrushHex("#314150"), BorderThickness = new Thickness(1), VerticalContentAlignment = VerticalAlignment.Center };
+        _projectPathBox = new TextBox { Text = "/", MinHeight = 34, Padding = new Thickness(9, 6, 9, 6), Background = BrushHex("#0F1923"), Foreground = BrushHex("#DDE5EC"), BorderBrush = BrushHex("#344550"), BorderThickness = new Thickness(1), VerticalContentAlignment = VerticalAlignment.Center };
         _projectPathBox.KeyDown += async (_, e) =>
         {
             if (e.Key != System.Windows.Input.Key.Enter) return;
@@ -733,9 +742,9 @@ public partial class MainWindow : Window
         {
             MinHeight = 310,
             MaxHeight = 470,
-            Background = BrushHex("#0B1119"),
-            Foreground = BrushHex("#D9E2EA"),
-            BorderBrush = BrushHex("#314150"),
+            Background = BrushHex("#0F1923"),
+            Foreground = BrushHex("#DDE5EC"),
+            BorderBrush = BrushHex("#344550"),
             BorderThickness = new Thickness(1),
             Padding = new Thickness(7),
             FontFamily = new FontFamily("Cascadia Code"),
@@ -760,7 +769,7 @@ public partial class MainWindow : Window
         root.Children.Add(location);
 
         var automation = MakeCard("KAYDET → OTOMATİK UYGULA", "VS Code veya Not Defteri ile düzenleyip kaydettiğinde web/ altındaki frontend ve backend kaynakları izlenir. Değişiklikler kısa bir beklemeden sonra Docker imajına alınır ve sunucu yeniden oluşturulur. /state kayıt hacmi korunur.");
-        _autoApplyProjectChangesCheckBox = new CheckBox { Content = "Kaydedilen frontend/backend değişikliklerini otomatik derle ve sunucuya uygula", IsChecked = _autoApplyProjectChanges, Foreground = BrushHex("#D9E2EA"), FontSize = 11, VerticalContentAlignment = VerticalAlignment.Center };
+        _autoApplyProjectChangesCheckBox = new CheckBox { Content = "Kaydedilen frontend/backend değişikliklerini otomatik derle ve sunucuya uygula", IsChecked = _autoApplyProjectChanges, Foreground = BrushHex("#DDE5EC"), FontSize = 11, VerticalContentAlignment = VerticalAlignment.Center };
         _autoApplyProjectChangesCheckBox.Checked += (_, _) => _autoApplyProjectChanges = true;
         _autoApplyProjectChangesCheckBox.Unchecked += (_, _) => _autoApplyProjectChanges = false;
         AddCardChild(automation, _autoApplyProjectChangesCheckBox);
@@ -860,7 +869,8 @@ public partial class MainWindow : Window
                 .ThenBy(x => x.Name, StringComparer.OrdinalIgnoreCase)
                 .ToArray();
             foreach (var entry in entries) _projectFileList.Items.Add(entry);
-            _projectFileExplorerStatus.Text = $"{location.Distro}:{location.ProjectDirectory}/{relative} · {entries.Length} öğe · Dosyalar doğrudan WSL deposunda";
+            if (_projectFileExplorerStatus is not null)
+                _projectFileExplorerStatus.Text = $"{location.Distro}:{location.ProjectDirectory}/{relative} · {entries.Length} öğe · Dosyalar doğrudan WSL deposunda";
             AppendLog($"GitHub proje klasörü açıldı: /{relative} ({entries.Length} öğe).", "OK", "WSL");
         }
         catch (Exception ex)
@@ -1051,8 +1061,8 @@ public partial class MainWindow : Window
     {
         var dialog = new Window { Title = title, Owner = this, Width = 430, Height = 170, WindowStartupLocation = WindowStartupLocation.CenterOwner, ResizeMode = ResizeMode.NoResize, Background = BrushHex("#111B25"), Foreground = BrushHex("#E8EEF5") };
         var panel = new StackPanel { Margin = new Thickness(16) };
-        panel.Children.Add(new TextBlock { Text = prompt, Margin = new Thickness(0, 0, 0, 8), Foreground = BrushHex("#D9E2EA") });
-        var input = new TextBox { Text = initial, MinHeight = 32, Padding = new Thickness(8), Background = BrushHex("#0B1119"), Foreground = BrushHex("#D9E2EA") };
+        panel.Children.Add(new TextBlock { Text = prompt, Margin = new Thickness(0, 0, 0, 8), Foreground = BrushHex("#DDE5EC") });
+        var input = new TextBox { Text = initial, MinHeight = 32, Padding = new Thickness(8), Background = BrushHex("#0F1923"), Foreground = BrushHex("#DDE5EC") };
         panel.Children.Add(input);
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 12, 0, 0) };
         var ok = new Button { Content = "Tamam", Width = 85, Height = 30, IsDefault = true, Margin = new Thickness(0, 0, 8, 0) };
@@ -1789,17 +1799,17 @@ export DOCKER_CONFIG="$safe_config"
         var current = ReadTextFile(Path.Combine(RootDir, "nfsu2-access-mode.txt"), "Bilinmiyor").Trim();
         var currentUrl = ReadTextFile(Path.Combine(RootDir, "nfsu2-access-url.txt"), "").Trim();
         var active = MakeCard("AKTİF PROFİL", "Son kaydedilen erişim ayarı");
-        AddCardChild(active, new TextBlock { Text = "Profil: " + current, FontSize = 16, FontWeight = FontWeights.SemiBold, Foreground = BrushHex("#65E8E1") });
+        AddCardChild(active, new TextBlock { Text = "Profil: " + current, FontSize = 16, FontWeight = FontWeights.SemiBold, Foreground = BrushHex("#4DD1C7") });
         AddCardChild(active, new TextBlock { Text = string.IsNullOrWhiteSpace(currentUrl) ? "URL kaydı bulunamadı." : currentUrl, Margin = new Thickness(0, 6, 0, 0), TextWrapping = TextWrapping.Wrap, Foreground = (Brush)FindResource("MutedBrush") });
         root.Children.Add(active); return WrapScrollable(root);
     }
 
     private UIElement ProfileCard(string title, string subtitle, string example, string mode)
     {
-        var border = new Border { Style = (Style)FindResource("CardBorder"), Margin = new Thickness(0, 0, 9, 0), Padding = new Thickness(13) };
-        var stack = NewStack(7); stack.Children.Add(new TextBlock { Text = title, FontSize = 13, FontWeight = FontWeights.Bold, Foreground = mode == "public" ? BrushHex("#FF8798") : BrushHex("#65E8E1") });
-        stack.Children.Add(new TextBlock { Text = subtitle, FontSize = 11, Foreground = (Brush)FindResource("MutedBrush"), TextWrapping = TextWrapping.Wrap });
-        stack.Children.Add(new TextBlock { Text = example, FontSize = 10, Foreground = BrushHex("#B6C8E2"), TextWrapping = TextWrapping.Wrap });
+        var border = new Border { Style = (Style)FindResource("CardBorder"), Margin = new Thickness(0, 0, 8, 0), Padding = new Thickness(12) };
+        var stack = NewStack(6); stack.Children.Add(new TextBlock { Text = title, FontSize = 12, FontWeight = FontWeights.Bold, Foreground = mode == "public" ? BrushHex("#FF8798") : BrushHex("#4DD1C7") });
+        stack.Children.Add(new TextBlock { Text = subtitle, FontSize = 10, Foreground = (Brush)FindResource("MutedBrush"), TextWrapping = TextWrapping.Wrap });
+        stack.Children.Add(new TextBlock { Text = example, FontSize = 9, Foreground = BrushHex("#B6C8E2"), TextWrapping = TextWrapping.Wrap });
         border.Child = stack; AddCardHover(border, "#111E32", "#182C46"); return border;
     }
 
@@ -1844,99 +1854,196 @@ export DOCKER_CONFIG="$safe_config"
 
     private UIElement BuildLogsPage()
     {
-        var root = new Grid { Margin = new Thickness(16, 12, 16, 10) };
+        // The page heading already lives in the application shell. Keep this view focused
+        // on operation state, log controls, and the live terminal rather than repeating it.
+        var root = new Grid { Margin = new Thickness(16, 10, 16, 10) };
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
 
-        var top = new StackPanel { Orientation = Orientation.Vertical, Margin = new Thickness(0, 0, 0, 12) };
+        // Compact operation strip: status, measured progress, and only the two process controls.
         var operationCard = new Border
         {
-            Background = BrushHex("#111D29"), BorderBrush = BrushHex("#2B414F"), BorderThickness = new Thickness(1),
-            CornerRadius = new CornerRadius(13), Padding = new Thickness(17),
+            Background = BrushHex("#131F2A"),
+            BorderBrush = BrushHex("#2D414F"),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(8),
+            Padding = new Thickness(13),
+            Margin = new Thickness(0, 0, 0, 10)
         };
-        var operationContent = new StackPanel { Orientation = Orientation.Vertical };
-        var header = new Grid();
-        header.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        var headerText = new StackPanel();
-        headerText.Children.Add(new TextBlock { Text = "CANLI İŞLEM MERKEZİ", FontSize = 9, FontWeight = FontWeights.Bold, Foreground = BrushHex("#6CCFC9") });
-        headerText.Children.Add(new TextBlock { Text = "İşlem Günlüğü", FontSize = 20, FontWeight = FontWeights.SemiBold, Foreground = BrushHex("#EDF3F7"), Margin = new Thickness(0, 3, 0, 2) });
-        headerText.Children.Add(new TextBlock { Text = "Kurulum çıktısı, WSL mesajları ve hata kayıtları gerçek zamanlı olarak burada toplanır.", FontSize = 10, Foreground = BrushHex("#94A5B4"), TextWrapping = TextWrapping.Wrap });
-        header.Children.Add(headerText);
-        var livePill = new Border { Background = BrushHex("#18343A"), BorderBrush = BrushHex("#2C6667"), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(12), Padding = new Thickness(11, 6, 11, 6), VerticalAlignment = VerticalAlignment.Top };
-        livePill.Child = new TextBlock { Text = "●  CANLI KAYIT", FontSize = 9, FontWeight = FontWeights.Bold, Foreground = BrushHex("#65E8D9") };
-        Grid.SetColumn(livePill, 1); header.Children.Add(livePill);
-        operationContent.Children.Add(header);
+        var operationGrid = new Grid();
+        operationGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.25, GridUnitType.Star) });
+        operationGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.35, GridUnitType.Star) });
+        operationGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
-        var progressHeader = new Grid { Margin = new Thickness(0, 14, 0, 6) };
+        var statusPanel = new StackPanel { Orientation = Orientation.Vertical, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 16, 0) };
+        statusPanel.Children.Add(new TextBlock
+        {
+            Text = "CANLI İŞLEM MERKEZİ", FontSize = 9, FontWeight = FontWeights.Bold,
+            Foreground = BrushHex("#63CEC5"), Margin = new Thickness(0, 0, 0, 5)
+        });
+        _logsOperationStatus = new TextBlock
+        {
+            Text = GetProgressStatusText(), FontSize = 11, FontWeight = FontWeights.SemiBold,
+            Foreground = BrushHex(GetProgressColor()), TextWrapping = TextWrapping.Wrap
+        };
+        statusPanel.Children.Add(_logsOperationStatus);
+        _logsOperationStage = new TextBlock
+        {
+            Text = _operationProgressLabel, FontSize = 10, Foreground = BrushHex("#9EAFBC"),
+            TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 4, 0, 0)
+        };
+        statusPanel.Children.Add(_logsOperationStage);
+        operationGrid.Children.Add(statusPanel);
+
+        var progressPanel = new StackPanel { Orientation = Orientation.Vertical, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(10, 0, 18, 0) };
+        var progressHeader = new Grid { Margin = new Thickness(0, 0, 0, 7) };
         progressHeader.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         progressHeader.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        _logsOperationStatus = new TextBlock { Text = GetProgressStatusText(), FontSize = 9, FontWeight = FontWeights.Bold, Foreground = BrushHex(GetProgressColor()), VerticalAlignment = VerticalAlignment.Center };
-        _logsOperationPercent = new TextBlock { Text = GetProgressPercentText(), FontSize = 10, FontWeight = FontWeights.Bold, Foreground = BrushHex(GetProgressColor()), VerticalAlignment = VerticalAlignment.Center };
-        progressHeader.Children.Add(_logsOperationStatus);
-        Grid.SetColumn(_logsOperationPercent, 1); progressHeader.Children.Add(_logsOperationPercent);
-        operationContent.Children.Add(progressHeader);
+        progressHeader.Children.Add(new TextBlock
+        {
+            Text = "İŞLEM İLERLEMESİ", FontSize = 9, FontWeight = FontWeights.Bold,
+            Foreground = BrushHex("#91A3B1"), VerticalAlignment = VerticalAlignment.Center
+        });
+        _logsOperationPercent = new TextBlock
+        {
+            Text = GetProgressPercentText(), FontSize = 10, FontWeight = FontWeights.Bold,
+            Foreground = BrushHex(GetProgressColor()), VerticalAlignment = VerticalAlignment.Center
+        };
+        Grid.SetColumn(_logsOperationPercent, 1);
+        progressHeader.Children.Add(_logsOperationPercent);
+        progressPanel.Children.Add(progressHeader);
         _logsOperationProgressBar = new ProgressBar
         {
-            Minimum = 0, Maximum = 100, Value = _operationProgressValue, Height = 8, BorderThickness = new Thickness(0),
-            Background = BrushHex("#263442"), Foreground = BrushHex(GetProgressColor()),
+            Minimum = 0, Maximum = 100, Value = _operationProgressValue, Height = 7,
+            BorderThickness = new Thickness(0), Background = BrushHex("#263746"),
+            Foreground = BrushHex(GetProgressColor()),
             IsIndeterminate = (_operationProgressState == "running" || _operationProgressState == "stop-requested") && _operationProgressQuality == "indeterminate"
         };
-        operationContent.Children.Add(_logsOperationProgressBar);
-        _logsOperationStage = new TextBlock { Text = _operationProgressLabel, FontSize = 10, Foreground = BrushHex("#AAB7C4"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 7, 0, 0) };
-        operationContent.Children.Add(_logsOperationStage);
+        progressPanel.Children.Add(_logsOperationProgressBar);
+        Grid.SetColumn(progressPanel, 1);
+        operationGrid.Children.Add(progressPanel);
 
-        var controls = new WrapPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 14, 0, 0) };
+        var processControls = new WrapPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
         _safeStopOperationButton = MakeButton("Ⅱ  Güvenli durdur", "SecondaryButton", (_, _) => RequestSafeStopCurrentOperation());
-        _safeStopOperationButton.Foreground = BrushHex("#F4C15D");
-        _cancelOperationButton = MakeButton("×  Hemen iptal et", "DangerButton", (_, _) => CancelCurrentOperationImmediately(), new Thickness(8, 0, 0, 0));
-        controls.Children.Add(_safeStopOperationButton);
-        controls.Children.Add(_cancelOperationButton);
-        controls.Children.Add(MakeButton("Günlük klasörü", "SecondaryButton", (_, _) => OpenLogFolder(), new Thickness(8, 0, 0, 0)));
-        controls.Children.Add(MakeButton("Dışa aktar", "SecondaryButton", (_, _) => ExportSelectedLog(), new Thickness(8, 0, 0, 0)));
-        controls.Children.Add(MakeButton("Yenile", "SecondaryButton", (_, _) => RefreshVisibleLog(), new Thickness(8, 0, 0, 0)));
-        controls.Children.Add(MakeButton("Temizle", "SecondaryButton", (_, _) => ClearLogs(), new Thickness(8, 0, 0, 0)));
-        operationContent.Children.Add(controls);
-        operationContent.Children.Add(new TextBlock
+        _safeStopOperationButton.Foreground = BrushHex("#E7BD67");
+        _safeStopOperationButton.MinWidth = 116;
+        _safeStopOperationButton.MinHeight = 32;
+        _safeStopOperationButton.ToolTip = "Devam eden kritik komutun tamamlanmasını bekleyerek kurulumu güvenli biçimde durdurur.";
+        _cancelOperationButton = MakeButton("×  Hemen iptal et", "DangerButton", (_, _) => CancelCurrentOperationImmediately(), new Thickness(7, 0, 0, 0));
+        _cancelOperationButton.MinWidth = 112;
+        _cancelOperationButton.MinHeight = 32;
+        _cancelOperationButton.ToolTip = "PowerShell / WSL işlem ağacını hemen sonlandırır. Devam eden işlemde veri kaybına yol açabilir.";
+        processControls.Children.Add(_safeStopOperationButton);
+        processControls.Children.Add(_cancelOperationButton);
+        Grid.SetColumn(processControls, 2);
+        operationGrid.Children.Add(processControls);
+        operationCard.Child = operationGrid;
+        Grid.SetRow(operationCard, 0);
+        root.Children.Add(operationCard);
+
+        // One adaptive toolbar: filters first, file actions second. It wraps cleanly on
+        // narrower windows instead of forcing a horizontal page scroll.
+        var toolbar = new Border
         {
-            Text = "Güvenli durdurma mevcut kritik komutun bitmesini bekler. Hemen iptal, PowerShell/WSL işlem ağacını sonlandırır ve kodu kırmızı hata olarak kaydeder. Durdur/iptal düğmeleri tek tık kurulum sırasında etkinleşir.",
-            FontSize = 9, Foreground = BrushHex("#8394A3"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 9, 0, 0)
-        });
-        operationCard.Child = operationContent;
-        top.Children.Add(operationCard);
-
-        var filters = new WrapPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(1, 12, 0, 8) };
+            Background = BrushHex("#111C26"), BorderBrush = BrushHex("#293B49"),
+            BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(7),
+            Padding = new Thickness(7), Margin = new Thickness(0, 0, 0, 10)
+        };
+        var toolbarItems = new WrapPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
         _logFilterButtons.Clear();
-        AddLogFilterButton(filters, "Tüm kayıtlar", "ALL");
-        AddLogFilterButton(filters, "WSL / kurulum", "WSL");
-        AddLogFilterButton(filters, "Uygulama", "APP");
-        AddLogFilterButton(filters, "WSL hataları", "WSL_ERRORS");
-        AddLogFilterButton(filters, "Uygulama hataları", "APP_ERRORS");
-        top.Children.Add(filters);
-        var fileActions = new WrapPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(1, 0, 0, 0) };
-        fileActions.Children.Add(MakeButton("Seçili günlüğü aç", "SecondaryButton", (_, _) => OpenSelectedLogFile()));
-        fileActions.Children.Add(new TextBlock { Text = "·  manager.log  /  wsl.log  /  app-errors.log", FontSize = 9, Foreground = BrushHex("#7F91A1"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(9, 0, 0, 0) });
-        top.Children.Add(fileActions);
-        Grid.SetRow(top, 0);
-        root.Children.Add(top);
+        AddLogFilterButton(toolbarItems, "Tüm kayıtlar", "ALL");
+        AddLogFilterButton(toolbarItems, "WSL / kurulum", "WSL");
+        AddLogFilterButton(toolbarItems, "Uygulama", "APP");
+        AddLogFilterButton(toolbarItems, "WSL hataları", "WSL_ERRORS");
+        AddLogFilterButton(toolbarItems, "Uygulama hataları", "APP_ERRORS");
+        toolbarItems.Children.Add(new Border
+        {
+            Width = 1, Height = 23, Background = BrushHex("#354957"),
+            Margin = new Thickness(2, 4, 9, 4), VerticalAlignment = VerticalAlignment.Center
+        });
 
-        var logCard = new Border { Background = BrushHex("#080D12"), BorderBrush = BrushHex("#2B3D4A"), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(12), Padding = new Thickness(1) };
+        var openFolderButton = MakeButton("Günlük klasörü", "SecondaryButton", (_, _) => OpenLogFolder(), new Thickness(0, 0, 6, 0));
+        var openFileButton = MakeButton("Seçili dosyayı aç", "SecondaryButton", (_, _) => OpenSelectedLogFile(), new Thickness(0, 0, 6, 0));
+        var exportButton = MakeButton("Dışa aktar", "SecondaryButton", (_, _) => ExportSelectedLog(), new Thickness(0, 0, 6, 0));
+        var refreshButton = MakeButton("Yenile", "SecondaryButton", (_, _) => RefreshVisibleLog(), new Thickness(0, 0, 6, 0));
+        var clearButton = MakeButton("Temizle", "SecondaryButton", (_, _) => ClearLogs());
+        foreach (var button in new[] { openFolderButton, openFileButton, exportButton, refreshButton, clearButton })
+            button.MinHeight = 31;
+        toolbarItems.Children.Add(openFolderButton);
+        toolbarItems.Children.Add(openFileButton);
+        toolbarItems.Children.Add(exportButton);
+        toolbarItems.Children.Add(refreshButton);
+        toolbarItems.Children.Add(clearButton);
+        toolbar.Child = toolbarItems;
+        Grid.SetRow(toolbar, 1);
+        root.Children.Add(toolbar);
+
+        // Terminal occupies all remaining height. The internal TextBox scroll viewer is
+        // kept vertical-only so the bottom-follow behavior stays predictable.
+        var logCard = new Border
+        {
+            Background = BrushHex("#0A1118"), BorderBrush = BrushHex("#2B3E4C"),
+            BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(8),
+            ClipToBounds = true
+        };
+        var terminalGrid = new Grid();
+        terminalGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(36) });
+        terminalGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+        var terminalHeader = new Border
+        {
+            Background = BrushHex("#15222D"), BorderBrush = BrushHex("#2B3E4C"),
+            BorderThickness = new Thickness(0, 0, 0, 1), Padding = new Thickness(12, 0, 12, 0)
+        };
+        var terminalHeaderGrid = new Grid();
+        terminalHeaderGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        terminalHeaderGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        var terminalFileInfo = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+        terminalFileInfo.Children.Add(new Ellipse { Width = 7, Height = 7, Fill = BrushHex("#4BD6AC"), Margin = new Thickness(0, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center });
+        terminalFileInfo.Children.Add(new TextBlock { Text = "LIVE OUTPUT", FontSize = 9, FontWeight = FontWeights.Bold, Foreground = BrushHex("#B9C8D2"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 10, 0) });
+        _logsCurrentFileLabel = new TextBlock
+        {
+            Text = Path.GetFileName(GetSelectedLogPath()), FontSize = 9,
+            Foreground = BrushHex("#7F97A8"), VerticalAlignment = VerticalAlignment.Center,
+            ToolTip = GetSelectedLogPath()
+        };
+        terminalFileInfo.Children.Add(_logsCurrentFileLabel);
+        terminalHeaderGrid.Children.Add(terminalFileInfo);
+        var followPill = new Border
+        {
+            Background = BrushHex("#19332F"), BorderBrush = BrushHex("#2D6558"),
+            BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(10),
+            Padding = new Thickness(9, 3, 9, 3), VerticalAlignment = VerticalAlignment.Center
+        };
+        followPill.Child = new TextBlock { Text = "●  OTOMATİK TAKİP", FontSize = 8, FontWeight = FontWeights.Bold, Foreground = BrushHex("#65D8B5") };
+        Grid.SetColumn(followPill, 1);
+        terminalHeaderGrid.Children.Add(followPill);
+        terminalHeader.Child = terminalHeaderGrid;
+        Grid.SetRow(terminalHeader, 0);
+        terminalGrid.Children.Add(terminalHeader);
+
         _liveLogBox = new TextBox
         {
-            IsReadOnly = true, AcceptsReturn = true, AcceptsTab = true,
-            TextWrapping = TextWrapping.NoWrap, VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-            HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
-            Background = BrushHex("#080D12"), Foreground = BrushHex("#DDE4E9"),
+            IsReadOnly = true, IsUndoEnabled = false, AcceptsReturn = true, AcceptsTab = true,
+            TextWrapping = TextWrapping.Wrap,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+            Background = BrushHex("#0A1118"), Foreground = BrushHex("#D2DDE5"),
             BorderThickness = new Thickness(0), FontFamily = new FontFamily("Cascadia Mono"),
-            FontSize = 10.5, Padding = new Thickness(14), Margin = new Thickness(0),
-            Text = ReadSelectedLogText()
+            FontSize = 10.5, Padding = new Thickness(13, 11, 13, 12), Margin = new Thickness(0),
+            Text = ReadSelectedLogText(),
+            SelectionBrush = BrushHex("#31586A"), CaretBrush = BrushHex("#62DCCB")
         };
         _liveLogCharCount = _liveLogBox.Text.Length;
-        logCard.Child = _liveLogBox;
-        Grid.SetRow(logCard, 1);
+        Grid.SetRow(_liveLogBox, 1);
+        terminalGrid.Children.Add(_liveLogBox);
+        logCard.Child = terminalGrid;
+        Grid.SetRow(logCard, 2);
         root.Children.Add(logCard);
+
         UpdateLogFilterButtonStyles();
         RefreshOperationControlButtons();
+        ScrollLiveLogToEnd();
         return root;
     }
 
@@ -1956,7 +2063,7 @@ export DOCKER_CONFIG="$safe_config"
         "success" => "#38D996",
         "stopped" or "warning" or "stop-requested" => "#F4C15D",
         "failed" => "#FF687D",
-        _ => "#1BCBC3"
+        _ => "#42C9C0"
     };
 
     private string GetProgressPercentText() => _operationProgressState == "success" ? "100%" : "~" + _operationProgressValue.ToString(CultureInfo.InvariantCulture) + "%";
@@ -1964,7 +2071,8 @@ export DOCKER_CONFIG="$safe_config"
     private void AddLogFilterButton(Panel parent, string caption, string key)
     {
         var button = MakeButton(caption, "SecondaryButton", (_, _) => SetLogView(key), new Thickness(0, 0, 8, 0));
-        button.MinHeight = 32;
+        button.MinHeight = 30;
+        button.Padding = new Thickness(11, 4, 11, 4);
         parent.Children.Add(button);
         _logFilterButtons.Add((button, key));
     }
@@ -1982,7 +2090,12 @@ export DOCKER_CONFIG="$safe_config"
             var text = ReadSelectedLogText();
             _liveLogBox.Text = text;
             _liveLogCharCount = text.Length;
-            Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() => _liveLogBox?.ScrollToEnd()));
+            if (_logsCurrentFileLabel is not null)
+            {
+                _logsCurrentFileLabel.Text = Path.GetFileName(GetSelectedLogPath());
+                _logsCurrentFileLabel.ToolTip = GetSelectedLogPath();
+            }
+            ScrollLiveLogToEnd();
         }
         UpdateLogFilterButtonStyles();
     }
@@ -1992,9 +2105,9 @@ export DOCKER_CONFIG="$safe_config"
         foreach (var (button, key) in _logFilterButtons)
         {
             bool selected = string.Equals(key, _logView, StringComparison.OrdinalIgnoreCase);
-            button.Background = BrushHex(selected ? "#15323A" : "#17242D");
-            button.BorderBrush = BrushHex(selected ? "#1BCBC3" : "#3A4C59");
-            button.Foreground = BrushHex(selected ? "#65E8E1" : "#D2DDE3");
+            button.Background = BrushHex(selected ? "#1B3037" : "#17232D");
+            button.BorderBrush = BrushHex(selected ? "#42C9C0" : "#344550");
+            button.Foreground = BrushHex(selected ? "#4DD1C7" : "#D8E1E8");
         }
     }
 
@@ -2103,7 +2216,7 @@ export DOCKER_CONFIG="$safe_config"
             }
             UpdateLogFilterButtonStyles();
             AppendLog("Tüm kontrol merkezi günlükleri temizlendi. Çalışan işlem varsa devam ediyor.", "OK");
-            Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() => _liveLogBox?.ScrollToEnd()));
+            ScrollLiveLogToEnd();
         }
         catch (Exception ex)
         {
@@ -2146,7 +2259,7 @@ export DOCKER_CONFIG="$safe_config"
         var normalBrush = BrushHex(normalBackground);
         var hoverBrush = BrushHex(hoverBackground);
         var originalBorderBrush = card.BorderBrush;
-        var hoverBorderBrush = BrushHex("#1BCBC3");
+        var hoverBorderBrush = BrushHex("#42C9C0");
         card.Background = normalBrush;
         card.Cursor = System.Windows.Input.Cursors.Hand;
         card.MouseEnter += (_, _) =>
@@ -2163,14 +2276,14 @@ export DOCKER_CONFIG="$safe_config"
 
     private Border MakeCard(string title, string subtitle)
     {
-        var card = new Border { Style = (Style)FindResource("CardBorder"), Margin = new Thickness(0), Padding = new Thickness(18) };
-        var stack = NewStack(13);
-        stack.Children.Add(new TextBlock { Text = title, FontSize = 12, FontWeight = FontWeights.Bold, Foreground = BrushHex("#65E8E1") });
-        stack.Children.Add(new TextBlock { Text = subtitle, FontSize = 11, Foreground = (Brush)FindResource("MutedBrush"), TextWrapping = TextWrapping.Wrap });
+        var card = new Border { Style = (Style)FindResource("CardBorder"), Margin = new Thickness(0), Padding = new Thickness(14) };
+        var stack = NewStack(8);
+        stack.Children.Add(new TextBlock { Text = title, FontSize = 10, FontWeight = FontWeights.Bold, Foreground = BrushHex("#6BCFC7") });
+        stack.Children.Add(new TextBlock { Text = subtitle, FontSize = 10, Foreground = (Brush)FindResource("MutedBrush"), TextWrapping = TextWrapping.Wrap });
         card.Child = stack;
         // Expose the content stack so callers can append rows while keeping title/subtitle at the top.
         card.Tag = stack;
-        AddCardHover(card, "#111E32", "#1C2C37");
+        AddCardHover(card, "#141F2A", "#1B2B36");
         return card;
     }
 
@@ -2203,8 +2316,8 @@ export DOCKER_CONFIG="$safe_config"
 
     private StackPanel Heading(string title, string subtitle)
     {
-        var s = NewStack(6); s.Children.Add(new TextBlock { Text = title, FontSize = 26, FontWeight = FontWeights.SemiBold, Foreground = (Brush)FindResource("TextBrush") });
-        s.Children.Add(new TextBlock { Text = subtitle, FontSize = 12, Foreground = (Brush)FindResource("MutedBrush"), TextWrapping = TextWrapping.Wrap }); return s;
+        var s = NewStack(5); s.Children.Add(new TextBlock { Text = title, FontSize = 22, FontWeight = FontWeights.SemiBold, Foreground = (Brush)FindResource("TextBrush") });
+        s.Children.Add(new TextBlock { Text = subtitle, FontSize = 11, Foreground = (Brush)FindResource("MutedBrush"), TextWrapping = TextWrapping.Wrap }); return s;
     }
 
     private TextBlock MutedLabel(string text) => new() { Text = text, FontSize = 10, FontWeight = FontWeights.SemiBold, Foreground = (Brush)FindResource("MutedBrush"), TextWrapping = TextWrapping.Wrap };
@@ -2217,10 +2330,10 @@ export DOCKER_CONFIG="$safe_config"
 
     private Border QuickAction(string title, string description, string buttonText, Action action)
     {
-        var border = new Border { Background = BrushHex("#131E28"), BorderBrush = BrushHex("#31424F"), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(9), Padding = new Thickness(13), Margin = new Thickness(0, 0, 9, 0) };
-        var s = NewStack(10); s.Children.Add(new TextBlock { Text = title, FontSize = 13, FontWeight = FontWeights.SemiBold });
-        s.Children.Add(new TextBlock { Text = description, FontSize = 11, Foreground = (Brush)FindResource("MutedBrush"), TextWrapping = TextWrapping.Wrap, MinHeight = 52 });
-        s.Children.Add(MakeButton(buttonText, "SecondaryButton", (_, _) => action())); border.Child = s; AddCardHover(border, "#131E28", "#14263D"); return border;
+        var border = new Border { Background = BrushHex("#141F2A"), BorderBrush = BrushHex("#2B3A47"), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(8), Padding = new Thickness(11), Margin = new Thickness(0, 0, 8, 0) };
+        var s = NewStack(8); s.Children.Add(new TextBlock { Text = title, FontSize = 12, FontWeight = FontWeights.SemiBold });
+        s.Children.Add(new TextBlock { Text = description, FontSize = 10, Foreground = (Brush)FindResource("MutedBrush"), TextWrapping = TextWrapping.Wrap, MinHeight = 40 });
+        s.Children.Add(MakeButton(buttonText, "SecondaryButton", (_, _) => action())); border.Child = s; AddCardHover(border, "#141F2A", "#1B2B36"); return border;
     }
 
     private UIElement WrapScrollable(UIElement element) => new ScrollViewer { Content = element, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
@@ -2323,6 +2436,22 @@ export DOCKER_CONFIG="$safe_config"
         }
     }
 
+    private void ScrollLiveLogToEnd()
+    {
+        var logBox = _liveLogBox;
+        if (logBox is null) return;
+
+        // TextBox.ScrollToEnd can run before WPF has recalculated the scroll extent after
+        // an AppendText/Text assignment. Defer until the layout pass has completed.
+        Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() =>
+        {
+            if (!ReferenceEquals(_liveLogBox, logBox)) return;
+            logBox.UpdateLayout();
+            logBox.CaretIndex = logBox.Text.Length;
+            logBox.ScrollToEnd();
+        }));
+    }
+
     private void FlushVisibleLogBatch()
     {
         if (!_logsVisible || _currentPage != "Logs" || _liveLogBox is null)
@@ -2353,10 +2482,8 @@ export DOCKER_CONFIG="$safe_config"
         if (batch.Length == 0) return;
 
         string visibleBatch = batch.ToString();
-        bool wasAtBottom = _liveLogBox.VerticalOffset >= _liveLogBox.ExtentHeight - _liveLogBox.ViewportHeight - 24;
         _liveLogBox.AppendText(visibleBatch);
         _liveLogCharCount += visibleBatch.Length;
-        if (wasAtBottom) _liveLogBox.ScrollToEnd();
 
         if (_liveLogCharCount > LiveLogMaxChars)
         {
@@ -2375,9 +2502,8 @@ export DOCKER_CONFIG="$safe_config"
             _liveLogCharCount = trimmedNotice.Length + tail.Length;
         }
 
-        // This view is a live tail by design: always follow the newest output so long
-        // installations remain trackable without manual scrolling.
-        _liveLogBox.ScrollToEnd();
+        // Always follow the newest output, including after the visible buffer is trimmed.
+        ScrollLiveLogToEnd();
     }
 
     private static T? FindVisualChild<T>(DependencyObject parent) where T : DependencyObject
