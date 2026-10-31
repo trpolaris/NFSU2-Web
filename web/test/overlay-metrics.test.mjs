@@ -25,13 +25,15 @@ test('detailed overlay hides drift and photo internals but keeps useful game cou
     ['keys_held', 0],
     ['pad_connected', 1],
     ['input_dropped', 0],
+    ['gcpu_pct', 42.5],
+    ['gcpu_ms_pf', 5.25],
   ]);
   const rows = overlayMetrics(status, {});
   const keys = rows.map(([key]) => key);
 
   assert.deepEqual(keys, [
     'frames_dropped', 'textures', 'drive', 'rate', 'pause', 'roam_cars', 'roam_friends',
-    'input_events', 'keys_held', 'pad_connected', 'input_dropped',
+    'input_events', 'keys_held', 'pad_connected', 'input_dropped', 'gcpu_pct', 'gcpu_ms_pf',
   ]);
   assert.equal(keys.some(key => key.startsWith('drift')), false);
   assert.equal(keys.some(key => key.startsWith('photo')), false);
@@ -76,6 +78,12 @@ test('complete network, audio, and GPU metrics are retained', () => {
     'audio latency ms': 50,
     'audio underruns': 0,
     'gpu errors': 0,
+    'gpu wait count': 2,
+    'gpu wait max ms': 21,
+    'gpu frames not shown': 3,
+    'gpu frames in flight': 1,
+    'gpu pipeline build ms': 4.5,
+    'gpu pipeline build max ms': 8.1,
     'gpu render ms': 0.5,
     'gpu render max ms': 1.2,
     'gpu texture memory MB': 480,
