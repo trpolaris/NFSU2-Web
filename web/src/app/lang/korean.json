@@ -1268,5 +1268,14 @@
   "TRPOLARIS / WORKSHOP": "TRPOLARIS / 워크숍",
   "COMMUNITY PICKS": "커뮤니티 추천",
   "YOUR COLLECTION": "내 컬렉션",
-  "Counting…": "계산 중…"
+  "Counting…": "계산 중…",
+  "Page FPS": "페이지 FPS",
+  "Frame time": "프레임 시간",
+  "Page refresh": "페이지 새로고침 주기",
+  "Triangles per frame": "프레임당 삼각형",
+  "Page frame P50": "페이지 프레임 P50",
+  "Page frame P95": "페이지 프레임 P95",
+  "Page frame max": "페이지 프레임 최대",
+  "Page frames over 50 ms": "50ms 초과 페이지 프레임",
+  "WASM allocated memory": "할당된 WASM 메모리"
 }
