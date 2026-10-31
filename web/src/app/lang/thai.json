@@ -1268,5 +1268,14 @@
   "TRPOLARIS / WORKSHOP": "TRPOLARIS / เวิร์กช็อป",
   "COMMUNITY PICKS": "คัดสรรโดยชุมชน",
   "YOUR COLLECTION": "คอลเลกชันของคุณ",
-  "Counting…": "กำลังนับ…"
+  "Counting…": "กำลังนับ…",
+  "Page FPS": "FPS ของหน้า",
+  "Frame time": "เวลาเฟรม",
+  "Page refresh": "รอบการรีเฟรชหน้า",
+  "Triangles per frame": "สามเหลี่ยมต่อเฟรม",
+  "Page frame P50": "เฟรมหน้า P50",
+  "Page frame P95": "เฟรมหน้า P95",
+  "Page frame max": "เฟรมหน้าสูงสุด",
+  "Page frames over 50 ms": "เฟรมหน้าเกิน 50 มิลลิวินาที",
+  "WASM allocated memory": "หน่วยความจำ WASM ที่จัดสรร"
 }
