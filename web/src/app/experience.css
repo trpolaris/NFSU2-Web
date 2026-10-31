@@ -1397,8 +1397,8 @@ body {
 
 /* NIGHT CIRCUIT — compact split hero. The Play dock keeps its own original styling. */
 .landing-hero {
-  width: min(100%, 1180px);
-  max-width: 1180px;
+  width: 100%;
+  max-width: none;
   min-height: 0;
   margin: 0 auto;
   display: grid;
