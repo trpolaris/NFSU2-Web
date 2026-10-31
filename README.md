@@ -8,6 +8,7 @@
 [![License](https://img.shields.io/badge/License-MIT-0f766e?style=for-the-badge)](LICENSE)
 [![Multiplayer CI](https://github.com/trpolaris/NFSU2-Web/actions/workflows/multiplayer-ci.yml/badge.svg?branch=main)](https://github.com/trpolaris/NFSU2-Web/actions/workflows/multiplayer-ci.yml)
 [![Container Image](https://github.com/trpolaris/NFSU2-Web/actions/workflows/image-rs.yml/badge.svg?branch=main)](https://github.com/trpolaris/NFSU2-Web/actions/workflows/image-rs.yml)
+[![Control Center CI](https://github.com/trpolaris/NFSU2-Web/actions/workflows/control-center.yml/badge.svg?branch=main)](https://github.com/trpolaris/NFSU2-Web/actions/workflows/control-center.yml)
 [![WebAssembly](https://img.shields.io/badge/Runtime-WebAssembly-654ff0?style=flat-square&logo=webassembly&logoColor=white)](https://webassembly.org/)
 [![WebGPU](https://img.shields.io/badge/Graphics-WebGPU-2563eb?style=flat-square)](https://developer.mozilla.org/docs/Web/API/WebGPU_API)
 
