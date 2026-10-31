@@ -154,9 +154,14 @@ test('compact landing hero places the unchanged Play dock beside the intro on de
   assert.ok(introStart >= 0 && introEnd > introStart, 'intro closes before the Play panel');
   assert.match(css, /NIGHT CIRCUIT — compact split hero/);
   assert.match(css, /grid-template-columns: minmax\(0, 1\.05fr\) minmax\(390px, \.95fr\)/);
-  assert.match(css, /width: min\(100%, 1180px\)/);
+  assert.match(css, /width: 100%;[\s\S]*?max-width: none;/);
   assert.match(css, /\.home-page \.play-console\s*\{[\s\S]*?margin: 0/);
   assert.match(html, /id="play"/);
   assert.match(html, /id="progress"/);
   assert.match(css, /NIGHT CIRCUIT 2\.0 — Play \/ launch dock/);
+});
+
+
+test('landing hero uses the same full content width as the other page panels', () => {
+  assert.match(css, /\.landing-hero\s*\{[\s\S]*?width: 100%;[\s\S]*?max-width: none;/);
 });
