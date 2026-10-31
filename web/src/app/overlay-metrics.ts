@@ -17,6 +17,8 @@ const STATUS_KEYS = new Set([
   'keys_held',
   'pad_connected',
   'input_dropped',
+  'gcpu_pct',
+  'gcpu_ms_pf',
 ]);
 
 const NETWORK_KEYS = [
@@ -48,6 +50,12 @@ const SUBSYSTEM_KEYS = new Set([
   'passes',
   'pipelines',
   'gpu errors',
+  'gpu wait count',
+  'gpu wait max ms',
+  'gpu frames not shown',
+  'gpu frames in flight',
+  'gpu pipeline build ms',
+  'gpu pipeline build max ms',
   'gpu render ms',
   'gpu render max ms',
   'gpu texture memory MB',
