@@ -58,7 +58,7 @@ const METRIC_LABELS: Record<string, string> = {
 };
 
 function metricLabel(key: string): string {
-  return t(METRIC_LABELS[key] ?? N(key.replace(/_/g, ' ')));
+  return METRIC_LABELS[key] ? t(METRIC_LABELS[key]) : t(key.replace(/_/g, ' '));
 }
 
 export class FpsOverlay {
