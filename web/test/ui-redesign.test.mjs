@@ -146,3 +146,18 @@ test('landing hero removes the decorative car-art panel and retains the Play lau
   assert.match(css, /NIGHT CIRCUIT 2\.0 — Play \/ launch dock/);
   assert.match(css, /\.home-page \.play:not\(:disabled\)/);
 });
+
+
+test('compact landing hero places the unchanged Play dock beside the intro on desktop', () => {
+  const copyStart = html.indexOf('<div class="landing-copy">');
+  const copyEnd = html.indexOf('</div>', copyStart);
+  const playIndex = html.indexOf('id="play-panel"');
+  assert.ok(copyStart >= 0 && copyEnd > copyStart && playIndex > copyEnd, 'Play panel is a sibling of the intro, not nested in it');
+  assert.match(css, /NIGHT CIRCUIT — compact split hero/);
+  assert.match(css, /grid-template-columns: minmax\(0, 1\.05fr\) minmax\(390px, \.95fr\)/);
+  assert.match(css, /width: min\(100%, 1180px\)/);
+  assert.match(css, /\.home-page \.play-console\s*\{[\s\S]*?margin: 0/);
+  assert.match(html, /id="play"/);
+  assert.match(html, /id="progress"/);
+  assert.match(css, /NIGHT CIRCUIT 2\.0 — Play \/ launch dock/);
+});
