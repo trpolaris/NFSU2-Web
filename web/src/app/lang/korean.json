@@ -445,7 +445,7 @@
   "With this on, you wait in line too and drive alone until it is your turn; then the others join you by themselves.": "켜면 나도 대기열에 들어가고, 차례가 올 때까지 혼자 달려요. 차례가 오면 다른 플레이어들이 자동으로 합류해요.",
   "The server is full right now: {n} players are waiting in line for a place.": "지금 서버가 가득 찼어요: {n}명이 자리를 기다리고 있어요.",
   "The server is full right now.": "지금 서버가 가득 찼어요.",
-  "{Error}.": "{Error}.",
+  "{Error}.": "오류: {Error}.",
   "You can change this any time under Online on the start page.": "시작 페이지의 '온라인'에서 언제든지 바꿀 수 있어요.",
   "Free roam with others?": "다른 플레이어와 자유 주행할까요?",
   "Turn on": "켜기",
