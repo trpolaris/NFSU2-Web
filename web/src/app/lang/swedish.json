@@ -1337,5 +1337,14 @@
   "TRPOLARIS / WORKSHOP": "TRPOLARIS / VERKSTAD",
   "COMMUNITY PICKS": "COMMUNITYVAL",
   "YOUR COLLECTION": "DIN SAMLING",
-  "Counting…": "Räknar…"
+  "Counting…": "Räknar…",
+  "Page FPS": "Sidans FPS",
+  "Frame time": "Bildtid",
+  "Page refresh": "Siduppdatering",
+  "Triangles per frame": "Trianglar per bildruta",
+  "Page frame P50": "Sidbildruta P50",
+  "Page frame P95": "Sidbildruta P95",
+  "Page frame max": "Sidbildruta max",
+  "Page frames over 50 ms": "Sidbildrutor över 50 ms",
+  "WASM allocated memory": "Tilldelat WASM-minne"
 }
