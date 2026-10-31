@@ -9,7 +9,7 @@ test('reports Chromium heap measurements in MiB when available', () => {
       totalJSHeapSize: 96 * 1048576,
       jsHeapSizeLimit: 2048 * 1048576,
     },
-  } as unknown as Performance);
+  });
   assert.deepEqual(stats, {
     'js heap used MB': 64,
     'js heap committed MB': 96,
@@ -18,7 +18,7 @@ test('reports Chromium heap measurements in MiB when available', () => {
 });
 
 test('does not invent heap measurements when browser support is absent', () => {
-  assert.deepEqual(browserHeapStats({} as Performance), {});
+  assert.deepEqual(browserHeapStats({}), {});
 });
 
 test('ignores unavailable or invalid heap fields individually', () => {
@@ -28,6 +28,6 @@ test('ignores unavailable or invalid heap fields individually', () => {
       totalJSHeapSize: 32 * 1048576,
       jsHeapSizeLimit: -1,
     },
-  } as unknown as Performance);
+  });
   assert.deepEqual(stats, { 'js heap committed MB': 32 });
 });
