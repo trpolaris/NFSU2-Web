@@ -11,7 +11,7 @@
 [![WebAssembly](https://img.shields.io/badge/Runtime-WebAssembly-654ff0?style=flat-square&logo=webassembly&logoColor=white)](https://webassembly.org/)
 [![WebGPU](https://img.shields.io/badge/Graphics-WebGPU-2563eb?style=flat-square)](https://developer.mozilla.org/docs/Web/API/WebGPU_API)
 
-[🚘 Proje](#-proje-hakkında) · [✨ Özellikler](#-öne-çıkan-özellikler) · [📋 Gereksinimler](#-gereksinimler) · [🧰 Yerel Kurulum](#-yerel-kurulum) · [🌐 VPS Kurulumu](#-vps-ve-docker-kurulumu) · [🎮 Oynama](#-oynama-ve-kontroller) · [🛠️ Geliştirme](#️-geliştirme) · [⚖️ Lisans](#️-lisans-ve-telif)
+[🚘 Proje](#-proje-hakkında) · [✨ Özellikler](#-öne-çıkan-özellikler) · [🖥️ Control Center](#️-windows-control-center) · [📋 Gereksinimler](#-gereksinimler) · [🧰 Yerel Kurulum](#-yerel-kurulum) · [🌐 VPS Kurulumu](#-vps-ve-docker-kurulumu) · [🎮 Oynama](#-oynama-ve-kontroller) · [🛠️ Geliştirme](#️-geliştirme) · [⚖️ Lisans](#️-lisans-ve-telif)
 
 </div>
 
@@ -63,6 +63,38 @@ Oyun sırasında **F8** ile kare hızı göstergesi açılabilir; ayrıntılı g
 > **RTT notu:** F8 ekranındaki RTT, oyuncunun doğrudan başka bir oyuncuya yaptığı ping değildir. Ölçüm, istemci ile sanal LAN sunucusu arasındaki WebSocket gidiş-dönüşünü temsil eder. Oyun kare süresi veya tek başına paket kaybı yüzdesi olarak yorumlanmamalıdır.
 
 Ayrıntılar: [Ağ Tanılama Rehberi](docs/web/NETWORK-DIAGNOSTICS.md).
+
+## 🖥️ Windows Control Center
+
+**TRPOLARIS NFSU2 Web Control Center**, NFSU2 Web sunucusunu Windows üzerinden kurmak ve yönetmek için geliştirilen ayrı bir masaüstü uygulamasıdır. Web oyununun parçası değildir; Windows tarafında WSL2 / Ubuntu ve Docker altyapısını yöneterek NFSU2 Web kurulumunu kolaylaştırır.
+
+<|-- placeholder --|>
+
+### Başlıca özellikler
+
+- **Tek tık kurulum:** Windows üzerinden WSL2 / Ubuntu, proje kaynakları ve Docker tabanlı sunucu kurulum akışını yönetir.
+- **Sunucu yönetimi:** Kurulu NFSU2 Web sunucusunun durumunu, container ve servis işlemlerini takip eder.
+- **Erişim ve paylaşım:** Yerel ağ ve dış erişim profillerini yönetmek için araçlar sunar.
+- **Tanılama ve bakım:** WSL, Docker ve sunucu durumunu incelemeye yönelik kontroller içerir.
+- **Canlı işlem günlüğü:** Kurulum ve yönetim işlemlerini aşamalı ilerleme ve günlük kayıtlarıyla gösterir.
+- **Dosya yöneticisi:** WSL içinde kurulu proje dosyalarını görüntüleme ve düzenleme akışı sağlar.
+- **Kaldırma merkezi:** Projeye ait bileşenleri yönetmek için ayrı kaldırma araçları sunar.
+
+### İndirme
+
+Windows uygulamasının yayımlanan sürümleri [GitHub Releases](https://github.com/trpolaris/NFSU2-Web/releases) sayfasında paylaşılacaktır. Henüz yayınlanmamış derlemeler için indirme bağlantısı bulunmayabilir.
+
+### Kaynak kodu ve derleme
+
+Control Center kaynak kodu, web uygulamasından ayrı olarak `control-center/` klasöründe tutulur. Bu bölümün kaynakları depoya eklendiğinde ayrıntılı kurulum ve geliştirici yönergeleri [Control Center README](control-center/README.md) dosyasında yer alacaktır.
+
+Uygulama **C# / WPF ve .NET 10** kullanır; hedef platform **Windows x64**'tür. Kaynaktan Release derlemesi için Windows üzerinde .NET 10 SDK ve WPF geliştirme bileşenleri gerekir.
+
+### Güvenlik ve veri
+
+Control Center, kullanıcının kendi NFSU2 oyun kurulumunu kullanır; oyuna ait telifli dosyalar bu depoya veya uygulama paketine dahil edilmez. Sunucuyu internete açarken erişim denetimi yapılandırın. Cloudflare Tunnel tek başına uygulama seviyesinde kimlik doğrulaması sağlamaz. Docker volume'larını veya oyun verilerini silmeden önce yedek alın ve kaldırma kapsamını kontrol edin.
+
+---
 
 ## 📋 Gereksinimler
 
@@ -437,6 +469,7 @@ NFSU2-Web/
 ├── app/                     # Uygulama varsayılanları
 ├── win/                     # Windows yardımcı bileşenleri
 ├── tests/                   # Genel otomasyon ve regresyon testleri
+├── control-center/          # Windows WPF yönetim uygulaması kaynakları
 ├── docs/web/                # Oynama, mimari, ağ ve VPS belgeleri
 ├── requirements.txt         # Python araç bağımlılıkları
 └── LICENSE
@@ -498,6 +531,7 @@ CI iş akışı ayrıca Rust workspace testlerini, TypeScript kontrolünü, web 
 | [DESIGN.md](docs/web/DESIGN.md) | Uygulama mimarisi, çalışma zamanı, test yaklaşımı ve tasarım kararları |
 | [gpu-abi.md](docs/web/gpu-abi.md) | Oyun çalışma zamanı ile WebGPU çizim katmanı arasındaki arayüz |
 | [web/server-rs/README.md](web/server-rs/README.md) | Rust sunucusunun derlenmesi, çalıştırılması, testleri ve crate yapısı |
+| [control-center/README.md](control-center/README.md) | Windows Control Center kurulumu, kaynak derlemesi ve yayın akışı |
 
 ## 🧯 Sorun giderme
 
