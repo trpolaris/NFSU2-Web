@@ -404,6 +404,10 @@ summary:hover { color: var(--text); }
 /* cloud saves (vault-ui.ts): Enable cloud saving beside the heading, or when it last synced; the keyphrase in a value
  * box, its first 3 characters shown and the rest as dots (a mask over the field, which keeps the real text, its caret
  * and selection) until the eye shows it; the actions as text under it */
+.vault-brand {
+  display: block; margin-bottom: 4px; color: #00cfae;
+  font: 800 9px/1.3 var(--font); letter-spacing: .18em;
+}
 .vault .hint:empty { display: none; }
 .vault .hint.warn { color: var(--warn); }
 .vault-row { display: flex; align-items: center; gap: 8px; }
@@ -802,46 +806,75 @@ html:has(> body > .stage:not([hidden])) { overflow: hidden; }
  * screen all sixteen at the top, big enough to tap */
 /* Direct integration of the supplied racing-chat HUD stylesheet. */
 .racing-chat-wrapper {
-  position: absolute; top: 40px; left: 40px; z-index: 4;
-  width: 420px; max-width: calc(100% - 80px);
-  font-family: var(--font-racing); font-size: 18px; font-weight: 700;
-  display: flex; flex-direction: column; gap: 10px;
+  position: absolute; top: clamp(12px, 2.2vh, 24px); left: clamp(12px, 2.2vw, 24px); z-index: 4;
+  width: min(calc(var(--chat-width, 360px) * var(--chat-scale, .9)), calc(100% - 24px)); max-width: calc(100% - 24px);
+  font-family: var(--font-racing); font-size: calc(clamp(13px, 0.85vw, 15px) * var(--chat-scale, .9)); font-weight: 700;
+  display: flex; flex-direction: column; gap: calc(8px * var(--chat-scale, .9));
   pointer-events: none;
 }
 
-/* Message flow */
+/* The message feed keeps the latest 200 lines for the current game session. Open chat to scroll history. */
 .chat-messages {
-  display: flex; flex-direction: column; gap: 6px;
-  max-height: 260px; overflow-y: hidden; padding-right: 10px;
+  display: flex; flex-direction: column; gap: calc(5px * var(--chat-scale, .9));
+  max-height: min(calc(22vh * var(--chat-scale, .9)), calc(220px * var(--chat-scale, .9)));
+  overflow-y: hidden;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0,255,204,.42) rgba(0,0,0,.12);
+  padding: calc(7px * var(--chat-scale, .9)) calc(9px * var(--chat-scale, .9));
+  border-left: calc(2px * var(--chat-scale, .9)) solid var(--color-team);
+  border-radius: 0 5px 5px 0;
+  background: linear-gradient(90deg,
+    rgba(0, 0, 0, var(--chat-opacity, .72)) 0%,
+    rgba(0, 0, 0, var(--chat-opacity, .72)) 76%,
+    rgba(0, 0, 0, 0) 100%);
+  transition: background .18s ease, padding .18s ease, max-height .18s ease;
 }
 .racing-chat-wrapper .message {
-  font-style: italic; text-shadow: 2px 2px 0 #000; letter-spacing: .5px;
+  font-style: italic; text-shadow: 2px 2px 0 #000; letter-spacing: .25px;
   transition: opacity .4s ease, transform .3s ease;
   animation: slideIn .2s cubic-bezier(.175,.885,.32,1.275) forwards;
   transform-origin: left;
 }
 .racing-chat-wrapper .message.all { color: var(--color-all); }
 .racing-chat-wrapper .message.team { color: var(--color-team); }
-.racing-chat-wrapper .message.system { color: var(--color-system); font-family: var(--font-hud); font-size: 15px; }
+.racing-chat-wrapper .message.system { color: var(--color-system); font-family: var(--font-hud); font-size: calc(13px * var(--chat-scale, .9)); }
 .racing-chat-wrapper .message.quick { color: var(--color-quick); }
 .racing-chat-wrapper .channel {
-  display: inline-block; max-width: 124px; margin-right: 6px; overflow: hidden;
+  display: inline-block; max-width: min(48%, 160px); margin-right: calc(5px * var(--chat-scale, .9)); overflow: hidden;
   text-overflow: ellipsis; vertical-align: bottom; white-space: nowrap;
 }
 .racing-chat-wrapper .sender {
-  color: #e5e5e5; font-weight: 900; text-transform: uppercase;
+  color: var(--chat-sender-color, #e5e5e5); font-weight: 900; text-transform: uppercase;
 }
-.racing-chat-wrapper .message.me .sender { color: var(--color-quick); }
+.racing-chat-wrapper .message.me .sender { color: #00ffcc; }
 .racing-chat-wrapper .message .text { overflow-wrap: anywhere; }
+.racing-chat-wrapper .message { position: relative; padding-right: 20px; }
+.racing-chat-wrapper .message[hidden] { display: none !important; }
+.racing-chat-wrapper .chat-mute {
+  position: absolute; right: 0; top: 0; min-width: 17px; min-height: 17px; padding: 0;
+  border: 1px solid rgba(255,255,255,.16); border-radius: 3px;
+  color: #9bb3ae; background: rgba(0,0,0,.45); font: 800 11px/1 var(--font-racing);
+  opacity: .32; cursor: pointer; transition: opacity .14s ease, color .14s ease, border-color .14s ease;
+}
+.racing-chat-wrapper .message:hover .chat-mute,
+.racing-chat-wrapper .chat-mute:focus-visible { opacity: 1; }
+.racing-chat-wrapper .chat-mute:hover { color: #00ffcc; border-color: #00ffcc; }
+.racing-chat-wrapper .message.me .chat-mute { display: none; }
+.racing-chat-wrapper .chat-mention {
+  padding: 0 2px; border-radius: 2px; color: #001b16; background: #00ffcc;
+  box-shadow: 0 0 10px rgba(0,255,204,.25); font-weight: 900; text-decoration: none;
+}
+.racing-chat-wrapper .message.mention { border-left: 2px solid #00ffcc; padding-left: 5px; }
 .racing-chat-wrapper .message.system { display: flex; align-items: baseline; gap: 6px; }
 .racing-chat-wrapper .message.system .channel { color: var(--color-system); font-family: var(--font-hud); }
 
 /* Original input row: hidden until the chat is active. */
 .chat-input-area {
-  display: flex; align-items: center;
-  background: linear-gradient(90deg, rgba(0,0,0,.85) 0%, rgba(0,0,0,.4) 100%);
-  border-left: 4px solid var(--color-team); padding: 8px 12px;
-  border-radius: 0 4px 4px 0; gap: 10px;
+  display: flex; align-items: center; min-width: 0;
+  background: linear-gradient(90deg, rgba(0,0,0,var(--chat-opacity, .72)) 0%, rgba(0,0,0,0) 100%);
+  border-left: 3px solid var(--color-team); padding: calc(6px * var(--chat-scale, .9)) calc(9px * var(--chat-scale, .9));
+  border-radius: 0 4px 4px 0; gap: calc(8px * var(--chat-scale, .9));
   opacity: 0; transform: translateX(-20px);
   transition: all .25s cubic-bezier(.1,.9,.2,1);
   pointer-events: none;
@@ -849,12 +882,12 @@ html:has(> body > .stage:not([hidden])) { overflow: hidden; }
 
 /* Original quick-message button row. */
 .quick-chat-panel {
-  display: flex; gap: 6px; opacity: 0; transform: translateY(-10px);
+  display: flex; gap: calc(6px * var(--chat-scale, .9)); opacity: 0; transform: translateY(-10px);
   transition: all .2s ease; pointer-events: none;
 }
 .quick-chat-panel button {
   background: rgba(0,0,0,.7); border: 1px solid rgba(255,255,255,.2);
-  color: var(--color-quick); padding: 4px 10px;
+  color: var(--color-quick); padding: calc(3px * var(--chat-scale, .9)) calc(8px * var(--chat-scale, .9)); font-size: calc(13px * var(--chat-scale, .9));
   font-family: var(--font-racing); font-weight: 700; cursor: pointer;
   border-radius: 3px; font-style: italic; transition: background .2s;
 }
@@ -866,16 +899,73 @@ html:has(> body > .stage:not([hidden])) { overflow: hidden; }
   opacity: 1; transform: translate(0); pointer-events: auto;
 }
 .racing-chat-wrapper.active .chat-messages { overflow-y: auto; pointer-events: auto; }
+.racing-chat-wrapper.active .chat-messages::-webkit-scrollbar { width: 6px; }
+.racing-chat-wrapper.active .chat-messages::-webkit-scrollbar-track { background: rgba(0,0,0,.18); }
+.racing-chat-wrapper.active .chat-messages::-webkit-scrollbar-thumb { border-radius: 8px; background: rgba(0,255,204,.38); }
+.chat-history-latest {
+  align-self: flex-end; min-height: 25px; margin: -2px 2px 0 0; padding: 4px 9px;
+  border: 1px solid rgba(0,255,204,.38); border-radius: 3px;
+  color: #bffff0; background: rgba(0,18,16,.94);
+  font: 800 10px/1.2 var(--font-racing); letter-spacing: .04em;
+  cursor: pointer; pointer-events: none; opacity: 0; transform: translateY(-4px);
+  transition: opacity .16s ease, transform .16s ease, background .16s ease;
+}
+.racing-chat-wrapper.active .chat-history-latest:not([hidden]) {
+  pointer-events: auto; opacity: 1; transform: translateY(0);
+}
+.chat-history-latest:hover { color: #00110d; background: #00ffcc; }
+.chat-history-latest[hidden] { display: none; }
+
+.chat-tools {
+  display: none; flex-wrap: wrap; align-items: center; gap: 6px;
+  min-width: 0; padding: 5px 7px; border: 1px solid rgba(0,255,204,.14);
+  border-radius: 4px; background: rgba(3,12,12,.92);
+  opacity: 0; transform: translateY(-5px); pointer-events: none;
+  transition: opacity .16s ease, transform .16s ease;
+}
+.racing-chat-wrapper.active .chat-tools { display: flex; opacity: 1; transform: translateY(0); pointer-events: auto; }
+.chat-filter-group { display: flex; flex: 1 1 100%; flex-wrap: wrap; gap: 4px; }
+.chat-filter, .chat-tool-button {
+  min-height: 24px; padding: 4px 7px; border: 1px solid rgba(255,255,255,.12); border-radius: 3px;
+  color: #a7bcb7; background: rgba(255,255,255,.035); font: 800 9px/1.15 var(--font-racing);
+  letter-spacing: .035em; cursor: pointer;
+}
+.chat-filter.is-active { color: #00110d; border-color: #00ffcc; background: #00ffcc; }
+.chat-tool-button[aria-pressed="true"] { color: #00ffcc; border-color: rgba(0,255,204,.5); }
+.chat-search {
+  flex: 1 1 135px; min-width: 110px; width: auto; height: 27px; padding: 4px 8px;
+  border: 1px solid rgba(255,255,255,.14); border-radius: 3px;
+  color: #effffb; background: rgba(0,0,0,.45); font: 600 10px/1.2 var(--font-racing);
+}
+.chat-search:focus { border-color: #00ffcc; outline: 1px solid rgba(0,255,204,.2); }
+.chat-muted-panel {
+  max-height: 132px; overflow-y: auto; padding: 7px 9px;
+  border: 1px solid rgba(0,255,204,.18); border-radius: 3px;
+  color: #d4e6e1; background: rgba(2,9,10,.97); font: 600 10px/1.4 var(--font-racing);
+}
+.chat-muted-panel[hidden] { display: none; }
+.racing-chat-wrapper.active .chat-muted-panel:not([hidden]) { pointer-events: auto; }
+.chat-muted-list { display: grid; gap: 5px; }
+.chat-muted-entry { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.chat-muted-entry span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.chat-muted-entry button {
+  flex: 0 0 auto; padding: 3px 7px; border: 1px solid rgba(0,255,204,.28);
+  color: #00ffcc; background: rgba(0,255,204,.06); cursor: pointer;
+  font: 800 9px/1.2 var(--font-racing);
+}
+.chat-muted-empty { color: #81938e; }
+.chat-messages .message[hidden] { display: none !important; }
 
 #chatInput {
-  min-width: 0; background: transparent; border: none; color: #fff; outline: none;
-  width: 100%; font-family: var(--font-racing); font-size: 18px;
+  flex: 1 1 0; min-width: 0; background: transparent; border: none; color: #fff; outline: none;
+  width: 0; font-family: var(--font-racing); font-size: calc(14px * var(--chat-scale, .9));
 }
 #activeChannel {
-  display: inline-block; max-width: 148px; overflow: hidden; text-overflow: ellipsis;
+  display: inline-block; flex: 0 0 auto; max-width: min(48%, 160px); overflow: hidden; text-overflow: ellipsis;
   color: var(--color-team); white-space: nowrap; vertical-align: bottom;
-  font-size: 15px; font-family: var(--font-hud);
+  font-size: calc(13px * var(--chat-scale, .9)); line-height: 1.15; font-family: var(--font-hud);
 }
+#activeChannel[data-scope="room"] { max-width: none; }
 #activeChannel[data-scope="room"] { color: var(--color-all); }
 #activeChannel[data-scope="crew"] { color: var(--color-team); }
 
@@ -888,12 +978,12 @@ html:has(> body > .stage:not([hidden])) { overflow: hidden; }
 }
 @media (max-width: 560px) {
   .racing-chat-wrapper {
-    top: max(16px, env(safe-area-inset-top));
-    left: max(16px, env(safe-area-inset-left));
-    width: min(420px, calc(100% - 32px)); max-width: none; font-size: 16px;
+    top: max(12px, env(safe-area-inset-top));
+    left: max(12px, env(safe-area-inset-left));
+    width: min(calc(var(--chat-width, 360px) * var(--chat-scale, .9)), calc(100% - 24px)); max-width: calc(100% - 24px); font-size: calc(13px * var(--chat-scale, .9));
   }
-  #chatInput { font-size: 16px; }
-  .quick-chat-panel { flex-wrap: wrap; }
+  #chatInput { font-size: calc(13px * var(--chat-scale, .9)); }
+  .quick-chat-panel { flex-wrap: wrap; gap: calc(4px * var(--chat-scale, .9)); }
 }
 .qc-picker {
   --u: 1px;
@@ -1023,6 +1113,98 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.64); }
 .menu-radio svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 #menu-save { margin-top: -12px; }
 #menu-save:empty { display: none; }
+
+/* TRPOLARIS Underground control deck: a native dialog skin, not a second app layered over the game. */
+dialog.menu {
+  width: min(900px, calc(100vw - 32px));
+  max-height: min(680px, calc(100dvh - 32px));
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid rgba(0, 255, 204, .34);
+  border-radius: 2px;
+  color: #e9f4f2;
+  background: linear-gradient(135deg, rgba(7, 13, 15, .98), rgba(3, 7, 9, .97) 62%, rgba(4, 16, 17, .98));
+  box-shadow: 0 24px 90px rgba(0,0,0,.72), 0 0 36px rgba(0,255,204,.08), inset 0 0 0 1px rgba(255,255,255,.035);
+  clip-path: polygon(0 0, calc(100% - 24px) 0, 100% 24px, 100% 100%, 20px 100%, 0 calc(100% - 20px));
+}
+dialog.menu::backdrop { background: rgba(0, 0, 0, .72); backdrop-filter: blur(3px); }
+.menu-shell { display: grid; grid-template-columns: minmax(210px, 250px) minmax(0, 1fr); min-height: 520px; }
+.menu-sidebar {
+  position: relative; display: flex; flex-direction: column; gap: 24px; min-width: 0;
+  padding: 26px 22px 20px; border-right: 1px solid rgba(0,255,204,.16);
+  background: linear-gradient(180deg, rgba(0,255,204,.055), rgba(0,0,0,.12) 45%, rgba(16,185,129,.04));
+}
+.menu-sidebar::before {
+  position: absolute; top: 0; left: 0; width: 100px; height: 2px; content: "";
+  background: linear-gradient(90deg, #00ffcc, transparent); box-shadow: 0 0 12px rgba(0,255,204,.7);
+  animation: menu-neon 3s ease-in-out infinite alternate;
+}
+@keyframes menu-neon { from { opacity: .55; } to { opacity: 1; } }
+.menu-brand { display: flex; flex-direction: column; gap: 5px; }
+.menu-kicker, .menu-section-label, .menu-edition, .menu-build-mark, .menu-live {
+  font: 700 9px/1.4 var(--font); letter-spacing: .17em; color: #758c88; text-transform: uppercase;
+}
+.menu-brand h2 { margin: 4px 0 0; font: italic 900 clamp(21px, 2.4vw, 28px)/.95 var(--font-racing); letter-spacing: -.06em; color: #f4fffc; }
+.menu-brand h2 span { margin-left: 5px; color: #00ffcc; font-style: normal; }
+.menu-edition { margin-top: 4px; color: #00b99a; }
+.menu-session, .menu-save-wrap { display: flex; flex-direction: column; gap: 8px; }
+.menu-session strong { display: flex; align-items: center; gap: 8px; font: 800 11px/1.4 var(--font); letter-spacing: .1em; color: #dffbf4; }
+.menu-session strong i, .menu-live i { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #18d69b; box-shadow: 0 0 9px #18d69b; }
+.menu-session .hint { margin: 0; font-size: 12px; line-height: 1.5; }
+.menu-save-wrap { margin-top: auto; padding-top: 14px; border-top: 1px solid rgba(255,255,255,.08); }
+.menu-save-wrap #menu-save { min-height: 34px; margin: 0; color: #9bacaa; font-size: 11px; line-height: 1.5; overflow-wrap: anywhere; }
+.menu-resume { width: 100%; min-height: 44px; justify-content: center; border: 1px solid rgba(0,255,204,.55) !important; border-radius: 0 !important; color: #03110f !important; background: linear-gradient(100deg, #00ffcc, #10b981) !important; font-size: 11px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; clip-path: polygon(0 0, 91% 0, 100% 28%, 100% 100%, 0 100%); }
+.menu-build-mark { color: #536560; letter-spacing: .12em; }
+.menu-build-mark b { color: #00d8b0; }
+.menu-main { display: flex; flex-direction: column; gap: 20px; min-width: 0; padding: 26px 26px 22px; }
+.menu-header { display: flex; align-items: end; justify-content: space-between; gap: 16px; padding-bottom: 15px; border-bottom: 1px solid rgba(255,255,255,.1); }
+.menu-header h3 { margin: 4px 0 0; font: 900 19px/1.1 var(--font); letter-spacing: .08em; color: #f3fffb; }
+.menu-live { display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+.menu-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-content: start; gap: 12px; }
+.menu-group { display: flex; flex-direction: column; gap: 7px; min-width: 0; padding: 12px; border: 1px solid rgba(255,255,255,.075); background: rgba(8,16,17,.72); }
+.menu-group h4 { margin: 0 0 3px; padding-bottom: 8px; border-bottom: 1px solid rgba(0,255,204,.16); font: 800 9px/1.3 var(--font); letter-spacing: .18em; color: #00cfae; }
+.menu-group .btn {
+  width: 100%; min-height: 36px; justify-content: flex-start; padding: 5px 10px;
+  border: 1px solid rgba(255,255,255,.075); border-radius: 0; background: rgba(255,255,255,.025);
+  color: #b5c6c2; text-align: left; font-size: 11px; letter-spacing: .035em;
+}
+.menu-group .btn:hover, .menu-group .btn:focus-visible { border-color: rgba(0,255,204,.42); background: rgba(0,255,204,.07); color: #eafff9; }
+.menu-group .btn.danger { color: #ff8e8e; border-color: rgba(255,96,96,.2); }
+.menu-group .btn.danger:hover { background: rgba(255,70,70,.09); border-color: rgba(255,96,96,.55); }
+.menu-group-radio, .menu-group-chat { min-height: 136px; }
+.menu-group-note { margin: 3px 0 0; color: #657975; font: 9px/1.4 var(--font); }
+.menu-radio .btn { padding: 0 74px 0 10px; text-align: left; }
+.menu-radio .icon { top: 4px; }
+.menu-radio [data-act="radio-folder"] { right: 36px; }
+.menu-radio [data-act="playlist"] { right: 4px; }
+.menu-slider { display: flex; flex-direction: column; gap: 7px; color: #a9bbb7; font: 700 9px/1.4 var(--font); letter-spacing: .08em; }
+.menu-slider + .menu-slider { margin-top: 5px; }
+.menu-slider span { display: flex; justify-content: space-between; gap: 10px; }
+.menu-slider output { color: #00ffcc; font-variant-numeric: tabular-nums; }
+.menu-slider input { width: 100%; margin: 0; accent-color: #00ffcc; cursor: pointer; }
+@media (max-width: 680px) {
+  dialog.menu { width: min(560px, calc(100vw - 20px)); max-height: calc(100dvh - 20px); }
+  .menu-shell { grid-template-columns: minmax(0, 1fr); min-height: 0; max-height: calc(100dvh - 22px); overflow-y: auto; }
+  .menu-sidebar { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px 16px; padding: 18px; border-right: 0; border-bottom: 1px solid rgba(0,255,204,.16); }
+  .menu-brand { grid-column: 1; }
+  .menu-session { grid-column: 2; }
+  .menu-save-wrap { grid-column: 1; margin-top: 0; padding-top: 8px; }
+  .menu-resume { grid-column: 2; align-self: end; }
+  .menu-build-mark { display: none; }
+  .menu-main { gap: 12px; padding: 17px 18px 18px; }
+  .menu-header { align-items: center; }
+  .menu-header h3 { font-size: 16px; }
+}
+@media (max-width: 420px) {
+  .menu-actions { grid-template-columns: minmax(0, 1fr); }
+  .menu-sidebar { grid-template-columns: minmax(0, 1fr); }
+  .menu-brand, .menu-session, .menu-save-wrap, .menu-resume { grid-column: 1; }
+  .menu-session { display: none; }
+  .menu-resume { width: 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .menu-sidebar::before { animation: none; }
+}
 /* the menu's Crews popup (a game in free roam): the Crews row's control under the help, Done under it */
 .crews-pop-box { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
 .dlg ul.crews { margin: 0; padding: 0; color: inherit; font-size: inherit; line-height: inherit; }
@@ -1075,4 +1257,211 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.64); }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; animation: none !important; }
   .photo-flash { display: none !important; }          /* no white flash at all, rather than a still one */
+}
+
+
+/* TRPOLARIS F9 control deck: visual language adapted from the supplied four-tab menu. */
+dialog.menu {
+  width: min(1050px, calc(100vw - 32px)); max-width: 1050px;
+  height: min(620px, calc(100dvh - 32px)); max-height: calc(100dvh - 32px);
+  padding: 0; overflow: hidden; border: 1px solid rgba(132, 163, 158, .24);
+  background: linear-gradient(135deg, rgba(7, 13, 15, .98), rgba(3, 7, 9, .97) 62%, rgba(4, 16, 17, .98));
+  box-shadow: 0 24px 90px rgba(0,0,0,.72), 0 0 36px rgba(0,255,204,.08), inset 0 0 0 1px rgba(255,255,255,.035);
+  clip-path: polygon(0 0, 96% 0, 100% 4%, 100% 100%, 4% 100%, 0 96%);
+}
+.menu-shell {
+  position: relative; display: grid; grid-template-columns: minmax(250px, 34%) minmax(0, 1fr);
+  width: 100%; height: 100%; min-height: 0;
+}
+.menu-shell::after {
+  position: absolute; z-index: 0; right: 26px; bottom: 46px; content: "SKYLINE";
+  color: rgba(224, 255, 248, .035); font: italic 900 clamp(54px, 9vw, 112px)/.8 var(--font-racing);
+  letter-spacing: -.08em; pointer-events: none; user-select: none;
+}
+.menu-sidebar {
+  z-index: 1; display: flex; min-height: 0; gap: 18px; padding: 29px 25px 20px;
+  border-right: 1px solid rgba(0,255,204,.16);
+  background: linear-gradient(180deg, rgba(0,255,204,.055), rgba(0,0,0,.12) 45%, rgba(16,185,129,.04));
+}
+.menu-sidebar::before {
+  width: 192px; height: 2px; background: linear-gradient(90deg, #00ffcc, transparent);
+  box-shadow: 0 0 12px rgba(0,255,204,.7); animation: trpolaris-neon-flicker 3s ease-in-out infinite alternate;
+}
+@keyframes trpolaris-neon-flicker {
+  0%, 19%, 21%, 23%, 25%, 54%, 56%, 100% { opacity: 1; filter: drop-shadow(0 0 8px #00ffcc) drop-shadow(0 0 17px #00ffcc); }
+  20%, 24%, 55% { opacity: .45; filter: none; }
+}
+.menu-brand { gap: 7px; }
+.menu-brand .menu-kicker { color: #00ffcc; letter-spacing: .24em; }
+.menu-brand h2 { font-size: clamp(25px, 2.8vw, 33px); text-shadow: 0 0 18px rgba(0,255,204,.12); }
+.menu-edition { color: #10b981; }
+.menu-session {
+  padding: 13px 14px; border: 1px solid rgba(0,255,204,.12);
+  background: linear-gradient(135deg, rgba(0,255,204,.055), rgba(0,0,0,.24));
+}
+.menu-session strong { color: #10b981; }
+.menu-tabs { display: flex; flex-direction: column; gap: 9px; }
+.menu-tab {
+  display: flex; align-items: center; gap: 12px; width: 100%; min-width: 0; min-height: 49px;
+  padding: 11px 13px; border: 1px solid transparent; border-left: 4px solid transparent;
+  border-radius: 0; color: #8f9d9a; background: transparent; cursor: pointer;
+  text-align: left; font: 900 10px/1.3 var(--font); letter-spacing: .14em; text-transform: uppercase;
+  transition: color .16s ease, background .16s ease, border-color .16s ease, box-shadow .16s ease, transform .16s ease;
+}
+.menu-tab svg { flex: 0 0 18px; width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.menu-tab span { flex: 1 1 auto; min-width: 0; }
+.menu-tab small { color: #4b5c58; font: 700 9px/1 var(--font); }
+.menu-tab:hover { color: #f1fffb; background: rgba(255,255,255,.035); border-color: rgba(255,255,255,.07); }
+.menu-tab:active { transform: scale(.975); }
+.menu-tab.is-active[data-menu-tab="chat"], .menu-tab.is-active[data-menu-tab="multiplayer"] {
+  color: #00ffcc; border-left-color: #00ffcc; background: rgba(0,255,204,.085);
+  box-shadow: 0 0 15px rgba(0,255,204,.12), inset 0 0 15px rgba(0,255,204,.045);
+}
+.menu-tab.is-active[data-menu-tab="session"] {
+  color: #10b981; border-left-color: #10b981; background: rgba(16,185,129,.09);
+  box-shadow: 0 0 15px rgba(16,185,129,.12), inset 0 0 15px rgba(16,185,129,.045);
+}
+.menu-tab.is-active[data-menu-tab="radio"] {
+  color: #fbbf24; border-left-color: #f59e0b; background: rgba(245,158,11,.075);
+  box-shadow: 0 0 15px rgba(245,158,11,.1), inset 0 0 15px rgba(245,158,11,.04);
+}
+.menu-save-wrap { padding-top: 15px; }
+.menu-resume { flex: 0 0 auto; }
+.menu-main {
+  z-index: 1; display: flex; flex-direction: column; gap: 23px; min-width: 0; min-height: 0;
+  padding: 31px 34px 26px;
+}
+.menu-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-bottom: 18px; border-bottom: 1px solid rgba(255,255,255,.09); }
+.menu-header .menu-kicker { color: #00c7a5; }
+.menu-header h3 { margin: 5px 0 0; color: #f1fffb; font: italic 900 21px/1.1 var(--font-racing); letter-spacing: .035em; }
+.menu-live { white-space: nowrap; }
+.menu-pages { position: relative; flex: 1 1 auto; min-height: 0; overflow: auto; padding: 2px 4px 5px 1px; }
+.menu-page { display: grid; align-content: start; gap: 15px; animation: trpolaris-page-in .22s ease both; }
+.menu-page[hidden] { display: none; }
+@keyframes trpolaris-page-in { from { opacity: 0; transform: translateX(9px); } to { opacity: 1; transform: translateX(0); } }
+.menu-page-title { display: flex; flex-direction: column; gap: 6px; margin-bottom: 2px; }
+.menu-page-title .menu-section-label { color: #00c7a5; }
+.menu-page-title h4 { margin: 0; color: #effffb; font: 900 14px/1.2 var(--font); letter-spacing: .13em; }
+.menu-page-title .hint { max-width: 620px; margin: 0; font-size: 12px; line-height: 1.55; }
+.menu-setting-card, .menu-control-card, .menu-radio-card {
+  min-width: 0; border: 1px solid rgba(255,255,255,.075);
+  background: linear-gradient(135deg, rgba(25,35,36,.48), rgba(4,10,11,.7));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.018);
+}
+.menu-setting-card { padding: 18px 20px; }
+.menu-slider { display: flex; flex-direction: column; gap: 11px; }
+.menu-slider > span { display: flex; align-items: center; justify-content: space-between; gap: 16px; color: #e6f5f1; font: 900 10px/1.3 var(--font); letter-spacing: .15em; }
+.menu-slider output { color: #00ffcc; font: 800 12px/1 var(--font); letter-spacing: .04em; }
+.menu-slider input { width: 100%; margin: 0; accent-color: #00ffcc; cursor: pointer; }
+.menu-slider small { color: #657873; font: 500 10px/1.45 var(--font); }
+.menu-inline-note { display: flex; align-items: center; gap: 9px; padding: 7px 1px; color: #60716d; font: 700 9px/1.3 var(--font); letter-spacing: .14em; }
+.menu-inline-note i { width: 6px; height: 6px; border-radius: 50%; background: #10b981; box-shadow: 0 0 8px #10b981; }
+.menu-controls-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 13px; }
+.menu-control-card { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; min-height: 157px; padding: 15px; }
+.menu-card-kicker { color: #00b99a; font: 800 9px/1.3 var(--font); letter-spacing: .15em; }
+.menu-control-card h5, .menu-radio-copy h5 { margin: 0; color: #effffb; font: 900 13px/1.3 var(--font); letter-spacing: .035em; }
+.menu-control-card .hint { flex: 1 1 auto; margin: 0; font-size: 11px; line-height: 1.45; }
+.menu-action { display: inline-flex; align-items: center; justify-content: center; min-height: 34px; padding: 7px 12px; border: 1px solid rgba(0,255,204,.23) !important; border-radius: 0 !important; color: #d8f9f1 !important; background: rgba(0,255,204,.045) !important; font-size: 10px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
+.menu-action:hover { color: #00110d !important; border-color: #00ffcc !important; background: #00ffcc !important; box-shadow: 0 0 20px rgba(0,255,204,.28), inset 0 0 12px rgba(0,255,204,.1); text-shadow: none; }
+.menu-control-danger { border-color: rgba(255,83,92,.18); }
+.menu-control-danger .menu-card-kicker { color: #ff6973; }
+.menu-action.danger { border-color: rgba(255,83,92,.3) !important; color: #ff9aa0 !important; background: rgba(255,83,92,.055) !important; }
+.menu-action.danger:hover { color: #190508 !important; border-color: #ff6973 !important; background: #ff6973 !important; }
+.menu-radio-card { display: flex; align-items: center; gap: 17px; padding: 21px; }
+.menu-radio-orb { display: grid; place-items: center; flex: 0 0 54px; width: 54px; height: 54px; border: 1px solid rgba(0,255,204,.35); border-radius: 50%; color: #00ffcc; background: rgba(0,255,204,.055); box-shadow: 0 0 22px rgba(0,255,204,.08), inset 0 0 14px rgba(0,255,204,.055); }
+.menu-radio-orb svg { width: 27px; height: 27px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.menu-radio-copy { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 7px; }
+.menu-radio-copy h5 { font: 900 15px/1.3 var(--font-racing); font-style: italic; }
+.menu-radio-copy .hint { margin: 0; font-size: 11px; }
+.menu-radio-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; }
+.menu-radio-actions .icon { min-width: 35px; min-height: 35px; }
+.vault-endpoint { margin-left: auto; color: #60716d; font: 800 9px/1.3 var(--font); letter-spacing: .12em; }
+.vault-endpoint code { margin-left: 5px; padding: 3px 6px; color: #00ffcc; background: rgba(0,255,204,.06); font: 700 10px/1.3 var(--font); letter-spacing: .02em; }
+.menu-tab:focus-visible, .menu-action:focus-visible { outline: 2px solid #00ffcc; outline-offset: 3px; }
+@media (max-width: 760px) {
+  dialog.menu { width: calc(100vw - 20px); height: calc(100dvh - 20px); max-height: calc(100dvh - 20px); }
+  .menu-shell { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); overflow: auto; }
+  .menu-sidebar { display: grid; grid-template-columns: minmax(0, 1fr); gap: 11px; padding: 16px 17px 12px; border-right: 0; border-bottom: 1px solid rgba(0,255,204,.16); }
+  .menu-brand { gap: 4px; }
+  .menu-brand h2 { font-size: 23px; }
+  .menu-session, .menu-save-wrap, .menu-build-mark { display: none; }
+  .menu-tabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 5px; }
+  .menu-tab { flex-direction: column; justify-content: center; gap: 5px; min-height: 57px; padding: 7px 3px; border-left: 0; border-bottom: 3px solid transparent; text-align: center; font-size: 8px; letter-spacing: .05em; }
+  .menu-tab small { display: none; }
+  .menu-main { min-height: 0; padding: 17px; gap: 14px; }
+  .menu-header { padding-bottom: 11px; }
+  .menu-header h3 { font-size: 17px; }
+  .menu-controls-grid { gap: 8px; }
+  .menu-control-card { min-height: 140px; padding: 11px; }
+  .menu-setting-card { padding: 13px; }
+  .menu-radio-card { flex-wrap: wrap; padding: 15px; }
+  .vault-endpoint { font-size: 8px; }
+}
+@media (max-width: 480px) {
+  .menu-tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .menu-tab { flex-direction: row; justify-content: flex-start; text-align: left; padding: 8px; }
+  .menu-tab small { display: inline; }
+  .menu-controls-grid { grid-template-columns: minmax(0, 1fr); }
+  .menu-control-card { min-height: 115px; }
+  .menu-live { display: none; }
+  .vault-endpoint { display: block; width: 100%; margin-left: 0; }
+}
+
+
+/* Retain the supplied menu's original glow classes and layered rain/neon atmosphere. */
+.menu-shell::before {
+  position: absolute; z-index: 0; right: 0; bottom: 0; width: 190px; height: 2px;
+  content: ""; background: linear-gradient(270deg, #10b981, transparent);
+  box-shadow: 0 0 10px #10b981; opacity: .7;
+}
+.menu-main { position: relative; isolation: isolate; }
+.menu-main::before {
+  position: absolute; z-index: -1; inset: 0; content: "";
+  background-image: repeating-linear-gradient(112deg,
+    transparent 0, transparent 52px,
+    rgba(0,255,204,.018) 53px, transparent 54px);
+  background-size: 220% 220%;
+  animation: trpolaris-rain-background 24s linear infinite;
+  pointer-events: none;
+}
+@keyframes trpolaris-rain-background {
+  0% { background-position: 0% 0%; }
+  50% { background-position: 50% 100%; }
+  100% { background-position: 100% 0%; }
+}
+.hover-glow-cyan:hover {
+  box-shadow: 0 0 20px rgba(0,255,204,.4), inset 0 0 15px rgba(0,255,204,.2);
+  text-shadow: 0 0 8px rgba(0,255,204,.6);
+}
+.hover-glow-green:hover {
+  box-shadow: 0 0 20px rgba(16,185,129,.4), inset 0 0 15px rgba(16,185,129,.2);
+  text-shadow: 0 0 8px rgba(16,185,129,.6);
+}
+.hover-glow-amber:hover {
+  box-shadow: 0 0 20px rgba(245,158,11,.4), inset 0 0 15px rgba(245,158,11,.2);
+  text-shadow: 0 0 8px rgba(245,158,11,.6);
+}
+.menu-radio-orb.is-playing svg { animation: trpolaris-radio-spin 4s linear infinite; }
+@keyframes trpolaris-radio-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .menu-sidebar::before, .menu-main::before, .menu-radio-orb.is-playing svg, .menu-page { animation: none !important; }
+}
+
+
+/* The player can pin the chat to any corner and choose its base width. */
+.racing-chat-wrapper[data-position="top-right"] { top: clamp(12px, 2.2vh, 24px); right: clamp(12px, 2.2vw, 24px); bottom: auto; left: auto; }
+.racing-chat-wrapper[data-position="bottom-left"] { top: auto; right: auto; bottom: clamp(12px, 2.2vh, 24px); left: clamp(12px, 2.2vw, 24px); }
+.racing-chat-wrapper[data-position="bottom-right"] { top: auto; right: clamp(12px, 2.2vw, 24px); bottom: clamp(12px, 2.2vh, 24px); left: auto; }
+.racing-chat-wrapper[data-position="top-left"] { top: clamp(12px, 2.2vh, 24px); right: auto; bottom: auto; left: clamp(12px, 2.2vw, 24px); }
+@media (max-width: 560px) {
+  .racing-chat-wrapper[data-position="top-right"] { right: max(12px, env(safe-area-inset-right)); left: auto; }
+  .racing-chat-wrapper[data-position="top-left"] { left: max(12px, env(safe-area-inset-left)); right: auto; }
+  .racing-chat-wrapper[data-position="bottom-right"] { right: max(12px, env(safe-area-inset-right)); left: auto; }
+  .racing-chat-wrapper[data-position="bottom-left"] { left: max(12px, env(safe-area-inset-left)); right: auto; }
+}
+
+.menu-slider select {
+  width: 100%; min-height: 34px; padding: 6px 9px;
+  border: 1px solid rgba(0,255,204,.2); border-radius: 3px;
+  color: #effffb; background: #0a1516; font: 700 11px/1.3 var(--font-racing);
 }
