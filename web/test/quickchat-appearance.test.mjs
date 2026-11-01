@@ -93,7 +93,10 @@ test('chat history keeps the latest 200 lines and does not pull the reader away 
     await list.evaluate(el => { el.scrollTop = el.scrollHeight; });
     await list.hover();
     await page.mouse.wheel(0, -420);
-    await page.waitForFunction(() => document.querySelector('#chatMessages').scrollTop < document.querySelector('#chatMessages').scrollHeight);
+    await page.waitForFunction(() => {
+      const el = document.querySelector('#chatMessages');
+      return el.scrollHeight - el.clientHeight - el.scrollTop > 2;
+    });
     const readingPosition = await list.evaluate(el => el.scrollTop);
     assert.ok(readingPosition > 0, 'mouse wheel moves into the older message history');
 
