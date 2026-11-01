@@ -1416,6 +1416,27 @@
   "New messages": "Nye beskeder",
   "Show newest chat messages": "Vis de nyeste chatbeskeder",
   "CHAT SCALE": "CHATTENS STØRRELSE",
-  "CHAT BACKGROUND": "CHATTENS BAGGRUND"
+  "CHAT BACKGROUND": "CHATTENS BAGGRUND",
+  "Chat filters": "Chatfiltre",
+  "All messages": "Alle beskeder",
+  "Everyone": "Alle",
+  "Crew chat": "Crewchat",
+  "System messages": "Systembeskeder",
+  "Search chat…": "Søg i chat…",
+  "Mention sound: on": "Omtalelyd: til",
+  "Mention sound: off": "Omtalelyd: fra",
+  "Muted: {n}": "Lydløse: {n}",
+  "No muted players": "Ingen lydløse spillere",
+  "Unmute": "Fjern lydløs",
+  "Mute player": "Gør spiller lydløs",
+  "Unmute player": "Fjern spillerens lydløshed",
+  "CHAT POSITION": "CHATPOSITION",
+  "Top left": "Øverst til venstre",
+  "Top right": "Øverst til højre",
+  "Bottom left": "Nederst til venstre",
+  "Bottom right": "Nederst til højre",
+  "Choose where the chat panel stays on screen.": "Vælg, hvor chatpanelet skal være på skærmen.",
+  "CHAT WIDTH": "CHATBREDDE",
+  "Adjust the chat panel width independently of its scale.": "Juster chatpanelets bredde uafhængigt af størrelsen."
 
 }
