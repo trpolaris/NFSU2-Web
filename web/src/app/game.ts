@@ -33,7 +33,7 @@ export interface SessionOptions {
   lobby?(json: string): void;
   /** free roam: quick chat, a phrase said (by a friend or the player), as JSON from the game */
   say?(json: string): void;
-  /** typed FreeRoam and race-lobby chat, relayed by the hub as JSON */
+  /** typed FreeRoam room or Crew chat, relayed by the hub as JSON */
   chat?(json: string): void;
   /** every frame drawn: quick chat's places over the cars in it (contract.ts RendererOptions.onMarks) */
   marks?(n: number, m: Float32Array, ids: Uint32Array): void;
