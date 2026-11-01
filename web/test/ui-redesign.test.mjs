@@ -36,6 +36,27 @@ test('TRPOLARIS neon design system integrates Tailwind v4 without resetting game
 });
 
 
+
+test('Midnight Run is a full layout redesign with a responsive rail, vehicle stage and launch dock', () => {
+  const redesign = fs.readFileSync(path.join(ROOT, 'src/app/full-redesign.css'), 'utf8');
+  const enhancements = fs.readFileSync(path.join(ROOT, 'src/app/ui-enhancements.js'), 'utf8');
+  assert.match(main, /import ['"]\.\/app\/full-redesign\.css['"]/);
+  assert.match(html, /class="hero-visual"/);
+  assert.match(html, /class="hero-vehicle-art"/);
+  assert.match(html, /id="play-panel"/);
+  assert.match(redesign, /grid-template-areas: "header header" "nav view"/);
+  assert.match(redesign, /@media \(max-width: 820px\)[\s\S]*?grid-template-areas: "header" "view" "nav"/);
+  assert.match(redesign, /--bg: #080b12/);
+  assert.match(redesign, /--lime: #ff6945/);
+  assert.match(redesign, /--cyan: #a69aff/);
+  assert.match(redesign, /@keyframes trpCarFloat/);
+  assert.match(redesign, /@keyframes trpAura/);
+  assert.match(enhancements, /target\.animate\(frames/);
+  assert.match(enhancements, /new IntersectionObserver/);
+  assert.match(enhancements, /createElement\('canvas'\)/);
+  assert.doesNotMatch(enhancements, /cdn\.jsdelivr\.net|fonts\.googleapis\.com/);
+});
+
 test('online controls display only the live player and room counts supplied by /players', () => {
   const design = fs.readFileSync(path.join(ROOT, 'src/app/design-system.css'), 'utf8');
   const playerSource = fs.readFileSync(path.join(ROOT, 'src/app/players.ts'), 'utf8');
