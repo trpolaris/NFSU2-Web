@@ -57,6 +57,28 @@ test('Midnight Run is a full layout redesign with a responsive rail, vehicle sta
   assert.doesNotMatch(enhancements, /cdn\.jsdelivr\.net|fonts\.googleapis\.com/);
 });
 
+
+test('inner pages use polished modern controls without replacing their existing DOM behavior', () => {
+  const polish = fs.readFileSync(path.join(ROOT, 'src/app/component-polish.css'), 'utf8');
+  assert.match(main, /import ['"]\.\/app\/component-polish\.css['"]/);
+  assert.match(polish, /input\.switch::after/);
+  assert.match(polish, /\.seg \.opt:has\(input:checked\)/);
+  assert.match(polish, /#online \.group-status:not\(\[hidden\]\)/);
+  assert.match(polish, /#saves \.profiles > li/);
+  assert.match(polish, /#mods \.custom-mod-list > li/);
+  assert.match(polish, /#controls \.controls-tabs \.tab\[aria-selected="true"\]/);
+  assert.match(polish, /#accessibility \.accessibility-option/);
+  assert.match(polish, /#updates \.update-row > div/);
+  assert.match(polish, /\.bar-fill::after/);
+  assert.match(polish, /prefers-reduced-motion:\s*reduce/);
+  assert.match(html, /id="online-body"/);
+  assert.match(html, /id="settings-body"/);
+  assert.match(html, /id="config-profile-save"/);
+  assert.match(html, /id="custom-mod-add"/);
+  assert.match(html, /id="diagnostic-list"/);
+  assert.match(fs.readFileSync(path.join(ROOT, 'src/app/settings-ui.ts'), 'utf8'), /b\.onchange = \(\) => void this\.put\(it\.key/);
+});
+
 test('online controls display only the live player and room counts supplied by /players', () => {
   const design = fs.readFileSync(path.join(ROOT, 'src/app/design-system.css'), 'utf8');
   const playerSource = fs.readFileSync(path.join(ROOT, 'src/app/players.ts'), 'utf8');
