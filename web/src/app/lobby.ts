@@ -14,8 +14,6 @@ interface LobbyState {
   st?: 'host' | 'asked' | 'in' | 'count';
   /** the race; stage: its career stage */
   kind?: string; track?: string; laps?: number; stage?: number;
-  /** id: the exact race-lobby id used to route typed race chat */
-  id?: number;
   /** the lobby's players, the host first; me: our place in it (-1: none); max: its places; t: the countdown's
    *  seconds; closes: the seconds left of a lobby nobody joined (its last minute); away: its host made no input
    *  lately, the seconds until it closes; fee: what quitting the race costs; even: the race evens out the cars
