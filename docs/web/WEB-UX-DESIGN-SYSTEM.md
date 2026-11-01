@@ -1,48 +1,102 @@
-# TRPOLARIS Web — Midnight Run Visual System
+# TRPOLARIS Web — Midnight Run + Player Hub Architecture
 
-This document defines the redesigned player-facing experience. It applies to the website shell and its content surfaces only. The in-game renderer/HUD, WebAssembly runtime, Rust server, multiplayer protocol, game data and save formats remain outside the redesign.
+This document describes the player-facing visual system and the new React player hub. The existing game page and the new hub are separate front-end surfaces served by the same Rust process and the same origin.
 
-## Visual direction
+## 1. Visual direction
 
-The new direction is **Midnight Run**: a premium, cinematic street-racing interface with a more deliberate information hierarchy.
+The main game page uses **Midnight Run**: a premium, cinematic street-racing interface with a deliberate information hierarchy.
 
-- **Obsidian base:** `#080b12` with layered navy/graphite surfaces.
-- **Signal coral:** `#ff6945` for primary actions, active states and key highlights.
-- **Electric lavender:** `#a69aff` for secondary accents and ambient lighting.
+- **Obsidian base:** #080b12 with layered navy/graphite surfaces.
+- **Signal coral:** #ff6945 for primary actions, active states and key highlights.
+- **Electric lavender:** #a69aff for secondary accents and ambient lighting.
 - **Steel surfaces:** deep blue-grey panels with low-contrast borders, restrained blur and layered shadows.
 - **Typography:** system-first sans serif for legibility, with condensed display styling for the hero headline.
 - **Composition:** compact brand bar, vertical desktop navigation rail, cinematic vehicle stage, separate launch dock and compact status/action panels. At mobile widths the navigation becomes a horizontally scrollable bottom dock.
 
-## Interaction and motion
+The React hub has its own dashboard shell, sidebar, live player list, profile editor, garage and statistics pages. It uses the same Midnight Run color direction, but its layout and component styles are scoped to /hub/.
 
-- Motion design uses the browser's Web Animations API and CSS transition primitives for page transitions, entrance/reveal motion, hover/press feedback and progress activity. This keeps animation local and compatible with the server's self-only Content Security Policy.
-- The hero atmosphere uses a small local canvas particle field with a capped device-pixel ratio and low particle count.
-- The vehicle art is an inline vector illustration; no remote image dependency is required.
-- A shared component-polish layer standardizes action buttons, segmented option groups, checkbox switches, fields, disclosure panels, profile rows, mod cards, keyboard keycaps and diagnostic tiles.
-- CSS hover/press states add restrained depth and feedback to buttons, navigation and action cards.
-- `prefers-reduced-motion`, Save-Data and low-core device checks suppress or reduce non-essential effects.
+## 2. Application architecture
+
+The repository now contains two front-end surfaces:
+
+| Surface | Entry | Purpose |
+|---|---|---|
+| Existing game page | web/src/main.ts + web/index.html | Game launch, browser checks, controls, saves, WASM/WebGPU and gameplay |
+| React player hub | web/src/hub/main.jsx + web/src/hub/index.html | Dashboard, live Online roster, browser-private profile and garage UI |
+
+Both bundles are produced by the existing web/build.mjs. The Rust server serves the built hub at /hub/ and its assets under /hub/*; the original game remains at /. There is no second server, second port or separate deployment process.
+
+### Front-end stack
+
+- **React 19.3.1** and React DOM for the hub component tree.
+- **TypeScript** remains the typed application language for the game runtime and supporting modules; the hub entry is JSX and is bundled by the same esbuild build.
+- **Tailwind CSS 4.3.3** remains the build-time utility layer. Preflight stays disabled so it does not reset existing game controls.
+- **Motion 14.9.0** provides React transitions and view animations in the hub; the original game shell uses native Web Animations API and CSS motion.
+- **Lucide React 1.66.0** provides locally bundled SVG icons.
+- Runtime dependencies are pinned in the build script and bundled into web/dist; the browser does not fetch code or fonts from a CDN. This is compatible with the Rust server's self-only Content Security Policy.
+
+The project is not converted wholesale to React. The game runtime, worker lifecycle, renderer, audio, controller input, WASM process and save subsystem stay in their existing DOM/TypeScript environment. React is an additional UI layer for account-like and community-facing pages, not a rewrite of the game.
+
+## 3. Rust API contract
+
+The same Rust server exposes a versioned same-origin API for the hub:
+
+| Endpoint | Method | Purpose |
+|---|---|---|
+| /api/v1/session | GET | Create or resume a browser-private hub session and obtain its CSRF token |
+| /api/v1/live/players | GET | Current active player names, activity labels and connected duration |
+| /api/v1/me | GET | Read the current browser session's profile |
+| /api/v1/me | PUT | Update the current profile |
+| /api/v1/garage | GET | Read the current session's garage entries |
+| /api/v1/garage | POST | Add a player-entered garage entry |
+| /api/v1/garage/:id | DELETE | Remove one garage entry owned by the current session |
+
+The React client uses same-origin requests with credentials: same-origin. Mutations require the session CSRF token in X-TRP-CSRF; the Rust API also checks the request origin. The session cookie is HttpOnly, Secure, SameSite=Strict, host-only and path-wide. Only a SHA-256 hash of the random session token is used as the on-disk session key.
+
+### Persistent data in v1
+
+The hub writes its private session/profile/garage state to player-hub.json inside the existing Rust /state volume. Writes use a temporary file, mode 0600, sync and atomic rename. Expired sessions are removed as new sessions are created; the store has a fixed session capacity and returns an error instead of evicting active users.
+
+This first slice intentionally uses a small JSON store so it can ship without adding a database service or changing the existing Compose topology. It is not yet a public account system: profiles are private to the browser session and do not roam between devices. A future authenticated identity layer can migrate the same API contract to SQLite or PostgreSQL without changing the React pages.
+
+## 4. Data truth and game telemetry
+
+The hub only labels data according to its actual source.
+
+### Available now
+
+- **Live player roster:** read from the existing Rust LAN switch's active Who list. The API maps the existing status to Online, LAN screens, free roam or menus.
+- **Player summary counts:** read from the existing /players endpoint.
+- **Private profile fields:** user-entered display name, short bio and favorite-car label.
+- **Garage entries:** user-entered manufacturer, model, optional year and notes.
+
+The live player API returns an opaque per-process id, sanitized display name, activity and connected duration. It does not return virtual IP addresses, real client addresses, browser identifiers, claim tokens or private session data.
+
+### Not yet connected to the game
+
+- The actual set of cars in a player's NFSU2 save.
+- In-game modifications, visual parts, performance builds and vehicle screenshots.
+- Career progress, cash, reputation, race wins, event history and personal bests.
+- A durable identity that links the private browser profile to the player's claimed name across devices.
+
+These values are not fabricated or inferred from the current /players count. The UI labels garage entries as manual and career statistics as awaiting game data. The next telemetry phase needs an explicit, versioned message from the WASM/runtime boundary to the Rust server, plus validation and a durable owner binding before automatic synchronization is enabled.
+
+## 5. Motion and accessibility
+
+- Motion in the React hub uses the locally bundled Motion package.
+- The original game page uses native Web Animations API and CSS transition primitives.
+- The original hero atmosphere uses a low-density local canvas particle field with a capped device-pixel ratio.
+- prefers-reduced-motion, Save-Data and low-core device checks suppress non-essential effects in the game shell; hub CSS also respects reduced motion.
 - Animations never carry information required to operate the game or understand status.
+- Inputs and actions retain labels, focus-visible states and disabled states.
 
-## Component model
+## 6. Guardrails
 
-The application remains framework-neutral TypeScript/HTML/CSS. Tailwind CSS v4 is retained as an optional utilities layer, imported without Preflight so the existing game controls are not reset. Semantic design tokens and accessible surface patterns follow shadcn/ui conventions: clear focus rings, readable contrast, consistent radii, explicit disabled states and restrained cards.
-
-Native shadcn/ui React components are not introduced because the current player page is a DOM-based application; adding React would create a second UI runtime without improving the existing game shell.
-
-## Icons and dependencies
-
-- Navigation and action icons remain small local inline SVGs with Lucide-style outline geometry. No icon CDN is required.
-- Tailwind CSS v4 continues to provide the build-time utility layer; the richer controls use scoped CSS primitives so no framework runtime is introduced.
-- Motion effects use local Web Animations API and CSS transitions rather than a remote module.
-- Ambient particles use a small local canvas implementation with low-power and reduced-motion guards rather than fetching tsParticles from a CDN.
-- The production page therefore remains compatible with the current restrictive CSP (`script-src 'self'`, `style-src 'self'`, `font-src 'self'`).
-
-## Guardrails
-
-1. Preserve all runtime anchors and existing TypeScript event hooks used by the game modules.
-2. Do not change gameplay, WASM, multiplayer wire protocol, Cloud API, passphrase handling or save storage.
-3. Keep user-facing functional text in the existing translation pipeline.
-4. Use only real server-provided values; do not fabricate online players or server metrics.
-5. Respect reduced-motion, data-saving and low-power device preferences.
-6. Keep the existing HTML controls, keyboard/gamepad behavior and accessibility hooks intact.
-7. Keep the redesign scoped to the player-facing page; the in-game HUD and game canvas remain unchanged.
+1. Keep the existing game page at /; the React hub is separate at /hub/.
+2. Preserve all game runtime DOM anchors and TypeScript event hooks.
+3. Do not change gameplay, WASM, renderer/HUD, audio, controller behavior or multiplayer wire protocol as part of the hub migration.
+4. Do not expose real client IPs, virtual LAN addresses, browser IDs, claim tokens, session cookies or CSRF tokens in live player rows.
+5. Keep profile and garage reads/writes scoped to the current private browser session.
+6. Do not label manually entered vehicles or placeholder stats as verified game telemetry.
+7. Serve all scripts, styles and icons from the same origin; keep the existing restrictive CSP.
+8. Keep the same Rust process, Docker service, port and persistent volumes. No second backend or port is introduced.
