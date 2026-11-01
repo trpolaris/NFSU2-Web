@@ -804,7 +804,7 @@ html:has(> body > .stage:not([hidden])) { overflow: hidden; }
 .racing-chat-wrapper {
   position: absolute; top: clamp(12px, 2.2vh, 24px); left: clamp(12px, 2.2vw, 24px); z-index: 4;
   width: min(360px, calc(100% - 24px)); max-width: calc(100% - 24px);
-  font-family: var(--font-racing); font-size: clamp(13px, 0.85vw, 15px); font-weight: 700;
+  font-family: var(--font-racing); font-size: calc(clamp(13px, 0.85vw, 15px) * var(--chat-scale, .9)); font-weight: 700;
   display: flex; flex-direction: column; gap: 8px;
   pointer-events: none;
 }
@@ -822,7 +822,7 @@ html:has(> body > .stage:not([hidden])) { overflow: hidden; }
 }
 .racing-chat-wrapper .message.all { color: var(--color-all); }
 .racing-chat-wrapper .message.team { color: var(--color-team); }
-.racing-chat-wrapper .message.system { color: var(--color-system); font-family: var(--font-hud); font-size: 15px; }
+.racing-chat-wrapper .message.system { color: var(--color-system); font-family: var(--font-hud); font-size: calc(13px * var(--chat-scale, .9)); }
 .racing-chat-wrapper .message.quick { color: var(--color-quick); }
 .racing-chat-wrapper .channel {
   display: inline-block; max-width: min(48%, 160px); margin-right: 5px; overflow: hidden;
@@ -839,7 +839,7 @@ html:has(> body > .stage:not([hidden])) { overflow: hidden; }
 /* Original input row: hidden until the chat is active. */
 .chat-input-area {
   display: flex; align-items: center; min-width: 0;
-  background: linear-gradient(90deg, rgba(0,0,0,.85) 0%, rgba(0,0,0,.4) 100%);
+  background: linear-gradient(90deg, rgba(0,0,0,var(--chat-opacity, .72)) 0%, rgba(0,0,0,0) 100%);
   border-left: 3px solid var(--color-team); padding: 6px 9px;
   border-radius: 0 4px 4px 0; gap: 8px;
   opacity: 0; transform: translateX(-20px);
@@ -869,12 +869,12 @@ html:has(> body > .stage:not([hidden])) { overflow: hidden; }
 
 #chatInput {
   flex: 1 1 0; min-width: 0; background: transparent; border: none; color: #fff; outline: none;
-  width: 0; font-family: var(--font-racing); font-size: 14px;
+  width: 0; font-family: var(--font-racing); font-size: calc(14px * var(--chat-scale, .9));
 }
 #activeChannel {
   display: inline-block; flex: 0 0 auto; max-width: min(48%, 160px); overflow: hidden; text-overflow: ellipsis;
   color: var(--color-team); white-space: nowrap; vertical-align: bottom;
-  font-size: 13px; line-height: 1.15; font-family: var(--font-hud);
+  font-size: calc(13px * var(--chat-scale, .9)); line-height: 1.15; font-family: var(--font-hud);
 }
 #activeChannel[data-scope="room"] { max-width: none; }
 #activeChannel[data-scope="room"] { color: var(--color-all); }
@@ -891,9 +891,9 @@ html:has(> body > .stage:not([hidden])) { overflow: hidden; }
   .racing-chat-wrapper {
     top: max(12px, env(safe-area-inset-top));
     left: max(12px, env(safe-area-inset-left));
-    width: min(360px, calc(100% - 24px)); max-width: calc(100% - 24px); font-size: 13px;
+    width: min(360px, calc(100% - 24px)); max-width: calc(100% - 24px); font-size: calc(13px * var(--chat-scale, .9));
   }
-  #chatInput { font-size: 13px; }
+  #chatInput { font-size: calc(13px * var(--chat-scale, .9)); }
   .quick-chat-panel { flex-wrap: wrap; gap: 4px; }
 }
 .qc-picker {
