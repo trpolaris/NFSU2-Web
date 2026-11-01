@@ -202,6 +202,7 @@ export class QuickChat {
     this.mutedButton.addEventListener('click', () => {
       this.mutedPanel.hidden = !this.mutedPanel.hidden;
       this.renderMutedPlayers();
+      this.updateChatToolStates();
     });
     this.mutedPanel = document.createElement('div');
     this.mutedPanel.className = 'chat-muted-panel';
@@ -606,7 +607,7 @@ export class QuickChat {
       }
       if (e.key === 'Escape') {
         e.preventDefault(); e.stopImmediatePropagation();
-        if (!this.mutedPanel.hidden) this.mutedPanel.hidden = true;
+        if (!this.mutedPanel.hidden) { this.mutedPanel.hidden = true; this.updateChatToolStates(); }
         else this.closeTextChat();
       } else if (e.key === 'Tab' && el === this.chatInput) {
         e.preventDefault(); e.stopImmediatePropagation(); this.cycleChannel();
