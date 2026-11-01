@@ -1343,5 +1343,10 @@
   "Race chat": "レースチャット",
   "FreeRoam chat": "フリーロームチャット",
   "Type a FreeRoam message": "フリーロームのメッセージを書く",
-  "Type a race message": "レースメッセージを書く"
+  "Type a race message": "レースメッセージを書く",
+  "New messages": "新着メッセージ",
+  "Show newest chat messages": "最新のチャットメッセージを表示",
+  "CHAT SCALE": "チャットサイズ",
+  "CHAT BACKGROUND": "チャット背景"
+
 }
