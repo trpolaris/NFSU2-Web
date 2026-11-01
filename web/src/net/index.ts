@@ -84,7 +84,7 @@ export interface NetOptions {
   onLobby?: (json: string) => void;
   /** quick chat from the game (NET_KIND_SAY): a phrase said, by a friend or the player, as JSON */
   onSay?: (json: string) => void;
-  /** typed FreeRoam or exact-race chat, relayed by the FreeRoam hub as JSON */
+  /** typed FreeRoam room or Crew chat, relayed by the hub as JSON */
   onChat?: (json: string) => void;
   /** the switch welcomed this page again after the link was lost (a server restart, as for a deploy) */
   onBack?: () => void;
@@ -147,11 +147,34 @@ export interface NetLink {
   setSolid(on: boolean): void;
   /** quick chat: the player says phrase p (runtime/roam_game.c say_frame sends it); false: no free roam */
   say(p: number): boolean;
-  /** typed chat: 'roam' reaches the current FreeRoam room; 'race' reaches only the exact active race lobby */
-  chat(text: string, scope: 'roam' | 'race', lobbyId?: number): boolean;
-  /** free roam's crews, changed while the game runs (the page menu): their hashes (players.ts roomHash), in the
-   *  player's order, at most 4, and their colours (0x00rrggbb; 0 or none: the place's default) */
-  setCrews(hashes: readonly number[], rgbs?: readonly number[]): void;
+  /** typed chat: 'room' reaches everyone in this FreeRoam room; 'crew' reaches only members of crewId */
+  /** The hub checks the sender's room or Crew membership before relaying a typed line. */
+  chat(text: string, scope: 'room' | 'crew', crewId = 0): boolean {
+    const ws = this.ws;
+    if (!this.roam || this.roam.mode() !== P.NET_MODE_VLAN || this.state !== 'online'
+        || !ws || ws.readyState !== WebSocket.OPEN || !this.vipNum || !this.roamSelfId
+        || !this.roamPort || !this.roamHubPort) return false;
+    const clean = text.trim();
+    if (!clean || Array.from(clean).length > P.ROAM_CHAT_MAX_CHARS) return false;
+    const body = new TextEncoder().encode(clean);
+    if (!body.length || body.length > P.ROAM_CHAT_MAX_BYTES) return false;
+    const channel = scope === 'crew' ? crewId >>> 0 : 0;
+    if ((scope === 'crew' && !channel) || (scope === 'room' && crewId !== 0)) return false;
+    const n = P.ROAM_HDR + 7 + body.length + P.ROAM_CRC;
+    const d = new Uint8Array(n), v = new DataView(d.buffer);
+    d.set([0x4e, 0x32, 0x46, 0x52], 0); d[4] = 1; d[5] = P.ROAM_MSG_CHAT;
+    v.setUint16(6, n, true); v.setUint32(8, this.roamSelfId, true);
+    v.setUint16(12, this.chatSeq++ & 0xffff, true); v.setUint16(14, 0, true);
+    d[16] = scope === 'crew' ? 1 : 0; v.setUint32(17, channel, true);
+    v.setUint16(21, body.length, true); d.set(body, 23);
+    v.setUint32(n - P.ROAM_CRC, P.crc32(d, n - P.ROAM_CRC), true);
+    const frame = new Uint8Array(P.F_DATA + n), fv = new DataView(frame.buffer);
+    frame[P.F_KIND] = P.NET_KIND_UDP; fv.setUint32(P.F_SRC, this.vipNum); fv.setUint32(P.F_DST, P.NET_ROAM_HUB);
+    fv.setUint16(P.F_SPORT, this.roamPort); fv.setUint16(P.F_DPORT, this.roamHubPort); frame.set(d, P.F_DATA);
+    try { ws.send(frame); } catch { return false; }
+    return true;
+  }
+    setCrews(hashes: readonly number[], rgbs?: readonly number[]): void;
   close(): void;
 }
 
@@ -842,8 +865,8 @@ class Link implements NetLink {
     if (n < P.ROAM_HDR + 8 + P.ROAM_CRC || d[0] !== 0x4e || d[1] !== 0x32 || d[2] !== 0x46 || d[3] !== 0x52
         || d[4] !== 1 || d[5] !== P.ROAM_MSG_CHAT || v.getUint16(6, true) !== n
         || v.getUint32(n - P.ROAM_CRC, true) !== P.crc32(d, n - P.ROAM_CRC)) return false;
-    const scope = d[16], lobby = v.getUint32(17, true), nameLen = d[21], textLen = v.getUint16(22, true);
-    if (scope > 1 || (scope === 0 && lobby !== 0) || (scope === 1 && lobby === 0)
+    const scope = d[16], channel = v.getUint32(17, true), nameLen = d[21], textLen = v.getUint16(22, true);
+    if (scope > 1 || (scope === 0 && channel !== 0) || (scope === 1 && channel === 0)
         || nameLen < 1 || nameLen > 32 || textLen < 1 || textLen > P.ROAM_CHAT_MAX_BYTES
         || n !== P.ROAM_HDR + 8 + nameLen + textLen + P.ROAM_CRC) return false;
     const dec = new TextDecoder('utf-8', { fatal: true });
@@ -854,7 +877,7 @@ class Link implements NetLink {
     } catch { return false; }
     if (!name || !text || Array.from(text).length > P.ROAM_CHAT_MAX_CHARS || /[\u0000-\u001f\u007f]/.test(text)) return false;
     const id = v.getUint32(8, true);
-    this.o.onChat?.(JSON.stringify({ id, name, text, scope: scope === 1 ? 'race' : 'roam', lobby, me: id === this.roamSelfId }));
+    this.o.onChat?.(JSON.stringify({ id, name, text, scope: scope === 1 ? 'crew' : 'room', channel, me: id === this.roamSelfId }));
     return true;
   }
   private lanRx(b: ArrayBuffer, kind: number) {
