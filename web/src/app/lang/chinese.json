@@ -1343,5 +1343,10 @@
   "Race chat": "比赛聊天",
   "FreeRoam chat": "自由漫游聊天",
   "Type a FreeRoam message": "发送自由漫游消息",
-  "Type a race message": "发送比赛消息"
+  "Type a race message": "发送比赛消息",
+  "New messages": "新訊息",
+  "Show newest chat messages": "顯示最新聊天訊息",
+  "CHAT SCALE": "聊天大小",
+  "CHAT BACKGROUND": "聊天背景"
+
 }
