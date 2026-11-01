@@ -13,7 +13,7 @@
 //          same picture; the player's own over their car.  Also the chat log on the left, in the notices' place, and
 //          beside the player's name in a race lobby's card.
 import type { GameSession } from './game';
-import { t } from './i18n';
+import { onLanguage, t } from './i18n';
 import { catName, DEFAULT_GROUPS, DEFAULT_PHRASES, PHRASES, type CatId } from './phrases';
 
 /** the picker closes this long after it opened or the last pick in it (ms) */
@@ -132,6 +132,12 @@ export class QuickChat {
     this.historyButton.title = t('Show newest chat messages');
     this.historyButton.hidden = true;
     this.historyButton.addEventListener('click', () => this.scrollChatToLatest(true));
+    onLanguage(() => {
+      const label = t('Show newest chat messages');
+      this.historyButton.textContent = `${t('New messages')} ↓`;
+      this.historyButton.setAttribute('aria-label', label);
+      this.historyButton.title = label;
+    });
 
     const quick = document.createElement('div');
     quick.className = 'quick-chat-panel';
