@@ -1232,15 +1232,21 @@ function syncChatMenuAppearance() {
   const scale = Math.round(a.scale * 100), opacity = Math.round(a.opacity * 100);
   $<HTMLInputElement>('#menu-chat-scale').value = String(scale);
   $<HTMLInputElement>('#menu-chat-opacity').value = String(opacity);
+  $<HTMLSelectElement>('#menu-chat-position').value = a.position;
+  $<HTMLInputElement>('#menu-chat-width').value = String(a.width);
   $('#menu-chat-scale-value').textContent = `${scale}%`;
   $('#menu-chat-opacity-value').textContent = `${opacity}%`;
+  $('#menu-chat-width-value').textContent = `${a.width} px`;
 }
 function updateChatMenuAppearance() {
   const scale = Number($<HTMLInputElement>('#menu-chat-scale').value) / 100;
   const opacity = Number($<HTMLInputElement>('#menu-chat-opacity').value) / 100;
-  quickChat.setAppearance(scale, opacity);
+  const position = $<HTMLSelectElement>('#menu-chat-position').value as 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
+  const width = Number($<HTMLInputElement>('#menu-chat-width').value);
+  quickChat.setAppearance(scale, opacity, position, width);
   $('#menu-chat-scale-value').textContent = `${Math.round(scale * 100)}%`;
   $('#menu-chat-opacity-value').textContent = `${Math.round(opacity * 100)}%`;
+  $('#menu-chat-width-value').textContent = `${width} px`;
 }
 
 /** the menu's frame-rate counter and Ghost mode buttons, with what they are at now */
@@ -1717,6 +1723,8 @@ export async function boot() {
   });
   $('#menu-chat-scale').addEventListener('input', updateChatMenuAppearance);
   $('#menu-chat-opacity').addEventListener('input', updateChatMenuAppearance);
+  $('#menu-chat-width').addEventListener('input', updateChatMenuAppearance);
+  $('#menu-chat-position').addEventListener('change', updateChatMenuAppearance);
   $('#playlist-body').addEventListener('change', setTrackMode);
   $('#playlist-shuffle').addEventListener('change', setShuffle);
   $('#menu').addEventListener('close', () => {
