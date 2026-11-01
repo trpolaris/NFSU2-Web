@@ -24,7 +24,7 @@ const RACEREP_NAME: usize = 16;
 /// the race's results as the reporter's game showed them (roam_core.h RC_MSG_RACERES): only to the hub, which compares
 /// the players' games' results for a racer far ahead of the others
 pub(crate) const MSG_RACERES: u8 = 16;
-/// typed FreeRoam chat, routed by the hub to a room or one advertised race lobby
+/// typed FreeRoam chat, routed by the hub to a room or one shared Crew
 pub(crate) const MSG_CHAT: u8 = 17;
 pub(crate) const CHAT_MAX_BYTES: usize = 512;
 pub(crate) const CHAT_MAX_CHARS: usize = 160;
@@ -115,8 +115,8 @@ pub(crate) enum Msg<'a> {
     RaceRep(RaceRep<'a>),
     /// the race's results as its game showed them (roam_core.h rc_raceres), checked as roam_core.c's raceres_ok
     RaceRes(RaceRes),
-    /// a typed chat line: 0 is all active free-roam players in the same room; 1 is one exact race lobby
-    Chat { scope: u8, lobby: u32, text: &'a str },
+    /// a typed chat line: scope 0 is active players in the room; scope 1 is members of one Crew hash
+    Chat { scope: u8, channel: u32, text: &'a str },
     Bye,
     Other,
 }
@@ -377,9 +377,9 @@ pub(crate) fn decode(d: &[u8]) -> Option<(u8, u32, Msg<'_>)> {
                 return None;
             }
             let scope = d[HDR];
-            let lobby = u32_le(d, HDR + 1);
+            let channel = u32_le(d, HDR + 1);
             let n = u16_le(d, HDR + 5) as usize;
-            if scope > 1 || (scope == 0 && lobby != 0) || (scope == 1 && lobby == 0)
+            if scope > 1 || (scope == 0 && channel != 0) || (scope == 1 && channel == 0)
                 || n == 0 || n > CHAT_MAX_BYTES || end != HDR + 7 + n
             {
                 return None;
@@ -388,7 +388,7 @@ pub(crate) fn decode(d: &[u8]) -> Option<(u8, u32, Msg<'_>)> {
             if text.chars().count() > CHAT_MAX_CHARS || text.chars().any(char::is_control) {
                 return None;
             }
-            Msg::Chat { scope, lobby, text }
+            Msg::Chat { scope, channel, text }
         }
         MSG_BYE => Msg::Bye,
         _ => Msg::Other,
@@ -524,7 +524,7 @@ pub(crate) fn write_chat(
     sender: u32,
     seq: u16,
     scope: u8,
-    lobby: u32,
+    channel: u32,
     name: &[u8],
     text: &[u8],
 ) {
@@ -539,7 +539,7 @@ pub(crate) fn write_chat(
     b[12..14].copy_from_slice(&seq.to_le_bytes());
     b[14..16].copy_from_slice(&[0, 0]);
     b[16] = scope;
-    b[17..21].copy_from_slice(&lobby.to_le_bytes());
+    b[17..21].copy_from_slice(&channel.to_le_bytes());
     b[21] = name_len as u8;
     b[22..24].copy_from_slice(&(text_len as u16).to_le_bytes());
     b[24..24 + name_len].copy_from_slice(&name[..name_len]);
@@ -579,7 +579,7 @@ pub(crate) fn write_map(b: &mut [u8], sender: u32, seq: u16, req: u16, part: u8,
 mod chat_tests {
     use super::*;
 
-    fn request(scope: u8, lobby: u32, text: &[u8]) -> Vec<u8> {
+    fn request(scope: u8, channel: u32, text: &[u8]) -> Vec<u8> {
         let len = HDR + 7 + text.len() + CRC;
         let mut b = vec![0u8; len];
         b[..4].copy_from_slice(b"N2FR");
@@ -588,7 +588,7 @@ mod chat_tests {
         b[6..8].copy_from_slice(&(len as u16).to_le_bytes());
         b[8..12].copy_from_slice(&7u32.to_le_bytes());
         b[16] = scope;
-        b[17..21].copy_from_slice(&lobby.to_le_bytes());
+        b[17..21].copy_from_slice(&channel.to_le_bytes());
         b[21..23].copy_from_slice(&(text.len() as u16).to_le_bytes());
         b[23..23 + text.len()].copy_from_slice(text);
         let crc = crc32fast::hash(&b[..len - CRC]);
@@ -597,20 +597,20 @@ mod chat_tests {
     }
 
     #[test]
-    fn chat_request_accepts_valid_free_roam_and_race_lines() {
-        for (scope, lobby) in [(0, 0), (1, 0x1234)] {
-            let b = request(scope, lobby, b"hello");
+    fn chat_request_accepts_valid_room_and_crew_lines() {
+        for (scope, channel) in [(0, 0), (1, 0x1234)] {
+            let b = request(scope, channel, b"hello");
             let (kind, sender, msg) = decode(&b).expect("valid chat frame");
             assert_eq!(kind, MSG_CHAT);
             assert_eq!(sender, 7);
-            assert!(matches!(msg, Msg::Chat { scope: s, lobby: l, text: "hello" } if s == scope && l == lobby));
+            assert!(matches!(msg, Msg::Chat { scope: s, channel: c, text: "hello" } if s == scope && c == channel));
         }
     }
 
     #[test]
     fn chat_request_rejects_invalid_scope_control_text_and_bad_crc() {
         assert!(decode(&request(2, 0, b"hello")).is_none());
-        assert!(decode(&request(0, 99, b"hello")).is_none());
+        assert!(decode(&request(0, 0x1234, b"hello")).is_none());
         assert!(decode(&request(1, 0, b"hello")).is_none());
         assert!(decode(&request(0, 0, b"hello\nworld")).is_none());
         let mut bad = request(0, 0, b"hello");
