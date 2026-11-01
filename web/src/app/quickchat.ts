@@ -162,7 +162,8 @@ export class QuickChat {
     s.left = `${left}px`; s.top = `${top}px`;
     s.setProperty('--u', `${u}px`);
     this.layer.style.setProperty('--u', `${u}px`);
-    this.chatHud.style.left = `${left}px`; this.chatHud.style.top = `${top}px`;
+    // Match the supplied racing HUD: chat stays in the upper-left; the quick-phrase picker keeps its game HUD position.
+    this.chatHud.style.left = '40px'; this.chatHud.style.top = '40px';
     this.chatHud.style.setProperty('--u', `${u}px`);
   }
 
@@ -187,6 +188,7 @@ export class QuickChat {
   private updateChannel() {
     const c = this.currentChannel();
     this.channelButton.textContent = `[${c.label.toLocaleUpperCase()}]`;
+    this.channelButton.dataset.scope = c.scope;
     this.channelButton.title = t('Tab to switch channel');
   }
   private cycleChannel() { this.channelIndex = (this.channelIndex + 1) % (this.crews.length + 1); this.updateChannel(); }
@@ -251,7 +253,7 @@ export class QuickChat {
       return;
     }
     if (el?.closest?.('input, textarea, select, dialog[open]') || document.querySelector('dialog[open]')) return;
-    if ((e.key === 'Enter' || e.code === 'KeyY') && !e.repeat) {
+    if (e.code === 'KeyY' && !e.repeat) {
       if (this.openTextChat()) { e.preventDefault(); e.stopImmediatePropagation(); }
       return;
     }
@@ -392,7 +394,7 @@ export class QuickChat {
     if (s.scope === 'crew' && (!crew || s.channel === 0)) return;
     if (s.scope === 'room' && s.channel !== 0) return;
     const label = crew?.name ?? t('All');
-    const row = document.createElement('div'); row.className = 'qc-chat-message';
+    const row = document.createElement('div'); row.className = 'qc-chat-message'; row.dataset.scope = s.scope;
     const channel = document.createElement('span'); channel.className = 'qc-message-channel';
     channel.textContent = `[${label.toLocaleUpperCase()}]`;
     const sender = document.createElement('b'); sender.className = 'qc-message-sender'; sender.textContent = s.name;
