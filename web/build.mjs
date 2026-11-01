@@ -49,30 +49,96 @@ fs.mkdirSync(DIST, { recursive: true });
 
 // Pinned Tailwind v4 utility build. Only utilities are imported (no Preflight),
 // so existing game and browser controls keep their established CSS semantics.
-const tailwindArgs = [
-  '--yes', '--package=@tailwindcss/cli@4.3.3', 'tailwindcss',
-  '-i', 'src/app/tailwind.css', '-o', path.join(DIST, 'tailwind.css'), '--minify',
+// The CLI is installed in npm's ephemeral npx cache; expose just its CSS package
+// beside the source stylesheet while it resolves @import paths, then remove it.
+const tailwindPackageArgs = [
+  '--yes',
+  '--package=@tailwindcss/cli@4.3.3',
+  '--package=tailwindcss@4.3.3',
 ];
 const npx = process.platform === 'win32' ? 'npx.cmd' : 'npx';
+const tailwindArgs = [
+  ...tailwindPackageArgs,
+  'tailwindcss',
+  '-i', 'src/app/tailwind.css',
+  '-o', path.join(DIST, 'tailwind.css'),
+  '--minify',
+];
+const resolverDir = path.resolve('src/app/node_modules');
+const resolverPackage = path.join(resolverDir, 'tailwindcss');
+let createdResolverDir = false;
+let createdResolverPackage = false;
+
+function prepareTailwindResolver() {
+  const probe = spawnSync(npx, [
+    ...tailwindPackageArgs,
+    'node',
+    '-e',
+    'const p = process.env.PATH.split(require("node:path").delimiter).find(x => require("node:path").basename(x).toLowerCase() === ".bin" && x.includes("node_modules")); console.log(p ? require("node:path").resolve(p, "..") : "");',
+  ], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'], shell: process.platform === 'win32' });
+  if (probe.error || probe.status !== 0) {
+    throw new Error(`Could not locate the pinned Tailwind package cache: ${probe.error?.message ?? probe.stderr ?? ''}`);
+  }
+
+  const cacheModules = probe.stdout.trim().split(/\\r?\\n/).filter(Boolean).at(-1);
+  if (!cacheModules) throw new Error('Could not locate the npx node_modules directory for Tailwind CSS.');
+  const cachePackage = path.join(cacheModules, 'tailwindcss');
+  for (const file of ['theme.css', 'utilities.css']) {
+    if (!fs.existsSync(path.join(cachePackage, file))) {
+      throw new Error(`Pinned Tailwind CSS package is missing ${file}.`);
+    }
+  }
+
+  if (!fs.existsSync(resolverDir)) {
+    fs.mkdirSync(resolverDir, { recursive: true });
+    createdResolverDir = true;
+  }
+
+  if (fs.existsSync(resolverPackage)) {
+    const installed = JSON.parse(fs.readFileSync(path.join(resolverPackage, 'package.json'), 'utf8'));
+    if (installed.version !== '4.3.3') {
+      throw new Error(`Unexpected local Tailwind CSS version ${installed.version}; expected 4.3.3.`);
+    }
+  } else {
+    fs.cpSync(cachePackage, resolverPackage, { recursive: true });
+    createdResolverPackage = true;
+  }
+}
+
+function cleanupTailwindResolver() {
+  if (createdResolverPackage) fs.rmSync(resolverPackage, { recursive: true, force: true });
+  if (createdResolverDir && fs.existsSync(resolverDir) && fs.readdirSync(resolverDir).length === 0) {
+    fs.rmSync(resolverDir, { recursive: true, force: true });
+  }
+}
+
+prepareTailwindResolver();
 if (watch) {
-  const tailwind = spawn(npx, [...tailwindArgs, '--watch'], {
+  const tailwind = spawn(npx, tailwindArgs, {
     stdio: 'inherit',
     shell: process.platform === 'win32',
   });
   tailwind.on('error', error => {
     console.error('[tailwind] could not start the pinned CLI:', error);
+    cleanupTailwindResolver();
     process.exitCode = 1;
   });
   tailwind.on('exit', code => {
+    cleanupTailwindResolver();
     if (code && code !== 0) process.exitCode = code;
   });
+  process.once('exit', cleanupTailwindResolver);
 } else {
-  const tailwind = spawnSync(npx, tailwindArgs, {
-    stdio: 'inherit',
-    shell: process.platform === 'win32',
-  });
-  if (tailwind.error || tailwind.status !== 0) {
-    throw new Error(`Tailwind CSS build failed (exit ${tailwind.status ?? 'unknown'}): ${tailwind.error?.message ?? ''}`);
+  try {
+    const tailwind = spawnSync(npx, tailwindArgs, {
+      stdio: 'inherit',
+      shell: process.platform === 'win32',
+    });
+    if (tailwind.error || tailwind.status !== 0) {
+      throw new Error(`Tailwind CSS build failed (exit ${tailwind.status ?? 'unknown'}): ${tailwind.error?.message ?? ''}`);
+    }
+  } finally {
+    cleanupTailwindResolver();
   }
 }
 // the start page (its script and stylesheet are main.js / main.css), and its files as they are (src/static: the
