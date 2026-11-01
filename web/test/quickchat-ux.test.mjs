@@ -45,6 +45,8 @@ test('Crew names, player identity and message content are visible and safely ren
     chat.updateChannel();
     const header = { text: chat.channelButton.textContent, title: chat.channelButton.title };
 
+    chat.chat('null');
+    chat.chat('[]');
     chat.chat(JSON.stringify({
       id: 17, name: '<b>Alice</b>', text: 'Hello Crew', scope: 'crew', channel: 0x1234, me: false,
     }));
