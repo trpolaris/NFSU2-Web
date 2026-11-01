@@ -1462,6 +1462,27 @@
   "New messages": "Nowe wiadomości",
   "Show newest chat messages": "Pokaż najnowsze wiadomości czatu",
   "CHAT SCALE": "ROZMIAR CZATU",
-  "CHAT BACKGROUND": "TŁO CZATU"
+  "CHAT BACKGROUND": "TŁO CZATU",
+  "Chat filters": "Filtry czatu",
+  "All messages": "Wszystkie wiadomości",
+  "Everyone": "Wszyscy",
+  "Crew chat": "Czat załogi",
+  "System messages": "Wiadomości systemowe",
+  "Search chat…": "Szukaj na czacie…",
+  "Mention sound: on": "Dźwięk wzmianek: włączony",
+  "Mention sound: off": "Dźwięk wzmianek: wyłączony",
+  "Muted: {n}": "Wyciszeni: {n}",
+  "No muted players": "Brak wyciszonych graczy",
+  "Unmute": "Włącz dźwięk",
+  "Mute player": "Wycisz gracza",
+  "Unmute player": "Cofnij wyciszenie gracza",
+  "CHAT POSITION": "POŁOŻENIE CZATU",
+  "Top left": "U góry po lewej",
+  "Top right": "U góry po prawej",
+  "Bottom left": "Na dole po lewej",
+  "Bottom right": "Na dole po prawej",
+  "Choose where the chat panel stays on screen.": "Wybierz położenie panelu czatu na ekranie.",
+  "CHAT WIDTH": "SZEROKOŚĆ CZATU",
+  "Adjust the chat panel width independently of its scale.": "Dostosuj szerokość panelu czatu niezależnie od skali."
 
 }
