@@ -1,0 +1,276 @@
+/* TRPOLARIS WEB UI — shadcn-inspired tokens and glass surfaces.
+   Scoped to the player-facing page; the in-game HUD and renderer are untouched. */
+:root {
+  --trp-night: #050708;
+  --trp-cyan: #00ffcc;
+  --trp-emerald: #10b981;
+  --trp-zinc-950: #09090b;
+  --trp-zinc-900: #18181b;
+  --trp-glass: rgba(9, 9, 11, .68);
+  --trp-glass-raised: rgba(24, 24, 27, .78);
+  --trp-border: rgba(0, 255, 204, .18);
+  --trp-border-strong: rgba(0, 255, 204, .34);
+  --trp-muted: #a1a1aa;
+  --trp-radius: 16px;
+
+  /* shadcn/ui semantic token names, kept framework-neutral for this DOM app. */
+  --background: 0 0% 2%;
+  --foreground: 0 0% 96%;
+  --card: 240 5% 10%;
+  --card-foreground: 0 0% 96%;
+  --popover: 240 5% 8%;
+  --popover-foreground: 0 0% 96%;
+  --primary: 166 100% 50%;
+  --primary-foreground: 180 100% 3%;
+  --secondary: 160 84% 39%;
+  --secondary-foreground: 0 0% 98%;
+  --muted: 240 4% 16%;
+  --muted-foreground: 240 5% 65%;
+  --accent: 166 100% 50%;
+  --accent-foreground: 180 100% 3%;
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 166 100% 50% / 0.18;
+  --input: 240 4% 16%;
+  --ring: 166 100% 50%;
+}
+
+.experience-shell {
+  color: #f4f4f5;
+}
+
+.experience-shell > .top,
+.experience-shell > .quick-nav,
+.experience-shell .panel,
+.experience-shell .home-action-card,
+.experience-shell .hero-garage-link {
+  border-color: var(--trp-border);
+  background-color: var(--trp-glass);
+  -webkit-backdrop-filter: blur(16px) saturate(135%);
+  backdrop-filter: blur(16px) saturate(135%);
+}
+
+.experience-shell > .top {
+  background:
+    radial-gradient(ellipse at 10% 0%, rgba(0, 255, 204, .09), transparent 42%),
+    linear-gradient(110deg, rgba(9, 9, 11, .94), rgba(24, 24, 27, .82));
+  box-shadow: 0 16px 46px rgba(0, 0, 0, .28), inset 0 1px rgba(255,255,255,.04);
+}
+
+.experience-shell > .quick-nav {
+  border-color: rgba(0, 255, 204, .16);
+  background: rgba(9, 9, 11, .76);
+}
+
+.experience-shell .quick-link {
+  color: #a1a1aa;
+  transition: color .18s ease, background-color .18s ease, border-color .18s ease, transform .18s ease;
+}
+
+.experience-shell .quick-link:hover {
+  color: #f4f4f5;
+  border-color: rgba(0, 255, 204, .2);
+  background: rgba(0, 255, 204, .07);
+}
+
+.experience-shell .quick-link.active {
+  color: #03110e;
+  border-color: var(--trp-cyan);
+  background: linear-gradient(115deg, var(--trp-cyan), #10b981);
+  box-shadow: 0 0 22px rgba(0, 255, 204, .19);
+}
+
+.experience-shell .quick-link.active svg {
+  stroke: #03110e;
+}
+
+.experience-shell .landing-hero {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border: 1px solid rgba(0, 255, 204, .2);
+  border-radius: 22px;
+  background:
+    radial-gradient(ellipse at 76% 8%, rgba(0, 255, 204, .13), transparent 35%),
+    radial-gradient(ellipse at 10% 95%, rgba(16, 185, 129, .1), transparent 38%),
+    linear-gradient(140deg, rgba(9, 9, 11, .97), rgba(24, 24, 27, .84));
+  box-shadow: 0 24px 70px rgba(0,0,0,.32), inset 0 1px rgba(255,255,255,.045);
+}
+
+.experience-shell .landing-hero::after {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  pointer-events: none;
+  opacity: .16;
+  background-image:
+    linear-gradient(rgba(0,255,204,.09) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,255,204,.09) 1px, transparent 1px);
+  background-size: 42px 42px;
+  mask-image: linear-gradient(90deg, transparent, #000 42%, #000 90%, transparent);
+}
+
+.experience-shell .landing-copy,
+.experience-shell .play-console {
+  position: relative;
+  z-index: 2;
+}
+
+.experience-shell .landing-title em {
+  color: var(--trp-cyan);
+  text-shadow: 0 0 28px rgba(0, 255, 204, .16);
+}
+
+.experience-shell .hero-kicker,
+.experience-shell .play-console-eyebrow,
+.experience-shell .home-status-eyebrow {
+  color: var(--trp-cyan);
+}
+
+.experience-shell .hero-capabilities span {
+  color: #d4d4d8;
+}
+
+.experience-shell .panel {
+  border-color: rgba(0, 255, 204, .14);
+  background:
+    linear-gradient(145deg, rgba(24, 24, 27, .82), rgba(9, 9, 11, .88));
+  box-shadow: 0 14px 36px rgba(0,0,0,.2), inset 0 1px rgba(255,255,255,.035);
+}
+
+.experience-shell .panel h2,
+.experience-shell .panel h3 {
+  color: #fafafa;
+}
+
+.experience-shell .panel .hint,
+.experience-shell .home-action-copy small {
+  color: #a1a1aa;
+}
+
+.experience-shell .play {
+  border-color: var(--trp-cyan);
+  background: linear-gradient(110deg, var(--trp-cyan), #10b981);
+  color: #03110e;
+  box-shadow: 0 0 26px rgba(0, 255, 204, .16);
+  transition: transform .18s ease, box-shadow .18s ease, filter .18s ease;
+}
+
+.experience-shell .play:hover:not(:disabled) {
+  transform: translateY(-2px);
+  filter: brightness(1.07);
+  box-shadow: 0 0 34px rgba(0, 255, 204, .25);
+}
+
+.experience-shell .play:disabled {
+  filter: saturate(.35);
+  box-shadow: none;
+}
+
+.experience-shell .btn.selected,
+.experience-shell .btn.primary {
+  border-color: var(--trp-cyan);
+  background: var(--trp-cyan);
+  color: #03110e;
+}
+
+.experience-shell .home-action-card {
+  border: 1px solid rgba(0, 255, 204, .14);
+  background: linear-gradient(135deg, rgba(24,24,27,.8), rgba(9,9,11,.72));
+  transition: transform .2s ease, border-color .2s ease, background-color .2s ease, box-shadow .2s ease;
+}
+
+.experience-shell .home-action-card:hover {
+  transform: translateY(-3px);
+  border-color: rgba(0,255,204,.42);
+  background: linear-gradient(135deg, rgba(0,255,204,.09), rgba(24,24,27,.88));
+  box-shadow: 0 14px 32px rgba(0,0,0,.22), 0 0 24px rgba(0,255,204,.06);
+}
+
+.experience-shell .home-action-icon {
+  border: 1px solid rgba(0,255,204,.2);
+  background: rgba(0,255,204,.07);
+  color: var(--trp-cyan);
+}
+
+.experience-shell .home-action-arrow,
+.experience-shell .hero-link-arrow {
+  color: var(--trp-cyan);
+}
+
+.experience-shell .form-select,
+.experience-shell input:not([type="checkbox"]):not([type="radio"]),
+.experience-shell textarea,
+.experience-shell select {
+  border-color: rgba(161,161,170,.26);
+  background-color: rgba(9,9,11,.78);
+  color: #f4f4f5;
+}
+
+.experience-shell :focus-visible {
+  outline: 2px solid var(--trp-cyan);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 4px rgba(0,255,204,.13);
+}
+
+.experience-shell .signal-dot {
+  background-color: var(--trp-cyan);
+  box-shadow: 0 0 12px rgba(0,255,204,.55);
+}
+
+#hero-particles {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  opacity: .58;
+  pointer-events: none;
+  mask-image: linear-gradient(90deg, transparent 0%, #000 35%, #000 88%, transparent 100%);
+}
+
+#hero-particles canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+  pointer-events: none !important;
+}
+
+.ui-lucide {
+  display: inline-block;
+  width: 17px;
+  height: 17px;
+  flex: 0 0 auto;
+  stroke-width: 1.7;
+}
+
+@media (max-width: 720px) {
+  .experience-shell .landing-hero {
+    border-radius: 17px;
+  }
+
+  #hero-particles {
+    opacity: .28;
+  }
+
+  .experience-shell .home-action-card:hover {
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .experience-shell *,
+  .experience-shell *::before,
+  .experience-shell *::after {
+    scroll-behavior: auto !important;
+    transition-duration: .01ms !important;
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+
+  #hero-particles {
+    display: none !important;
+  }
+}
