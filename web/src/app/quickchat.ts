@@ -478,6 +478,7 @@ export class QuickChat {
     if (mine) row.dataset.self = 'true';
     const channel = document.createElement('span'); channel.className = 'channel';
     channel.textContent = quickMessage ? '⚡' : s.scope === 'crew' ? `[${label}]` : '[HERKES]';
+    channel.title = label;
     const sender = document.createElement('span'); sender.className = 'sender';
     sender.textContent = `${name}:`; sender.title = name;
     const text = document.createElement('span'); text.className = 'text'; text.textContent = body;
