@@ -30,6 +30,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/main.css">
+<link rel="stylesheet" href="/tailwind.css">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -77,7 +78,8 @@
 
   <div id="home-page" class="home-page">
     <div class="install-security-notice" id="install-security-notice" hidden role="status" aria-live="polite"></div>
-    <section class="landing-hero" aria-labelledby="landing-heading">
+    <section class="landing-hero relative isolate overflow-hidden" aria-labelledby="landing-heading">
+      <div id="hero-particles" class="pointer-events-none absolute inset-0 z-0" aria-hidden="true"></div>
       <div class="landing-copy">
         <div class="hero-kicker"><span class="signal-dot" aria-hidden="true"></span><span class="kicker-brand">TRPOLARIS <i>/</i> NFSU2</span><span class="kicker-tag" data-i18n>STREET RACING / 2004</span></div>
         <p class="hero-overline" data-i18n>THE CITY NEVER SLEEPS</p>
