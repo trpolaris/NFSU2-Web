@@ -835,13 +835,13 @@ html:has(> body > .stage:not([hidden])) { overflow: hidden; }
   border-radius: 0 4px 4px 0; gap: 10px;
   opacity: 0; transform: translateX(-20px);
   transition: all .25s cubic-bezier(.1,.9,.2,1);
-  pointer-events: auto;
+  pointer-events: none;
 }
 
 /* Original quick-message button row. */
 .quick-chat-panel {
   display: flex; gap: 6px; opacity: 0; transform: translateY(-10px);
-  transition: all .2s ease; pointer-events: auto;
+  transition: all .2s ease; pointer-events: none;
 }
 .quick-chat-panel button {
   background: rgba(0,0,0,.7); border: 1px solid rgba(255,255,255,.2);
@@ -854,12 +854,12 @@ html:has(> body > .stage:not([hidden])) { overflow: hidden; }
 /* Active mode reveals the exact two controls from the supplied design. */
 .racing-chat-wrapper.active .chat-input-area,
 .racing-chat-wrapper.active .quick-chat-panel {
-  opacity: 1; transform: translate(0);
+  opacity: 1; transform: translate(0); pointer-events: auto;
 }
-.racing-chat-wrapper.active .chat-messages { overflow-y: auto; }
+.racing-chat-wrapper.active .chat-messages { overflow-y: auto; pointer-events: auto; }
 
 #chatInput {
-  background: transparent; border: none; color: #fff; outline: none;
+  min-width: 0; background: transparent; border: none; color: #fff; outline: none;
   width: 100%; font-family: var(--font-racing); font-size: 18px;
 }
 #activeChannel {
