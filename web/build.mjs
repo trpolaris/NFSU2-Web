@@ -80,7 +80,7 @@ function prepareTailwindResolver() {
     throw new Error(`Could not locate the pinned Tailwind package cache: ${probe.error?.message ?? probe.stderr ?? ''}`);
   }
 
-  const cacheModules = probe.stdout.trim().split(/\\r?\\n/).filter(Boolean).at(-1);
+  const cacheModules = probe.stdout.trim().split(/\r?\n/).filter(Boolean).at(-1);
   if (!cacheModules) throw new Error('Could not locate the npx node_modules directory for Tailwind CSS.');
   const cachePackage = path.join(cacheModules, 'tailwindcss');
   for (const file of ['theme.css', 'utilities.css']) {
