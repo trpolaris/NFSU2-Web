@@ -1,6 +1,6 @@
 // Keyphrase saves in the page (web/src/app/vault.ts):
 //   node --test web/test/vault.test.mjs
-// - keyphrases: "nfsu2-xyz-" and 8 words of the list, read back in any case and with any separators
+// - keyphrases: "trpolaris-cloud-" for new saves; old "nfsu2-xyz-" phrases remain readable of the list, read back in any case and with any separators
 // - the key and the token: PBKDF2-SHA-256 as node:crypto makes it; sealed saves open only with their keyphrase
 // - packing: a player's folder (a profile, the text files) packs far below the server's 256 KB; the content hash
 //   ignores the files' times; the DVD and magazine covers are not kept (a picture of 1 MB each)
@@ -56,7 +56,7 @@ test('keyphrases: made from the list, read back however they are typed', () => {
   for (let i = 0; i < 500; i++) {
     const p = V.newPhrase();
     const w = p.split('-');
-    assert.deepEqual(w.slice(0, 2), ['nfsu2', 'xyz']);
+    assert.deepEqual(w.slice(0, 2), ['trpolaris', 'cloud']);
     assert.equal(w.length, 10);
     assert.ok(w.slice(2).every(x => WORDS.includes(x)), p);
     assert.deepEqual(V.readPhrase(p), { phrase: p });
@@ -75,27 +75,27 @@ test('keyphrases: made from the list, read back however they are typed', () => {
 test('the key and token: PBKDF2-SHA-256, 100,000 rounds; sealed saves open with their keyphrase only', async () => {
   const p = 'nfsu2-xyz-acid-acorn-acre-acts-afar-affix-aged-agent';
   const k = await V.keysOf(p);
-  const bits = crypto.pbkdf2Sync(p, 'nfsu2-xyz keyphrase saves v1', 100000, 64, 'sha256');
+  const bits = crypto.pbkdf2Sync(p, k.aad, 100000, 64, 'sha256');
   assert.equal(k.token, bits.subarray(32).toString('base64url'));
   assert.match(k.token, /^[A-Za-z0-9_-]{43}$/);
   const plain = enc.encode('the saves');
-  const box = await V.seal(k.key, plain);
+  const box = await V.seal(k.key, plain, k.aad);
   assert.equal(box[0], 1);
   assert.equal(box.length, 1 + 12 + plain.length + 16);
   // the key is the first half: AES-GCM as node:crypto does it
   const d = crypto.createDecipheriv('aes-256-gcm', bits.subarray(0, 32), box.subarray(1, 13));
-  d.setAAD(Buffer.from('nfsu2-xyz keyphrase saves v1'));
+  d.setAAD(Buffer.from(k.aad));
   d.setAuthTag(box.subarray(box.length - 16));
   assert.equal(Buffer.concat([d.update(box.subarray(13, box.length - 16)), d.final()]).toString(), 'the saves');
-  assert.deepEqual(await V.unseal(k.key, box), plain);
+  assert.deepEqual(await V.unseal(k.key, box, k.aad), plain);
   const other = await V.keysOf('nfsu2-xyz-acid-acorn-acre-acts-afar-affix-aged-agile');
-  await assert.rejects(V.unseal(other.key, box), /do not open with this passphrase/);
+  await assert.rejects(V.unseal(other.key, box, other.aad), /do not open with this passphrase/);
   const bent = box.slice(); bent[20] ^= 1;
-  await assert.rejects(V.unseal(k.key, bent), /do not open/);
+  await assert.rejects(V.unseal(k.key, bent, k.aad), /do not open/);
   const v2 = box.slice(); v2[0] = 2;
-  await assert.rejects(V.unseal(k.key, v2), /not a passphrase's saves/);
+  await assert.rejects(V.unseal(k.key, v2, k.aad), /not a passphrase's saves/);
   // two seals of the same saves differ (a new IV each time)
-  assert.notDeepEqual(await V.seal(k.key, plain), box);
+  assert.notDeepEqual(await V.seal(k.key, plain, k.aad), box);
 });
 
 test('a player\'s folder packs far below what the server takes; the hash is of the content', async () => {
@@ -209,7 +209,7 @@ test('two browsers on one keyphrase: made, loaded, synced both ways', async () =
   const srv = server(), a = browser(srv), b = browser(srv);
   seed(a, 1000);
   const phrase = await a.sync.create();
-  assert.match(phrase, /^nfsu2-xyz(-[a-z]{3,5}){8}$/);
+  assert.match(phrase, /^trpolaris-cloud(-[a-z]{3,5}){8}$/);
   assert.equal(a.sync.state.s, 'synced');
   assert.equal(srv.kept.size, 1);
   // the server holds neither the keyphrase nor a save: only sealed bytes under the token
@@ -515,7 +515,7 @@ test('covers stay in the browser that took them; a version with covers (sent bef
   const old = [{ path: at('THOM'), data: profile('THOM', { money: 3000 }) }, { path: dvd(1), data: cover() },
     { path: 'settings.ini', data: enc.encode('# settings\n') }];
   const k = await V.keysOf(phrase), etag = `"${srv.kept.get(token).cur.rev.toString(16).padStart(16, '0')}"`;
-  assert.ok('saved' in await new V.VaultApi(k.token, srv.fetch).put(await V.seal(k.key, await V.pack(old)), etag));
+  assert.ok('saved' in await new V.VaultApi(k.token, srv.fetch).put(await V.seal(k.key, await V.pack(old), k.aad), etag));
   await b.sync.pull();
   assert.equal(b.money(at('THOM')), 3000);
   assert.ok(b.files.has(dvd(2)) && !b.files.has(dvd(1)));
@@ -647,7 +647,7 @@ test('the graphics options and the device\'s settings stay in each browser', asy
   const old = [{ path: at('THOM'), data: profile('THOM', { money: 3000 }) }, { path: 'registry.txt', data: enc.encode('d g_RacingResolution=5\n') },
     { path: 'settings.ini', data: enc.encode(ini([['render', 'scale:2'], ['roam_name', 'Cy']])) }];
   const k = await V.keysOf(phrase), etag = `"${rev2.toString(16).padStart(16, '0')}"`;
-  assert.ok('saved' in await new V.VaultApi(k.token, srv.fetch).put(await V.seal(k.key, await V.pack(old)), etag));
+  assert.ok('saved' in await new V.VaultApi(k.token, srv.fetch).put(await V.seal(k.key, await V.pack(old), k.aad), etag));
   await phone.sync.pull();
   assert.equal(phone.money(at('THOM')), 3000);
   assert.deepEqual(fromFile(dec.decode(phone.files.get('settings.ini'))), { NFSU2_RENDER: 'scale:0.5', NFSU2_FPS: '60', NFSU2_ROAM_NAME: 'Cy' });
@@ -711,7 +711,7 @@ test('links that counted the graphics options, the device\'s settings or the LAN
       await c.sync.push();
       assert.notEqual(rev(), r1, `v${v}`);
       const r2 = rev(), k = await V.keysOf(phrase);
-      const sent = await unzip(await V.unpack(await V.unseal(k.key, srv.kept.get(token).cur.body)));
+      const sent = await unzip(await V.unpack(await V.unseal(k.key, srv.kept.get(token).cur.body, k.aad)));
       assert.deepEqual(sent.map(e => e.name).sort(), [at('THOM'), 'settings.ini']);
       scale(c, 'scale:2'); c.files.set('gamefile.bin', gamefile(3));
       await c.sync.push();
@@ -763,7 +763,7 @@ test('the LAN server\'s file (gamefile.bin) stays in each browser', async () => 
   const old = [{ path: at('THOM'), data: profile('THOM', { money: 3000 }) }, { path: 'gamefile.bin', data: gamefile(4) },
     { path: 'settings.ini', data: enc.encode('# settings\n') }];
   const k = await V.keysOf(phrase), etag = `"${rev2.toString(16).padStart(16, '0')}"`;
-  assert.ok('saved' in await new V.VaultApi(k.token, srv.fetch).put(await V.seal(k.key, await V.pack(old)), etag));
+  assert.ok('saved' in await new V.VaultApi(k.token, srv.fetch).put(await V.seal(k.key, await V.pack(old), k.aad), etag));
   await phone.sync.pull();
   assert.equal(phone.money(at('THOM')), 3000);
   assert.deepEqual(phone.files.get('gamefile.bin'), gamefile(2));
@@ -799,7 +799,7 @@ test('saves past the cap name their largest files in the log; one stuck on the L
   assert.equal(b2.sync.state.s, 'synced');
   assert.equal(b2.sync.link.v, 4);
   assert.notEqual(srv.kept.get(k.token).cur.rev, rev);
-  const sent = await unzip(await V.unpack(await V.unseal(k.key, srv.kept.get(k.token).cur.body)));
+  const sent = await unzip(await V.unpack(await V.unseal(k.key, srv.kept.get(k.token).cur.body, k.aad)));
   assert.deepEqual(sent.map(e => e.name).sort(), [at('THOM'), 'settings.ini']);
   assert.equal(new DataView(sent.find(e => e.name === at('THOM')).data.buffer, sent.find(e => e.name === at('THOM')).data.byteOffset).getUint32(0xA16A, true), 5000);
   assert.deepEqual(b2.logs, []);
