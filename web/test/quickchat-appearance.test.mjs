@@ -128,3 +128,96 @@ test('chat history keeps the latest 200 lines and does not pull the reader away 
     if (browser) await browser.close();
   }
 });
+
+
+test('chat filters, search, mute, mentions and per-player name colours stay local and consistent', { timeout: 30_000 }, async t => {
+  let browser;
+  try { browser = await chromium.launch({ headless: true }); }
+  catch (error) { t.skip(`no Chromium: ${String(error).split('\\n')[0]}`); return; }
+  try {
+    const page = await browser.newPage();
+    await page.setViewportSize({ width: 1200, height: 800 });
+    await page.setContent('<main id="stage" style="position:relative;width:1200px;height:800px"></main>');
+    await page.addStyleTag({ content: CHAT_CSS });
+    await page.evaluate(async bundleUrl => {
+      const { QuickChat } = await import(bundleUrl);
+      const chat = new QuickChat(document.querySelector('#stage'), { line() {}, lobby() {}, place() {}, log() {} });
+      chat.playerName = 'POLARIS';
+      chat.setCrews([{ name: 'Night Crew', id: 77 }]);
+      chat.session = {};
+      chat.chatHud.classList.add('active');
+      chat.chat(JSON.stringify({ id: 1, name: 'Alice', text: 'Hey @POLARIS, meet at the garage', scope: 'room', channel: 0 }));
+      chat.chat(JSON.stringify({ id: 2, name: 'Bob', text: 'Pit stop crew check', scope: 'crew', channel: 77 }));
+      chat.chat(JSON.stringify({ id: 3, name: 'Alice', text: 'See you there', scope: 'room', channel: 0 }));
+      chat.chat(JSON.stringify({ id: 4, name: 'POLARIS', text: 'On my way', scope: 'room', channel: 0, me: true }));
+      chat.systemMessage('Server notice');
+      window.__featureChat = chat;
+    }, BUNDLE_URL);
+
+    const rows = page.locator('#chatMessages > .message');
+    assert.equal(await rows.count(), 5);
+    assert.equal(await page.locator('#chatMessages .chat-mention').count(), 1, 'the local player mention is highlighted');
+
+    const aliceColors = await page.locator('[data-sender-name="Alice"] .sender').evaluateAll(nodes =>
+      nodes.map(node => getComputedStyle(node).color));
+    assert.equal(aliceColors.length, 2);
+    assert.equal(aliceColors[0], aliceColors[1], 'a sender keeps the same name colour across messages');
+    const ownColor = await page.locator('[data-sender-name="POLARIS"] .sender').evaluate(node => getComputedStyle(node).color);
+    assert.notEqual(ownColor, aliceColors[0], 'the local player name uses a distinct colour');
+
+    await page.locator('[data-chat-filter="crew"]').click();
+    assert.equal(await page.locator('#chatMessages > .message:not([hidden])').count(), 1, 'Crew filter shows Crew messages only');
+    await page.locator('[data-chat-filter="system"]').click();
+    assert.equal(await page.locator('#chatMessages > .message:not([hidden])').count(), 1, 'System filter shows local system messages');
+    await page.locator('[data-chat-filter="all"]').click();
+
+    await page.locator('.chat-search').fill('pit stop');
+    assert.equal(await page.locator('#chatMessages > .message:not([hidden])').count(), 1, 'search finds matching text in the bounded history');
+    await page.locator('.chat-search').fill('');
+
+    await page.locator('[data-sender-name="Alice"] [data-chat-mute]').first().click();
+    assert.equal(await page.locator('[data-sender-name="Alice"]:not([hidden])').count(), 0, 'muting hides every message from that player');
+    await page.locator('.chat-tools button').filter({ hasText: /Muted/ }).click();
+    await page.locator('.chat-muted-panel button').filter({ hasText: 'Unmute' }).click();
+    assert.equal(await page.locator('[data-sender-name="Alice"]:not([hidden])').count(), 2, 'the muted player list can restore a player');
+
+    const sound = page.locator('.chat-tool-button').first();
+    await sound.click();
+    assert.equal(await sound.getAttribute('aria-pressed'), 'false', 'mention sound can be disabled');
+    await browser.close();
+  } finally {
+    if (browser) await browser.close();
+  }
+});
+
+test('chat position and width preferences apply to the live overlay', { timeout: 30_000 }, async t => {
+  let browser;
+  try { browser = await chromium.launch({ headless: true }); }
+  catch (error) { t.skip(`no Chromium: ${String(error).split('\\n')[0]}`); return; }
+  try {
+    const page = await browser.newPage({ viewport: { width: 1200, height: 800 } });
+    await page.setContent('<main id="stage" style="position:relative;width:1200px;height:800px"></main>');
+    await page.addStyleTag({ content: CHAT_CSS });
+    const result = await page.evaluate(async bundleUrl => {
+      const { QuickChat } = await import(bundleUrl);
+      const chat = new QuickChat(document.querySelector('#stage'), { line() {}, lobby() {}, place() {}, log() {} });
+      chat.setAppearance(1, 0.72, 'bottom-right', 500);
+      const style = getComputedStyle(chat.chatHud);
+      const out = {
+        position: chat.chatHud.dataset.position,
+        width: style.width,
+        right: style.right,
+        bottom: style.bottom,
+        persisted: JSON.parse(localStorage.getItem('trpolaris.nfsu2.chat-hud.v1')),
+      };
+      chat.stop();
+      return out;
+    }, BUNDLE_URL);
+    assert.equal(result.position, 'bottom-right');
+    assert.equal(parseFloat(result.width), 500);
+    assert.notEqual(result.right, 'auto');
+    assert.notEqual(result.bottom, 'auto');
+    assert.equal(result.persisted.position, 'bottom-right');
+    assert.equal(result.persisted.width, 500);
+  } finally { await browser.close(); }
+});
