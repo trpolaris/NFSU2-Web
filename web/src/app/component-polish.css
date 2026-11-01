@@ -1180,3 +1180,37 @@
   .experience-shell .set,
   .experience-shell .seg .opt { transition: none !important; }
 }
+
+
+/* Direct entry to the React player hub; remains same-origin with the game server. */
+.experience-shell .hub-entry {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 7px 12px;
+  border: 1px solid rgba(166,154,255,.28);
+  border-radius: 11px;
+  background: linear-gradient(135deg, rgba(166,154,255,.12), rgba(255,105,69,.07));
+  color: #e6e1ff;
+  font-size: .72rem;
+  font-weight: 780;
+  text-decoration: none;
+  transition: transform .18s ease, border-color .18s ease, background .18s ease, box-shadow .18s ease;
+}
+.experience-shell .hub-entry svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 1.8; }
+.experience-shell .hub-entry:hover {
+  transform: translateY(-1px);
+  border-color: rgba(166,154,255,.52);
+  background: rgba(166,154,255,.15);
+  color: #fff;
+  box-shadow: 0 8px 20px rgba(0,0,0,.16);
+}
+@media (max-width: 520px) {
+  .experience-shell .hub-entry { width: 38px; min-width: 38px; padding: 6px; }
+  .experience-shell .hub-entry span { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .experience-shell .hub-entry { transition: none; }
+}
