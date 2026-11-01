@@ -1412,5 +1412,10 @@
   "Race chat": "Rennchat",
   "FreeRoam chat": "FreeRoam-Chat",
   "Type a FreeRoam message": "FreeRoam-Nachricht schreiben",
-  "Type a race message": "Rennnachricht schreiben"
+  "Type a race message": "Rennnachricht schreiben",
+  "New messages": "Neue Nachrichten",
+  "Show newest chat messages": "Neueste Chatnachrichten anzeigen",
+  "CHAT SCALE": "CHATGRÖSSE",
+  "CHAT BACKGROUND": "CHAT-HINTERGRUND"
+
 }
