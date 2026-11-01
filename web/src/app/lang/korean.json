@@ -1343,5 +1343,10 @@
   "Race chat": "레이스 채팅",
   "FreeRoam chat": "프리 로밍 채팅",
   "Type a FreeRoam message": "프리 로밍 메시지 작성",
-  "Type a race message": "레이스 메시지 작성"
+  "Type a race message": "레이스 메시지 작성",
+  "New messages": "새 메시지",
+  "Show newest chat messages": "최신 채팅 메시지 표시",
+  "CHAT SCALE": "채팅 크기",
+  "CHAT BACKGROUND": "채팅 배경"
+
 }
