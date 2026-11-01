@@ -137,6 +137,7 @@ export class VaultPanel {
   constructor(private root: HTMLElement, private d: VaultPanelDeps) {
     this.ready = new Promise<void>(r => { this.readyNow = r; });
     this.key = linkKey(d.saveDir);
+    this.$<HTMLElement>('#vault-host').textContent = location.host || 'local';
     this.input = this.$<HTMLInputElement>('#vault-input');
     const on = (id: string, f: () => unknown) => { this.$<HTMLButtonElement>(id).onclick = () => void f(); };
     on('#vault-make', () => this.make());
