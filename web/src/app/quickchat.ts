@@ -594,6 +594,16 @@ export class QuickChat {
     if (!this.session || e.metaKey || e.ctrlKey || e.altKey) return;
     const el = e.target as HTMLElement | null;
     if (this.chatHud.classList.contains('active')) {
+      if (el && (this.chatTools.contains(el) || this.mutedPanel.contains(el) || this.chatMessages.contains(el)) && el !== this.chatInput) {
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          if (!this.mutedPanel.hidden) this.mutedPanel.hidden = true;
+          else if (el === this.searchInput) { this.searchInput.value = ''; this.chatSearch = ''; this.applyChatView(); }
+          else this.closeTextChat();
+        }
+        e.stopImmediatePropagation();
+        return;
+      }
       if (e.key === 'Escape') {
         e.preventDefault(); e.stopImmediatePropagation();
         if (!this.mutedPanel.hidden) this.mutedPanel.hidden = true;
