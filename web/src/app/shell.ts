@@ -777,7 +777,8 @@ async function startGame() {
   driftPanel.start(session);
   photo.start(session);
   quickChat.start(session, net && r.env.NFSU2_ROAM === '1' && r.env.NFSU2_ROAM_SAY !== '0',
-    phrasesOf(r.env.NFSU2_ROAM_SAY_PHRASES), groupsOf(r.env.NFSU2_ROAM_SAY_GROUPS));
+    phrasesOf(r.env.NFSU2_ROAM_SAY_PHRASES), groupsOf(r.env.NFSU2_ROAM_SAY_GROUPS),
+    (roamCrews ?? []).map(c => ({ name: c.name, id: roomHash(c.name) })));
   fps.memory = session.proc.memory;
   const st = session;
   let tries = 0;
@@ -1076,7 +1077,6 @@ function chatLine(name: string, text: string, me: boolean) {
 function lobby(json: string) {
   placeLobby();
   lobbyPanel.show(json);
-  quickChat.lobbyState(json);
 }
 function placeLobby() {
   const v = session?.viewRect();
@@ -1249,6 +1249,7 @@ function drawPopCrews(focus?: (root: HTMLElement) => Element | null | undefined)
 async function menuCrews(list: Crew[], focus: (root: HTMLElement) => Element | null | undefined) {
   if (roamCrews === null || !session?.net?.crews) return;
   roamCrews = list;
+  quickChat.setCrews(list.map(c => ({ name: c.name, id: roomHash(c.name) })));
   session.net.crews(list.map(c => roomHash(c.name)), rgbWords(list));
   drawPopCrews(focus);
   void askPopCounts(1500);
