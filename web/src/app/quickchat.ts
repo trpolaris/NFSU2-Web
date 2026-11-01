@@ -30,6 +30,12 @@ const LINE_MIN = 0.7;
 const FLICK = 0.8, REST = 0.35;
 /** the stick's flicks and the keys' places, in the order of a group's phrases: up, right, down, left */
 const ARROWS = ['↑', '→', '↓', '←'];
+/** The three original buttons and text payloads from the supplied racing-chat client. */
+const QUICK_CHAT = [
+  { label: 'Solundayım!', text: 'Solundayım, dikkat et! 🏎️💨' },
+  { label: 'GG!', text: 'Güzel yarıştı beyler! 🏁' },
+  { label: 'Sorry!', text: 'Hatalı çarpma, kusura bakma! 🛠️' },
+] as const;
 /** a speech balloon: what marks a line as chat */
 export const ICON = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 2h10a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H8l-3.5 2.6V12H3a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z"/></svg>';
 
@@ -58,9 +64,8 @@ export class QuickChat {
   private picker: HTMLElement;
   private chatHud: HTMLElement;
   private chatMessages: HTMLElement;
-  private chatBox: HTMLFormElement;
-  private chatTitle: HTMLElement;
-  private channelButton: HTMLButtonElement;
+  private chatBox: HTMLElement;
+    private channelButton: HTMLElement;
   private chatInput: HTMLInputElement;
   private crews: CrewChannel[] = [];
   private channelIndex = 0;
@@ -93,41 +98,52 @@ export class QuickChat {
       if (b) this.pick(+b.dataset.slot!);
     });
     this.picker.addEventListener('pointerdown', e => e.preventDefault());    // the canvas keeps the focus (and the keys)
-    this.chatHud = document.createElement('section');
-    this.chatHud.className = 'qc-chat-hud'; this.chatHud.hidden = true; this.chatHud.dataset.nfsu2Ui = '';
-    this.chatMessages = document.createElement('div'); this.chatMessages.className = 'qc-chat-messages';
-    this.chatBox = document.createElement('form'); this.chatBox.className = 'qc-text-chat'; this.chatBox.hidden = true;
-    this.chatTitle = document.createElement('div'); this.chatTitle.className = 'qc-chat-title';
-    this.chatTitle.textContent = t('FreeRoam chat');
+    // The chat DOM follows the supplied racing HUD markup and class names.
+    this.chatHud = document.createElement('div');
+    this.chatHud.className = 'racing-chat-wrapper';
+    this.chatHud.id = 'racingChat';
+    this.chatHud.dataset.nfsu2Ui = '';
 
-    const quick = document.createElement('div'); quick.className = 'qc-chat-quick';
-    for (const phrase of [t('Behind you!'), t('Good race!'), t('Sorry!')]) {
+    this.chatMessages = document.createElement('div');
+    this.chatMessages.className = 'chat-messages';
+    this.chatMessages.id = 'chatMessages';
+
+    const quick = document.createElement('div');
+    quick.className = 'quick-chat-panel';
+    quick.id = 'quickChatPanel';
+    for (const item of QUICK_CHAT) {
       const button = document.createElement('button');
-      button.type = 'button'; button.textContent = phrase; button.dataset.quickText = phrase; quick.append(button);
+      button.type = 'button';
+      button.textContent = item.label;
+      button.dataset.quickText = item.text;
+      quick.append(button);
     }
     quick.addEventListener('click', e => {
       const button = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-quick-text]');
       if (button?.dataset.quickText) this.sendQuick(button.dataset.quickText);
     });
 
-    const inputRow = document.createElement('div'); inputRow.className = 'qc-chat-input-row';
-    this.channelButton = document.createElement('button'); this.channelButton.type = 'button';
-    this.channelButton.className = 'qc-chat-channel'; this.channelButton.title = 'Tab';
-    this.channelButton.addEventListener('click', () => this.cycleChannel());
-    this.chatInput = document.createElement('input'); this.chatInput.className = 'qc-chat-input';
-    this.chatInput.type = 'text'; this.chatInput.maxLength = 160;
-    this.chatInput.autocomplete = 'off'; this.chatInput.spellcheck = true;
-    this.chatInput.placeholder = t('Write a message…');
-    const send = document.createElement('button');
-    send.className = 'qc-chat-send'; send.type = 'submit'; send.textContent = t('Send');
-    const close = document.createElement('button');
-    close.className = 'qc-chat-close'; close.type = 'button'; close.textContent = t('Close');
-    close.addEventListener('click', () => this.closeTextChat());
-    inputRow.append(this.channelButton, this.chatInput, send, close);
-    this.chatBox.append(this.chatTitle, quick, inputRow);
-    this.chatBox.addEventListener('submit', e => { e.preventDefault(); this.sendText(); });
+    this.chatBox = document.createElement('div');
+    this.chatBox.className = 'chat-input-area';
+    this.chatBox.id = 'chatInputArea';
+
+    this.channelButton = document.createElement('span');
+    this.channelButton.className = 'active-channel';
+    this.channelButton.id = 'activeChannel';
+
+    this.chatInput = document.createElement('input');
+    this.chatInput.className = 'chat-input';
+    this.chatInput.id = 'chatInput';
+    this.chatInput.type = 'text';
+    this.chatInput.maxLength = 80;
+    this.chatInput.autocomplete = 'off';
+    this.chatInput.spellcheck = true;
+    this.chatInput.placeholder = 'Mesaj yazın veya Tab ile kanal değiştirin...';
+
+    this.chatBox.append(this.channelButton, this.chatInput);
     this.chatBox.addEventListener('pointerdown', e => e.stopPropagation());
-    this.chatHud.append(this.chatMessages, this.chatBox); stage.append(this.layer, this.picker, this.chatHud);
+    this.chatHud.append(this.chatMessages, quick, this.chatBox);
+    stage.append(this.layer, this.picker, this.chatHud);
     // caught before the game's input (attached later, at each Play): the keys the picker uses go to it alone
     window.addEventListener('keydown', e => this.key(e), { capture: true });
     stage.addEventListener('pointerdown', e => {
@@ -153,7 +169,7 @@ export class QuickChat {
     for (const timers of this.messageTimers.values()) {
       clearTimeout(timers.fade); if (timers.remove !== undefined) clearTimeout(timers.remove);
     }
-    this.messageTimers.clear(); this.chatMessages.replaceChildren(); this.chatHud.hidden = true;
+    this.messageTimers.clear(); this.chatMessages.replaceChildren(); this.chatHud.classList.remove('active');
   }
 
   /** the picker's place: the notices' (shell.ts placeNotices), u: CSS px per HUD unit */
@@ -162,9 +178,7 @@ export class QuickChat {
     s.left = `${left}px`; s.top = `${top}px`;
     s.setProperty('--u', `${u}px`);
     this.layer.style.setProperty('--u', `${u}px`);
-    // Match the supplied racing HUD: chat stays in the upper-left; the quick-phrase picker keeps its game HUD position.
-    this.chatHud.style.left = '40px'; this.chatHud.style.top = '40px';
-    this.chatHud.style.setProperty('--u', `${u}px`);
+    // The racing HUD is positioned at 40px from the stage edges by its stylesheet.
   }
 
   /** active FreeRoam driving, independent of whether fixed-phrase Quick Chat is enabled */
@@ -187,7 +201,7 @@ export class QuickChat {
   }
   private updateChannel() {
     const c = this.currentChannel();
-    this.channelButton.textContent = `[${c.label.toLocaleUpperCase()}]`;
+    this.channelButton.textContent = c.scope === 'room' ? '[HERKES]' : '[KULÜP]';
     this.channelButton.dataset.scope = c.scope;
     this.channelButton.title = t('Tab to switch channel');
   }
@@ -195,17 +209,15 @@ export class QuickChat {
   private openTextChat(): boolean {
     const s = this.session;
     if (!s?.net?.chat || !this.freeRoamDriving()) return false;
-    this.close(); this.chatHud.hidden = false; this.chatBox.hidden = false;
-    this.chatTitle.textContent = t('FreeRoam chat'); this.chatInput.value = '';
+    this.close(); this.chatHud.classList.add('active');
     this.updateChannel(); this.holdMessageFade(); this.deps.place(); this.chatInput.focus();
     return true;
   }
   private closeTextChat() {
-    if (this.chatBox.hidden) return;
-    this.chatBox.hidden = true; this.chatInput.value = '';
+    if (!this.chatHud.classList.contains('active')) return;
+    this.chatHud.classList.remove('active');
     if (document.activeElement === this.chatInput) this.chatInput.blur();
     this.resumeMessageFade();
-    if (!this.chatMessages.childElementCount) this.chatHud.hidden = true;
   }
   private transmit(text: string): boolean {
     const s = this.session, clean = text.trim(), channel = this.currentChannel();
@@ -217,8 +229,8 @@ export class QuickChat {
   }
   private sendText() {
     const text = this.chatInput.value.trim();
-    if (!text) { this.closeTextChat(); return; }
-    if (this.transmit(text)) this.closeTextChat();
+    if (text && this.transmit(text)) this.chatInput.value = '';
+    this.closeTextChat();
   }
   private sendQuick(text: string) { if (this.transmit(text)) this.closeTextChat(); }
   private holdMessageFade() {
@@ -232,13 +244,7 @@ export class QuickChat {
     const old = this.messageTimers.get(el);
     if (old) { clearTimeout(old.fade); if (old.remove !== undefined) clearTimeout(old.remove); }
     const fade = window.setTimeout(() => {
-      if (!this.chatBox.hidden) return;
-      el.classList.add('fade-out');
-      const remove = window.setTimeout(() => {
-        el.remove(); this.messageTimers.delete(el);
-        if (!this.chatMessages.childElementCount && this.chatBox.hidden) this.chatHud.hidden = true;
-      }, 450);
-      this.messageTimers.set(el, { fade: 0, remove });
+      if (!this.chatHud.classList.contains('active')) el.classList.add('fade-out');
     }, 5000);
     this.messageTimers.set(el, { fade });
   }
@@ -247,9 +253,12 @@ export class QuickChat {
   private key(e: KeyboardEvent) {
     if (!this.session || e.metaKey || e.ctrlKey || e.altKey) return;
     const el = e.target as HTMLElement | null;
-    if (!this.chatBox.hidden) {
+    if (this.chatHud.classList.contains('active')) {
       if (e.key === 'Tab') { e.preventDefault(); e.stopImmediatePropagation(); this.cycleChannel(); }
       else if (e.key === 'Escape') { e.preventDefault(); e.stopImmediatePropagation(); this.closeTextChat(); }
+      else if (e.key === 'Enter' && el === this.chatInput && !e.repeat) {
+        e.preventDefault(); e.stopImmediatePropagation(); this.sendText();
+      }
       return;
     }
     if (el?.closest?.('input, textarea, select, dialog[open]') || document.querySelector('dialog[open]')) return;
@@ -280,12 +289,11 @@ export class QuickChat {
     return true;
   }
 
-  /** Touch access to the phrase picker, or typed FreeRoam chat if quick phrases are off. */
+  /** The on-screen Chat control opens the same composer as the Y shortcut. */
   toggle() {
-    if (this.open === 4) { this.close(); return; }
+    if (this.chatHud.classList.contains('active')) { this.closeTextChat(); return; }
     if (!this.freeRoamDriving()) return;
-    if (!this.on) { this.openTextChat(); return; }
-    this.mode = 'touch'; this.open = 4; this.draw();
+    this.openTextChat();
   }
 
   private group(g: number, mode: Mode) {
@@ -393,20 +401,16 @@ export class QuickChat {
     const crew = s.scope === 'crew' ? this.crews.find(c => c.id === s.channel) : undefined;
     if (s.scope === 'crew' && (!crew || s.channel === 0)) return;
     if (s.scope === 'room' && s.channel !== 0) return;
-    const label = crew?.name ?? t('All');
-    const row = document.createElement('div'); row.className = 'qc-chat-message'; row.dataset.scope = s.scope;
-    const channel = document.createElement('span'); channel.className = 'qc-message-channel';
-    channel.textContent = `[${label.toLocaleUpperCase()}]`;
-    const sender = document.createElement('b'); sender.className = 'qc-message-sender'; sender.textContent = s.name;
-    const text = document.createElement('span'); text.className = 'qc-message-text'; text.textContent = s.text;
+    const quickMessage = QUICK_CHAT.some(item => item.text === s.text);
+    const row = document.createElement('div');
+    row.className = `message ${quickMessage ? 'quick' : s.scope === 'crew' ? 'team' : 'all'}`;
+    const channel = document.createElement('span'); channel.className = 'channel';
+    channel.textContent = quickMessage ? '⚡' : s.scope === 'crew' ? '[KULÜP]' : '[HERKES]';
+    const sender = document.createElement('span'); sender.className = 'sender'; sender.textContent = `${s.name}:`;
+    const text = document.createElement('span'); text.className = 'text'; text.textContent = s.text;
     row.append(channel, sender, text); this.chatMessages.append(row);
-    while (this.chatMessages.childElementCount > 8) {
-      const first = this.chatMessages.firstElementChild as HTMLElement, timers = this.messageTimers.get(first);
-      if (timers) { clearTimeout(timers.fade); if (timers.remove !== undefined) clearTimeout(timers.remove); }
-      this.messageTimers.delete(first); first.remove();
-    }
-    this.chatHud.hidden = false; this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
-    if (this.chatBox.hidden) this.startMessageFade(row);
+    this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
+    if (!this.chatHud.classList.contains('active')) this.startMessageFade(row);
     this.deps.log(`[chat] ${s.scope === 'crew' ? 'Crew ' + label : 'FreeRoam'}: ${s.name}: ${s.text}`);
   }
 
@@ -433,5 +437,5 @@ export class QuickChat {
 
   /** for the page's test hooks */
   state() { return { on: this.on, open: this.open, mode: this.mode, lines: [...this.lines.keys()], sent: this.sent.length,
-    chatOpen: !this.chatBox.hidden, channel: this.currentChannel(), messages: this.chatMessages.childElementCount }; }
+    chatOpen: this.chatHud.classList.contains('active'), channel: this.currentChannel(), messages: this.chatMessages.childElementCount }; }
 }
