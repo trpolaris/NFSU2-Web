@@ -843,13 +843,19 @@ html:has(> body > .stage:not([hidden])) { overflow: hidden; }
   border-radius: 3px; background: rgba(0,0,0,.72); color: #fff; font: 700 max(11px, calc(11 * var(--u))) / 1 var(--font); cursor: pointer;
 }
 .qc-chat-send { border-color: var(--lime); color: var(--lime); }
+@media (max-width: 560px) {
+  .qc-chat-input-row { grid-template-columns: auto minmax(0,1fr) auto; }
+  .qc-chat-send { grid-column: 3; grid-row: 1; }
+  .qc-chat-close { grid-column: 3; grid-row: 2; }
+}
 .qc-picker {
   --u: 1px;
   position: absolute; left: 16px; top: 40%; z-index: 4; width: calc(190 * var(--u)); min-width: 220px; pointer-events: none;
   padding: calc(10 * var(--u)) calc(12 * var(--u)); border-left: 3px solid var(--lime); border-radius: 4px; background: rgba(13, 13, 13, 0.78);
   font: 400 max(13px, calc(11 * var(--u))) / 1.35 var(--font); color: var(--text);
 }
-.stage:has(> .qc-picker:not([hidden]):not([data-mode="touch"])) > .notices { visibility: hidden; }
+.stage:has(> .qc-picker:not([hidden]):not([data-mode="touch"])) > .notices,
+.stage:has(> .qc-chat-hud:not([hidden])) > .notices { visibility: hidden; }
 .qc-title { font-size: 1.1em; font-weight: 700; font-style: italic; text-transform: uppercase; letter-spacing: 0.02em; color: var(--lime); }
 .qc-row { display: flex; gap: 0.6em; align-items: baseline; padding: 0.12em 0; border-top: 1px solid rgba(255, 255, 255, 0.08); }
 .qc-title + .qc-row { margin-top: 0.5em; }
