@@ -576,6 +576,25 @@
               <small data-i18n>Adjust the background opacity behind chat messages.</small>
             </label>
           </div>
+          <div class="menu-setting-card">
+            <label class="menu-slider" for="menu-chat-position">
+              <span><span data-i18n>CHAT POSITION</span></span>
+              <select id="menu-chat-position">
+                <option value="top-left" data-i18n>Top left</option>
+                <option value="top-right" data-i18n>Top right</option>
+                <option value="bottom-left" data-i18n>Bottom left</option>
+                <option value="bottom-right" data-i18n>Bottom right</option>
+              </select>
+              <small data-i18n>Choose where the chat panel stays on screen.</small>
+            </label>
+          </div>
+          <div class="menu-setting-card">
+            <label class="menu-slider" for="menu-chat-width">
+              <span><span data-i18n>CHAT WIDTH</span><output id="menu-chat-width-value">360 px</output></span>
+              <input id="menu-chat-width" type="range" min="280" max="520" step="10" value="360">
+              <small data-i18n>Adjust the chat panel width independently of its scale.</small>
+            </label>
+          </div>
           <div class="menu-inline-note"><i aria-hidden="true"></i><span data-i18n>LOCAL PROFILE · DISPLAY SETTINGS ONLY</span></div>
         </section>
 
