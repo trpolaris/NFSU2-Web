@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="dark">
-<meta name="theme-color" content="#090c0d">
+<meta name="theme-color" content="#080b12">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -26,9 +26,6 @@
 <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
 <link rel="manifest" href="/manifest.json">
 <link rel="apple-touch-icon" sizes="512x512" href="/icon.png">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/main.css">
 <link rel="stylesheet" href="/tailwind.css">
 <script type="application/ld+json">
@@ -80,6 +77,58 @@
     <div class="install-security-notice" id="install-security-notice" hidden role="status" aria-live="polite"></div>
     <section class="landing-hero relative isolate overflow-hidden" aria-labelledby="landing-heading">
       <div id="hero-particles" class="pointer-events-none absolute inset-0 z-0" aria-hidden="true"></div>
+      <div class="hero-visual" aria-hidden="true">
+        <div class="hero-visual-grid"></div>
+        <div class="hero-visual-glow"></div>
+        <div class="hero-visual-index"><span>MIDNIGHT RUN</span><strong>02 / 04</strong></div>
+        <svg class="hero-vehicle-art" viewBox="0 0 1100 560" role="presentation" focusable="false">
+          <defs>
+            <linearGradient id="vehicle-shell-gradient" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#f2f4fb" stop-opacity=".92"/>
+              <stop offset=".42" stop-color="#7f8da7" stop-opacity=".86"/>
+              <stop offset="1" stop-color="#28344b" stop-opacity=".98"/>
+            </linearGradient>
+            <linearGradient id="vehicle-glass-gradient" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#a9bbdf" stop-opacity=".42"/>
+              <stop offset="1" stop-color="#111b2d" stop-opacity=".94"/>
+            </linearGradient>
+            <linearGradient id="vehicle-accent-gradient" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0" stop-color="#ff6945"/>
+              <stop offset="1" stop-color="#a69aff"/>
+            </linearGradient>
+            <radialGradient id="vehicle-floor-gradient">
+              <stop offset="0" stop-color="#ff6945" stop-opacity=".27"/>
+              <stop offset="1" stop-color="#ff6945" stop-opacity="0"/>
+            </radialGradient>
+          </defs>
+          <ellipse cx="550" cy="435" rx="440" ry="54" fill="url(#vehicle-floor-gradient)"/>
+          <g class="vehicle-motion-lines" fill="none" stroke="#a69aff" stroke-opacity=".25" stroke-width="2">
+            <path d="M80 300H320M25 330H235M755 185H1010M830 215H1080"/>
+            <path d="M110 455H365M780 470H1035"/>
+          </g>
+          <path d="M132 365 179 317 310 286 395 213Q427 184 482 179L628 186Q682 190 733 238L816 273 923 302 970 351 954 389 883 414 210 418 150 397Z" class="vehicle-shell"/>
+          <path d="M329 285 407 211Q432 190 480 190L617 197Q661 202 704 244L754 284Z" class="vehicle-glass"/>
+          <path d="M474 193 470 283M623 201 670 283M393 216 358 284" class="vehicle-detail"/>
+          <path d="M187 319 312 292 355 294 329 329 183 352Z" fill="#111827" stroke="#d8dfef" stroke-opacity=".45" stroke-width="2"/>
+          <path d="M778 282 883 308 930 337 910 351 785 332Z" fill="#101827" stroke="#ffb09a" stroke-opacity=".7" stroke-width="2"/>
+          <path d="M176 357 329 337 472 344 632 340 795 347 925 358" class="vehicle-detail"/>
+          <path d="M300 365Q356 333 412 365L435 406H280Z" fill="#0a101b" stroke="#9ba9c4" stroke-opacity=".55" stroke-width="3"/>
+          <path d="M715 366Q773 332 821 366L848 407H697Z" fill="#0a101b" stroke="#9ba9c4" stroke-opacity=".55" stroke-width="3"/>
+          <circle cx="360" cy="382" r="54" class="vehicle-wheel"/>
+          <circle cx="360" cy="382" r="30" class="vehicle-rim"/>
+          <circle cx="360" cy="382" r="10" fill="#8c99b3"/>
+          <circle cx="774" cy="382" r="54" class="vehicle-wheel"/>
+          <circle cx="774" cy="382" r="30" class="vehicle-rim"/>
+          <circle cx="774" cy="382" r="10" fill="#8c99b3"/>
+          <path d="M164 354 247 339 270 348 252 363 166 373Z" fill="#ff7958" fill-opacity=".9"/>
+          <path d="M877 321 927 337 946 350 911 354 870 342Z" fill="#ffb09a" fill-opacity=".9"/>
+          <path d="M208 398 340 405 472 405 618 403 792 405 908 392" class="vehicle-accent"/>
+          <path d="M476 294 600 298M486 309 602 312M501 323 615 326" class="vehicle-detail"/>
+          <path d="M500 351 620 350 672 363" stroke="#101827" stroke-width="8" fill="none"/>
+          <path d="M500 351 620 350 672 363" stroke="#c6d1e7" stroke-opacity=".6" stroke-width="1.5" fill="none"/>
+          <path d="M148 389 116 381 95 385M951 388 989 381 1012 387" stroke="#ff6945" stroke-width="4" fill="none" stroke-linecap="round"/>
+        </svg>
+      </div>
       <div class="landing-copy">
         <div class="hero-kicker"><span class="signal-dot" aria-hidden="true"></span><span class="kicker-brand">TRPOLARIS <i>/</i> NFSU2</span><span class="kicker-tag" data-i18n>STREET RACING / 2004</span></div>
         <p class="hero-overline" data-i18n>THE CITY NEVER SLEEPS</p>
