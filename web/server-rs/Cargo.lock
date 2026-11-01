@@ -606,6 +606,7 @@ dependencies = [
  "nfsu2-util",
  "rustls",
  "rustls-pemfile",
+ "serde",
  "serde_json",
  "socket2",
  "tempfile",
