@@ -778,7 +778,7 @@ async function startGame() {
   photo.start(session);
   quickChat.start(session, net && r.env.NFSU2_ROAM === '1' && r.env.NFSU2_ROAM_SAY !== '0',
     phrasesOf(r.env.NFSU2_ROAM_SAY_PHRASES), groupsOf(r.env.NFSU2_ROAM_SAY_GROUPS),
-    (roamCrews ?? []).map(c => ({ name: c.name, id: roomHash(c.name) })));
+    (roamCrews ?? []).map(c => ({ name: c.name, id: roomHash(c.name) })), netName ?? '');
   fps.memory = session.proc.memory;
   const st = session;
   let tries = 0;
