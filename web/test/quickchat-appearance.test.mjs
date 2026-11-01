@@ -47,7 +47,7 @@ test('chat HUD appearance controls are bounded and immediately applied to the ov
       chat.stop();
       return { appearance, styles, low, high };
     }, BUNDLE_URL);
-    assert.deepEqual(result.appearance, { scale: 1.15, opacity: 0.92 });
+    assert.deepEqual(result.appearance, { scale: 1.15, opacity: 0.92, position: 'top-left', width: 360 });
     assert.deepEqual(result.styles, { scale: '1.15', opacity: '0.92' });
     assert.ok(parseFloat(result.high.width) > parseFloat(result.low.width), 'HUD scale changes the chat panel width');
     assert.ok(parseFloat(result.high.fontSize) > parseFloat(result.low.fontSize), 'HUD scale changes text size');
