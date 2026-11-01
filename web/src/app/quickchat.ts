@@ -112,7 +112,7 @@ export class QuickChat {
 
     const inputRow = document.createElement('div'); inputRow.className = 'qc-chat-input-row';
     this.channelButton = document.createElement('button'); this.channelButton.type = 'button';
-    this.channelButton.className = 'qc-chat-channel'; this.channelButton.title = t('Tab to switch channel');
+    this.channelButton.className = 'qc-chat-channel'; this.channelButton.title = 'Tab';
     this.channelButton.addEventListener('click', () => this.cycleChannel());
     this.chatInput = document.createElement('input'); this.chatInput.className = 'qc-chat-input';
     this.chatInput.type = 'text'; this.chatInput.maxLength = 160;
