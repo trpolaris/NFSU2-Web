@@ -4,6 +4,7 @@
 //                 (it never looks in this folder without it, so no spelling of a path reaches them)
 // One build; the outputs are sorted into the two folders as they are written.
 import * as esbuild from 'esbuild';
+import { spawn, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { catalog } from './tools/i18n-keys.mjs';
@@ -45,6 +46,35 @@ fs.rmSync(path.join(DIST, 'test'), { recursive: true, force: true });
 for (const f of fs.existsSync(DIST) ? fs.readdirSync(DIST, { recursive: true }) : []) if (String(f).endsWith('.map')) fs.rmSync(path.join(DIST, String(f)));
 fs.mkdirSync(path.join(DEV, 'test'), { recursive: true });
 fs.mkdirSync(DIST, { recursive: true });
+
+// Pinned Tailwind v4 utility build. Only utilities are imported (no Preflight),
+// so existing game and browser controls keep their established CSS semantics.
+const tailwindArgs = [
+  '--yes', '--package=@tailwindcss/cli@4.3.3', 'tailwindcss',
+  '-i', 'src/app/tailwind.css', '-o', path.join(DIST, 'tailwind.css'), '--minify',
+];
+const npx = process.platform === 'win32' ? 'npx.cmd' : 'npx';
+if (watch) {
+  const tailwind = spawn(npx, [...tailwindArgs, '--watch'], {
+    stdio: 'inherit',
+    shell: process.platform === 'win32',
+  });
+  tailwind.on('error', error => {
+    console.error('[tailwind] could not start the pinned CLI:', error);
+    process.exitCode = 1;
+  });
+  tailwind.on('exit', code => {
+    if (code && code !== 0) process.exitCode = code;
+  });
+} else {
+  const tailwind = spawnSync(npx, tailwindArgs, {
+    stdio: 'inherit',
+    shell: process.platform === 'win32',
+  });
+  if (tailwind.error || tailwind.status !== 0) {
+    throw new Error(`Tailwind CSS build failed (exit ${tailwind.status ?? 'unknown'}): ${tailwind.error?.message ?? ''}`);
+  }
+}
 // the start page (its script and stylesheet are main.js / main.css), and its files as they are (src/static: the
 // app's manifest and icons, for installing it on a phone's home screen or as a desktop app)
 fs.copyFileSync('index.html', path.join(DIST, 'index.html'));
