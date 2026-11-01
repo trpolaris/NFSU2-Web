@@ -1024,6 +1024,98 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.64); }
 .menu-radio svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 #menu-save { margin-top: -12px; }
 #menu-save:empty { display: none; }
+
+/* TRPOLARIS Underground control deck: a native dialog skin, not a second app layered over the game. */
+dialog.menu {
+  width: min(900px, calc(100vw - 32px));
+  max-height: min(680px, calc(100dvh - 32px));
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid rgba(0, 255, 204, .34);
+  border-radius: 2px;
+  color: #e9f4f2;
+  background: linear-gradient(135deg, rgba(7, 13, 15, .98), rgba(3, 7, 9, .97) 62%, rgba(4, 16, 17, .98));
+  box-shadow: 0 24px 90px rgba(0,0,0,.72), 0 0 36px rgba(0,255,204,.08), inset 0 0 0 1px rgba(255,255,255,.035);
+  clip-path: polygon(0 0, calc(100% - 24px) 0, 100% 24px, 100% 100%, 20px 100%, 0 calc(100% - 20px));
+}
+dialog.menu::backdrop { background: rgba(0, 0, 0, .72); backdrop-filter: blur(3px); }
+.menu-shell { display: grid; grid-template-columns: minmax(210px, 250px) minmax(0, 1fr); min-height: 520px; }
+.menu-sidebar {
+  position: relative; display: flex; flex-direction: column; gap: 24px; min-width: 0;
+  padding: 26px 22px 20px; border-right: 1px solid rgba(0,255,204,.16);
+  background: linear-gradient(180deg, rgba(0,255,204,.055), rgba(0,0,0,.12) 45%, rgba(16,185,129,.04));
+}
+.menu-sidebar::before {
+  position: absolute; top: 0; left: 0; width: 100px; height: 2px; content: "";
+  background: linear-gradient(90deg, #00ffcc, transparent); box-shadow: 0 0 12px rgba(0,255,204,.7);
+  animation: menu-neon 3s ease-in-out infinite alternate;
+}
+@keyframes menu-neon { from { opacity: .55; } to { opacity: 1; } }
+.menu-brand { display: flex; flex-direction: column; gap: 5px; }
+.menu-kicker, .menu-section-label, .menu-edition, .menu-build-mark, .menu-live {
+  font: 700 9px/1.4 var(--font); letter-spacing: .17em; color: #758c88; text-transform: uppercase;
+}
+.menu-brand h2 { margin: 4px 0 0; font: italic 900 clamp(21px, 2.4vw, 28px)/.95 var(--font-racing); letter-spacing: -.06em; color: #f4fffc; }
+.menu-brand h2 span { margin-left: 5px; color: #00ffcc; font-style: normal; }
+.menu-edition { margin-top: 4px; color: #00b99a; }
+.menu-session, .menu-save-wrap { display: flex; flex-direction: column; gap: 8px; }
+.menu-session strong { display: flex; align-items: center; gap: 8px; font: 800 11px/1.4 var(--font); letter-spacing: .1em; color: #dffbf4; }
+.menu-session strong i, .menu-live i { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #18d69b; box-shadow: 0 0 9px #18d69b; }
+.menu-session .hint { margin: 0; font-size: 12px; line-height: 1.5; }
+.menu-save-wrap { margin-top: auto; padding-top: 14px; border-top: 1px solid rgba(255,255,255,.08); }
+.menu-save-wrap #menu-save { min-height: 34px; margin: 0; color: #9bacaa; font-size: 11px; line-height: 1.5; overflow-wrap: anywhere; }
+.menu-resume { width: 100%; min-height: 44px; justify-content: center; border: 1px solid rgba(0,255,204,.55) !important; border-radius: 0 !important; color: #03110f !important; background: linear-gradient(100deg, #00ffcc, #10b981) !important; font-size: 11px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; clip-path: polygon(0 0, 91% 0, 100% 28%, 100% 100%, 0 100%); }
+.menu-build-mark { color: #536560; letter-spacing: .12em; }
+.menu-build-mark b { color: #00d8b0; }
+.menu-main { display: flex; flex-direction: column; gap: 20px; min-width: 0; padding: 26px 26px 22px; }
+.menu-header { display: flex; align-items: end; justify-content: space-between; gap: 16px; padding-bottom: 15px; border-bottom: 1px solid rgba(255,255,255,.1); }
+.menu-header h3 { margin: 4px 0 0; font: 900 19px/1.1 var(--font); letter-spacing: .08em; color: #f3fffb; }
+.menu-live { display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+.menu-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-content: start; gap: 12px; }
+.menu-group { display: flex; flex-direction: column; gap: 7px; min-width: 0; padding: 12px; border: 1px solid rgba(255,255,255,.075); background: rgba(8,16,17,.72); }
+.menu-group h4 { margin: 0 0 3px; padding-bottom: 8px; border-bottom: 1px solid rgba(0,255,204,.16); font: 800 9px/1.3 var(--font); letter-spacing: .18em; color: #00cfae; }
+.menu-group .btn {
+  width: 100%; min-height: 36px; justify-content: flex-start; padding: 5px 10px;
+  border: 1px solid rgba(255,255,255,.075); border-radius: 0; background: rgba(255,255,255,.025);
+  color: #b5c6c2; text-align: left; font-size: 11px; letter-spacing: .035em;
+}
+.menu-group .btn:hover, .menu-group .btn:focus-visible { border-color: rgba(0,255,204,.42); background: rgba(0,255,204,.07); color: #eafff9; }
+.menu-group .btn.danger { color: #ff8e8e; border-color: rgba(255,96,96,.2); }
+.menu-group .btn.danger:hover { background: rgba(255,70,70,.09); border-color: rgba(255,96,96,.55); }
+.menu-group-radio, .menu-group-chat { min-height: 136px; }
+.menu-group-note { margin: 3px 0 0; color: #657975; font: 9px/1.4 var(--font); }
+.menu-radio .btn { padding: 0 74px 0 10px; text-align: left; }
+.menu-radio .icon { top: 4px; }
+.menu-radio [data-act="radio-folder"] { right: 36px; }
+.menu-radio [data-act="playlist"] { right: 4px; }
+.menu-slider { display: flex; flex-direction: column; gap: 7px; color: #a9bbb7; font: 700 9px/1.4 var(--font); letter-spacing: .08em; }
+.menu-slider + .menu-slider { margin-top: 5px; }
+.menu-slider span { display: flex; justify-content: space-between; gap: 10px; }
+.menu-slider output { color: #00ffcc; font-variant-numeric: tabular-nums; }
+.menu-slider input { width: 100%; margin: 0; accent-color: #00ffcc; cursor: pointer; }
+@media (max-width: 680px) {
+  dialog.menu { width: min(560px, calc(100vw - 20px)); max-height: calc(100dvh - 20px); }
+  .menu-shell { grid-template-columns: minmax(0, 1fr); min-height: 0; max-height: calc(100dvh - 22px); overflow-y: auto; }
+  .menu-sidebar { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px 16px; padding: 18px; border-right: 0; border-bottom: 1px solid rgba(0,255,204,.16); }
+  .menu-brand { grid-column: 1; }
+  .menu-session { grid-column: 2; }
+  .menu-save-wrap { grid-column: 1; margin-top: 0; padding-top: 8px; }
+  .menu-resume { grid-column: 2; align-self: end; }
+  .menu-build-mark { display: none; }
+  .menu-main { gap: 12px; padding: 17px 18px 18px; }
+  .menu-header { align-items: center; }
+  .menu-header h3 { font-size: 16px; }
+}
+@media (max-width: 420px) {
+  .menu-actions { grid-template-columns: minmax(0, 1fr); }
+  .menu-sidebar { grid-template-columns: minmax(0, 1fr); }
+  .menu-brand, .menu-session, .menu-save-wrap, .menu-resume { grid-column: 1; }
+  .menu-session { display: none; }
+  .menu-resume { width: 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .menu-sidebar::before { animation: none; }
+}
 /* the menu's Crews popup (a game in free roam): the Crews row's control under the help, Done under it */
 .crews-pop-box { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
 .dlg ul.crews { margin: 0; padding: 0; color: inherit; font-size: inherit; line-height: inherit; }
