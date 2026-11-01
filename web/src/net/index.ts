@@ -152,7 +152,7 @@ export interface NetLink {
   /** free roam's crews, changed while the game runs (the page menu): their hashes (players.ts roomHash), in the
    *  player's order, at most 4, and their colours (0x00rrggbb; 0 or none: the place's default) */
   setCrews(hashes: readonly number[], rgbs?: readonly number[]): void;
-  close();
+  close(): void;
 }
 
 /** The page's own answers (a RST to a connect when the game has no LAN endpoint): at most AUTO_SRC bytes a second
