@@ -177,7 +177,7 @@ test('chat filters, search, mute, mentions and per-player name colours stay loca
 
     await page.locator('[data-sender-name="Alice"] [data-chat-mute]').first().click();
     assert.equal(await page.locator('[data-sender-name="Alice"]:not([hidden])').count(), 0, 'muting hides every message from that player');
-    await page.locator('.chat-tools button').filter({ hasText: /Muted/ }).click();
+    await page.locator('.chat-tool-button').nth(1).click();
     await page.locator('.chat-muted-panel button').filter({ hasText: 'Unmute' }).click();
     assert.equal(await page.locator('[data-sender-name="Alice"]:not([hidden])').count(), 2, 'the muted player list can restore a player');
 
@@ -208,7 +208,7 @@ test('chat position and width preferences apply to the live overlay', { timeout:
         width: style.width,
         right: style.right,
         bottom: style.bottom,
-        persisted: JSON.parse(localStorage.getItem('trpolaris.nfsu2.chat-hud.v1')),
+        appearance: chat.appearance(),
       };
       chat.stop();
       return out;
@@ -217,7 +217,7 @@ test('chat position and width preferences apply to the live overlay', { timeout:
     assert.equal(parseFloat(result.width), 500);
     assert.notEqual(result.right, 'auto');
     assert.notEqual(result.bottom, 'auto');
-    assert.equal(result.persisted.position, 'bottom-right');
-    assert.equal(result.persisted.width, 500);
+    assert.equal(result.appearance.position, 'bottom-right');
+    assert.equal(result.appearance.width, 500);
   } finally { await browser.close(); }
 });
