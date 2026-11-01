@@ -461,9 +461,9 @@ export class QuickChat {
     if (!this.session || !Number.isSafeInteger(s.id) || s.id <= 0 || typeof s.name !== 'string' || typeof s.text !== 'string'
         || (s.scope !== 'room' && s.scope !== 'crew') || !Number.isSafeInteger(s.channel) || s.channel < 0 || s.channel > 0xffffffff) return;
     const name = s.name.trim(), body = s.text.trim();
-    if (!name || Array.from(name).length > 32 || /[\\u0000-\\u001f\\u007f]/.test(name)
+    if (!name || Array.from(name).length > 32 || /[\u0000-\u001f\u007f]/.test(name)
         || !body || Array.from(body).length > 160 || new TextEncoder().encode(body).length > 512
-        || /[\\u0000-\\u001f\\u007f]/.test(body)) return;
+        || /[\u0000-\u001f\u007f]/.test(body)) return;
     const crew = s.scope === 'crew' ? this.crews.find(c => c.id === s.channel) : undefined;
     if (s.scope === 'crew' && (!crew || s.channel === 0)) return;
     if (s.scope === 'room' && s.channel !== 0) return;
