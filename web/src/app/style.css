@@ -944,6 +944,7 @@ html:has(> body > .stage:not([hidden])) { overflow: hidden; }
   color: #d4e6e1; background: rgba(2,9,10,.97); font: 600 10px/1.4 var(--font-racing);
 }
 .chat-muted-panel[hidden] { display: none; }
+.racing-chat-wrapper.active .chat-muted-panel:not([hidden]) { pointer-events: auto; }
 .chat-muted-list { display: grid; gap: 5px; }
 .chat-muted-entry { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .chat-muted-entry span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
