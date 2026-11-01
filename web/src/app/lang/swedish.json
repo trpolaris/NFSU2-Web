@@ -1416,6 +1416,27 @@
   "New messages": "Nya meddelanden",
   "Show newest chat messages": "Visa de senaste chattmeddelandena",
   "CHAT SCALE": "CHATTSTORLEK",
-  "CHAT BACKGROUND": "CHATTBAKGRUND"
+  "CHAT BACKGROUND": "CHATTBAKGRUND",
+  "Chat filters": "Chattfilter",
+  "All messages": "Alla meddelanden",
+  "Everyone": "Alla",
+  "Crew chat": "Crewchatt",
+  "System messages": "Systemmeddelanden",
+  "Search chat…": "Sök i chatten…",
+  "Mention sound: on": "Ljud för omnämnanden: på",
+  "Mention sound: off": "Ljud för omnämnanden: av",
+  "Muted: {n}": "Ljudlösa: {n}",
+  "No muted players": "Inga ljudlösa spelare",
+  "Unmute": "Slå på ljud",
+  "Mute player": "Tysta spelare",
+  "Unmute player": "Slå på spelarens ljud",
+  "CHAT POSITION": "CHATTPOSITION",
+  "Top left": "Överst till vänster",
+  "Top right": "Överst till höger",
+  "Bottom left": "Nederst till vänster",
+  "Bottom right": "Nederst till höger",
+  "Choose where the chat panel stays on screen.": "Välj var chattpanelen ska ligga på skärmen.",
+  "CHAT WIDTH": "CHATTBREDD",
+  "Adjust the chat panel width independently of its scale.": "Justera chattpanelens bredd oberoende av skalan."
 
 }
