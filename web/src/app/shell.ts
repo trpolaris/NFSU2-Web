@@ -1207,8 +1207,25 @@ function openMenu() {
     });
   }
   $('#stage').classList.add('cursor');
+  selectMenuTab(m.dataset.activeTab || 'chat');
   m.showModal();
 }
+/** Switch the F9 control deck between real, native game features. */
+function selectMenuTab(name: string) {
+  const m = $<HTMLDialogElement>('#menu');
+  const buttons = [...m.querySelectorAll<HTMLButtonElement>('[data-menu-tab]')];
+  if (!buttons.some(b => b.dataset.menuTab === name)) return;
+  m.dataset.activeTab = name;
+  for (const b of buttons) {
+    const active = b.dataset.menuTab === name;
+    b.classList.toggle('is-active', active);
+    b.setAttribute('aria-pressed', String(active));
+  }
+  for (const page of m.querySelectorAll<HTMLElement>('[data-menu-page]')) {
+    page.hidden = page.dataset.menuPage !== name;
+  }
+}
+
 /** The menu's chat sliders change only this browser's HUD presentation, not game/network settings. */
 function syncChatMenuAppearance() {
   const a = quickChat.appearance();
@@ -1690,7 +1707,13 @@ export async function boot() {
   $<HTMLButtonElement>('#log-btn').onclick = downloadLog;
   $<HTMLButtonElement>('#diagnostics-refresh').onclick = () => void refreshDiagnostics();
   $<HTMLButtonElement>('#diagnostics-download').onclick = downloadDiagnostics;
-  $('#menu').addEventListener('click', e => { const a = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-act]'); if (a) void menuAction(a.dataset.act!); });
+  $('#menu').addEventListener('click', e => {
+    const target = e.target as HTMLElement;
+    const tab = target.closest<HTMLButtonElement>('[data-menu-tab]');
+    if (tab) { selectMenuTab(tab.dataset.menuTab!); return; }
+    const a = target.closest<HTMLButtonElement>('[data-act]');
+    if (a) void menuAction(a.dataset.act!);
+  });
   $('#menu-chat-scale').addEventListener('input', updateChatMenuAppearance);
   $('#menu-chat-opacity').addEventListener('input', updateChatMenuAppearance);
   $('#playlist-body').addEventListener('change', setTrackMode);
