@@ -14,3 +14,5 @@
   --font-display: "Orbitron", sans-serif;
   --font-body: "Rajdhani", sans-serif;
 }
+
+@source "../hub/**/*.{js,jsx}";
