@@ -1347,6 +1347,27 @@
   "New messages": "新訊息",
   "Show newest chat messages": "顯示最新聊天訊息",
   "CHAT SCALE": "聊天大小",
-  "CHAT BACKGROUND": "聊天背景"
+  "CHAT BACKGROUND": "聊天背景",
+  "Chat filters": "聊天篩選",
+  "All messages": "所有訊息",
+  "Everyone": "所有人",
+  "Crew chat": "車隊聊天",
+  "System messages": "系統訊息",
+  "Search chat…": "搜尋聊天…",
+  "Mention sound: on": "提及提示音：開",
+  "Mention sound: off": "提及提示音：關",
+  "Muted: {n}": "已靜音：{n}",
+  "No muted players": "沒有已靜音的玩家",
+  "Unmute": "取消靜音",
+  "Mute player": "將玩家靜音",
+  "Unmute player": "取消玩家靜音",
+  "CHAT POSITION": "聊天位置",
+  "Top left": "左上",
+  "Top right": "右上",
+  "Bottom left": "左下",
+  "Bottom right": "右下",
+  "Choose where the chat panel stays on screen.": "選擇聊天面板在畫面上的位置。",
+  "CHAT WIDTH": "聊天寬度",
+  "Adjust the chat panel width independently of its scale.": "獨立調整聊天面板寬度，不影響縮放比例。"
 
 }
