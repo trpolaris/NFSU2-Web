@@ -404,6 +404,10 @@ summary:hover { color: var(--text); }
 /* cloud saves (vault-ui.ts): Enable cloud saving beside the heading, or when it last synced; the keyphrase in a value
  * box, its first 3 characters shown and the rest as dots (a mask over the field, which keeps the real text, its caret
  * and selection) until the eye shows it; the actions as text under it */
+.vault-brand {
+  display: block; margin-bottom: 4px; color: #00cfae;
+  font: 800 9px/1.3 var(--font); letter-spacing: .18em;
+}
 .vault .hint:empty { display: none; }
 .vault .hint.warn { color: var(--warn); }
 .vault-row { display: flex; align-items: center; gap: 8px; }
