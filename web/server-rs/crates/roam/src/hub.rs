@@ -806,12 +806,12 @@ impl Hub {
         if let Some(req) = ask {
             self.map(slot, req, now);
         }
-        if let Some((scope, lobby, text)) = chat {
-            self.chat(slot, scope, lobby, &text, now);
+        if let Some((scope, channel, text)) = chat {
+            self.chat(slot, scope, channel, &text, now);
         }
     }
 
-    /// A typed line, relayed only to the sender's current FreeRoam room or exact advertised race lobby.
+    /// A typed line, relayed only to the sender's active FreeRoam room or selected Crew.
     /// Recipients are chosen here, not by the page, so a client cannot read another channel by changing its UI.
     fn chat(&mut self, slot: u32, scope: u8, channel: u32, text: &str, now: f64) {
         const ACTIVE_MS: f64 = 15_000.0;
