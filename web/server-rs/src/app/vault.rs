@@ -374,7 +374,7 @@ mod tests {
 
         assert_eq!(kit.request("DELETE", "/cloud/v1/saves", &[BEARER], b"").await.status, 200);
         assert_eq!(kit.request("GET", "/vault", &[BEARER], b"").await.status, 404);
-        assert!(super::super::ROBOTS_TXT.contains("Disallow: /cloud/\\n"));
+        assert!(super::super::ROBOTS_TXT.contains("Disallow: /cloud/\n"));
     }
 
     #[tokio::test]
