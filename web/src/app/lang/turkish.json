@@ -1350,5 +1350,10 @@
   "Race chat": "Yarış sohbeti",
   "FreeRoam chat": "Serbest dolaşım sohbeti",
   "Type a FreeRoam message": "Serbest dolaşım mesajı yaz",
-  "Type a race message": "Yarış mesajı yaz"
+  "Type a race message": "Yarış mesajı yaz",
+  "New messages": "Yeni mesajlar",
+  "Show newest chat messages": "En yeni sohbet mesajlarını göster",
+  "CHAT SCALE": "SOHBET BOYUTU",
+  "CHAT BACKGROUND": "SOHBET ARKA PLANI"
+
 }
