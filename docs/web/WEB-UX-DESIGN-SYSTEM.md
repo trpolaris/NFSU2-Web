@@ -15,9 +15,10 @@ The new direction is **Midnight Run**: a premium, cinematic street-racing interf
 
 ## Interaction and motion
 
-- Native Web Animations API is used for page transitions and entrance/reveal motion. This avoids a remote runtime dependency and works with the server's self-only Content Security Policy.
+- Motion design uses the browser's Web Animations API and CSS transition primitives for page transitions, entrance/reveal motion, hover/press feedback and progress activity. This keeps animation local and compatible with the server's self-only Content Security Policy.
 - The hero atmosphere uses a small local canvas particle field with a capped device-pixel ratio and low particle count.
 - The vehicle art is an inline vector illustration; no remote image dependency is required.
+- A shared component-polish layer standardizes action buttons, segmented option groups, checkbox switches, fields, disclosure panels, profile rows, mod cards, keyboard keycaps and diagnostic tiles.
 - CSS hover/press states add restrained depth and feedback to buttons, navigation and action cards.
 - `prefers-reduced-motion`, Save-Data and low-core device checks suppress or reduce non-essential effects.
 - Animations never carry information required to operate the game or understand status.
@@ -31,8 +32,9 @@ Native shadcn/ui React components are not introduced because the current player 
 ## Icons and dependencies
 
 - Navigation and action icons remain small local inline SVGs with Lucide-style outline geometry. No icon CDN is required.
-- Motion is implemented with browser-native Web Animations API rather than loading a remote module.
-- Ambient particles are implemented locally on canvas rather than fetching tsParticles from a CDN.
+- Tailwind CSS v4 continues to provide the build-time utility layer; the richer controls use scoped CSS primitives so no framework runtime is introduced.
+- Motion effects use local Web Animations API and CSS transitions rather than a remote module.
+- Ambient particles use a small local canvas implementation with low-power and reduced-motion guards rather than fetching tsParticles from a CDN.
 - The production page therefore remains compatible with the current restrictive CSP (`script-src 'self'`, `style-src 'self'`, `font-src 'self'`).
 
 ## Guardrails
