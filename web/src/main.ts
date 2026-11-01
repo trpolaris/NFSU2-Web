@@ -3,6 +3,7 @@ import './app/style.css';
 import './app/modern-theme.css';
 import './app/experience.css';
 import './app/design-system.css';
+import './app/full-redesign.css';
 import { setupUIEnhancements } from './app/ui-enhancements.js';
 import { boot } from './app/shell';
 
