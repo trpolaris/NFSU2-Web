@@ -456,8 +456,10 @@ export class QuickChat {
 
   /** Server-relayed room/Crew line; receiver membership was already checked by the hub. */
   chat(json: string) {
-    let s: TypedChat;
-    try { s = JSON.parse(json) as TypedChat; } catch { this.deps.log('[chat] invalid server message'); return; }
+    let raw: unknown;
+    try { raw = JSON.parse(json); } catch { this.deps.log('[chat] invalid server message'); return; }
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) { this.deps.log('[chat] invalid server message'); return; }
+    const s = raw as TypedChat;
     if (!this.session || !Number.isSafeInteger(s.id) || s.id <= 0 || typeof s.name !== 'string' || typeof s.text !== 'string'
         || (s.scope !== 'room' && s.scope !== 'crew') || !Number.isSafeInteger(s.channel) || s.channel < 0 || s.channel > 0xffffffff) return;
     const name = s.name.trim(), body = s.text.trim();
