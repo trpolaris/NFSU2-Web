@@ -813,11 +813,14 @@ html:has(> body > .stage:not([hidden])) { overflow: hidden; }
   pointer-events: none;
 }
 
-/* Message flow. Both sliders now affect the complete visible chat HUD, not just its composer. */
+/* The message feed keeps the latest 200 lines for the current game session. Open chat to scroll history. */
 .chat-messages {
   display: flex; flex-direction: column; gap: calc(5px * var(--chat-scale, .9));
   max-height: min(calc(22vh * var(--chat-scale, .9)), calc(220px * var(--chat-scale, .9)));
   overflow-y: hidden;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0,255,204,.42) rgba(0,0,0,.12);
   padding: calc(7px * var(--chat-scale, .9)) calc(9px * var(--chat-scale, .9));
   border-left: calc(2px * var(--chat-scale, .9)) solid var(--color-team);
   border-radius: 0 5px 5px 0;
@@ -879,6 +882,22 @@ html:has(> body > .stage:not([hidden])) { overflow: hidden; }
   opacity: 1; transform: translate(0); pointer-events: auto;
 }
 .racing-chat-wrapper.active .chat-messages { overflow-y: auto; pointer-events: auto; }
+.racing-chat-wrapper.active .chat-messages::-webkit-scrollbar { width: 6px; }
+.racing-chat-wrapper.active .chat-messages::-webkit-scrollbar-track { background: rgba(0,0,0,.18); }
+.racing-chat-wrapper.active .chat-messages::-webkit-scrollbar-thumb { border-radius: 8px; background: rgba(0,255,204,.38); }
+.chat-history-latest {
+  align-self: flex-end; min-height: 25px; margin: -2px 2px 0 0; padding: 4px 9px;
+  border: 1px solid rgba(0,255,204,.38); border-radius: 3px;
+  color: #bffff0; background: rgba(0,18,16,.94);
+  font: 800 10px/1.2 var(--font-racing); letter-spacing: .04em;
+  cursor: pointer; pointer-events: none; opacity: 0; transform: translateY(-4px);
+  transition: opacity .16s ease, transform .16s ease, background .16s ease;
+}
+.racing-chat-wrapper.active .chat-history-latest:not([hidden]) {
+  pointer-events: auto; opacity: 1; transform: translateY(0);
+}
+.chat-history-latest:hover { color: #00110d; background: #00ffcc; }
+.chat-history-latest[hidden] { display: none; }
 
 #chatInput {
   flex: 1 1 0; min-width: 0; background: transparent; border: none; color: #fff; outline: none;
