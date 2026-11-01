@@ -1412,5 +1412,10 @@
   "Race chat": "Racingchatt",
   "FreeRoam chat": "FreeRoam-chatt",
   "Type a FreeRoam message": "Skriv ett FreeRoam-meddelande",
-  "Type a race message": "Skriv ett tävlingsmeddelande"
+  "Type a race message": "Skriv ett tävlingsmeddelande",
+  "New messages": "Nya meddelanden",
+  "Show newest chat messages": "Visa de senaste chattmeddelandena",
+  "CHAT SCALE": "CHATTSTORLEK",
+  "CHAT BACKGROUND": "CHATTBAKGRUND"
+
 }
