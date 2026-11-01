@@ -1343,5 +1343,10 @@
   "Race chat": "แชตการแข่งขัน",
   "FreeRoam chat": "แชต FreeRoam",
   "Type a FreeRoam message": "เขียนข้อความ FreeRoam",
-  "Type a race message": "เขียนข้อความการแข่งขัน"
+  "Type a race message": "เขียนข้อความการแข่งขัน",
+  "New messages": "ข้อความใหม่",
+  "Show newest chat messages": "แสดงข้อความแชทล่าสุด",
+  "CHAT SCALE": "ขนาดแชท",
+  "CHAT BACKGROUND": "พื้นหลังแชท"
+
 }
