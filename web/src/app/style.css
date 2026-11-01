@@ -824,8 +824,17 @@ html:has(> body > .stage:not([hidden])) { overflow: hidden; }
 .racing-chat-wrapper .message.team { color: var(--color-team); }
 .racing-chat-wrapper .message.system { color: var(--color-system); font-family: var(--font-hud); font-size: 15px; }
 .racing-chat-wrapper .message.quick { color: var(--color-quick); }
-.racing-chat-wrapper .channel { margin-right: 6px; }
-.racing-chat-wrapper .sender { color: #e5e5e5; font-weight: 900; text-transform: uppercase; }
+.racing-chat-wrapper .channel {
+  display: inline-block; max-width: 124px; margin-right: 6px; overflow: hidden;
+  text-overflow: ellipsis; vertical-align: bottom; white-space: nowrap;
+}
+.racing-chat-wrapper .sender {
+  color: #e5e5e5; font-weight: 900; text-transform: uppercase;
+}
+.racing-chat-wrapper .message.me .sender { color: var(--color-quick); }
+.racing-chat-wrapper .message .text { overflow-wrap: anywhere; }
+.racing-chat-wrapper .message.system { display: flex; align-items: baseline; gap: 6px; }
+.racing-chat-wrapper .message.system .channel { color: var(--color-system); font-family: var(--font-hud); }
 
 /* Original input row: hidden until the chat is active. */
 .chat-input-area {
@@ -863,7 +872,8 @@ html:has(> body > .stage:not([hidden])) { overflow: hidden; }
   width: 100%; font-family: var(--font-racing); font-size: 18px;
 }
 #activeChannel {
-  color: var(--color-team); white-space: nowrap;
+  display: inline-block; max-width: 148px; overflow: hidden; text-overflow: ellipsis;
+  color: var(--color-team); white-space: nowrap; vertical-align: bottom;
   font-size: 15px; font-family: var(--font-hud);
 }
 #activeChannel[data-scope="room"] { color: var(--color-all); }
