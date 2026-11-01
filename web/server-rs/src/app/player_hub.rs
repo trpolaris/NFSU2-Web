@@ -9,7 +9,6 @@ use std::fs::{self, OpenOptions};
 use std::io::Write;
 use std::os::unix::fs::OpenOptionsExt;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 
 use hmac::{Hmac, Mac};
 use parking_lot::Mutex;
@@ -22,6 +21,8 @@ use crate::app::url::Url;
 
 const SESSION_COOKIE: &str = "__Host-trp-session";
 const SESSION_MAX_AGE: i64 = 60 * 60 * 24 * 365;
+const SESSION_MAX_AGE_MS: i64 = SESSION_MAX_AGE * 1000;
+const MAX_SESSIONS: usize = 5_000;
 const MAX_BODY: usize = 32 * 1024;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -115,23 +116,36 @@ impl HubStore {
     }
 
     fn session(&self, token: Option<&str>) -> Result<(String, bool, PlayerSession), String> {
+        let now = nfsu2_util::now_ms();
+        let mut state = self.state.lock();
         if let Some(token) = token.filter(|v| valid_token(v)) {
             let hash = digest_hex(token.as_bytes());
-            if let Some(session) = self.state.lock().sessions.get(&hash).cloned() {
+            if let Some(session) = state.sessions.get(&hash).filter(|s| {
+                let age = now.saturating_sub(s.created_at);
+                (0..=SESSION_MAX_AGE_MS).contains(&age)
+            }).cloned() {
                 return Ok((token.to_string(), false, session));
             }
+        }
+
+        let before = state.clone();
+        state.sessions.retain(|_, session| {
+            let age = now.saturating_sub(session.created_at);
+            (0..=SESSION_MAX_AGE_MS).contains(&age)
+        });
+        if state.sessions.len() >= MAX_SESSIONS {
+            *state = before;
+            return Err("player hub session capacity reached; expired sessions must be cleaned first".into());
         }
 
         let token = nfsu2_util::js::base64url(&nfsu2_util::rand::bytes(32));
         let csrf = nfsu2_util::js::base64url(&nfsu2_util::rand::bytes(32));
         let session = PlayerSession {
             csrf,
-            created_at: nfsu2_util::now_ms(),
+            created_at: now,
             profile: PlayerProfile::default(),
             garage: Vec::new(),
         };
-        let mut state = self.state.lock();
-        let before = state.clone();
         state.sessions.insert(digest_hex(token.as_bytes()), session.clone());
         if let Err(e) = self.persist(&state) {
             *state = before;
@@ -143,7 +157,11 @@ impl HubStore {
     fn existing(&self, token: Option<&str>) -> Option<(String, PlayerSession)> {
         let token = token.filter(|v| valid_token(v))?;
         let hash = digest_hex(token.as_bytes());
-        let session = self.state.lock().sessions.get(&hash).cloned()?;
+        let now = nfsu2_util::now_ms();
+        let session = self.state.lock().sessions.get(&hash).filter(|s| {
+            let age = now.saturating_sub(s.created_at);
+            (0..=SESSION_MAX_AGE_MS).contains(&age)
+        }).cloned()?;
         Some((hash, session))
     }
 
@@ -348,10 +366,11 @@ impl App {
             let manufacturer = clean_text(body.get("manufacturer").and_then(Value::as_str).unwrap_or(""), 32);
             let model = clean_text(body.get("model").and_then(Value::as_str).unwrap_or(""), 48);
             let notes = clean_text(body.get("notes").and_then(Value::as_str).unwrap_or(""), 160);
-            let year = body.get("year").and_then(Value::as_u64).map(|v| v as u16);
+            let year_raw = body.get("year").and_then(Value::as_u64);
+            let year = year_raw.map(|v| v as u16);
             if manufacturer.is_empty() || model.is_empty() || body.get("manufacturer").and_then(Value::as_str).is_none()
                 || body.get("model").and_then(Value::as_str).is_none()
-                || year.is_some_and(|y| !(1990..=2035).contains(&y))
+                || year_raw.is_some_and(|y| !(1990..=2035).contains(&y))
             {
                 return self.hub_error(q, s, 400, "manufacturer and model are required; year must be 1990–2035").await;
             }
@@ -399,5 +418,43 @@ impl App {
 
     async fn hub_error(&self, q: &nfsu2_http::Request, s: &mut nfsu2_http::Response, code: u16, message: &str) -> Res {
         self.hub_json(q, s, code, json!({ "error": message }), None).await
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn session_tokens_are_exact_length_url_safe_values() {
+        assert!(valid_token(&"a".repeat(43)));
+        assert!(!valid_token(&"a".repeat(42)));
+        assert!(!valid_token(&"a".repeat(44)));
+        assert!(!valid_token(&format!("{}=", "a".repeat(42))));
+        assert!(!valid_token(&format!("{}.", "a".repeat(42))));
+    }
+
+    #[test]
+    fn text_is_trimmed_bounded_and_has_no_control_characters() {
+        assert_eq!(clean_text("  Driver\n\tOne  ", 32), "DriverOne");
+        assert_eq!(clean_text("abcdef", 3), "abc");
+        assert_eq!(clean_text("   ", 12), "");
+    }
+
+    #[test]
+    fn csrf_comparison_rejects_mismatched_lengths_and_values() {
+        assert!(constant_time_eq("same-token", "same-token"));
+        assert!(!constant_time_eq("same-token", "same-tokeN"));
+        assert!(!constant_time_eq("short", "longer"));
+    }
+
+    #[test]
+    fn garage_year_is_bounded_before_narrowing_to_u16() {
+        for valid in [1990u64, 2004, 2035] {
+            assert!((1990..=2035).contains(&valid));
+        }
+        for invalid in [0u64, 1989, 2036, 65_536 + 2004] {
+            assert!(!(1990..=2035).contains(&invalid));
+        }
     }
 }
