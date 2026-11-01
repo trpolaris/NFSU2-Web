@@ -251,7 +251,7 @@ function setupLazyPreviews() {
 /* Optional visual libraries are progressive enhancements, never application dependencies. */
 function setupMotionTransitions() {
   if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-  const moduleUrl = 'https://cdn.jsdelivr.net/npm/motion@14.8.0/+esm';
+  const moduleUrl = 'https://cdn.jsdelivr.net/npm/motion@14.9.0/+esm';
   import(moduleUrl).then(module => {
     if (typeof module.animate !== 'function') return;
     motionAnimate = module.animate;
