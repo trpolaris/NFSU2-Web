@@ -109,5 +109,5 @@ test('the client mirrors four messages per five seconds and keeps the composer o
   assert.equal(result.accepted, 4, 'only four messages are sent');
   assert.equal(result.composerOpen, true, 'the composer stays open while waiting');
   assert.equal(result.draft, 'fifth message', 'the unsent draft is preserved');
-  assert.match(result.notice, /Wait a moment \\(\\d+s\\)/);
+  assert.match(result.notice, /Wait a moment \(\d+s\)/);
 });
