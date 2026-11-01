@@ -1300,6 +1300,7 @@ function showRadio(m: HTMLElement) {
   m.querySelector<HTMLElement>('[data-menu-radio]')!.hidden = !radioPort() || !canPickMusic();    // a game without the radio's words (an older build) has no Radio row
   button.classList.toggle('selected', on);
   button.setAttribute('aria-pressed', String(on));
+  m.querySelector<HTMLElement>('.menu-radio-orb')?.classList.toggle('is-playing', on);
   $('#radio-label').textContent = t('Radio: {mode}', { mode: on ? t(N('on')) : t(N('off')) }) + (radio?.folder ? ` · ${radio.folder}` : '');
 }
 async function radioClick(act: 'radio' | 'radio-folder') {
