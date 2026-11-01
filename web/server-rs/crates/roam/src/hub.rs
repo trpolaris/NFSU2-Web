@@ -836,36 +836,51 @@ impl Hub {
         }
 
         let recipients: Vec<(u32, u16, u16)> = match scope {
-            // General FreeRoam chat: every active player in this same configured room, not just nearby car links.
+            // General FreeRoam chat: every active player in this same configured room, except blocked pairs.
             0 => {
                 let Some(sender) = self.player(slot) else { return };
                 if !matches!(sender.status, 2 | 5) || sender.p.is_none() || now - sender.pos_at > ACTIVE_MS {
                     return;
                 }
-                self.players()
-                    .filter(|p| {
-                        !p.impostor && p.room == room && matches!(p.status, 2 | 5)
-                            && p.p.is_some() && now - p.pos_at <= ACTIVE_MS && now - p.seen <= ACTIVE_MS
+                self.order
+                    .iter()
+                    .filter_map(|&q| {
+                        let p = self.player(q)?;
+                        if p.impostor || p.room != room || !matches!(p.status, 2 | 5)
+                            || p.p.is_none() || now - p.pos_at > ACTIVE_MS || now - p.seen > ACTIVE_MS
+                            || (q != slot && self.apart_from(slot, q, sender, p))
+                        {
+                            return None;
+                        }
+                        Some((p.vip, p.port, p.hub_port))
                     })
-                    .map(|p| (p.vip, p.port, p.hub_port))
                     .collect()
             }
             // Race chat: the host's fresh advert is the authority for the exact participant list.
             1 => {
-                let Some((host_room, race)) = self.players().find_map(|p| {
+                let Some((host_room, race)) = self.order.iter().find_map(|&q| {
+                    let p = self.player(q)?;
                     let (l, at) = p.lobby?;
-                    ( !p.impostor && p.id == l.ids[0] && l.id == lobby && l.n >= 2
+                    (!p.impostor && p.id == l.ids[0] && l.id == lobby && l.n >= 2
                         && l.n as usize <= wire::LOBBY_PLAYERS && now - at <= LOBBY_MS
                     ).then_some((p.room, l))
                 }) else { return };
                 if host_room != room || !race.ids[..race.n as usize].contains(&sender_id) {
                     return;
                 }
-                self.players()
-                    .filter(|p| {
-                        !p.impostor && race.ids[..race.n as usize].contains(&p.id) && now - p.seen <= ACTIVE_MS
+                let Some(sender) = self.player(slot) else { return };
+                self.order
+                    .iter()
+                    .filter_map(|&q| {
+                        let p = self.player(q)?;
+                        if p.impostor || !race.ids[..race.n as usize].contains(&p.id)
+                            || now - p.seen > ACTIVE_MS
+                            || (q != slot && self.apart_from(slot, q, sender, p))
+                        {
+                            return None;
+                        }
+                        Some((p.vip, p.port, p.hub_port))
                     })
-                    .map(|p| (p.vip, p.port, p.hub_port))
                     .collect()
             }
             _ => return,
