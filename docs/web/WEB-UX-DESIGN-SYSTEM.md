@@ -1,35 +1,46 @@
-# TRPOLARIS Web UX Design System
+# TRPOLARIS Web — Midnight Run Visual System
 
-This document defines the first visual foundation for the player-facing web application. It is intentionally separate from the in-game HUD, WebAssembly runtime, Rust server and save storage.
+This document defines the redesigned player-facing experience. It applies to the website shell and its content surfaces only. The in-game renderer/HUD, WebAssembly runtime, Rust server, multiplayer protocol, game data and save formats remain outside the redesign.
 
-## Design direction
+## Visual direction
 
-- **Night base:** `#050708`
-- **Neon cyan:** `#00ffcc` for primary actions, focus rings and active navigation
-- **Racing emerald:** `#10b981` for secondary emphasis and gradients
-- **Panel base:** `#18181b` / `#09090b`
-- **Glass surfaces:** translucent zinc panels with restrained backdrop blur and thin cyan borders
-- **Typography:** Orbitron for short display labels; Rajdhani for the racing interface; readable system fallbacks for body text
+The new direction is **Midnight Run**: a premium, cinematic street-racing interface with a more deliberate information hierarchy.
+
+- **Obsidian base:** `#080b12` with layered navy/graphite surfaces.
+- **Signal coral:** `#ff6945` for primary actions, active states and key highlights.
+- **Electric lavender:** `#a69aff` for secondary accents and ambient lighting.
+- **Steel surfaces:** deep blue-grey panels with low-contrast borders, restrained blur and layered shadows.
+- **Typography:** system-first sans serif for legibility, with condensed display styling for the hero headline.
+- **Composition:** compact brand bar, vertical desktop navigation rail, cinematic vehicle stage, separate launch dock and compact status/action panels. At mobile widths the navigation becomes a horizontally scrollable bottom dock.
+
+## Interaction and motion
+
+- Native Web Animations API is used for page transitions and entrance/reveal motion. This avoids a remote runtime dependency and works with the server's self-only Content Security Policy.
+- The hero atmosphere uses a small local canvas particle field with a capped device-pixel ratio and low particle count.
+- The vehicle art is an inline vector illustration; no remote image dependency is required.
+- CSS hover/press states add restrained depth and feedback to buttons, navigation and action cards.
+- `prefers-reduced-motion`, Save-Data and low-core device checks suppress or reduce non-essential effects.
+- Animations never carry information required to operate the game or understand status.
 
 ## Component model
 
-The player page remains a framework-neutral TypeScript/HTML application. The design tokens use shadcn/ui semantic names (background, foreground, card, popover, primary, secondary, muted, accent, destructive, border, input and ring), and the component styling follows the same accessible patterns: visible keyboard focus, clear disabled states, readable contrast, consistent radius and compact controls.
+The application remains framework-neutral TypeScript/HTML/CSS. Tailwind CSS v4 is retained as an optional utilities layer, imported without Preflight so the existing game controls are not reset. Semantic design tokens and accessible surface patterns follow shadcn/ui conventions: clear focus rings, readable contrast, consistent radii, explicit disabled states and restrained cards.
 
-The shadcn/ui React components are not copied into the application. Doing so would introduce a second UI framework into the existing DOM-based game shell. If a future page is intentionally migrated to React, native shadcn/ui components can be evaluated for that isolated surface.
+Native shadcn/ui React components are not introduced because the current player page is a DOM-based application; adding React would create a second UI runtime without improving the existing game shell.
 
-## Libraries
+## Icons and dependencies
 
-- **Tailwind CSS v4:** utility layer for new page-only layout helpers and design tokens. Its CLI version is pinned in the web build script; only utilities are imported, not Preflight, to avoid resetting the established game UI.
-- **Motion for JavaScript:** optional DOM transitions for page changes. CSS remains the fallback and reduced-motion preferences disable motion.
-- **tsParticles Slim:** optional low-density hero background, loaded only on the landing page. It is skipped for reduced-motion and data-saving/low-core devices.
-- **Lucide:** the navigation's decorative icons are upgraded progressively; the existing inline SVGs remain the fallback when the library cannot be loaded.
-
-All optional visual enhancements are non-blocking. The game can still be launched when a third-party visual module fails to load.
+- Navigation and action icons remain small local inline SVGs with Lucide-style outline geometry. No icon CDN is required.
+- Motion is implemented with browser-native Web Animations API rather than loading a remote module.
+- Ambient particles are implemented locally on canvas rather than fetching tsParticles from a CDN.
+- The production page therefore remains compatible with the current restrictive CSP (`script-src 'self'`, `style-src 'self'`, `font-src 'self'`).
 
 ## Guardrails
 
-1. Do not change game runtime, WASM, multiplayer wire protocol, Cloud API or save formats as part of a web-only redesign.
-2. Keep all functional text in the existing translation pipeline.
-3. Do not make particle effects or animation necessary to understand state or operate controls.
-4. Respect `prefers-reduced-motion`, data-saving preferences and mobile GPU budgets.
-5. Keep the existing accessible HTML controls and keyboard/gamepad behavior.
+1. Preserve all runtime anchors and existing TypeScript event hooks used by the game modules.
+2. Do not change gameplay, WASM, multiplayer wire protocol, Cloud API, passphrase handling or save storage.
+3. Keep user-facing functional text in the existing translation pipeline.
+4. Use only real server-provided values; do not fabricate online players or server metrics.
+5. Respect reduced-motion, data-saving and low-power device preferences.
+6. Keep the existing HTML controls, keyboard/gamepad behavior and accessibility hooks intact.
+7. Keep the redesign scoped to the player-facing page; the in-game HUD and game canvas remain unchanged.
