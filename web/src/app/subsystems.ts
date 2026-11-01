@@ -55,7 +55,7 @@ export const attachInput: AttachInput = (proc, element, o) =>
   inputAttach(proc, element, { log: o.log, viewRect: o.viewRect, toggleFullscreen: o.toggleFullscreen, padPage: o.padPage });
 
 export const attachNet: AttachNet = (proc, o) => {
-  const link = netAttach(proc, { name: o.name, id: o.id, claim: o.claim, block: o.block, log: o.log, onNotice: o.notice, onLobby: o.lobby, onSay: o.say, onBack: o.back,
+  const link = netAttach(proc, { name: o.name, id: o.id, claim: o.claim, block: o.block, log: o.log, onNotice: o.notice, onLobby: o.lobby, onSay: o.say, onChat: o.chat, onBack: o.back,
     onQueue: o.queue, onRemoved: o.removed });
   const friends = () => link.peers.filter(p => !p.self);
   return {
@@ -67,6 +67,7 @@ export const attachNet: AttachNet = (proc, o) => {
     offline: () => link.goOffline(),
     solid: (on: boolean) => link.setSolid(on),
     say: (p: number) => link.say(p),
+    chat: (text: string, scope: 'room' | 'crew', crewId?: number) => link.chat(text, scope, crewId),
     crews: (hashes: readonly number[], rgbs: readonly number[]) => link.setCrews(hashes, rgbs),
     stats: () => {
       const s = link.stats();

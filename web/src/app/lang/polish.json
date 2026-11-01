@@ -1453,5 +1453,10 @@
   "GPU frames not shown": "Niewyświetlone klatki GPU",
   "GPU frames in flight": "Klatki przetwarzane przez GPU",
   "GPU pipeline build time": "Czas tworzenia potoków GPU",
-  "GPU pipeline build maximum": "Maksymalny czas tworzenia potoków GPU"
+  "GPU pipeline build maximum": "Maksymalny czas tworzenia potoków GPU",
+  "Write a message…": "Napisz wiadomość…",
+  "Race chat": "Czat wyścigu",
+  "FreeRoam chat": "Czat FreeRoam",
+  "Type a FreeRoam message": "Napisz wiadomość FreeRoam",
+  "Type a race message": "Napisz wiadomość wyścigową"
 }

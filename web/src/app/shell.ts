@@ -746,7 +746,7 @@ async function startGame() {
     // longer than the game), and a closure from this function would keep its
     // scope, and with it this game, reachable
     session = await GameSession.start({
-      module: loaded!.module, info: loaded!.info, saveDir: SAVE, env: r.env, canvas, stage, audio, displayHz, netName, notice, lobby, say, marks,
+      module: loaded!.module, info: loaded!.info, saveDir: SAVE, env: r.env, canvas, stage, audio, displayHz, netName, notice, lobby, say, chat, marks,
       netBack, netQueue, onSaved,
       netId: net ? pageId() : undefined, netClaim: net ? await vault.token().catch(() => null) ?? undefined : undefined, netRemoved,
       netBlock: net && r.env.NFSU2_ROAM === '1' ? blockList(r.env.NFSU2_ROAM_BLOCK ?? '') : undefined,
@@ -777,7 +777,8 @@ async function startGame() {
   driftPanel.start(session);
   photo.start(session);
   quickChat.start(session, net && r.env.NFSU2_ROAM === '1' && r.env.NFSU2_ROAM_SAY !== '0',
-    phrasesOf(r.env.NFSU2_ROAM_SAY_PHRASES), groupsOf(r.env.NFSU2_ROAM_SAY_GROUPS));
+    phrasesOf(r.env.NFSU2_ROAM_SAY_PHRASES), groupsOf(r.env.NFSU2_ROAM_SAY_GROUPS),
+    (roamCrews ?? []).map(c => ({ name: c.name, id: roomHash(c.name) })));
   fps.memory = session.proc.memory;
   const st = session;
   let tries = 0;
@@ -1056,6 +1057,10 @@ function say(json: string) {
   placeNotices();
   quickChat.said(json);
 }
+/** typed FreeRoam / race-lobby chat returned by the server */
+function chat(json: string) {
+  quickChat.chat(json);
+}
 function marks(n: number, m: Float32Array, ids: Uint32Array) { quickChat.marks(n, m, ids); }
 /** quick chat's line in the log: a speech balloon, the name, the phrase; in the notices' box, for 8 s */
 function chatLine(name: string, text: string, me: boolean) {
@@ -1244,6 +1249,7 @@ function drawPopCrews(focus?: (root: HTMLElement) => Element | null | undefined)
 async function menuCrews(list: Crew[], focus: (root: HTMLElement) => Element | null | undefined) {
   if (roamCrews === null || !session?.net?.crews) return;
   roamCrews = list;
+  quickChat.setCrews(list.map(c => ({ name: c.name, id: roomHash(c.name) })));
   session.net.crews(list.map(c => roomHash(c.name)), rgbWords(list));
   drawPopCrews(focus);
   void askPopCounts(1500);
