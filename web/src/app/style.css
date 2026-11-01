@@ -21,6 +21,12 @@
   --warn: #ffd36e;
 
   --font: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --color-all: #ffffff;
+  --color-team: #00ffcc;
+  --color-system: #ff3366;
+  --color-quick: #ffcc00;
+  --font-racing: 'Rajdhani', sans-serif;
+  --font-hud: 'Orbitron', sans-serif;
   --mono: ui-monospace, Menlo, Consolas, monospace;
   color-scheme: dark;
 }
@@ -741,7 +747,7 @@ html:has(> body > .stage:not([hidden])) { overflow: hidden; }
 /* photo mode (photo.ts): the panel, a column at the right edge (Take photo first, the keys under the buttons; it
  * scrolls on a screen too short for it), a flash at each picture, the camera's hand on the picture; the page's other
  * things on the game hidden while it is on (its toasts stay: the picture's) */
-.stage.photo :is(.touch, .qc-lines, .qc-picker, .qc-chat-hud, .drift-panel, .drift-pop, .pause-hint, .notices, .lobby, .lobby-cover, .hud-fps, .stage-menu) {
+.stage.photo :is(.touch, .qc-lines, .qc-picker, .racing-chat-wrapper, .drift-panel, .drift-pop, .pause-hint, .notices, .lobby, .lobby-cover, .hud-fps, .stage-menu) {
   display: none !important;
 }
 .stage.photo canvas { cursor: grab; }
@@ -794,64 +800,90 @@ html:has(> body > .stage:not([hidden])) { overflow: hidden; }
 /* quick chat's picker: on the left in the notices' place (they step aside while it is open), the race lobby's card
  * in its sizes (.lobby: its width, padding and text, the title, the places' rows, the key caps, the hint); on a touch
  * screen all sixteen at the top, big enough to tap */
-.qc-chat-hud {
-  --u: 1px;
-  position: absolute; z-index: 4; width: min(420px, calc(100% - 56px));
-  display: flex; flex-direction: column; gap: 10px; pointer-events: none; color: #fff;
-  font: italic 700 max(14px, calc(8 * var(--u))) / 1.25 var(--font); text-shadow: 2px 2px 0 #000;
+/* Direct integration of the supplied racing-chat HUD stylesheet. */
+.racing-chat-wrapper {
+  position: absolute; top: 40px; left: 40px; z-index: 4;
+  width: 420px; max-width: calc(100% - 80px);
+  font-family: var(--font-racing); font-size: 18px; font-weight: 700;
+  display: flex; flex-direction: column; gap: 10px;
+  pointer-events: none;
 }
-.qc-chat-hud[hidden] { display: none; }
-/* The supplied racing HUD: plain outlined lines above the composer, no card-like game-menu panel. */
-.qc-chat-messages {
-  display: flex; flex-direction: column; gap: 6px; max-height: 260px; overflow: hidden; padding-right: 10px;
+
+/* Message flow */
+.chat-messages {
+  display: flex; flex-direction: column; gap: 6px;
+  max-height: 260px; overflow-y: hidden; padding-right: 10px;
 }
-.qc-chat-message {
-  display: block; padding: 0; border: 0; border-radius: 0; background: none;
-  letter-spacing: .02em; font-style: italic; line-height: 1.25;
-  transition: opacity .4s ease, transform .3s ease; animation: qc-chat-in .2s ease-out both;
+.message {
+  font-style: italic; text-shadow: 2px 2px 0 #000; letter-spacing: .5px;
+  transition: opacity .4s ease, transform .3s ease;
+  animation: slideIn .2s cubic-bezier(.175,.885,.32,1.275) forwards;
+  transform-origin: left;
 }
-.qc-chat-message[data-scope="room"] { color: #fff; }
-.qc-chat-message[data-scope="crew"] { color: #00ffcc; }
-.qc-chat-message.fade-out { opacity: 0; transform: translateX(-10px); }
-.qc-message-channel { display: inline-block; margin-right: 6px; color: inherit; font: 700 .82em/1.2 var(--font); }
-.qc-message-sender { color: #e5e5e5; font-weight: 900; text-transform: uppercase; }
-.qc-message-text { color: inherit; overflow-wrap: anywhere; }
-@keyframes qc-chat-in { from { opacity: 0; transform: translateX(-18px); } to { opacity: 1; transform: translateX(0); } }
-/* Composer shown only while typing, like the reference's active HUD state. */
-.qc-text-chat {
-  display: grid; grid-template-columns: minmax(0,1fr); gap: 8px; width: 100%;
-  padding: 8px 12px; border-left: 4px solid #00ffcc; border-radius: 0 4px 4px 0;
-  background: linear-gradient(90deg, rgba(0,0,0,.88), rgba(0,0,0,.46));
-  box-shadow: 0 4px 14px rgba(0,0,0,.32); pointer-events: auto; color: #fff;
-  font: 700 14px/1.25 var(--font); text-shadow: 1px 1px 0 #000;
+.message.all { color: var(--color-all); }
+.message.team { color: var(--color-team); }
+.message.system { color: var(--color-system); font-family: var(--font-hud); font-size: 15px; }
+.message.quick { color: var(--color-quick); }
+.channel { margin-right: 6px; }
+.sender { color: #e5e5e5; font-weight: 900; text-transform: uppercase; }
+
+/* Original input row: hidden until the chat is active. */
+.chat-input-area {
+  display: flex; align-items: center;
+  background: linear-gradient(90deg, rgba(0,0,0,.85) 0%, rgba(0,0,0,.4) 100%);
+  border-left: 4px solid var(--color-team); padding: 8px 12px;
+  border-radius: 0 4px 4px 0; gap: 10px;
+  opacity: 0; transform: translateX(-20px);
+  transition: all .25s cubic-bezier(.1,.9,.2,1);
+  pointer-events: auto;
 }
-.qc-text-chat[hidden] { display: none; }
-.qc-chat-title { display: none; }
-.qc-chat-quick { display: flex; flex-wrap: wrap; gap: 6px; }
-.qc-chat-quick button {
-  min-height: 28px; padding: 4px 10px; border: 1px solid rgba(255,255,255,.2);
-  border-radius: 3px; background: rgba(0,0,0,.7); color: #ffcc00;
-  font: italic 700 13px/1.2 var(--font); cursor: pointer; transition: background .2s ease, color .2s ease;
+
+/* Original quick-message button row. */
+.quick-chat-panel {
+  display: flex; gap: 6px; opacity: 0; transform: translateY(-10px);
+  transition: all .2s ease; pointer-events: auto;
 }
-.qc-chat-quick button:hover { background: #ffcc00; color: #000; }
-.qc-chat-input-row { display: grid; grid-template-columns: auto minmax(0,1fr); align-items: center; gap: 8px; }
-.qc-chat-channel {
-  min-height: 34px; padding: 0 9px; border: 1px solid #fff; border-radius: 3px;
-  background: rgba(0,0,0,.6); color: #fff; font: 700 12px/1 var(--font);
-  cursor: pointer; white-space: nowrap;
+.quick-chat-panel button {
+  background: rgba(0,0,0,.7); border: 1px solid rgba(255,255,255,.2);
+  color: var(--color-quick); padding: 4px 10px;
+  font-family: var(--font-racing); font-weight: 700; cursor: pointer;
+  border-radius: 3px; font-style: italic; transition: background .2s;
 }
-.qc-chat-channel[data-scope="crew"] { border-color: #00ffcc; color: #00ffcc; }
-.qc-chat-input {
-  min-width: 0; width: 100%; height: 36px; padding: 0 10px; border: 1px solid rgba(255,255,255,.25);
-  border-radius: 3px; background: rgba(0,0,0,.65); color: #fff;
-  font: 700 14px/1.2 var(--font); outline: none;
+.quick-chat-panel button:hover { background: var(--color-quick); color: #000; }
+
+/* Active mode reveals the exact two controls from the supplied design. */
+.racing-chat-wrapper.active .chat-input-area,
+.racing-chat-wrapper.active .quick-chat-panel {
+  opacity: 1; transform: translate(0);
 }
-.qc-chat-input:focus { border-color: #00ffcc; }
-.qc-chat-send, .qc-chat-close { display: none; }
+.racing-chat-wrapper.active .chat-messages { overflow-y: auto; }
+
+#chatInput {
+  background: transparent; border: none; color: #fff; outline: none;
+  width: 100%; font-family: var(--font-racing); font-size: 18px;
+}
+#activeChannel {
+  color: var(--color-team); white-space: nowrap;
+  font-size: 15px; font-family: var(--font-hud);
+}
+#activeChannel[data-scope="room"] { color: var(--color-all); }
+#activeChannel[data-scope="crew"] { color: var(--color-team); }
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(-30px) skewX(-10deg); }
+  to { opacity: 1; transform: translateX(0) skewX(-10deg); }
+}
+.racing-chat-wrapper .fade-out {
+  opacity: 0 !important; transform: translateX(-10px);
+}
 @media (max-width: 560px) {
-  .qc-chat-hud { width: min(420px, calc(100% - 32px)); }
-  .qc-chat-quick { gap: 4px; }
-  .qc-chat-quick button { padding: 4px 8px; font-size: 12px; }
+  .racing-chat-wrapper {
+    top: max(16px, env(safe-area-inset-top));
+    left: max(16px, env(safe-area-inset-left));
+    width: min(420px, calc(100% - 32px)); max-width: none; font-size: 16px;
+  }
+  #chatInput { font-size: 16px; }
+  .quick-chat-panel { flex-wrap: wrap; }
 }
 .qc-picker {
   --u: 1px;
@@ -859,8 +891,7 @@ html:has(> body > .stage:not([hidden])) { overflow: hidden; }
   padding: calc(10 * var(--u)) calc(12 * var(--u)); border-left: 3px solid var(--lime); border-radius: 4px; background: rgba(13, 13, 13, 0.78);
   font: 400 max(13px, calc(11 * var(--u))) / 1.35 var(--font); color: var(--text);
 }
-.stage:has(> .qc-picker:not([hidden]):not([data-mode="touch"])) > .notices,
-.stage:has(> .qc-chat-hud:not([hidden])) > .notices { visibility: hidden; }
+.stage:has(> .qc-picker:not([hidden]):not([data-mode="touch"])) > .notices { visibility: hidden; }
 .qc-title { font-size: 1.1em; font-weight: 700; font-style: italic; text-transform: uppercase; letter-spacing: 0.02em; color: var(--lime); }
 .qc-row { display: flex; gap: 0.6em; align-items: baseline; padding: 0.12em 0; border-top: 1px solid rgba(255, 255, 255, 0.08); }
 .qc-title + .qc-row { margin-top: 0.5em; }
