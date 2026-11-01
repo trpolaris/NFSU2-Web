@@ -214,9 +214,9 @@ export class QuickChat {
     if (!this.session || e.metaKey || e.ctrlKey || e.altKey) return;
     const el = e.target as HTMLElement | null;
     if (el?.closest?.('input, textarea, select, dialog[open]') || document.querySelector('dialog[open]')) return;
-    if (e.code === 'KeyT' || e.code === 'KeyY') {
+    if (e.code === 'KeyY' || e.code === 'KeyU') {
       if (e.repeat) return;
-      const opened = e.code === 'KeyT' ? this.openTextChat('roam') : this.openTextChat('race');
+      const opened = e.code === 'KeyY' ? this.openTextChat('roam') : this.openTextChat('race');
       if (opened) { e.preventDefault(); e.stopImmediatePropagation(); }
       return;
     }
