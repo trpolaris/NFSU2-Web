@@ -65,7 +65,7 @@ export class QuickChat {
   private chatHud: HTMLElement;
   private chatMessages: HTMLElement;
   private chatBox: HTMLElement;
-    private channelButton: HTMLElement;
+  private channelButton: HTMLElement;
   private chatInput: HTMLInputElement;
   private crews: CrewChannel[] = [];
   private channelIndex = 0;
@@ -401,6 +401,7 @@ export class QuickChat {
     const crew = s.scope === 'crew' ? this.crews.find(c => c.id === s.channel) : undefined;
     if (s.scope === 'crew' && (!crew || s.channel === 0)) return;
     if (s.scope === 'room' && s.channel !== 0) return;
+    const label = crew?.name ?? t('All');
     const quickMessage = QUICK_CHAT.some(item => item.text === s.text);
     const row = document.createElement('div');
     row.className = `message ${quickMessage ? 'quick' : s.scope === 'crew' ? 'team' : 'all'}`;
