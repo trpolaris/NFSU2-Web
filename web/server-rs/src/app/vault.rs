@@ -342,6 +342,42 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn trpolaris_cloud_v1_shares_records_with_legacy_vault() {
+        let kit = Kit::start(&[], |_| {}).await;
+        // New and legacy paths address the same encrypted record; no save migration is needed.
+        assert_eq!(kit.request("GET", "/cloud/v1/saves", &[], b"").await.status, 401);
+
+        let made = kit.request(
+            "PUT",
+            "/cloud/v1/saves",
+            &[BEARER, ("If-None-Match", "*")],
+            b"cloud box",
+        ).await;
+        assert_eq!(made.status, 201);
+        assert_eq!(made.header("x-trpolaris-cloud-saved"), made.header("x-vault-saved"));
+        let tag = made.header("etag").unwrap().to_string();
+
+        let legacy_read = kit.request("GET", "/vault", &[BEARER], b"").await;
+        assert_eq!(legacy_read.body, b"cloud box");
+
+        let legacy_update = kit.request(
+            "PUT",
+            "/vault",
+            &[BEARER, ("If-Match", &tag)],
+            b"legacy update",
+        ).await;
+        assert_eq!(legacy_update.status, 200);
+
+        let cloud_read = kit.request("GET", "/cloud/v1/saves", &[BEARER], b"").await;
+        assert_eq!(cloud_read.body, b"legacy update");
+        assert_eq!(cloud_read.header("x-trpolaris-cloud-saved"), cloud_read.header("x-vault-saved"));
+
+        assert_eq!(kit.request("DELETE", "/cloud/v1/saves", &[BEARER], b"").await.status, 200);
+        assert_eq!(kit.request("GET", "/vault", &[BEARER], b"").await.status, 404);
+        assert!(super::super::ROBOTS_TXT.contains("Disallow: /cloud/\\n"));
+    }
+
+    #[tokio::test]
     async fn the_copy_of_an_earlier_day() {
         let kit = Kit::start(&[], |_| {}).await;
         let store = kit.app.vault.as_ref().unwrap().store.clone();
