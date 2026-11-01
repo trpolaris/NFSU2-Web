@@ -11,13 +11,15 @@ New clients use:
 - `PUT /cloud/v1/saves` — create or update a snapshot using `If-None-Match: *` or `If-Match: <etag>`.
 - `DELETE /cloud/v1/saves` — delete the snapshots associated with that passphrase.
 
+Newly generated passphrases use the `trpolaris-cloud-` prefix and eight random words. The previous `nfsu2-xyz-` prefix remains accepted so existing links and backups continue to work. New TRPOLARIS phrases use a separate PBKDF2/AES-GCM context; legacy phrases retain the original context so their encrypted snapshots remain readable.
+
 The bearer token is derived from the passphrase and sent in the Authorization header, never in the URL. The browser derives the AES-GCM encryption key locally and sends only the encrypted archive. The server indexes the record by a hash of the token; it does not receive the passphrase or encryption key.
 
 The response's ETag is the current revision. TRPOLARIS Cloud metadata is returned in `x-trpolaris-cloud-saved` and `x-trpolaris-cloud-earlier`. Updates use conditional writes so two browsers cannot silently overwrite one another.
 
 ## Backward compatibility and existing saves
 
-The old `/vault` endpoint remains enabled as a compatibility route. Both API paths use the same records and the same state volume. Older clients can continue to read and write existing passphrases while new clients use `/cloud/v1/saves`. Responses include the old `x-vault-*` headers as well as the new TRPOLARIS Cloud headers.
+The old `/vault` endpoint remains enabled as a compatibility route. Both API paths are relative to the page's own origin and use the same local server process, records and state volume. The page now displays the active hostname beside the Cloud heading so the destination can be checked without relying on the passphrase prefix. Older clients can continue to read and write existing passphrases while new clients use `/cloud/v1/saves`. Responses include the old `x-vault-*` headers as well as the new TRPOLARIS Cloud headers.
 
 **No data-directory migration is performed in this version.** Existing records under the server's `state/vault` directory remain in place. Do not delete or rename that directory, and do not remove the persistent Docker state volume. This is what lets the API transition happen without invalidating already-linked browsers.
 
