@@ -23,11 +23,11 @@ const BURST = 3, WINDOW_MS = 6000;
 /** a line over a car: this long (ms; roam_game.c SAY_SHOW_US), the last FADE_MS of it fading */
 const SHOW_MS = 5000, FADE_MS = 600;
 /** typed chat: keep the HUD's DOM history bounded even while its composer is open */
-const CHAT_HISTORY_LIMIT = 40;
+const CHAT_HISTORY_LIMIT = 200;
 /** mirror the hub's typed-chat allowance: four accepted messages in any rolling five-second window */
 const CHAT_RATE_MAX = 4, CHAT_RATE_WINDOW_MS = 5000;
-/** a typed line stays for five seconds, then its CSS fade completes before its node is removed */
-const CHAT_MESSAGE_MS = 5000, CHAT_REMOVE_MS = 450;
+/** while the composer is closed, old lines fade visually but remain in the 200-message session history */
+const CHAT_MESSAGE_MS = 5000;
 /** the name over a friend's car is about this tall (HUD units at scale 1): the line goes above it */
 const NAME_H = 13;
 /** a line shrinks with the distance as the name under it does (to 0.5), but not below this: it stays readable */
@@ -70,12 +70,14 @@ export class QuickChat {
   private picker: HTMLElement;
   private chatHud: HTMLElement;
   private chatMessages: HTMLElement;
+  private historyButton: HTMLButtonElement;
+  private followingChat = true;
   private chatBox: HTMLElement;
   private channelButton: HTMLElement;
   private chatInput: HTMLInputElement;
   private crews: CrewChannel[] = [];
   private channelIndex = 0;
-  private messageTimers = new Map<HTMLElement, { fade: number; remove?: number }>();
+  private messageTimers = new Map<HTMLElement, { fade: number }>();
   /** local mirror of the server's rolling typed-chat limit, for immediate feedback before a send */
   private chatSentAt: number[] = [];
   private lastRateNoticeAt = -Infinity;
@@ -119,6 +121,17 @@ export class QuickChat {
     this.chatMessages = document.createElement('div');
     this.chatMessages.className = 'chat-messages';
     this.chatMessages.id = 'chatMessages';
+    this.chatMessages.addEventListener('scroll', () => this.updateChatScrollState(), { passive: true });
+
+    this.historyButton = document.createElement('button');
+    this.historyButton.type = 'button';
+    this.historyButton.className = 'chat-history-latest';
+    this.historyButton.id = 'chatHistoryLatest';
+    this.historyButton.textContent = `${t('New messages')} ↓`;
+    this.historyButton.setAttribute('aria-label', t('Show newest chat messages'));
+    this.historyButton.title = t('Show newest chat messages');
+    this.historyButton.hidden = true;
+    this.historyButton.addEventListener('click', () => this.scrollChatToLatest(true));
 
     const quick = document.createElement('div');
     quick.className = 'quick-chat-panel';
@@ -154,7 +167,7 @@ export class QuickChat {
 
     this.chatBox.append(this.channelButton, this.chatInput);
     this.chatBox.addEventListener('pointerdown', e => e.stopPropagation());
-    this.chatHud.append(this.chatMessages, quick, this.chatBox);
+    this.chatHud.append(this.chatMessages, this.historyButton, quick, this.chatBox);
     stage.append(this.layer, this.picker, this.chatHud);
     // caught before the game's input (attached later, at each Play): the keys the picker uses go to it alone
     window.addEventListener('keydown', e => this.key(e), { capture: true });
@@ -209,10 +222,11 @@ export class QuickChat {
     for (const l of this.lines.values()) l.el.remove();
     this.lines.clear();
     for (const timers of this.messageTimers.values()) {
-      clearTimeout(timers.fade); if (timers.remove !== undefined) clearTimeout(timers.remove);
+      clearTimeout(timers.fade);
     }
     this.messageTimers.clear(); this.chatSentAt = []; this.lastRateNoticeAt = -Infinity;
-    this.chatMessages.replaceChildren(); this.chatHud.classList.remove('active');
+    this.chatMessages.replaceChildren(); this.historyButton.hidden = true; this.followingChat = true;
+    this.chatHud.classList.remove('active');
   }
 
   /** the picker's place: the notices' (shell.ts placeNotices), u: CSS px per HUD unit */
@@ -253,7 +267,7 @@ export class QuickChat {
     const s = this.session;
     if (!s?.net?.chat || !this.freeRoamDriving()) return false;
     this.close(); this.chatHud.classList.add('active');
-    this.updateChannel(); this.holdMessageFade(); this.deps.place(); this.chatInput.focus();
+    this.updateChannel(); this.holdMessageFade(); this.scrollChatToLatest(); this.deps.place(); this.chatInput.focus();
     return true;
   }
   private closeTextChat() {
@@ -276,11 +290,36 @@ export class QuickChat {
       const timers = this.messageTimers.get(oldest);
       if (timers) {
         clearTimeout(timers.fade);
-        if (timers.remove !== undefined) clearTimeout(timers.remove);
       }
       this.messageTimers.delete(oldest);
       oldest.remove();
     }
+  }
+  /** Is the reader at the newest line (within a small tolerance for touchpad precision)? */
+  private isChatAtLatest(): boolean {
+    return this.chatMessages.scrollHeight - this.chatMessages.clientHeight - this.chatMessages.scrollTop <= 28;
+  }
+  private scrollChatToLatest(smooth = false) {
+    this.chatMessages.scrollTo({ top: this.chatMessages.scrollHeight, behavior: smooth ? 'smooth' : 'auto' });
+    this.followingChat = true;
+    this.historyButton.hidden = true;
+  }
+  private updateChatScrollState() {
+    if (this.isChatAtLatest()) {
+      this.followingChat = true;
+      this.historyButton.hidden = true;
+    } else {
+      this.followingChat = false;
+    }
+  }
+  private appendHistoryRow(row: HTMLElement) {
+    const active = this.chatHud.classList.contains('active');
+    const shouldFollow = !active || this.followingChat || this.isChatAtLatest();
+    this.chatMessages.append(row);
+    this.trimChatHistory();
+    if (shouldFollow) this.scrollChatToLatest();
+    else this.historyButton.hidden = false;
+    if (!active) this.startMessageFade(row);
   }
   private systemMessage(message: string) {
     const row = document.createElement('div');
@@ -288,10 +327,7 @@ export class QuickChat {
     const marker = document.createElement('span'); marker.className = 'channel'; marker.textContent = '!';
     const text = document.createElement('span'); text.className = 'text'; text.textContent = message;
     row.append(marker, text);
-    this.chatMessages.append(row);
-    this.trimChatHistory();
-    this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
-    if (!this.chatHud.classList.contains('active')) this.startMessageFade(row);
+    this.appendHistoryRow(row);
   }
   private transmit(text: string): boolean {
     const s = this.session, clean = text.trim(), channel = this.currentChannel();
@@ -324,22 +360,19 @@ export class QuickChat {
   private sendQuick(text: string) { if (this.transmit(text)) this.closeTextChat(); }
   private holdMessageFade() {
     for (const [el, timers] of this.messageTimers) {
-      clearTimeout(timers.fade); if (timers.remove !== undefined) clearTimeout(timers.remove);
+      clearTimeout(timers.fade);
       el.classList.remove('fade-out');
     }
     this.messageTimers.clear();
   }
   private startMessageFade(el: HTMLElement) {
     const old = this.messageTimers.get(el);
-    if (old) { clearTimeout(old.fade); if (old.remove !== undefined) clearTimeout(old.remove); }
+    if (old) clearTimeout(old.fade);
     const fade = window.setTimeout(() => {
       if (this.chatHud.classList.contains('active')) return;
       el.classList.add('fade-out');
-      const remove = window.setTimeout(() => {
-        this.messageTimers.delete(el);
-        el.remove();
-      }, CHAT_REMOVE_MS);
-      this.messageTimers.set(el, { fade, remove });
+      // Keep the node in the bounded history; opening chat removes this class and exposes it again.
+      this.messageTimers.set(el, { fade });
     }, CHAT_MESSAGE_MS);
     this.messageTimers.set(el, { fade });
   }
@@ -516,11 +549,10 @@ export class QuickChat {
     sender.textContent = `${name}:`; sender.title = name;
     const text = document.createElement('span'); text.className = 'text'; text.textContent = body;
     row.setAttribute('aria-label', `${label}, ${name}: ${body}`);
-    row.append(channel, sender, text); this.chatMessages.append(row);
-    // A player can keep the composer open while a busy room continues chatting. Keep that case bounded too.
-    this.trimChatHistory();
-    this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
-    if (!this.chatHud.classList.contains('active')) this.startMessageFade(row);
+    row.dataset.messageId = String(s.id);
+    row.append(channel, sender, text);
+    // Retain the most recent 200 room/Crew lines; preserve the reader's position when they are browsing history.
+    this.appendHistoryRow(row);
     this.deps.log(`[chat] ${s.scope === 'crew' ? 'Crew ' + label : 'FreeRoam'}: ${name}: ${body}`);
   }
 
