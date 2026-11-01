@@ -171,6 +171,8 @@ Sunucu oyuncu başına 5 saniyede en fazla 4 yazılı mesaj kabul eder. İstemci
 
 Ayrıntılar, test kapsamı ve yayın adımları: [FreeRoam Sohbet Rehberi](docs/web/FREEROAM-CHAT.md).
 
+Bulut kayıtları artık TRPOLARIS Cloud v1 API'sini kullanır. Eski `/vault` bağlantısı mevcut kayıtlar ve eski istemciler için geriye dönük uyumluluk amacıyla korunur. Ayrıntılar: [TRPOLARIS Cloud Rehberi](docs/web/TRPOLARIS-CLOUD.md).
+
 ---
   
 ## Kurulum
