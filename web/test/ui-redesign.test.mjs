@@ -18,6 +18,24 @@ const i18n = fs.readFileSync(path.join(ROOT, 'src/app/i18n.ts'), 'utf8');
 const sw = fs.readFileSync(path.join(ROOT, 'src/sw.ts'), 'utf8');
 const version = JSON.parse(fs.readFileSync(path.join(ROOT, 'src/static/app-version.json'), 'utf8'));
 
+test('TRPOLARIS neon design system integrates Tailwind v4 without resetting game controls', () => {
+  const design = fs.readFileSync(path.join(ROOT, 'src/app/design-system.css'), 'utf8');
+  const tailwind = fs.readFileSync(path.join(ROOT, 'src/app/tailwind.css'), 'utf8');
+  const enhancements = fs.readFileSync(path.join(ROOT, 'src/app/ui-enhancements.js'), 'utf8');
+  assert.match(main, /import ['"]\.\/app\/design-system\.css['"]/);
+  assert.match(html, /href="\/tailwind\.css"/);
+  assert.match(tailwind, /@import "tailwindcss\/theme\.css" layer\(theme\)/);
+  assert.match(tailwind, /@import "tailwindcss\/utilities\.css" layer\(utilities\)/);
+  assert.doesNotMatch(tailwind, /preflight\.css/);
+  for (const token of ['#050708', '#00ffcc', '#10b981', '#09090b', '#18181b']) assert.ok(design.includes(token), token);
+  assert.match(design, /backdrop-filter:\s*blur\(16px\)/);
+  assert.match(design, /prefers-reduced-motion:\s*reduce/);
+  assert.match(enhancements, /function setupMotionTransitions\(/);
+  assert.match(enhancements, /function setupLucideIcons\(/);
+  assert.match(enhancements, /function setupHeroParticles\(/);
+});
+
+
 test('Nightshift shell keeps the runtime anchors used by the game modules', () => {
   for (const id of [
     'app','lang-pick','install-app','home-page','play-panel','play','progress','progress-fill',
