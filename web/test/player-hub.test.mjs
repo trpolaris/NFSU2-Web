@@ -54,7 +54,8 @@ test('live player data comes from the Rust switch and does not publish private n
 test('profile and garage writes are browser-session scoped and CSRF protected', () => {
   assert.match(rustApi, /__Host-trp-session/);
   assert.match(rustApi, /HttpOnly; Secure; SameSite=Strict/);
-  assert.match(rustApi, /X-TRP-CSRF/);
+  // HTTP header names are case-insensitive; the Rust request map stores this name in lowercase.
+  assert.match(rustApi, /x-trp-csrf/i);
   assert.match(rustApi, /constant_time_eq\(csrf, &session\.csrf\)/);
   assert.match(rustApi, /player-hub\.json/);
   assert.match(rustApi, /mode\(0o600\)/);
