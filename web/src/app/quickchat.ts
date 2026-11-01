@@ -147,7 +147,7 @@ export class QuickChat {
     this.chatInput.maxLength = 80;
     this.chatInput.autocomplete = 'off';
     this.chatInput.spellcheck = true;
-    this.chatInput.placeholder = 'Mesaj yazın veya Tab ile kanal değiştirin...';
+    this.chatInput.placeholder = 'Mesaj yazın… (Tab: kanal)';
 
     this.chatBox.append(this.channelButton, this.chatInput);
     this.chatBox.addEventListener('pointerdown', e => e.stopPropagation());
