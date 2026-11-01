@@ -1,4 +1,4 @@
-//! /vault: keyphrase saves (nfsu2-vault), for this server's own pages only.
+//! TRPOLARIS Cloud v1 (`/cloud/v1/saves`) and its backward-compatible `/vault` route: encrypted passphrase saves.
 //!
 //! The page sends its token as `Authorization: Bearer <43 characters of base64url>` (never in the URL: no log or
 //! cache sees it); the keyphrase is kept under the token's SHA-256.  What it sends and gets back is the page's
