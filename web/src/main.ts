@@ -5,6 +5,7 @@ import './app/experience.css';
 import './app/design-system.css';
 import './app/full-redesign.css';
 import './app/component-polish.css';
+import './app/hub-integration.css';
 import { setupUIEnhancements } from './app/ui-enhancements.js';
 import { boot } from './app/shell';
 
