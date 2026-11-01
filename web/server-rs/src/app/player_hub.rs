@@ -396,7 +396,11 @@ impl App {
                 return self.hub_error(q, s, 400, "invalid vehicle id").await;
             }
             return match self.hub.remove_vehicle(&session_hash, id) {
-                Ok(vehicles) => self.hub_json(q, s, 200, json!({ "vehicles": vehicles, "origin": "player-entered" }), None).await,
+                Ok(vehicles) => self.hub_json(q, s, 200, json!({
+                    "vehicles": vehicles,
+                    "count": vehicles.len(),
+                    "origin": "player-entered"
+                }), None).await,
                 Err(e) if e == "vehicle not found" => self.hub_error(q, s, 404, &e).await,
                 Err(e) => {
                     nfsu2_util::log::error(&e);
