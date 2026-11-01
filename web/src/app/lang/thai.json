@@ -1347,6 +1347,27 @@
   "New messages": "ข้อความใหม่",
   "Show newest chat messages": "แสดงข้อความแชทล่าสุด",
   "CHAT SCALE": "ขนาดแชท",
-  "CHAT BACKGROUND": "พื้นหลังแชท"
+  "CHAT BACKGROUND": "พื้นหลังแชท",
+  "Chat filters": "ตัวกรองแชท",
+  "All messages": "ข้อความทั้งหมด",
+  "Everyone": "ทุกคน",
+  "Crew chat": "แชททีม",
+  "System messages": "ข้อความระบบ",
+  "Search chat…": "ค้นหาแชท…",
+  "Mention sound: on": "เสียงแจ้งเตือนการกล่าวถึง: เปิด",
+  "Mention sound: off": "เสียงแจ้งเตือนการกล่าวถึง: ปิด",
+  "Muted: {n}": "ปิดเสียงแล้ว: {n}",
+  "No muted players": "ไม่มีผู้เล่นที่ปิดเสียง",
+  "Unmute": "เปิดเสียง",
+  "Mute player": "ปิดเสียงผู้เล่น",
+  "Unmute player": "เปิดเสียงผู้เล่น",
+  "CHAT POSITION": "ตำแหน่งแชท",
+  "Top left": "ซ้ายบน",
+  "Top right": "ขวาบน",
+  "Bottom left": "ซ้ายล่าง",
+  "Bottom right": "ขวาล่าง",
+  "Choose where the chat panel stays on screen.": "เลือกตำแหน่งแผงแชทบนหน้าจอ",
+  "CHAT WIDTH": "ความกว้างแชท",
+  "Adjust the chat panel width independently of its scale.": "ปรับความกว้างแผงแชทแยกจากขนาดการแสดงผล"
 
 }
