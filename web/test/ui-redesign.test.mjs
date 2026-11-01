@@ -144,7 +144,7 @@ test('first-run, language default, accessibility and version metadata stay align
   assert.match(css, /html\[data-reduce-motion\]/);
   assert.match(css, /html\[data-high-contrast\]/);
   assert.match(platform, new RegExp(`APP_BUILD_VERSION = '${version.version.replaceAll('.', '\\\\.')}'`));
-  assert.equal(version.version, '2026.10.30.04');
+  assert.match(html, new RegExp(`id="build-current">${version.version.replaceAll('.', '\\\\.')}`));
   assert.match(platform, /lastLanguage\(\)/, 'first-run language falls back to the saved language');
   assert.match(platform, /: lastLanguage\(\)/, 'an empty top picker does not blank the first-run language');
   assert.match(i18n, /return isLanguage\(v\) \? v : 'turkish'/, 'new visitors default to Turkish');
