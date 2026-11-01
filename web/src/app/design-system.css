@@ -680,7 +680,7 @@
 
 
 /* First-run and settings surfaces — same accessible shadcn-inspired primitives. */
-.experience-shell .dlg {
+.dlg {
   border: 1px solid rgba(0,255,204,.24);
   border-radius: 19px;
   background:
@@ -692,39 +692,39 @@
   backdrop-filter: blur(22px) saturate(135%);
 }
 
-.experience-shell .dlg::backdrop {
+.dlg::backdrop {
   background: rgba(0,0,0,.7);
   -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(8px);
 }
 
-.experience-shell .dlg-head {
+.dlg-head {
   padding-bottom: 13px;
   border-bottom: 1px solid rgba(0,255,204,.14);
 }
 
-.experience-shell .dlg-head h2 {
+.dlg-head h2 {
   color: #fafafa;
   font-family: var(--font-hud, "Orbitron", sans-serif);
   font-size: 1.15rem;
   letter-spacing: .015em;
 }
 
-.experience-shell .dlg p,
-.experience-shell .dlg .hint {
+.dlg p,
+.dlg .hint {
   color: #a1a1aa;
   line-height: 1.6;
 }
 
-.experience-shell .first-run-controls {
+.first-run-controls {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
   margin: 18px 0;
 }
 
-.experience-shell .first-run-controls > label,
-.experience-shell .first-run-controls label {
+.first-run-controls > label,
+.first-run-controls label {
   display: grid;
   gap: 7px;
   min-width: 0;
@@ -733,7 +733,7 @@
   font-weight: 750;
 }
 
-.experience-shell .first-run-controls select {
+.first-run-controls select {
   width: 100%;
   min-height: 44px;
   padding: 9px 12px;
@@ -743,7 +743,7 @@
   color: #f4f4f5;
 }
 
-.experience-shell .first-run-skip {
+.first-run-skip {
   margin: 13px 0 18px;
   border: 1px solid rgba(161,161,170,.14);
   border-radius: 10px;
@@ -809,7 +809,7 @@
 }
 
 @media (max-width: 560px) {
-  .experience-shell .first-run-controls {
+  .first-run-controls {
     grid-template-columns: minmax(0, 1fr);
   }
 
