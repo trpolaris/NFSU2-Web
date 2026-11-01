@@ -198,7 +198,7 @@ export interface Remote { rev: string; saved: number; earlier: number | null }
 export type Fetch = (url: string, init?: RequestInit) => Promise<Response>;
 
 function remoteOf(r: Response): Remote | null {
-  const rev = r.headers.get('etag'), saved = Number(r.headers.get('x-vault-saved')), e = r.headers.get('x-vault-earlier');
+  const rev = r.headers.get('etag'), saved = Number(r.headers.get('x-trpolaris-cloud-saved') ?? r.headers.get('x-vault-saved')), e = r.headers.get('x-trpolaris-cloud-earlier') ?? r.headers.get('x-vault-earlier');
   return rev && saved ? { rev, saved, earlier: e ? Number(e) : null } : null;
 }
 
@@ -212,13 +212,13 @@ function failure(r: Response): VaultError {
 
 const incomplete = () => new VaultError(N('the server\'s answer is incomplete'), 'VAULT-INCOMPLETE');
 
-/** /vault for one keyphrase's token. */
+/** TRPOLARIS Cloud v1: the passphrase-derived token never appears in the URL. */
 export class VaultApi {
   /** timeoutMs: each request's answer, at most */
   constructor(private token: string, private f: Fetch = (u, i) => fetch(u, i), private timeoutMs = 30_000) {}
 
   private req(method: string, headers: Record<string, string> = {}, body?: Uint8Array, query = '') {
-    return this.f(`/vault${query}`, {
+    return this.f(`/cloud/v1/saves${query}`, {
       method, headers: { authorization: `Bearer ${this.token}`, ...headers }, body: body as BodyInit | undefined, cache: 'no-store',
       signal: AbortSignal.timeout(this.timeoutMs),
     });
@@ -254,9 +254,9 @@ export class VaultApi {
   }
 }
 
-/** Whether this server keeps keyphrase saves: /vault without a token answers 401 there (404 on one without). */
+/** Whether this server has TRPOLARIS Cloud enabled: the versioned route answers 401 without a token (404 when disabled). */
 export async function vaultAvailable(f: Fetch = (u, i) => fetch(u, i)): Promise<boolean> {
-  try { return (await f('/vault', { cache: 'no-store' })).status === 401; } catch { return false; }
+  try { return (await f('/cloud/v1/saves', { cache: 'no-store' })).status === 401; } catch { return false; }
 }
 
 // ------------------------------------------------------------- syncing --
