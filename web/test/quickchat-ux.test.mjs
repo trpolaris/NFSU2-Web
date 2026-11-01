@@ -53,6 +53,7 @@ test('Crew names, player identity and message content are visible and safely ren
     const other = chat.chatMessages.lastElementChild;
     const otherMessage = {
       channel: other.querySelector('.channel').textContent,
+      channelTitle: other.querySelector('.channel').title,
       sender: other.querySelector('.sender').textContent,
       renderedHtml: other.querySelector('.sender').innerHTML,
       senderId: other.dataset.senderId,
@@ -70,7 +71,7 @@ test('Crew names, player identity and message content are visible and safely ren
   if (!result) return;
   assert.deepEqual(result.header, { text: '[Night Owls]', title: 'Night Owls' });
   assert.deepEqual(result.otherMessage, {
-    channel: '[Night Owls]', sender: '<b>Alice</b>:', renderedHtml: '&lt;b&gt;Alice&lt;/b&gt;:',
+    channel: '[Night Owls]', channelTitle: 'Night Owls', sender: '<b>Alice</b>:', renderedHtml: '&lt;b&gt;Alice&lt;/b&gt;:',
     senderId: '17', mine: false,
   });
   assert.deepEqual(result.ownMessage, { highlighted: true, self: 'true' });
