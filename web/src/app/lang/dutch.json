@@ -1412,5 +1412,10 @@
   "Race chat": "Racechat",
   "FreeRoam chat": "FreeRoam-chat",
   "Type a FreeRoam message": "Typ een FreeRoam-bericht",
-  "Type a race message": "Typ een racebericht"
+  "Type a race message": "Typ een racebericht",
+  "New messages": "Nieuwe berichten",
+  "Show newest chat messages": "Nieuwste chatberichten tonen",
+  "CHAT SCALE": "CHATGROOTTE",
+  "CHAT BACKGROUND": "CHATACHTERGROND"
+
 }
