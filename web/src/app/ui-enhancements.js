@@ -251,59 +251,64 @@ function setupLazyPreviews() {
 /* Optional visual libraries are progressive enhancements, never application dependencies. */
 function setupMotionTransitions() {
   if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-  const moduleUrl = 'https://cdn.jsdelivr.net/npm/motion@14.9.0/+esm';
-  import(moduleUrl).then(module => {
-    if (typeof module.animate !== 'function') return;
-    motionAnimate = module.animate;
-  }).catch(() => {
-    // CSS transitions remain available when the remote motion module is unavailable.
+
+  // Native Web Animations API keeps transitions local and works with the site's strict self-only CSP.
+  motionAnimate = (target, frames, options = {}) => {
+    if (!(target instanceof Element) || typeof target.animate !== 'function') return null;
+    const seconds = Number(options.duration ?? .28);
+    return target.animate(frames, {
+      duration: Math.max(120, seconds * 1000),
+      easing: options.ease === 'easeOut' ? 'cubic-bezier(.2,.7,.25,1)' : 'cubic-bezier(.2,.65,.25,1)',
+      fill: 'both',
+    });
+  };
+
+  const entrance = [
+    '.experience-shell > .top',
+    '.experience-shell > .quick-nav',
+    '.home-page .landing-copy',
+    '.home-page .play-console',
+    '.home-page .home-status-panel',
+    '.home-page .home-quick-section',
+  ].flatMap(selector => [...document.querySelectorAll(selector)]);
+  entrance.forEach((element, index) => {
+    if (element.closest('[hidden]')) return;
+    motionAnimate(element, {
+      opacity: [0, 1],
+      transform: ['translateY(18px) scale(.99)', 'translateY(0) scale(1)'],
+    }, { duration: .52 + Math.min(index * .035, .18) });
   });
+
+  // Cards reveal only once as they enter view; no permanent hidden state is added to the DOM.
+  if ('IntersectionObserver' in window) {
+    const cards = document.querySelectorAll('.home-action-card, .app-grid section.panel');
+    const observer = new IntersectionObserver(entries => {
+      for (const entry of entries) {
+        if (!entry.isIntersecting) continue;
+        const element = entry.target;
+        observer.unobserve(element);
+        if (!element.closest('[hidden]')) {
+          motionAnimate(element, {
+            opacity: [0, 1],
+            transform: ['translateY(12px)', 'translateY(0)'],
+          }, { duration: .34 });
+        }
+      }
+    }, { threshold: .08, rootMargin: '0px 0px -28px 0px' });
+    cards.forEach(card => observer.observe(card));
+  }
 }
 
-async function setupLucideIcons() {
-  const definitions = [
-    ['.quick-link[data-page="home"]', 'house', 'House'],
-    ['.quick-link[data-page="online"]', 'users', 'Users'],
-    ['.quick-link[data-page="mods"]', 'car-front', 'CarFront'],
-    ['.quick-link[data-page="saves"]', 'save', 'Save'],
-    ['.quick-link[data-page="controls"]', 'gamepad-2', 'Gamepad2'],
-    ['.quick-link[data-page="settings"]', 'settings', 'Settings'],
-    ['.quick-link[data-page="system"]', 'activity', 'Activity'],
-    ['.quick-link[data-page="about"]', 'info', 'Info'],
-  ];
-  const moduleUrl = 'https://cdn.jsdelivr.net/npm/lucide@1.66.0/+esm';
-
-  try {
-    const lucide = await import(moduleUrl);
-    if (typeof lucide.createIcons !== 'function') return;
-
-    const icons = {};
-    const replaced = [];
-    for (const [selector, dataName, exportName] of definitions) {
-      const icon = lucide[exportName];
-      const link = $(selector);
-      const fallback = link?.querySelector(':scope > svg');
-      if (!icon || !link || !fallback) continue;
-
-      const placeholder = document.createElement('i');
-      placeholder.setAttribute('data-lucide', dataName);
-      placeholder.setAttribute('aria-hidden', 'true');
-      placeholder.className = 'ui-lucide';
-      fallback.replaceWith(placeholder);
-      icons[exportName] = icon;
-      replaced.push({ placeholder, fallback });
-    }
-
-    try {
-      lucide.createIcons({ icons });
-    } catch {
-      for (const item of replaced) {
-        if (item.placeholder.isConnected) item.placeholder.replaceWith(item.fallback);
-      }
-    }
-  } catch {
-    // The original inline SVG icons remain in the HTML when Lucide cannot load.
-  }
+function setupLucideIcons() {
+  // The project already ships small inline outline SVGs. Keep them local (Lucide-style geometry)
+  // rather than fetching a remote module that the production CSP intentionally blocks.
+  document.querySelectorAll('.quick-link > svg, .hero-garage-icon svg, .home-action-icon svg').forEach(icon => {
+    icon.classList.add('ui-lucide');
+    icon.setAttribute('aria-hidden', 'true');
+    icon.setAttribute('focusable', 'false');
+    icon.setAttribute('stroke-linecap', 'round');
+    icon.setAttribute('stroke-linejoin', 'round');
+  });
 }
 
 async function setupHeroParticles() {
@@ -319,64 +324,115 @@ async function setupHeroParticles() {
     return;
   }
 
-  const engineUrl = 'https://cdn.jsdelivr.net/npm/@tsparticles/engine@4.4.0/+esm';
-  const slimUrl = 'https://cdn.jsdelivr.net/npm/@tsparticles/slim@4.4.0/+esm';
-  try {
-    const [engine, slim] = await Promise.all([import(engineUrl), import(slimUrl)]);
-    if (!engine.tsParticles || typeof slim.loadSlim !== 'function') return;
-    await slim.loadSlim(engine.tsParticles);
-
-    const container = await engine.tsParticles.load({
-      id: 'hero-particles',
-      options: {
-        fullScreen: { enable: false },
-        background: { color: { value: 'transparent' } },
-        detectRetina: false,
-        fpsLimit: 24,
-        pauseOnBlur: true,
-        particles: {
-          number: { value: 24, density: { enable: true, area: 1100 } },
-          color: { value: ['#00ffcc', '#10b981'] },
-          links: {
-            enable: true,
-            distance: 128,
-            color: '#00ffcc',
-            opacity: 0.11,
-            width: 1,
-          },
-          move: {
-            enable: true,
-            direction: 'none',
-            random: true,
-            speed: 0.34,
-            outModes: { default: 'out' },
-          },
-          opacity: { value: { min: 0.07, max: 0.22 } },
-          size: { value: { min: 1, max: 2 } },
-        },
-        interactivity: {
-          events: {
-            onClick: { enable: false },
-            onHover: { enable: false },
-          },
-        },
-      },
-    });
-
-    if (!container) return;
-    const syncPlayback = () => {
-      const visible = !document.hidden && !home.hidden && root.getClientRects().length > 0;
-      if (visible) container.play?.();
-      else container.pause?.();
-    };
-    document.addEventListener('visibilitychange', syncPlayback);
-    if ('MutationObserver' in window) {
-      const observer = new MutationObserver(syncPlayback);
-      observer.observe(home, { attributes: true, attributeFilter: ['hidden'] });
-    }
-    syncPlayback();
-  } catch {
-    // The hero keeps its CSS gradient/grid treatment when tsParticles is unavailable.
+  const canvas = document.createElement('canvas');
+  canvas.setAttribute('aria-hidden', 'true');
+  canvas.width = 1;
+  canvas.height = 1;
+  root.replaceChildren(canvas);
+  const ctx = canvas.getContext('2d', { alpha: true, desynchronized: true });
+  if (!ctx) {
     root.hidden = true;
+    return;
   }
+
+  const particles = [];
+  let width = 1;
+  let height = 1;
+  let raf = 0;
+  let active = false;
+  let lastFrame = 0;
+  const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+  const rand = (min, max) => min + Math.random() * (max - min);
+
+  const resize = () => {
+    const rect = root.getBoundingClientRect();
+    width = Math.max(1, rect.width);
+    height = Math.max(1, rect.height);
+    canvas.width = Math.round(width * dpr);
+    canvas.height = Math.round(height * dpr);
+    canvas.style.width = width + 'px';
+    canvas.style.height = height + 'px';
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const count = Math.min(38, Math.max(16, Math.round(width * height / 27000)));
+    while (particles.length < count) {
+      particles.push({
+        x: rand(0, width), y: rand(0, height),
+        vx: rand(-.12, .12), vy: rand(-.16, .08),
+        radius: rand(.7, 1.8), tone: Math.random() > .74 ? 'violet' : 'coral',
+      });
+    }
+    particles.length = count;
+    for (const p of particles) {
+      p.x = Math.min(p.x, width);
+      p.y = Math.min(p.y, height);
+    }
+  };
+
+  const draw = time => {
+    if (!active) return;
+    raf = requestAnimationFrame(draw);
+    if (time - lastFrame < 32) return;
+    lastFrame = time;
+    ctx.clearRect(0, 0, width, height);
+
+    for (const p of particles) {
+      p.x += p.vx;
+      p.y += p.vy;
+      if (p.x < -8) p.x = width + 8;
+      if (p.x > width + 8) p.x = -8;
+      if (p.y < -8) p.y = height + 8;
+      if (p.y > height + 8) p.y = -8;
+
+      const color = p.tone === 'violet' ? '166,154,255' : '255,105,69';
+      ctx.beginPath();
+      ctx.fillStyle = 'rgba(' + color + ',.72)';
+      ctx.shadowColor = 'rgba(' + color + ',.55)';
+      ctx.shadowBlur = 9;
+      ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    }
+
+    for (let i = 0; i < particles.length; i++) {
+      for (let j = i + 1; j < particles.length; j++) {
+        const a = particles[i], b = particles[j];
+        const dx = a.x - b.x, dy = a.y - b.y;
+        const distance = Math.hypot(dx, dy);
+        if (distance > 142) continue;
+        const opacity = (1 - distance / 142) * .16;
+        ctx.beginPath();
+        ctx.strokeStyle = 'rgba(166,154,255,' + opacity + ')';
+        ctx.lineWidth = .7;
+        ctx.moveTo(a.x, a.y);
+        ctx.lineTo(b.x, b.y);
+        ctx.stroke();
+      }
+    }
+  };
+
+  const syncPlayback = () => {
+    const visible = !document.hidden && !home.hidden && root.getClientRects().length > 0;
+    if (visible && !active) {
+      active = true;
+      lastFrame = 0;
+      resize();
+      raf = requestAnimationFrame(draw);
+    } else if (!visible && active) {
+      active = false;
+      cancelAnimationFrame(raf);
+      ctx.clearRect(0, 0, width, height);
+    }
+  };
+
+  const resizeObserver = 'ResizeObserver' in window ? new ResizeObserver(resize) : null;
+  resizeObserver?.observe(root);
+  document.addEventListener('visibilitychange', syncPlayback);
+  const homeObserver = 'MutationObserver' in window ? new MutationObserver(syncPlayback) : null;
+  homeObserver?.observe(home, { attributes: true, attributeFilter: ['hidden'] });
+  const viewObserver = 'IntersectionObserver' in window
+    ? new IntersectionObserver(syncPlayback, { threshold: 0.02 })
+    : null;
+  viewObserver?.observe(root);
+  window.addEventListener('resize', resize, { passive: true });
+  syncPlayback();
 }
