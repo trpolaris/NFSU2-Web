@@ -13,6 +13,29 @@
   --trp-muted: #a1a1aa;
   --trp-radius: 16px;
 
+  /* Keep the existing NIGHTSHIFT component vocabulary on the new palette. */
+  --bg: #050708;
+  --frame: #09090b;
+  --panel: #18181b;
+  --field: #09090b;
+  --line: rgba(0, 255, 204, .16);
+  --edge: rgba(0, 255, 204, .34);
+  --text: #f4f4f5;
+  --muted: #a1a1aa;
+  --lime: #00ffcc;
+  --lime-fill: rgba(0, 255, 204, .12);
+  --lime-glow: rgba(0, 255, 204, .18);
+  --cyan: #00ffcc;
+  --blue: #10b981;
+  --violet: #a78bfa;
+  --bad: #fb7185;
+  --warn: #fbbf24;
+  --font: "Rajdhani", "Segoe UI", system-ui, sans-serif;
+  --surface: rgba(9, 9, 11, .68);
+  --surface-raised: rgba(24, 24, 27, .82);
+  --stroke: rgba(0, 255, 204, .16);
+  --stroke-strong: rgba(0, 255, 204, .28);
+
   /* shadcn/ui semantic token names, kept framework-neutral for this DOM app. */
   --background: 0 0% 2%;
   --foreground: 0 0% 96%;
@@ -272,5 +295,253 @@
 
   #hero-particles {
     display: none !important;
+  }
+}
+
+
+/* Main landing page — a focused street-racing launch surface. */
+.experience-shell .landing-hero {
+  min-height: clamp(410px, 54vw, 570px);
+  grid-template-columns: minmax(0, 1.08fr) minmax(340px, .82fr);
+  gap: clamp(18px, 3vw, 42px);
+  padding: clamp(20px, 3.1vw, 42px);
+  border-radius: 22px;
+  background:
+    radial-gradient(ellipse at 73% 46%, rgba(0,255,204,.14), transparent 31rem),
+    radial-gradient(ellipse at 9% 100%, rgba(16,185,129,.11), transparent 25rem),
+    linear-gradient(135deg, rgba(5,7,8,.98), rgba(24,24,27,.91) 62%, rgba(9,9,11,.96));
+}
+
+.experience-shell .landing-hero::before {
+  opacity: .2;
+  background-size: 54px 54px;
+  mask-image: linear-gradient(90deg, transparent 0%, #000 42%, #000 100%);
+}
+
+.experience-shell .landing-copy {
+  padding: clamp(18px, 2.2vw, 30px);
+}
+
+.experience-shell .hero-overline {
+  margin-top: clamp(20px, 3vw, 34px);
+  color: var(--trp-emerald);
+  text-shadow: 0 0 20px rgba(16,185,129,.2);
+}
+
+.experience-shell .landing-title {
+  max-width: 760px;
+  font-family: var(--font-hud, "Orbitron", sans-serif);
+  font-size: clamp(2.6rem, 5vw, 5.1rem);
+  line-height: .98;
+  letter-spacing: -.065em;
+}
+
+.experience-shell .landing-description {
+  max-width: 48ch;
+  color: #d4d4d8;
+  font-size: clamp(.98rem, 1.3vw, 1.1rem);
+}
+
+.experience-shell .hero-capabilities {
+  gap: 10px 18px;
+  margin-top: 4px;
+  color: #d4d4d8;
+  font-size: .7rem;
+}
+
+.experience-shell .hero-garage-link {
+  min-height: 40px;
+  padding: 7px 11px;
+  border-radius: 10px;
+  background: rgba(9,9,11,.58);
+}
+
+.experience-shell .play-console {
+  align-self: center;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: clamp(18px, 2.2vw, 27px);
+  border-color: rgba(0,255,204,.28);
+  border-radius: 18px;
+  background:
+    radial-gradient(ellipse at 12% 0%, rgba(0,255,204,.12), transparent 52%),
+    linear-gradient(145deg, rgba(24,24,27,.82), rgba(9,9,11,.94));
+  box-shadow: 0 22px 52px rgba(0,0,0,.34), inset 0 1px rgba(255,255,255,.05);
+}
+
+.experience-shell .play-console-eyebrow {
+  color: var(--trp-cyan);
+}
+
+.experience-shell .play-console-mark {
+  border-color: rgba(0,255,204,.2);
+  color: #d4d4d8;
+}
+
+.experience-shell .play-console-mark::before {
+  background: var(--trp-cyan);
+  box-shadow: 0 0 12px rgba(0,255,204,.5);
+}
+
+.experience-shell .launch-progress-row {
+  color: #d4d4d8;
+}
+
+.experience-shell .launch-progress-note {
+  color: #a1a1aa;
+}
+
+.experience-shell .launch-progress {
+  background: rgba(161,161,170,.18);
+}
+
+.experience-shell .launch-progress .bar-fill {
+  background: linear-gradient(90deg, var(--trp-emerald), var(--trp-cyan));
+  box-shadow: 0 0 13px rgba(0,255,204,.24);
+}
+
+.experience-shell .module-download-meta {
+  color: #a1a1aa;
+}
+
+.experience-shell .home-overview-grid {
+  grid-template-columns: minmax(0, .92fr) minmax(0, 1.08fr);
+  gap: 16px;
+}
+
+.experience-shell .home-status-panel,
+.experience-shell .home-quick-section {
+  border: 1px solid rgba(0,255,204,.15);
+  border-radius: 17px;
+  background: linear-gradient(145deg, rgba(24,24,27,.83), rgba(9,9,11,.86));
+  -webkit-backdrop-filter: blur(16px) saturate(130%);
+  backdrop-filter: blur(16px) saturate(130%);
+  box-shadow: 0 14px 36px rgba(0,0,0,.22), inset 0 1px rgba(255,255,255,.035);
+}
+
+.experience-shell .home-status-panel .status {
+  color: var(--trp-cyan);
+  font-weight: 850;
+}
+
+.experience-shell .home-quick-mark {
+  color: rgba(0,255,204,.58);
+}
+
+.experience-shell .home-action-grid {
+  gap: 10px;
+}
+
+.experience-shell .home-action-card {
+  min-height: 68px;
+  border-radius: 12px;
+}
+
+.experience-shell .btn,
+.experience-shell .text-btn,
+.experience-shell .icon-btn,
+.experience-shell .preset-button {
+  border-color: rgba(161,161,170,.26);
+  background: rgba(24,24,27,.84);
+  color: #e4e4e7;
+}
+
+.experience-shell .btn:hover:not(:disabled),
+.experience-shell .text-btn:hover,
+.experience-shell .icon-btn:hover,
+.experience-shell .preset-button:hover {
+  border-color: rgba(0,255,204,.42);
+  background: rgba(0,255,204,.08);
+  color: var(--trp-cyan);
+}
+
+.experience-shell .btn.selected,
+.experience-shell .btn.primary {
+  border-color: var(--trp-cyan);
+  background: var(--trp-cyan);
+  color: #03110e;
+}
+
+@media (max-width: 980px) {
+  .experience-shell .landing-hero {
+    grid-template-columns: minmax(0, 1fr) minmax(300px, .82fr);
+    gap: 12px;
+    padding: 18px;
+  }
+
+  .experience-shell .landing-copy {
+    padding: 12px;
+  }
+
+  .experience-shell .landing-title {
+    font-size: clamp(2.25rem, 5.4vw, 3.8rem);
+  }
+
+  .experience-shell .home-overview-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 720px) {
+  .experience-shell .landing-hero {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 14px;
+    padding: 15px;
+  }
+
+  .experience-shell .landing-copy {
+    padding: 12px 9px 4px;
+  }
+
+  .experience-shell .landing-title {
+    font-size: clamp(2.2rem, 10vw, 3.5rem);
+  }
+
+  .experience-shell .play-console {
+    margin: 0;
+    padding: 17px;
+  }
+
+  .experience-shell .home-overview-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 420px) {
+  .experience-shell .landing-hero {
+    padding: 11px;
+    border-radius: 15px;
+  }
+
+  .experience-shell .landing-copy {
+    padding-inline: 7px;
+  }
+
+  .experience-shell .hero-capabilities {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 7px;
+  }
+
+  .experience-shell .hero-shortcuts {
+    gap: 8px;
+  }
+
+  .experience-shell .play-console {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto auto auto auto;
+    grid-template-areas: "head" "play" "progress-label" "progress-bar" "progress-meta";
+    gap: 8px;
+  }
+
+  .experience-shell .play {
+    grid-row: auto;
+    min-height: 58px;
+    flex-direction: row;
+  }
+
+  .experience-shell .home-action-grid {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
