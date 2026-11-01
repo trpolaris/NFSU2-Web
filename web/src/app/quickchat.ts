@@ -61,6 +61,15 @@ export interface QuickChatDeps {
 }
 
 type Mode = 'keys' | 'pad' | 'touch';
+type ChatFilter = 'all' | 'room' | 'crew' | 'system';
+type ChatPosition = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
+const SENDER_COLORS = ['#7dd3fc', '#c4b5fd', '#f9a8d4', '#86efac', '#fdba74', '#a5b4fc', '#fca5a5', '#67e8f9'] as const;
+function stableSenderColor(name: string): string {
+  let hash = 2166136261;
+  for (const ch of name.normalize('NFKC').toLocaleLowerCase()) hash = Math.imul(hash ^ ch.charCodeAt(0), 16777619);
+  return SENDER_COLORS[(hash >>> 0) % SENDER_COLORS.length];
+}
+function normalizedPlayerName(name: string): string { return name.normalize('NFKC').trim().toLocaleLowerCase(); }
 const KEYS: Record<string, number> = { Digit1: 0, Digit2: 1, Digit3: 2, Digit4: 3, Numpad1: 0, Numpad2: 1, Numpad3: 2, Numpad4: 3 };
 
 export class QuickChat {
@@ -72,6 +81,17 @@ export class QuickChat {
   private chatMessages: HTMLElement;
   private historyButton: HTMLButtonElement;
   private followingChat = true;
+  private chatTools: HTMLElement;
+  private searchInput: HTMLInputElement;
+  private mentionSoundButton: HTMLButtonElement;
+  private mutedButton: HTMLButtonElement;
+  private mutedPanel: HTMLElement;
+  private mutedList: HTMLElement;
+  private chatFilter: ChatFilter = 'all';
+  private chatSearch = '';
+  private mentionSound = true;
+  private mutedPlayers = new Set<string>();
+  private playerName = '';
   private chatBox: HTMLElement;
   private channelButton: HTMLElement;
   private chatInput: HTMLInputElement;
@@ -92,7 +112,9 @@ export class QuickChat {
   private driveAt = 0;
   private armed = true;
   /** the HUD's local display preferences; these never alter the game's network or save data */
-  private chatAppearance = { scale: 0.9, opacity: 0.72 };
+  private chatAppearance: { scale: number; opacity: number; position: ChatPosition; width: number } = {
+    scale: 0.9, opacity: 0.72, position: 'top-left', width: 360,
+  };
   /** the player's sixteen: the phrase in each slot (group * 4 + place), and each group's name */
   private layout: readonly number[] = DEFAULT_PHRASES;
   private groups: readonly CatId[] = DEFAULT_GROUPS;
@@ -132,11 +154,75 @@ export class QuickChat {
     this.historyButton.title = t('Show newest chat messages');
     this.historyButton.hidden = true;
     this.historyButton.addEventListener('click', () => this.scrollChatToLatest(true));
+
+    this.chatTools = document.createElement('div');
+    this.chatTools.className = 'chat-tools';
+    const filterGroup = document.createElement('div');
+    filterGroup.className = 'chat-filter-group';
+    filterGroup.setAttribute('role', 'group');
+    filterGroup.setAttribute('aria-label', t('Chat filters'));
+    for (const [filter, label] of [
+      ['all', 'All messages'], ['room', 'Everyone'], ['crew', 'Crew chat'], ['system', 'System messages'],
+    ] as const) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'chat-filter';
+      button.dataset.chatFilter = filter;
+      button.textContent = t(label);
+      button.setAttribute('aria-pressed', String(filter === this.chatFilter));
+      button.addEventListener('click', () => {
+        this.chatFilter = filter;
+        this.applyChatView();
+        this.updateChatToolStates();
+      });
+      filterGroup.append(button);
+    }
+    this.searchInput = document.createElement('input');
+    this.searchInput.className = 'chat-search';
+    this.searchInput.type = 'search';
+    this.searchInput.autocomplete = 'off';
+    this.searchInput.spellcheck = false;
+    this.searchInput.placeholder = t('Search chat…');
+    this.searchInput.setAttribute('aria-label', t('Search chat…'));
+    this.searchInput.addEventListener('input', () => {
+      this.chatSearch = this.searchInput.value.trim().toLocaleLowerCase();
+      this.applyChatView();
+    });
+    this.mentionSoundButton = document.createElement('button');
+    this.mentionSoundButton.type = 'button';
+    this.mentionSoundButton.className = 'chat-tool-button';
+    this.mentionSoundButton.addEventListener('click', () => {
+      this.mentionSound = !this.mentionSound;
+      try { localStorage.setItem('trpolaris.nfsu2.chat-mention-sound.v1', this.mentionSound ? '1' : '0'); } catch { /* current session */ }
+      this.updateChatToolStates();
+    });
+    this.mutedButton = document.createElement('button');
+    this.mutedButton.type = 'button';
+    this.mutedButton.className = 'chat-tool-button';
+    this.mutedButton.addEventListener('click', () => {
+      this.mutedPanel.hidden = !this.mutedPanel.hidden;
+      this.renderMutedPlayers();
+    });
+    this.mutedPanel = document.createElement('div');
+    this.mutedPanel.className = 'chat-muted-panel';
+    this.mutedPanel.hidden = true;
+    this.mutedList = document.createElement('div');
+    this.mutedList.className = 'chat-muted-list';
+    this.mutedPanel.append(this.mutedList);
+    this.chatTools.append(filterGroup, this.searchInput, this.mentionSoundButton, this.mutedButton);
+    this.chatMessages.addEventListener('click', e => {
+      const button = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-chat-mute]');
+      if (button?.dataset.chatMute) this.toggleMuted(button.dataset.chatMute);
+    });
+    this.loadChatLocalPreferences();
+    this.updateChatToolStates();
+    this.renderMutedPlayers();
     onLanguage(() => {
       const label = t('Show newest chat messages');
       this.historyButton.textContent = `${t('New messages')} ↓`;
       this.historyButton.setAttribute('aria-label', label);
       this.historyButton.title = label;
+      this.updateChatToolsLanguage();
     });
 
     const quick = document.createElement('div');
@@ -173,7 +259,7 @@ export class QuickChat {
 
     this.chatBox.append(this.channelButton, this.chatInput);
     this.chatBox.addEventListener('pointerdown', e => e.stopPropagation());
-    this.chatHud.append(this.chatMessages, this.historyButton, quick, this.chatBox);
+    this.chatHud.append(this.chatMessages, this.historyButton, this.chatTools, this.mutedPanel, quick, this.chatBox);
     stage.append(this.layer, this.picker, this.chatHud);
     // caught before the game's input (attached later, at each Play): the keys the picker uses go to it alone
     window.addEventListener('keydown', e => this.key(e), { capture: true });
@@ -185,11 +271,17 @@ export class QuickChat {
   /** Read and apply the player's HUD-only chat preferences. Values are bounded to keep the overlay usable. */
   private loadChatAppearance() {
     try {
-      const saved = JSON.parse(localStorage.getItem('trpolaris.nfsu2.chat-hud.v1') || 'null') as { scale?: unknown; opacity?: unknown } | null;
+      const saved = JSON.parse(localStorage.getItem('trpolaris.nfsu2.chat-hud.v1') || 'null') as {
+        scale?: unknown; opacity?: unknown; position?: unknown; width?: unknown;
+      } | null;
       if (saved && typeof saved === 'object') {
-        const scale = Number(saved.scale), opacity = Number(saved.opacity);
+        const scale = Number(saved.scale), opacity = Number(saved.opacity), width = Number(saved.width);
         if (Number.isFinite(scale)) this.chatAppearance.scale = Math.min(1.15, Math.max(0.75, scale));
         if (Number.isFinite(opacity)) this.chatAppearance.opacity = Math.min(0.92, Math.max(0.35, opacity));
+        if (Number.isFinite(width)) this.chatAppearance.width = Math.min(520, Math.max(280, width));
+        if (['top-left', 'top-right', 'bottom-left', 'bottom-right'].includes(String(saved.position))) {
+          this.chatAppearance.position = saved.position as ChatPosition;
+        }
       }
     } catch { /* Storage may be unavailable in private or restricted browser contexts. */ }
     this.applyChatAppearance();
@@ -198,29 +290,140 @@ export class QuickChat {
   private applyChatAppearance() {
     this.chatHud.style.setProperty('--chat-scale', String(this.chatAppearance.scale));
     this.chatHud.style.setProperty('--chat-opacity', String(this.chatAppearance.opacity));
+    this.chatHud.style.setProperty('--chat-width', `${this.chatAppearance.width}px`);
+    this.chatHud.dataset.position = this.chatAppearance.position;
   }
 
   /** Current chat HUD appearance for the in-game control deck. */
   appearance() { return { ...this.chatAppearance }; }
 
   /** Update the HUD without reloading the game; stored per browser, not in the career or settings.ini. */
-  setAppearance(scale: number, opacity: number) {
+  setAppearance(scale: number, opacity: number, position?: ChatPosition, width?: number) {
     if (Number.isFinite(scale)) this.chatAppearance.scale = Math.min(1.15, Math.max(0.75, scale));
     if (Number.isFinite(opacity)) this.chatAppearance.opacity = Math.min(0.92, Math.max(0.35, opacity));
+    if (position && ['top-left', 'top-right', 'bottom-left', 'bottom-right'].includes(position)) this.chatAppearance.position = position;
+    if (width !== undefined && Number.isFinite(width)) this.chatAppearance.width = Math.min(520, Math.max(280, width));
     this.applyChatAppearance();
     try { localStorage.setItem('trpolaris.nfsu2.chat-hud.v1', JSON.stringify(this.chatAppearance)); }
     catch { /* The current session still uses the changed values. */ }
   }
 
   /** a game started: quick chat on (the setting) or off, with the player's sixteen (phrases.ts phrasesOf, groupsOf) */
-  start(s: GameSession, on: boolean, layout: readonly number[], groups: readonly CatId[], crews: readonly CrewChannel[] = []) {
+  start(s: GameSession, on: boolean, layout: readonly number[], groups: readonly CatId[], crews: readonly CrewChannel[] = [], playerName = '') {
     this.session = s; this.on = on; this.drive = 0; this.driveAt = 0;
+    this.playerName = playerName.trim();
     this.layout = layout; this.groups = groups; this.setCrews(crews);
   }
   setCrews(crews: readonly CrewChannel[]) {
     this.crews = crews.filter(c => c.name.trim() && Number.isSafeInteger(c.id) && c.id !== 0).slice(0, 4);
     this.channelIndex = Math.min(this.channelIndex, this.crews.length);
     if (this.channelButton) this.updateChannel();
+  }
+  private loadChatLocalPreferences() {
+    try {
+      const muted = JSON.parse(localStorage.getItem('trpolaris.nfsu2.chat-muted.v1') || '[]') as unknown;
+      if (Array.isArray(muted)) this.mutedPlayers = new Set(muted.filter((x): x is string => typeof x === 'string').map(normalizedPlayerName).filter(Boolean));
+      this.mentionSound = localStorage.getItem('trpolaris.nfsu2.chat-mention-sound.v1') !== '0';
+    } catch { /* storage may be unavailable */ }
+  }
+  private updateChatToolsLanguage() {
+    const labels: Record<ChatFilter, string> = {
+      all: t('All messages'), room: t('Everyone'), crew: t('Crew chat'), system: t('System messages'),
+    };
+    for (const button of this.chatTools.querySelectorAll<HTMLButtonElement>('[data-chat-filter]')) {
+      const key = button.dataset.chatFilter as ChatFilter;
+      button.textContent = labels[key];
+    }
+    this.searchInput.placeholder = t('Search chat…');
+    this.searchInput.setAttribute('aria-label', t('Search chat…'));
+    this.chatTools.querySelector('.chat-filter-group')?.setAttribute('aria-label', t('Chat filters'));
+    this.renderMutedPlayers();
+    this.updateChatToolStates();
+  }
+  private updateChatToolStates() {
+    for (const button of this.chatTools.querySelectorAll<HTMLButtonElement>('[data-chat-filter]')) {
+      const active = button.dataset.chatFilter === this.chatFilter;
+      button.classList.toggle('is-active', active);
+      button.setAttribute('aria-pressed', String(active));
+    }
+    this.mentionSoundButton.textContent = this.mentionSound ? t('Mention sound: on') : t('Mention sound: off');
+    this.mentionSoundButton.setAttribute('aria-pressed', String(this.mentionSound));
+    this.mutedButton.textContent = t('Muted: {n}', { n: this.mutedPlayers.size });
+    this.mutedButton.setAttribute('aria-expanded', String(!this.mutedPanel.hidden));
+  }
+  private renderMutedPlayers() {
+    if (!this.mutedList) return;
+    this.mutedList.replaceChildren();
+    if (!this.mutedPlayers.size) {
+      this.mutedList.append(Object.assign(document.createElement('span'), { className: 'chat-muted-empty', textContent: t('No muted players') }));
+      return;
+    }
+    for (const name of [...this.mutedPlayers].sort()) {
+      const row = document.createElement('div'); row.className = 'chat-muted-entry';
+      const label = document.createElement('span'); label.textContent = name;
+      const button = document.createElement('button'); button.type = 'button'; button.textContent = t('Unmute');
+      button.dataset.chatUnmute = name;
+      button.addEventListener('click', () => this.toggleMuted(name));
+      row.append(label, button); this.mutedList.append(row);
+    }
+  }
+  private toggleMuted(name: string) {
+    const key = normalizedPlayerName(name);
+    if (!key || key === normalizedPlayerName(this.playerName)) return;
+    if (this.mutedPlayers.has(key)) this.mutedPlayers.delete(key); else this.mutedPlayers.add(key);
+    try { localStorage.setItem('trpolaris.nfsu2.chat-muted.v1', JSON.stringify([...this.mutedPlayers])); } catch { /* current session */ }
+    this.renderMutedPlayers();
+    this.updateChatToolStates();
+    this.applyChatView();
+  }
+  private applyChatView() {
+    for (const row of this.chatMessages.children) {
+      const el = row as HTMLElement;
+      const scope = (el.dataset.scope || 'system') as ChatFilter;
+      const sender = el.dataset.senderName || '';
+      const muted = !!sender && this.mutedPlayers.has(normalizedPlayerName(sender));
+      const mute = el.querySelector<HTMLButtonElement>('[data-chat-mute]');
+      if (mute) {
+        mute.textContent = muted ? '+' : '−';
+        mute.title = muted ? t('Unmute player') : t('Mute player');
+        mute.setAttribute('aria-label', mute.title);
+      }
+      const filterOk = this.chatFilter === 'all' || scope === this.chatFilter;
+      const searchOk = !this.chatSearch || el.dataset.search?.includes(this.chatSearch) ||
+        (el.textContent || '').toLocaleLowerCase().includes(this.chatSearch);
+      el.hidden = muted || !filterOk || !searchOk;
+    }
+  }
+  private isMention(text: string): boolean {
+    const own = normalizedPlayerName(this.playerName);
+    if (!own) return false;
+    const needle = `@${own}`, body = text.normalize('NFKC').toLocaleLowerCase();
+    let at = body.indexOf(needle);
+    while (at >= 0) {
+      const end = at + needle.length;
+      const before = at === 0 || !/[a-z0-9_-]/i.test(body[at - 1]);
+      const after = end >= body.length || !/[a-z0-9_-]/i.test(body[end]);
+      if (before && after) return true;
+      at = body.indexOf(needle, at + 1);
+    }
+    return false;
+  }
+  private playMentionSound() {
+    if (!this.mentionSound) return;
+    try {
+      const AudioContextType = window.AudioContext;
+      if (!AudioContextType) return;
+      const context = new AudioContextType();
+      const oscillator = context.createOscillator(), gain = context.createGain();
+      oscillator.type = 'sine'; oscillator.frequency.setValueAtTime(880, context.currentTime);
+      oscillator.frequency.setValueAtTime(1174, context.currentTime + 0.09);
+      gain.gain.setValueAtTime(0.0001, context.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.10, context.currentTime + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 0.22);
+      oscillator.connect(gain); gain.connect(context.destination);
+      oscillator.start(); oscillator.stop(context.currentTime + 0.23);
+      oscillator.onended = () => { void context.close(); };
+    } catch { /* audio may be unavailable or blocked */ }
   }
   stop() {
     this.session = null; this.on = false;
@@ -323,6 +526,7 @@ export class QuickChat {
     const shouldFollow = !active || this.followingChat || this.isChatAtLatest();
     this.chatMessages.append(row);
     this.trimChatHistory();
+    this.applyChatView();
     if (shouldFollow) this.scrollChatToLatest();
     else this.historyButton.hidden = false;
     if (!active) this.startMessageFade(row);
@@ -330,6 +534,8 @@ export class QuickChat {
   private systemMessage(message: string) {
     const row = document.createElement('div');
     row.className = 'message system';
+    row.dataset.scope = 'system';
+    row.dataset.search = message.toLocaleLowerCase();
     const marker = document.createElement('span'); marker.className = 'channel'; marker.textContent = '!';
     const text = document.createElement('span'); text.className = 'text'; text.textContent = message;
     row.append(marker, text);
@@ -388,9 +594,13 @@ export class QuickChat {
     if (!this.session || e.metaKey || e.ctrlKey || e.altKey) return;
     const el = e.target as HTMLElement | null;
     if (this.chatHud.classList.contains('active')) {
-      if (e.key === 'Tab') { e.preventDefault(); e.stopImmediatePropagation(); this.cycleChannel(); }
-      else if (e.key === 'Escape') { e.preventDefault(); e.stopImmediatePropagation(); this.closeTextChat(); }
-      else if (e.key === 'Enter' && el === this.chatInput && !e.repeat) {
+      if (e.key === 'Escape') {
+        e.preventDefault(); e.stopImmediatePropagation();
+        if (!this.mutedPanel.hidden) this.mutedPanel.hidden = true;
+        else this.closeTextChat();
+      } else if (e.key === 'Tab' && el === this.chatInput) {
+        e.preventDefault(); e.stopImmediatePropagation(); this.cycleChannel();
+      } else if (e.key === 'Enter' && el === this.chatInput && !e.repeat) {
         e.preventDefault(); e.stopImmediatePropagation(); this.sendText();
       }
       return;
@@ -544,21 +754,37 @@ export class QuickChat {
     const label = crew?.name ?? t('All');
     const quickMessage = QUICK_CHAT.some(item => item.text === body);
     const mine = s.me === true;
+    const mentioned = !mine && this.isMention(body);
     const row = document.createElement('div');
-    row.className = `message ${quickMessage ? 'quick' : s.scope === 'crew' ? 'team' : 'all'}${mine ? ' me' : ''}`;
+    row.className = `message ${quickMessage ? 'quick' : s.scope === 'crew' ? 'team' : 'all'}${mine ? ' me' : ''}${mentioned ? ' mention' : ''}`;
+    row.dataset.scope = s.scope;
     row.dataset.senderId = String(s.id);
+    row.dataset.senderName = name;
+    row.dataset.search = `${name} ${body} ${label}`.normalize('NFKC').toLocaleLowerCase();
+    row.style.setProperty('--chat-sender-color', mine ? '#00ffcc' : stableSenderColor(name));
     if (mine) row.dataset.self = 'true';
     const channel = document.createElement('span'); channel.className = 'channel';
     channel.textContent = quickMessage ? '⚡' : s.scope === 'crew' ? `[${label}]` : '[HERKES]';
     channel.title = label;
     const sender = document.createElement('span'); sender.className = 'sender';
     sender.textContent = `${name}:`; sender.title = name;
-    const text = document.createElement('span'); text.className = 'text'; text.textContent = body;
+    const text = document.createElement('span'); text.className = 'text';
+    const mentionNeedle = this.playerName ? `@${normalizedPlayerName(this.playerName)}` : '';
+    const mentionAt = mentioned ? body.normalize('NFKC').toLocaleLowerCase().indexOf(mentionNeedle) : -1;
+    if (mentionAt >= 0) {
+      text.append(document.createTextNode(body.slice(0, mentionAt)));
+      const tag = document.createElement('mark'); tag.className = 'chat-mention'; tag.textContent = body.slice(mentionAt, mentionAt + mentionNeedle.length);
+      text.append(tag, document.createTextNode(body.slice(mentionAt + mentionNeedle.length)));
+    } else text.textContent = body;
+    const mute = document.createElement('button'); mute.type = 'button'; mute.className = 'chat-mute';
+    mute.dataset.chatMute = name; mute.textContent = '−';
+    mute.title = t('Mute player'); mute.setAttribute('aria-label', t('Mute player'));
     row.setAttribute('aria-label', `${label}, ${name}: ${body}`);
     row.dataset.messageId = String(s.id);
-    row.append(channel, sender, text);
+    row.append(channel, sender, text, mute);
     // Retain the most recent 200 room/Crew lines; preserve the reader's position when they are browsing history.
     this.appendHistoryRow(row);
+    if (mentioned && !this.mutedPlayers.has(normalizedPlayerName(name))) this.playMentionSound();
     this.deps.log(`[chat] ${s.scope === 'crew' ? 'Crew ' + label : 'FreeRoam'}: ${name}: ${body}`);
   }
 
