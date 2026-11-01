@@ -1412,5 +1412,10 @@
   "Race chat": "Løbchat",
   "FreeRoam chat": "FreeRoam-chat",
   "Type a FreeRoam message": "Skriv en FreeRoam-besked",
-  "Type a race message": "Skriv en løbsbesked"
+  "Type a race message": "Skriv en løbsbesked",
+  "New messages": "Nye beskeder",
+  "Show newest chat messages": "Vis de nyeste chatbeskeder",
+  "CHAT SCALE": "CHATTENS STØRRELSE",
+  "CHAT BACKGROUND": "CHATTENS BAGGRUND"
+
 }
