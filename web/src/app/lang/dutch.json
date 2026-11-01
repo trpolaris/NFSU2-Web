@@ -1416,6 +1416,27 @@
   "New messages": "Nieuwe berichten",
   "Show newest chat messages": "Nieuwste chatberichten tonen",
   "CHAT SCALE": "CHATGROOTTE",
-  "CHAT BACKGROUND": "CHATACHTERGROND"
+  "CHAT BACKGROUND": "CHATACHTERGROND",
+  "Chat filters": "Chatfilters",
+  "All messages": "Alle berichten",
+  "Everyone": "Iedereen",
+  "Crew chat": "Crewchat",
+  "System messages": "Systeemberichten",
+  "Search chat…": "Chat doorzoeken…",
+  "Mention sound: on": "Vermeldingsgeluid: aan",
+  "Mention sound: off": "Vermeldingsgeluid: uit",
+  "Muted: {n}": "Gedempt: {n}",
+  "No muted players": "Geen gedempte spelers",
+  "Unmute": "Dempen opheffen",
+  "Mute player": "Speler dempen",
+  "Unmute player": "Speler niet meer dempen",
+  "CHAT POSITION": "CHATPOSITIE",
+  "Top left": "Linksboven",
+  "Top right": "Rechtsboven",
+  "Bottom left": "Linksonder",
+  "Bottom right": "Rechtsonder",
+  "Choose where the chat panel stays on screen.": "Kies waar het chatvenster op het scherm blijft staan.",
+  "CHAT WIDTH": "CHATBREEDTE",
+  "Adjust the chat panel width independently of its scale.": "Pas de breedte van het chatvenster onafhankelijk van de schaal aan."
 
 }
