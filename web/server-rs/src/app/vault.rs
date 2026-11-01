@@ -89,7 +89,7 @@ fn if_match(v: &str) -> Option<u64> {
 }
 
 impl App {
-    /// /vault (keyphrase saves): see this module's doc
+    /// TRPOLARIS Cloud v1 and its backward-compatible /vault keyphrase-save route.
     pub(super) async fn vault(&self, q: &mut Request, s: &mut Response, u: &url::Url) -> Res {
         const CLOSE: &[(&str, &str)] = &[("connection", "close")];
         let Some(v) = &self.vault else { return self.not_found(q, s).await };
@@ -275,8 +275,12 @@ impl App {
 /// a version's ETag and time, and when the copy of an earlier day was saved
 fn vault_headers(h: &mut Hdrs, rev: u64, saved: i64, earlier: Option<i64>) {
     h.set("etag", etag(rev));
+    // The TRPOLARIS Cloud v1 names are the current contract. Keep the old headers while older pages
+    // still use /vault, so a client update never strands an already-linked passphrase.
+    h.set("x-trpolaris-cloud-saved", saved.to_string());
     h.set("x-vault-saved", saved.to_string());
     if let Some(e) = earlier {
+        h.set("x-trpolaris-cloud-earlier", e.to_string());
         h.set("x-vault-earlier", e.to_string());
     }
 }
