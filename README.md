@@ -156,6 +156,23 @@ F8 ekranındaki RTT, oyuncular arası doğrudan ping değildir; istemci ile sana
 
 ---
 
+## FreeRoam oyun içi sohbet
+
+FreeRoam HUD'u All ve Crew kanallarıyla yazılı sohbet sunar. Sohbet, mevcut Rust hub üzerinden çalışır; Crew mesajları yalnızca aynı odadaki aynı Crew üyelerine iletilir. Orijinal racing-chat HUD tasarımı, hızlı mesajlar, beş saniyelik mesaj gösterimi ve oyuncu adı vurguları korunur.
+
+| Tuş | İşlev |
+|---|---|
+| Y | Sohbeti açar |
+| Enter | Yalnızca yazı alanında mesaj gönderir |
+| Tab | All / Crew kanalı değiştirir |
+| Esc | Sohbeti kapatır |
+
+Sunucu oyuncu başına 5 saniyede en fazla 4 yazılı mesaj kabul eder. İstemci bekleme süresini HUD üzerinde bildirir; mesaj geçmişi sınırlandırılır ve süresi dolan satırlar DOM'dan temizlenir.
+
+Ayrıntılar, test kapsamı ve yayın adımları: [FreeRoam Sohbet Rehberi](docs/web/FREEROAM-CHAT.md).
+
+---
+  
 ## Kurulum
 
 ### Control Center ile
