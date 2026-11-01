@@ -84,7 +84,7 @@ test('online controls display only the live player and room counts supplied by /
   const playerSource = fs.readFileSync(path.join(ROOT, 'src/app/players.ts'), 'utf8');
   const renderer = fs.readFileSync(path.join(ROOT, 'src/app/settings-ui.ts'), 'utf8');
   assert.match(html, /id="online-body"/);
-  assert.match(renderer, /this\.online\.querySelector<HTMLElement>\('#online-body'\)!\.replaceChildren/);
+  assert.match(renderer, /this\.online\.querySelector(?:<HTMLElement>)?\('#online-body'\)!\.replaceChildren/);
   assert.match(renderer, /id = 'group-status'/);
   assert.match(playerSource, /export function playersText\(/);
   assert.match(playerSource, /On this server now:/);
@@ -143,7 +143,7 @@ test('first-run, language default, accessibility and version metadata stay align
   assert.match(css, /html\[data-large-text\]/);
   assert.match(css, /html\[data-reduce-motion\]/);
   assert.match(css, /html\[data-high-contrast\]/);
-  assert.match(platform, /APP_BUILD_VERSION = '2026\.10\.30\.02'/);
+  assert.match(platform, new RegExp(`APP_BUILD_VERSION = '${version.version.replaceAll('.', '\\\\.')}'`));
   assert.equal(version.version, '2026.10.30.04');
   assert.match(platform, /lastLanguage\(\)/, 'first-run language falls back to the saved language');
   assert.match(platform, /: lastLanguage\(\)/, 'an empty top picker does not blank the first-run language');
