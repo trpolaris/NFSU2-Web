@@ -20,6 +20,8 @@ test('React player hub is a separate same-origin route and does not replace the 
   assert.match(hubHtml, /id="player-hub-root"/);
   assert.match(hubHtml, /href="\/hub\/main\.css"/);
   assert.match(hubHtml, /src="\/hub\/main\.js"/);
+  assert.match(hubHtml, /href="\/tailwind\.css"/);
+  assert.match(read('index.html'), /class="hub-entry" href="\/hub\/"/);
   assert.match(rustApp, /if p\.starts_with\("\/api\/v1\/"\)/);
   assert.match(rustApp, /return self\.player_hub_api\(q, s, &p, &u\)\.await/);
 });
