@@ -1347,6 +1347,27 @@
   "New messages": "新着メッセージ",
   "Show newest chat messages": "最新のチャットメッセージを表示",
   "CHAT SCALE": "チャットサイズ",
-  "CHAT BACKGROUND": "チャット背景"
+  "CHAT BACKGROUND": "チャット背景",
+  "Chat filters": "チャットフィルター",
+  "All messages": "すべてのメッセージ",
+  "Everyone": "全員",
+  "Crew chat": "クルーチャット",
+  "System messages": "システムメッセージ",
+  "Search chat…": "チャットを検索…",
+  "Mention sound: on": "メンション音：オン",
+  "Mention sound: off": "メンション音：オフ",
+  "Muted: {n}": "ミュート中：{n}人",
+  "No muted players": "ミュート中のプレイヤーはいません",
+  "Unmute": "ミュート解除",
+  "Mute player": "プレイヤーをミュート",
+  "Unmute player": "プレイヤーのミュートを解除",
+  "CHAT POSITION": "チャット位置",
+  "Top left": "左上",
+  "Top right": "右上",
+  "Bottom left": "左下",
+  "Bottom right": "右下",
+  "Choose where the chat panel stays on screen.": "チャットパネルを表示する画面上の位置を選択します。",
+  "CHAT WIDTH": "チャット幅",
+  "Adjust the chat panel width independently of its scale.": "拡大率とは別にチャットパネルの幅を調整します。"
 
 }
