@@ -84,6 +84,8 @@ export interface NetOptions {
   onLobby?: (json: string) => void;
   /** quick chat from the game (NET_KIND_SAY): a phrase said, by a friend or the player, as JSON */
   onSay?: (json: string) => void;
+  /** typed FreeRoam or exact-race chat, relayed by the FreeRoam hub as JSON */
+  onChat?: (json: string) => void;
   /** the switch welcomed this page again after the link was lost (a server restart, as for a deploy) */
   onBack?: () => void;
   /** the server is full and this page waits in line for a place: where it is, as the switch last said; null: not
@@ -145,6 +147,8 @@ export interface NetLink {
   setSolid(on: boolean): void;
   /** quick chat: the player says phrase p (runtime/roam_game.c say_frame sends it); false: no free roam */
   say(p: number): boolean;
+  /** typed chat: 'roam' reaches the current FreeRoam room; 'race' reaches only the exact active race lobby */
+  chat(text: string, scope: 'roam' | 'race', lobbyId?: number): boolean;
   /** free roam's crews, changed while the game runs (the page menu): their hashes (players.ts roomHash), in the
    *  player's order, at most 4, and their colours (0x00rrggbb; 0 or none: the place's default) */
   setCrews(hashes: readonly number[], rgbs?: readonly number[]): void;
@@ -292,6 +296,11 @@ class Link implements NetLink {
   private lan: Endpoint | null = null;
   private ws: WebSocket | null = null;
   private vipNum = 0;
+  /** the FreeRoam identity and UDP ports from its outgoing N2FR HELLO to the hub */
+  private roamSelfId = 0;
+  private roamPort = 0;
+  private roamHubPort = 0;
+  private chatSeq = 0;
   /** the switch's proof that vipNum is ours (welcome.token): only with it does a reconnect get the address back */
   private token = '';
   private netmask = 0xffffff00;
@@ -484,6 +493,41 @@ class Link implements NetLink {
     if (!this.roam) return false;
     this.picks = (this.picks + 1) & 0xffffff;
     Atomics.store(this.roam.i32, P.W_SAY, (this.picks << 8 | (p & 0xff)) | 0);
+    return true;
+  }
+  /** A typed line goes to the hub, which checks the sender's room or exact race membership before relaying it. */
+  chat(text: string, scope: 'roam' | 'race', lobbyId = 0): boolean {
+    const ws = this.ws;
+    if (!this.roam || this.roam.mode() !== P.NET_MODE_VLAN || this.state !== 'online'
+        || !ws || ws.readyState !== WebSocket.OPEN || !this.vipNum || !this.roamSelfId
+        || !this.roamPort || !this.roamHubPort) return false;
+    const clean = text.trim();
+    if (!clean || Array.from(clean).length > P.ROAM_CHAT_MAX_CHARS) return false;
+    const body = new TextEncoder().encode(clean);
+    if (!body.length || body.length > P.ROAM_CHAT_MAX_BYTES) return false;
+    const id = scope === 'race' ? lobbyId >>> 0 : 0;
+    if ((scope === 'race' && !id) || (scope === 'roam' && lobbyId !== 0)) return false;
+    const n = P.ROAM_HDR + 7 + body.length + P.ROAM_CRC;
+    const d = new Uint8Array(n), v = new DataView(d.buffer);
+    d.set([0x4e, 0x32, 0x46, 0x52], 0);
+    d[4] = 1; d[5] = P.ROAM_MSG_CHAT;
+    v.setUint16(6, n, true);
+    v.setUint32(8, this.roamSelfId, true);
+    v.setUint16(12, this.chatSeq++ & 0xffff, true);
+    v.setUint16(14, 0, true);
+    d[16] = scope === 'race' ? 1 : 0;
+    v.setUint32(17, id, true);
+    v.setUint16(21, body.length, true);
+    d.set(body, 23);
+    v.setUint32(n - P.ROAM_CRC, P.crc32(d, n - P.ROAM_CRC), true);
+    const frame = new Uint8Array(P.F_DATA + n), fv = new DataView(frame.buffer);
+    frame[P.F_KIND] = P.NET_KIND_UDP;
+    fv.setUint32(P.F_SRC, this.vipNum);
+    fv.setUint32(P.F_DST, P.NET_ROAM_HUB);
+    fv.setUint16(P.F_SPORT, this.roamPort);
+    fv.setUint16(P.F_DPORT, this.roamHubPort);
+    frame.set(d, P.F_DATA);
+    try { ws.send(frame); } catch { return false; }
     return true;
   }
   setCrews(hashes: readonly number[], rgbs: readonly number[] = []) {
@@ -691,7 +735,20 @@ class Link implements NetLink {
     while (tail !== head) {
       const s = txOff + ((tail >>> 0) % P.NET_TX_SLOTS) * P.NET_SLOT_BYTES;
       const len = dv.getUint32(s + P.S_LEN, true);
-      if (dv.getUint32(s + P.S_KIND, true) === P.NET_KIND_NOTICE) {
+      const kind = dv.getUint32(s + P.S_KIND, true);
+      // Capture the real FreeRoam sender id and both socket ports from the core's HELLO.
+      // The browser then uses those same values when it sends chat directly to the hub.
+      if (ep.kind === 'roam' && kind === P.NET_KIND_UDP && len >= P.ROAM_HDR
+          && dv.getUint32(s + P.S_DST_IP, true) === P.NET_ROAM_HUB) {
+        const o = s + P.S_DATA;
+        if (ep.u8[o] === 0x4e && ep.u8[o + 1] === 0x32 && ep.u8[o + 2] === 0x46 && ep.u8[o + 3] === 0x52
+            && ep.u8[o + 4] === 1 && ep.u8[o + 5] === P.ROAM_MSG_HELLO) {
+          this.roamSelfId = ep.dv.getUint32(o + 8, true);
+          this.roamPort = dv.getUint16(s + P.S_SRC_PORT, true);
+          this.roamHubPort = dv.getUint16(s + P.S_DST_PORT, true);
+        }
+      }
+      if (kind === P.NET_KIND_NOTICE) {
         // for this page only, online or not; a copy: TextDecoder does not read shared memory
         if (len <= P.NET_MAX_PAYLOAD) {
           const t = new TextDecoder().decode(ep.u8.slice(s + P.S_DATA, s + P.S_DATA + len)), k = t.indexOf('\x1f');
@@ -763,6 +820,14 @@ class Link implements NetLink {
     const len = b.byteLength - P.F_DATA;
     if (len > P.NET_MAX_PAYLOAD) { this.st.rxOversize++; for (const ep of this.eps()) Atomics.add(ep.i32, P.W_RX_OVERSIZE, 1); return; }
     if (kind === P.NET_KIND_LAN_UDP || kind === P.NET_KIND_LAN_TCP || kind === P.NET_KIND_LAN_ICMP) { this.lanRx(b, kind); return; }
+    // Typed chat is a hub-control datagram. Consume it on the page instead of passing it to the game's UDP socket.
+    if (kind === P.NET_KIND_UDP && b.byteLength >= P.F_DATA + P.ROAM_HDR + 8 + P.ROAM_CRC) {
+      const fv = new DataView(b);
+      if (fv.getUint32(P.F_SRC) === P.NET_ROAM_HUB && this.takeChat(b)) {
+        this.st.framesIn++; this.st.bytesIn += len;
+        return;
+      }
+    }
     // free roam: a player's endpoint takes only UDP, a test endpoint only the
     // emulated loopback (C checks port and address)
     const ep = this.roam, mode = ep ? ep.mode() : P.NET_MODE_CLOSED;
@@ -771,6 +836,26 @@ class Link implements NetLink {
     if (!ep.put(b)) { Atomics.add(ep.i32, P.W_RX_FULL_DROP, 1); this.st.rxFull++; return; }
     this.rang(ep);
     this.st.framesIn++; this.st.bytesIn += len;
+  }
+  private takeChat(b: ArrayBuffer): boolean {
+    const d = new Uint8Array(b, P.F_DATA), n = d.length, v = new DataView(d.buffer, d.byteOffset, d.byteLength);
+    if (n < P.ROAM_HDR + 8 + P.ROAM_CRC || d[0] !== 0x4e || d[1] !== 0x32 || d[2] !== 0x46 || d[3] !== 0x52
+        || d[4] !== 1 || d[5] !== P.ROAM_MSG_CHAT || v.getUint16(6, true) !== n
+        || v.getUint32(n - P.ROAM_CRC, true) !== P.crc32(d, n - P.ROAM_CRC)) return false;
+    const scope = d[16], lobby = v.getUint32(17, true), nameLen = d[21], textLen = v.getUint16(22, true);
+    if (scope > 1 || (scope === 0 && lobby !== 0) || (scope === 1 && lobby === 0)
+        || nameLen < 1 || nameLen > 32 || textLen < 1 || textLen > P.ROAM_CHAT_MAX_BYTES
+        || n !== P.ROAM_HDR + 8 + nameLen + textLen + P.ROAM_CRC) return false;
+    const dec = new TextDecoder('utf-8', { fatal: true });
+    let name = '', text = '';
+    try {
+      name = dec.decode(d.subarray(24, 24 + nameLen));
+      text = dec.decode(d.subarray(24 + nameLen, 24 + nameLen + textLen));
+    } catch { return false; }
+    if (!name || !text || Array.from(text).length > P.ROAM_CHAT_MAX_CHARS || /[\u0000-\u001f\u007f]/.test(text)) return false;
+    const id = v.getUint32(8, true);
+    this.o.onChat?.(JSON.stringify({ id, name, text, scope: scope === 1 ? 'race' : 'roam', lobby, me: id === this.roamSelfId }));
+    return true;
   }
   private lanRx(b: ArrayBuffer, kind: number) {
     const ep = this.lan;

@@ -3952,6 +3952,11 @@ static void mp_frame(CPU *c, int64_t host, int in_roam, int world_runs, const ui
             break;
         }
     if (g_mp.st == MP_TRIP){
+        /* Keep the server's exact race-chat membership current while the LAN race runs. */
+        if (g_mp.l.host == g_s.conf.self_id && host - g_mp.tx_at >= MP_ADVERT_US){
+            mp_send_all(RC_LOBBY_ADVERT, 0);
+            g_mp.tx_at = host;
+        }
         int ph = mprace_phase();
         if (quit && quit == g_mp.l.host && quit != g_s.conf.self_id) mprace_host_gone();   /* on the way to the race: its server is gone */
         /* free roam again with the trip not over (its own end comes within frames of the HUD): a trip that
@@ -3977,6 +3982,9 @@ static void mp_frame(CPU *c, int64_t host, int in_roam, int world_runs, const ui
         }
         mp_report();
         mprace_ack();
+        if (g_mp.l.host == g_s.conf.self_id) {
+            for (int k = 0; k < 3; k++) mp_send_all(RC_LOBBY_CLOSE, RC_LL_GONE);
+        }
         mp_note(host, t); mp_to(MP_IDLE, host);
         return;
     }
@@ -4212,10 +4220,11 @@ static void mp_panel(int64_t host, int in_roam){
     js_raw(&j, "{");
     int hud = in_roam && host - g_mp_hud_at < 250000;
     if (g_mp.st == MP_TRIP){
+        js_int(&j, "id", g_mp.l.id);
         if (mprace_covered()){ js_str(&j, "v", "trip"); js_str(&j, "step", mprace_step()); js_race(&j, g_mp.l.race); js_players(&j, &g_mp.l); js_results(&j); }
     } else if (hud && g_mp.st != MP_IDLE){
         static const char *const st[] = { "", "host", "asked", "in", "count" };
-        js_str(&j, "v", "lobby"); js_str(&j, "st", st[g_mp.st]);
+        js_str(&j, "v", "lobby"); js_int(&j, "id", g_mp.l.id); js_str(&j, "st", st[g_mp.st]);
         js_race(&j, g_mp.l.race); js_players(&j, &g_mp.l);
         if (g_mp.st == MP_COUNT){ int64_t s = (g_mp.start_at - host + 999999) / 1000000; js_int(&j, "t", (int)(s < 0 ? 0 : s)); }
         if (g_mp.st == MP_HOST && g_mp.alone_at){

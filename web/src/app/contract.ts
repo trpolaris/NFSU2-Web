@@ -62,6 +62,8 @@ export interface NetOptions extends CommonOptions {
   lobby?: (json: string) => void;
   /** free roam: quick chat, a phrase said (by a friend or the player), as JSON from the game */
   say?: (json: string) => void;
+  /** typed FreeRoam and race-lobby chat, relayed by the hub as JSON */
+  chat?: (json: string) => void;
   /** the server's LAN took this page back after the link was lost (a server restart, as for a deploy) */
   back?: () => void;
   /** the server is full: this page's place in line for one (null: not in line) */
@@ -152,6 +154,8 @@ export interface NetSubsystem extends Subsystem {
   solid?(on: boolean): void;
   /** quick chat: the player says phrase p (quickchat.ts); false: the game has no free roam */
   say?(p: number): boolean;
+  /** typed FreeRoam or exact race chat */
+  chat?(text: string, scope: 'roam' | 'race', lobbyId?: number): boolean;
   /** free roam's crews, changed while the game runs (the page menu): their hashes, in the player's order, and their
    *  colours (0x00rrggbb) */
   crews?(hashes: readonly number[], rgbs: readonly number[]): void;

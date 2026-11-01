@@ -1453,5 +1453,10 @@
   "GPU frames not shown": "Неотображённые кадры GPU",
   "GPU frames in flight": "Кадры в обработке GPU",
   "GPU pipeline build time": "Время создания конвейеров GPU",
-  "GPU pipeline build maximum": "Максимальное время создания конвейеров GPU"
+  "GPU pipeline build maximum": "Максимальное время создания конвейеров GPU",
+  "Write a message…": "Введите сообщение…",
+  "Race chat": "Чат гонки",
+  "FreeRoam chat": "Чат FreeRoam",
+  "Type a FreeRoam message": "Написать сообщение FreeRoam",
+  "Type a race message": "Написать сообщение гонки"
 }

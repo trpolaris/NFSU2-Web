@@ -1407,5 +1407,10 @@
   "GPU frames not shown": "GPU-bildrutor som inte visades",
   "GPU frames in flight": "GPU-bildrutor under behandling",
   "GPU pipeline build time": "Tid för att skapa GPU-pipelines",
-  "GPU pipeline build maximum": "Maximal tid för att skapa GPU-pipelines"
+  "GPU pipeline build maximum": "Maximal tid för att skapa GPU-pipelines",
+  "Write a message…": "Skriv ett meddelande…",
+  "Race chat": "Racingchatt",
+  "FreeRoam chat": "FreeRoam-chatt",
+  "Type a FreeRoam message": "Skriv ett FreeRoam-meddelande",
+  "Type a race message": "Skriv ett tävlingsmeddelande"
 }

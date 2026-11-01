@@ -741,7 +741,7 @@ html:has(> body > .stage:not([hidden])) { overflow: hidden; }
 /* photo mode (photo.ts): the panel, a column at the right edge (Take photo first, the keys under the buttons; it
  * scrolls on a screen too short for it), a flash at each picture, the camera's hand on the picture; the page's other
  * things on the game hidden while it is on (its toasts stay: the picture's) */
-.stage.photo :is(.touch, .qc-lines, .qc-picker, .drift-panel, .drift-pop, .pause-hint, .notices, .lobby, .lobby-cover, .hud-fps, .stage-menu) {
+.stage.photo :is(.touch, .qc-lines, .qc-picker, .qc-text-chat, .drift-panel, .drift-pop, .pause-hint, .notices, .lobby, .lobby-cover, .hud-fps, .stage-menu) {
   display: none !important;
 }
 .stage.photo canvas { cursor: grab; }
@@ -794,6 +794,26 @@ html:has(> body > .stage:not([hidden])) { overflow: hidden; }
 /* quick chat's picker: on the left in the notices' place (they step aside while it is open), the race lobby's card
  * in its sizes (.lobby: its width, padding and text, the title, the places' rows, the key caps, the hint); on a touch
  * screen all sixteen at the top, big enough to tap */
+.qc-text-chat {
+  position: absolute; left: 50%; bottom: max(18px, env(safe-area-inset-bottom)); z-index: 6;
+  display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 8px;
+  width: min(560px, calc(100% - 28px)); transform: translateX(-50%);
+  padding: 10px; border: 1px solid var(--edge); border-left: 3px solid var(--lime); border-radius: 8px;
+  background: rgba(8, 10, 11, 0.92); box-shadow: 0 6px 28px rgba(0, 0, 0, 0.4);
+  pointer-events: auto; color: var(--text); font: 400 13px/1.35 var(--font);
+}
+.qc-text-chat[hidden] { display: none; }
+.qc-chat-title { grid-column: 1 / -1; color: var(--lime); font-weight: 700; font-style: italic; text-transform: uppercase; }
+.qc-chat-input {
+  min-width: 0; width: 100%; padding: 9px 10px; border: 1px solid var(--edge); border-radius: 5px;
+  background: var(--field); color: var(--text); font: inherit; outline: none;
+}
+.qc-chat-input:focus { border-color: var(--lime); }
+.qc-chat-send, .qc-chat-close {
+  min-height: 36px; padding: 6px 12px; border: 1px solid var(--edge); border-radius: 5px;
+  background: var(--field); color: var(--text); font: 700 12px var(--font); cursor: pointer;
+}
+.qc-chat-send { border-color: var(--lime); color: var(--lime); }
 .qc-picker {
   --u: 1px;
   position: absolute; left: 16px; top: 40%; z-index: 4; width: calc(190 * var(--u)); min-width: 220px; pointer-events: none;

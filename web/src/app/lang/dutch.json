@@ -1407,5 +1407,10 @@
   "GPU frames not shown": "Niet-weergegeven GPU-frames",
   "GPU frames in flight": "GPU-frames in verwerking",
   "GPU pipeline build time": "Opbouwtijd van de GPU-pipeline",
-  "GPU pipeline build maximum": "Maximale opbouwtijd van de GPU-pipeline"
+  "GPU pipeline build maximum": "Maximale opbouwtijd van de GPU-pipeline",
+  "Write a message…": "Typ een bericht…",
+  "Race chat": "Racechat",
+  "FreeRoam chat": "FreeRoam-chat",
+  "Type a FreeRoam message": "Typ een FreeRoam-bericht",
+  "Type a race message": "Typ een racebericht"
 }

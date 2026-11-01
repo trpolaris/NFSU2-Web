@@ -1338,5 +1338,10 @@
   "GPU frames not shown": "표시되지 않은 GPU 프레임 수",
   "GPU frames in flight": "처리 중인 GPU 프레임 수",
   "GPU pipeline build time": "GPU 파이프라인 생성 시간",
-  "GPU pipeline build maximum": "GPU 파이프라인 생성 최대 시간"
+  "GPU pipeline build maximum": "GPU 파이프라인 생성 최대 시간",
+  "Write a message…": "메시지 입력…",
+  "Race chat": "레이스 채팅",
+  "FreeRoam chat": "프리 로밍 채팅",
+  "Type a FreeRoam message": "프리 로밍 메시지 작성",
+  "Type a race message": "레이스 메시지 작성"
 }

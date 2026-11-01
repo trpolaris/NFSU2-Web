@@ -1430,5 +1430,10 @@
   "GPU frames not shown": "Fotogrammi GPU non visualizzati",
   "GPU frames in flight": "Fotogrammi GPU in elaborazione",
   "GPU pipeline build time": "Tempo di creazione delle pipeline GPU",
-  "GPU pipeline build maximum": "Tempo massimo di creazione delle pipeline GPU"
+  "GPU pipeline build maximum": "Tempo massimo di creazione delle pipeline GPU",
+  "Write a message…": "Scrivi un messaggio…",
+  "Race chat": "Chat della gara",
+  "FreeRoam chat": "Chat FreeRoam",
+  "Type a FreeRoam message": "Scrivi un messaggio FreeRoam",
+  "Type a race message": "Scrivi un messaggio di gara"
 }

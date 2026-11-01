@@ -24,6 +24,10 @@ const RACEREP_NAME: usize = 16;
 /// the race's results as the reporter's game showed them (roam_core.h RC_MSG_RACERES): only to the hub, which compares
 /// the players' games' results for a racer far ahead of the others
 pub(crate) const MSG_RACERES: u8 = 16;
+/// typed FreeRoam chat, routed by the hub to a room or one advertised race lobby
+pub(crate) const MSG_CHAT: u8 = 17;
+pub(crate) const CHAT_MAX_BYTES: usize = 512;
+pub(crate) const CHAT_MAX_CHARS: usize = 160;
 /// its head and each row (roam_core.h RC_RACERES_HEAD, RC_RACERES_ROW); a row's flags (RC_RS_FINISHED, RC_RS_OURS)
 const RACERES_HEAD: usize = 12;
 const RACERES_ROW: usize = 20;
@@ -111,6 +115,8 @@ pub(crate) enum Msg<'a> {
     RaceRep(RaceRep<'a>),
     /// the race's results as its game showed them (roam_core.h rc_raceres), checked as roam_core.c's raceres_ok
     RaceRes(RaceRes),
+    /// a typed chat line: 0 is all active free-roam players in the same room; 1 is one exact race lobby
+    Chat { scope: u8, lobby: u32, text: &'a str },
     Bye,
     Other,
 }
@@ -365,6 +371,25 @@ pub(crate) fn decode(d: &[u8]) -> Option<(u8, u32, Msg<'_>)> {
         }
         MSG_RACEREP if end == HDR + RACEREP_BYTES => Msg::RaceRep(racerep(d, HDR)?),
         MSG_RACERES => Msg::RaceRes(raceres(d, HDR, end - HDR)?),
+        MSG_CHAT => {
+            // request payload: scope, lobby id, text byte length, UTF-8 text
+            if end < HDR + 7 {
+                return None;
+            }
+            let scope = d[HDR];
+            let lobby = u32_le(d, HDR + 1);
+            let n = u16_le(d, HDR + 5) as usize;
+            if scope > 1 || (scope == 0 && lobby != 0) || (scope == 1 && lobby == 0)
+                || n == 0 || n > CHAT_MAX_BYTES || end != HDR + 7 + n
+            {
+                return None;
+            }
+            let text = std::str::from_utf8(&d[HDR + 7..HDR + 7 + n]).ok()?;
+            if text.chars().count() > CHAT_MAX_CHARS || text.chars().any(char::is_control) {
+                return None;
+            }
+            Msg::Chat { scope, lobby, text }
+        }
         MSG_BYE => Msg::Bye,
         _ => Msg::Other,
     };
@@ -386,7 +411,7 @@ pub fn decode_roam(d: &[u8]) -> Option<RoamMsg> {
         },
         Msg::Snap { sender, status, p, .. } => RoamMsg::Snap { sender, status, p },
         Msg::Bye => RoamMsg::Bye { sender },
-        Msg::MapReq { .. } | Msg::Lobby { .. } | Msg::RaceRep(_) | Msg::RaceRes(_) | Msg::Other => RoamMsg::Other { kind, sender },
+        Msg::MapReq { .. } | Msg::Lobby { .. } | Msg::RaceRep(_) | Msg::RaceRes(_) | Msg::Chat { .. } | Msg::Other => RoamMsg::Other { kind, sender },
     })
 }
 
@@ -492,8 +517,38 @@ pub(crate) fn map_len(n: usize) -> usize {
     HDR + 7 + MAP_ENTRY * n + CRC
 }
 
-/// One MAP datagram, part `part` of `nparts` of the answer to question `req` (roam_core.h RC_MSG_MAP) into `b`
-/// (exactly `map_len(n)` bytes long): `total` players past the asker and its peers, these n of them (x, y, heading).
+/// A hub-to-client chat datagram. The request has no sender name; the hub adds the
+/// verified name from the live player table in this response.
+pub(crate) fn write_chat(
+    b: &mut [u8],
+    sender: u32,
+    seq: u16,
+    scope: u8,
+    lobby: u32,
+    name: &[u8],
+    text: &[u8],
+) {
+    let len = b.len();
+    let name_len = name.len().min(32);
+    let text_len = text.len().min(CHAT_MAX_BYTES);
+    b[..4].copy_from_slice(b"N2FR");
+    b[4] = 1;
+    b[5] = MSG_CHAT;
+    b[6..8].copy_from_slice(&(len as u16).to_le_bytes());
+    b[8..12].copy_from_slice(&sender.to_le_bytes());
+    b[12..14].copy_from_slice(&seq.to_le_bytes());
+    b[14..16].copy_from_slice(&[0, 0]);
+    b[16] = scope;
+    b[17..21].copy_from_slice(&lobby.to_le_bytes());
+    b[21] = name_len as u8;
+    b[22..24].copy_from_slice(&(text_len as u16).to_le_bytes());
+    b[24..24 + name_len].copy_from_slice(&name[..name_len]);
+    b[24 + name_len..24 + name_len + text_len].copy_from_slice(&text[..text_len]);
+    let crc = crc32fast::hash(&b[..len - CRC]);
+    b[len - CRC..].copy_from_slice(&crc.to_le_bytes());
+}
+
+/// A MAP datagram, written into its own buffer.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn write_map(b: &mut [u8], sender: u32, seq: u16, req: u16, part: u8, nparts: u8, total: u16, list: &[(i16, i16, u8)]) {
     let len = b.len();
@@ -517,4 +572,65 @@ pub(crate) fn write_map(b: &mut [u8], sender: u32, seq: u16, req: u16, part: u8,
     }
     let crc = crc32fast::hash(&b[..len - CRC]);
     b[len - CRC..].copy_from_slice(&crc.to_le_bytes());
+}
+
+
+#[cfg(test)]
+mod chat_tests {
+    use super::*;
+
+    fn request(scope: u8, lobby: u32, text: &[u8]) -> Vec<u8> {
+        let len = HDR + 7 + text.len() + CRC;
+        let mut b = vec![0u8; len];
+        b[..4].copy_from_slice(b"N2FR");
+        b[4] = 1;
+        b[5] = MSG_CHAT;
+        b[6..8].copy_from_slice(&(len as u16).to_le_bytes());
+        b[8..12].copy_from_slice(&7u32.to_le_bytes());
+        b[16] = scope;
+        b[17..21].copy_from_slice(&lobby.to_le_bytes());
+        b[21..23].copy_from_slice(&(text.len() as u16).to_le_bytes());
+        b[23..23 + text.len()].copy_from_slice(text);
+        let crc = crc32fast::hash(&b[..len - CRC]);
+        b[len - CRC..].copy_from_slice(&crc.to_le_bytes());
+        b
+    }
+
+    #[test]
+    fn chat_request_accepts_valid_free_roam_and_race_lines() {
+        for (scope, lobby) in [(0, 0), (1, 0x1234)] {
+            let b = request(scope, lobby, b"hello");
+            let (kind, sender, msg) = decode(&b).expect("valid chat frame");
+            assert_eq!(kind, MSG_CHAT);
+            assert_eq!(sender, 7);
+            assert!(matches!(msg, Msg::Chat { scope: s, lobby: l, text: "hello" } if s == scope && l == lobby));
+        }
+    }
+
+    #[test]
+    fn chat_request_rejects_invalid_scope_control_text_and_bad_crc() {
+        assert!(decode(&request(2, 0, b"hello")).is_none());
+        assert!(decode(&request(0, 99, b"hello")).is_none());
+        assert!(decode(&request(1, 0, b"hello")).is_none());
+        assert!(decode(&request(0, 0, b"hello\nworld")).is_none());
+        let mut bad = request(0, 0, b"hello");
+        *bad.last_mut().unwrap() ^= 1;
+        assert!(decode(&bad).is_none());
+    }
+
+    #[test]
+    fn hub_chat_response_contains_verified_name_and_text() {
+        let name = b"Racer";
+        let text = b"Good race";
+        let len = HDR + 8 + name.len() + text.len() + CRC;
+        let mut b = vec![0u8; len];
+        write_chat(&mut b, 7, 3, 1, 0x1234, name, text);
+        assert_eq!(&b[..4], b"N2FR");
+        assert_eq!(b[5], MSG_CHAT);
+        assert_eq!(b[21], name.len() as u8);
+        assert_eq!(u16_le(&b, 22) as usize, text.len());
+        assert_eq!(&b[24..24 + name.len()], name);
+        assert_eq!(&b[24 + name.len()..len - CRC], text);
+        assert_eq!(u32_le(&b, len - CRC), crc32fast::hash(&b[..len - CRC]));
+    }
 }

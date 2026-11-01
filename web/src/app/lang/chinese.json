@@ -1338,5 +1338,10 @@
   "GPU frames not shown": "未显示的 GPU 帧数",
   "GPU frames in flight": "GPU 正在处理的帧数",
   "GPU pipeline build time": "GPU 管线创建时间",
-  "GPU pipeline build maximum": "GPU 管线创建最长时间"
+  "GPU pipeline build maximum": "GPU 管线创建最长时间",
+  "Write a message…": "输入消息…",
+  "Race chat": "比赛聊天",
+  "FreeRoam chat": "自由漫游聊天",
+  "Type a FreeRoam message": "发送自由漫游消息",
+  "Type a race message": "发送比赛消息"
 }

@@ -185,6 +185,8 @@ struct Player {
     checked: u64,
     /// when its owner's claim last heard it played (`Claims::seen`, at most every SEEN_EVERY_MS)
     seen_claim: f64,
+    /// recent typed chat sends, used for the hub-side per-player rate limit
+    chat_at: Vec<f64>,
 }
 
 impl Player {
@@ -706,6 +708,7 @@ impl Hub {
                     impostor: false,
                     checked: 0,
                     seen_claim: f64::NEG_INFINITY,
+                    chat_at: Vec::new(),
                 })
             }
         };
@@ -715,6 +718,7 @@ impl Hub {
         p.seen = now;
         p.hub_port = dport;
         let mut ask = None;
+        let mut chat = None;
         let mut report = None;
         let mut seen = [None, None];
         let mut res = None;
@@ -766,6 +770,7 @@ impl Hub {
                 }
             }
             Msg::MapReq { req } if sender == p.id => ask = Some(req),
+            Msg::Chat { scope, lobby, text } if sender == p.id => chat = Some((scope, lobby, text.to_string())),
             Msg::Lobby { op, to: 0, lobby, race, x, y, n, max, state, ids } if sender == p.id => match op {
                 wire::LOBBY_ADVERT => p.lobby = Some((HubLobby { id: lobby, race, x, y, n, max, state, ids }, now)),
                 wire::LOBBY_CLOSE if p.lobby.is_some_and(|(l, _)| l.id == lobby) => p.lobby = None,
@@ -800,6 +805,95 @@ impl Hub {
         }
         if let Some(req) = ask {
             self.map(slot, req, now);
+        }
+        if let Some((scope, lobby, text)) = chat {
+            self.chat(slot, scope, lobby, &text, now);
+        }
+    }
+
+    /// A typed line, relayed only to the sender's current FreeRoam room or exact advertised race lobby.
+    /// Recipients are chosen here, not by the page, so a client cannot read another channel by changing its UI.
+    fn chat(&mut self, slot: u32, scope: u8, lobby: u32, text: &str, now: f64) {
+        const ACTIVE_MS: f64 = 15_000.0;
+        const LOBBY_MS: f64 = 5_000.0;
+        const RATE_MS: f64 = 5_000.0;
+        const RATE_MAX: usize = 4;
+
+        let (sender_id, room, sender_name) = {
+            let Some(Some(p)) = self.slots.get_mut(slot as usize) else { return };
+            if p.impostor || p.id == 0 {
+                return;
+            }
+            p.chat_at.retain(|&at| now - at < RATE_MS);
+            if p.chat_at.len() >= RATE_MAX {
+                return;
+            }
+            p.chat_at.push(now);
+            (p.id, p.room, p.name.clone())
+        };
+        if text.trim().is_empty() {
+            return;
+        }
+
+        let recipients: Vec<(u32, u16, u16)> = match scope {
+            // General FreeRoam chat: every active player in this same configured room, not just nearby car links.
+            0 => {
+                let Some(sender) = self.player(slot) else { return };
+                if !matches!(sender.status, 2 | 5) || sender.p.is_none() || now - sender.pos_at > ACTIVE_MS {
+                    return;
+                }
+                self.players()
+                    .filter(|p| {
+                        !p.impostor && p.room == room && matches!(p.status, 2 | 5)
+                            && p.p.is_some() && now - p.pos_at <= ACTIVE_MS && now - p.seen <= ACTIVE_MS
+                    })
+                    .map(|p| (p.vip, p.port, p.hub_port))
+                    .collect()
+            }
+            // Race chat: the host's fresh advert is the authority for the exact participant list.
+            1 => {
+                let Some((host_room, race)) = self.players().find_map(|p| {
+                    let (l, at) = p.lobby?;
+                    ( !p.impostor && p.id == l.ids[0] && l.id == lobby && l.n >= 2
+                        && l.n as usize <= wire::LOBBY_PLAYERS && now - at <= LOBBY_MS
+                    ).then_some((p.room, l))
+                }) else { return };
+                if host_room != room || !race.ids[..race.n as usize].contains(&sender_id) {
+                    return;
+                }
+                self.players()
+                    .filter(|p| {
+                        !p.impostor && race.ids[..race.n as usize].contains(&p.id) && now - p.seen <= ACTIVE_MS
+                    })
+                    .map(|p| (p.vip, p.port, p.hub_port))
+                    .collect()
+            }
+            _ => return,
+        };
+        if recipients.is_empty() {
+            return;
+        }
+        let clean = text.trim();
+        // Apply the same centrally maintained slur list as the Online lobby.
+        if nfsu2_names::chat_slur(clean).is_some() {
+            return;
+        }
+        let bytes = clean.as_bytes();
+        if bytes.len() > wire::CHAT_MAX_BYTES || clean.chars().count() > wire::CHAT_MAX_CHARS {
+            return;
+        }
+        for (vip, port, hub_port) in recipients {
+            let name = sender_name.as_bytes();
+            let size = wire::HDR + 8 + name.len().min(32) + bytes.len() + wire::CRC;
+            let mut frame = vec![0u8; F_DATA + size];
+            frame[0] = KIND_UDP;
+            frame[4..8].copy_from_slice(&ROAM_HUB_VIP.to_be_bytes());
+            frame[8..12].copy_from_slice(&vip.to_be_bytes());
+            frame[12..14].copy_from_slice(&hub_port.to_be_bytes());
+            frame[14..16].copy_from_slice(&port.to_be_bytes());
+            wire::write_chat(&mut frame[F_DATA..], sender_id, self.seq, scope, lobby, name, bytes);
+            self.seq = self.seq.wrapping_add(1);
+            (self.send)(vip, Bytes::from(frame));
         }
     }
 

@@ -746,7 +746,7 @@ async function startGame() {
     // longer than the game), and a closure from this function would keep its
     // scope, and with it this game, reachable
     session = await GameSession.start({
-      module: loaded!.module, info: loaded!.info, saveDir: SAVE, env: r.env, canvas, stage, audio, displayHz, netName, notice, lobby, say, marks,
+      module: loaded!.module, info: loaded!.info, saveDir: SAVE, env: r.env, canvas, stage, audio, displayHz, netName, notice, lobby, say, chat, marks,
       netBack, netQueue, onSaved,
       netId: net ? pageId() : undefined, netClaim: net ? await vault.token().catch(() => null) ?? undefined : undefined, netRemoved,
       netBlock: net && r.env.NFSU2_ROAM === '1' ? blockList(r.env.NFSU2_ROAM_BLOCK ?? '') : undefined,
@@ -1056,6 +1056,10 @@ function say(json: string) {
   placeNotices();
   quickChat.said(json);
 }
+/** typed FreeRoam / race-lobby chat returned by the server */
+function chat(json: string) {
+  quickChat.chat(json);
+}
 function marks(n: number, m: Float32Array, ids: Uint32Array) { quickChat.marks(n, m, ids); }
 /** quick chat's line in the log: a speech balloon, the name, the phrase; in the notices' box, for 8 s */
 function chatLine(name: string, text: string, me: boolean) {
@@ -1072,6 +1076,7 @@ function chatLine(name: string, text: string, me: boolean) {
 function lobby(json: string) {
   placeLobby();
   lobbyPanel.show(json);
+  quickChat.lobbyState(json);
 }
 function placeLobby() {
   const v = session?.viewRect();

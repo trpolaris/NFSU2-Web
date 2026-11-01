@@ -677,6 +677,7 @@ dependencies = [
  "bytes",
  "crc32fast",
  "nfsu2-claims",
+ "nfsu2-names",
  "nfsu2-util",
  "parking_lot",
  "serde_json",

@@ -35,6 +35,7 @@ export const ICON = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 2h1
 
 /** what the game sends (roam_game.c say_page) */
 interface Said { id: number; name: string; p: number; me?: number; lobby?: number }
+interface TypedChat { id: number; name: string; text: string; scope: 'roam' | 'race'; lobby: number; me?: boolean }
 
 export interface QuickChatDeps {
   /** a line in the chat log (the notices' place): the name, what was said, whether it is the player's own */
@@ -54,6 +55,12 @@ export class QuickChat {
   private on = false;
   private layer: HTMLElement;
   private picker: HTMLElement;
+  private chatBox: HTMLFormElement;
+  private chatTitle: HTMLElement;
+  private chatInput: HTMLInputElement;
+  private chatScope: 'roam' | 'race' = 'roam';
+  private raceLobbyId = 0;
+  private raceChatReady = false;
   /** the lines over cars by the player's id (until: performance.now() it goes; out: fading) */
   private lines = new Map<number, { el: HTMLElement; until: number; me: boolean; shown: boolean; out: boolean }>();
   /** the picker: closed (-1), a group open (0-3), all of them (4, touch) */
@@ -76,11 +83,38 @@ export class QuickChat {
     this.picker.hidden = true;
     this.picker.dataset.nfsu2Ui = '';
     this.picker.addEventListener('click', e => {
-      const b = (e.target as HTMLElement).closest<HTMLElement>('[data-slot]');
+      const target = e.target as HTMLElement;
+      const chat = target.closest<HTMLElement>('[data-chat-scope]');
+      if (chat) { this.openTextChat(chat.dataset.chatScope === 'race' ? 'race' : 'roam'); return; }
+      const b = target.closest<HTMLElement>('[data-slot]');
       if (b) this.pick(+b.dataset.slot!);
     });
     this.picker.addEventListener('pointerdown', e => e.preventDefault());    // the canvas keeps the focus (and the keys)
-    stage.append(this.layer, this.picker);
+    this.chatBox = document.createElement('form');
+    this.chatBox.className = 'qc-text-chat';
+    this.chatBox.hidden = true;
+    this.chatBox.dataset.nfsu2Ui = '';
+    this.chatTitle = document.createElement('div');
+    this.chatTitle.className = 'qc-chat-title';
+    this.chatInput = document.createElement('input');
+    this.chatInput.className = 'qc-chat-input';
+    this.chatInput.type = 'text';
+    this.chatInput.maxLength = 160;
+    this.chatInput.autocomplete = 'off';
+    this.chatInput.spellcheck = true;
+    this.chatInput.placeholder = t('Write a message…');
+    const send = document.createElement('button');
+    send.className = 'qc-chat-send'; send.type = 'submit'; send.textContent = t('Send');
+    const close = document.createElement('button');
+    close.className = 'qc-chat-close'; close.type = 'button'; close.textContent = t('Close');
+    close.addEventListener('click', () => this.closeTextChat());
+    this.chatBox.append(this.chatTitle, this.chatInput, send, close);
+    this.chatBox.addEventListener('submit', e => { e.preventDefault(); this.sendText(); });
+    this.chatInput.addEventListener('keydown', e => {
+      if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); this.closeTextChat(); }
+    });
+    this.chatBox.addEventListener('pointerdown', e => e.stopPropagation());
+    stage.append(this.layer, this.picker, this.chatBox);
     // caught before the game's input (attached later, at each Play): the keys the picker uses go to it alone
     window.addEventListener('keydown', e => this.key(e), { capture: true });
     stage.addEventListener('pointerdown', e => {
@@ -91,11 +125,14 @@ export class QuickChat {
   /** a game started: quick chat on (the setting) or off, with the player's sixteen (phrases.ts phrasesOf, groupsOf) */
   start(s: GameSession, on: boolean, layout: readonly number[], groups: readonly CatId[]) {
     this.session = s; this.on = on; this.drive = 0; this.driveAt = 0;
+    this.raceLobbyId = 0; this.raceChatReady = false;
     this.layout = layout; this.groups = groups;
   }
   stop() {
     this.session = null; this.on = false;
     this.close();
+    this.closeTextChat();
+    this.raceLobbyId = 0; this.raceChatReady = false;
     for (const l of this.lines.values()) l.el.remove();
     this.lines.clear();
   }
@@ -108,10 +145,10 @@ export class QuickChat {
     this.layer.style.setProperty('--u', `${u}px`);
   }
 
-  /** driving in free roam (the game's status: runtime/web/status_web.c "drive" 2, not in a cutscene) */
-  private driving(): boolean {
+  /** active FreeRoam driving, independent of whether fixed-phrase Quick Chat is enabled */
+  private freeRoamDriving(): boolean {
     const s = this.session, now = performance.now();
-    if (!s || !this.on) return false;
+    if (!s) return false;
     if (now - this.driveAt > 100) {
       this.driveAt = now;
       const st = s.status?.read();
@@ -119,11 +156,70 @@ export class QuickChat {
     }
     return (this.drive & 3) === 2 && (this.drive & 8) === 0;
   }
+  /** fixed-phrase picker is additionally gated by its setting */
+  private driving(): boolean { return this.on && this.freeRoamDriving(); }
+
+  private openTextChat(scope: 'roam' | 'race'): boolean {
+    const s = this.session;
+    if (!s?.net?.chat) return false;
+    if (scope === 'roam' && !this.freeRoamDriving()) return false;
+    if (scope === 'race' && (!this.raceChatReady || !this.raceLobbyId)) return false;
+    this.close();
+    this.chatScope = scope;
+    this.chatTitle.textContent = scope === 'race' ? t('Race chat') : t('FreeRoam chat');
+    this.chatInput.value = '';
+    this.chatBox.hidden = false;
+    this.deps.place();
+    this.chatInput.focus();
+    return true;
+  }
+  private closeTextChat() {
+    this.chatBox.hidden = true;
+    this.chatInput.value = '';
+  }
+  private sendText() {
+    const s = this.session, text = this.chatInput.value.trim();
+    if (!s?.net?.chat || !text) { this.closeTextChat(); return; }
+    const lobby = this.chatScope === 'race' ? this.raceLobbyId : 0;
+    if (!s.net.chat(text, this.chatScope, lobby)) {
+      this.deps.log('[chat] message not sent: FreeRoam connection or race membership is unavailable');
+      return;
+    }
+    this.closeTextChat();
+  }
+  /** cache the exact in-game race id; the id-only trip state keeps it available while the race is on screen */
+  lobbyState(json: string) {
+    let s: Record<string, unknown>;
+    try { s = JSON.parse(json) as Record<string, unknown>; } catch { return; }
+    const id = Number(s.id ?? 0);
+    if (id > 0 && Number.isSafeInteger(id)) {
+      if (s.v === 'lobby') {
+        this.raceLobbyId = id >>> 0;
+        this.raceChatReady = Number(s.me ?? -1) >= 0;
+      } else if (s.v === 'trip' || !s.v) {
+        this.raceLobbyId = id >>> 0;
+        this.raceChatReady = true;
+      }
+    } else if (s.v === 'note' || s.v === 'spot' || s.v === 'join' || s.v === 'full') {
+      this.raceLobbyId = 0; this.raceChatReady = false;
+      if (this.chatScope === 'race') this.closeTextChat();
+    }
+    if (s.v === 'note') {
+      this.raceLobbyId = 0; this.raceChatReady = false;
+      if (this.chatScope === 'race') this.closeTextChat();
+    }
+  }
 
   private key(e: KeyboardEvent) {
     if (!this.session || e.metaKey || e.ctrlKey || e.altKey) return;
     const el = e.target as HTMLElement | null;
     if (el?.closest?.('input, textarea, select, dialog[open]') || document.querySelector('dialog[open]')) return;
+    if (e.code === 'KeyT' || e.code === 'KeyY') {
+      if (e.repeat) return;
+      const opened = e.code === 'KeyT' ? this.openTextChat('roam') : this.openTextChat('race');
+      if (opened) { e.preventDefault(); e.stopImmediatePropagation(); }
+      return;
+    }
     const k = KEYS[e.code];
     if (k === undefined && !(e.code === 'Escape' && this.open >= 0)) return;
     if (!this.driving()) { if (this.open >= 0) this.close(); return; }
@@ -152,7 +248,11 @@ export class QuickChat {
   /** the touch controls' chat button: all sixteen, or closed again */
   toggle() {
     if (this.open === 4) { this.close(); return; }
-    if (!this.driving()) return;
+    if (!this.freeRoamDriving()) {
+      if (this.raceChatReady) this.openTextChat('race');
+      return;
+    }
+    if (!this.on) { this.openTextChat('roam'); return; }
     this.mode = 'touch'; this.open = 4;
     this.draw();
   }
@@ -213,6 +313,14 @@ export class QuickChat {
         }
         kids.push(col);
       }
+      if (this.session?.net?.chat && this.freeRoamDriving()) {
+        const b = el('button', 'qc-say', t('Type a FreeRoam message')) as HTMLButtonElement;
+        b.type = 'button'; b.dataset.chatScope = 'roam'; kids.push(b);
+      }
+      if (this.session?.net?.chat && this.raceChatReady) {
+        const b = el('button', 'qc-say', t('Type a race message')) as HTMLButtonElement;
+        b.type = 'button'; b.dataset.chatScope = 'race'; kids.push(b);
+      }
     } else {
       kids.push(el('div', 'qc-title', t(catName(this.groups[this.open]))));
       for (let i = 0; i < 4; i++) {
@@ -249,6 +357,18 @@ export class QuickChat {
     this.deps.lobby(name, text);
   }
 
+  /** a server-relayed typed line. The hub has already restricted its recipients to this room or race. */
+  chat(json: string) {
+    let s: TypedChat;
+    try { s = JSON.parse(json) as TypedChat; } catch { this.deps.log('[chat] invalid server message'); return; }
+    if (!this.session || typeof s.id !== 'number' || typeof s.name !== 'string' || typeof s.text !== 'string'
+        || (s.scope !== 'roam' && s.scope !== 'race')) return;
+    const me = !!s.me;
+    this.deps.log('[chat] ' + (s.scope === 'race' ? 'race' : 'FreeRoam') + ': ' + (me ? 'you' : s.name) + ': ' + s.text);
+    this.deps.line(s.name, s.text, me);
+    if (s.scope === 'race') this.deps.lobby(s.name, s.text);
+  }
+
   /** every frame drawn (the renderer's onMarks): the lines over the cars where this frame has their names */
   marks(n: number, m: Float32Array, ids: Uint32Array) {
     if (!this.lines.size) return;
@@ -271,5 +391,6 @@ export class QuickChat {
   }
 
   /** for the page's test hooks */
-  state() { return { on: this.on, open: this.open, mode: this.mode, lines: [...this.lines.keys()], sent: this.sent.length }; }
+  state() { return { on: this.on, open: this.open, mode: this.mode, lines: [...this.lines.keys()], sent: this.sent.length,
+    chatOpen: !this.chatBox.hidden, raceLobbyId: this.raceLobbyId, raceChatReady: this.raceChatReady }; }
 }
