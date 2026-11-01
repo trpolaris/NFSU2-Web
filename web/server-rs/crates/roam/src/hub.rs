@@ -770,7 +770,7 @@ impl Hub {
                 }
             }
             Msg::MapReq { req } if sender == p.id => ask = Some(req),
-            Msg::Chat { scope, lobby, text } if sender == p.id => chat = Some((scope, lobby, text.to_string())),
+            Msg::Chat { scope, channel, text } if sender == p.id => chat = Some((scope, channel, text.to_string())),
             Msg::Lobby { op, to: 0, lobby, race, x, y, n, max, state, ids } if sender == p.id => match op {
                 wire::LOBBY_ADVERT => p.lobby = Some((HubLobby { id: lobby, race, x, y, n, max, state, ids }, now)),
                 wire::LOBBY_CLOSE if p.lobby.is_some_and(|(l, _)| l.id == lobby) => p.lobby = None,
@@ -813,90 +813,54 @@ impl Hub {
 
     /// A typed line, relayed only to the sender's current FreeRoam room or exact advertised race lobby.
     /// Recipients are chosen here, not by the page, so a client cannot read another channel by changing its UI.
-    fn chat(&mut self, slot: u32, scope: u8, lobby: u32, text: &str, now: f64) {
+    fn chat(&mut self, slot: u32, scope: u8, channel: u32, text: &str, now: f64) {
         const ACTIVE_MS: f64 = 15_000.0;
-        const LOBBY_MS: f64 = 5_000.0;
         const RATE_MS: f64 = 5_000.0;
         const RATE_MAX: usize = 4;
-
         let (sender_id, room, sender_name) = {
             let Some(Some(p)) = self.slots.get_mut(slot as usize) else { return };
-            if p.impostor || p.id == 0 {
-                return;
-            }
+            if p.impostor || p.id == 0 { return; }
             p.chat_at.retain(|&at| now - at < RATE_MS);
-            if p.chat_at.len() >= RATE_MAX {
-                return;
-            }
+            if p.chat_at.len() >= RATE_MAX { return; }
             p.chat_at.push(now);
             (p.id, p.room, p.name.clone())
         };
-        if text.trim().is_empty() {
-            return;
-        }
-
+        if text.trim().is_empty() { return; }
         let recipients: Vec<(u32, u16, u16)> = match scope {
-            // General FreeRoam chat: every active player in this same configured room, except blocked pairs.
             0 => {
+                if channel != 0 { return; }
+                // All: active players in this configured FreeRoam room, except blocked pairs.
                 let Some(sender) = self.player(slot) else { return };
-                if !matches!(sender.status, 2 | 5) || sender.p.is_none() || now - sender.pos_at > ACTIVE_MS {
-                    return;
-                }
-                self.order
-                    .iter()
-                    .filter_map(|&q| {
-                        let p = self.player(q)?;
-                        if p.impostor || p.room != room || !matches!(p.status, 2 | 5)
-                            || p.p.is_none() || now - p.pos_at > ACTIVE_MS || now - p.seen > ACTIVE_MS
-                            || (q != slot && self.apart_from(slot, q, sender, p))
-                        {
-                            return None;
-                        }
-                        Some((p.vip, p.port, p.hub_port))
-                    })
-                    .collect()
-            }
-            // Race chat: the host's fresh advert is the authority for the exact participant list.
-            1 => {
-                let Some((host_room, race)) = self.order.iter().find_map(|&q| {
+                if !matches!(sender.status, 2 | 5) || sender.p.is_none() || now - sender.pos_at > ACTIVE_MS { return; }
+                self.order.iter().filter_map(|&q| {
                     let p = self.player(q)?;
-                    let (l, at) = p.lobby?;
-                    (!p.impostor && p.id == l.ids[0] && l.id == lobby && l.n >= 2
-                        && l.n as usize <= wire::LOBBY_PLAYERS && now - at <= LOBBY_MS
-                    ).then_some((p.room, l))
-                }) else { return };
-                if host_room != room || !race.ids[..race.n as usize].contains(&sender_id) {
-                    return;
-                }
+                    if p.impostor || p.room != room || !matches!(p.status, 2 | 5) || p.p.is_none()
+                        || now - p.pos_at > ACTIVE_MS || now - p.seen > ACTIVE_MS
+                        || (q != slot && self.apart_from(slot, q, sender, p)) { return None; }
+                    Some((p.vip, p.port, p.hub_port))
+                }).collect()
+            }
+            1 => {
+                if channel == 0 { return; }
+                // Crew: both ends must be active in this room and share the selected Crew hash.
                 let Some(sender) = self.player(slot) else { return };
-                self.order
-                    .iter()
-                    .filter_map(|&q| {
-                        let p = self.player(q)?;
-                        if p.impostor || !race.ids[..race.n as usize].contains(&p.id)
-                            || now - p.seen > ACTIVE_MS
-                            || (q != slot && self.apart_from(slot, q, sender, p))
-                        {
-                            return None;
-                        }
-                        Some((p.vip, p.port, p.hub_port))
-                    })
-                    .collect()
+                if !sender.crews.contains(&channel) || !matches!(sender.status, 2 | 5)
+                    || sender.p.is_none() || now - sender.pos_at > ACTIVE_MS { return; }
+                self.order.iter().filter_map(|&q| {
+                    let p = self.player(q)?;
+                    if p.impostor || p.room != room || !p.crews.contains(&channel) || !matches!(p.status, 2 | 5)
+                        || p.p.is_none() || now - p.pos_at > ACTIVE_MS || now - p.seen > ACTIVE_MS
+                        || (q != slot && self.apart_from(slot, q, sender, p)) { return None; }
+                    Some((p.vip, p.port, p.hub_port))
+                }).collect()
             }
             _ => return,
         };
-        if recipients.is_empty() {
-            return;
-        }
+        if recipients.is_empty() { return; }
         let clean = text.trim();
-        // Apply the same centrally maintained slur list as the Online lobby.
-        if nfsu2_names::chat_slur(clean).is_some() {
-            return;
-        }
+        if nfsu2_names::chat_slur(clean).is_some() { return; }
         let bytes = clean.as_bytes();
-        if bytes.len() > wire::CHAT_MAX_BYTES || clean.chars().count() > wire::CHAT_MAX_CHARS {
-            return;
-        }
+        if bytes.len() > wire::CHAT_MAX_BYTES || clean.chars().count() > wire::CHAT_MAX_CHARS { return; }
         for (vip, port, hub_port) in recipients {
             let name = sender_name.as_bytes();
             let size = wire::HDR + 8 + name.len().min(32) + bytes.len() + wire::CRC;
@@ -906,7 +870,7 @@ impl Hub {
             frame[8..12].copy_from_slice(&vip.to_be_bytes());
             frame[12..14].copy_from_slice(&hub_port.to_be_bytes());
             frame[14..16].copy_from_slice(&port.to_be_bytes());
-            wire::write_chat(&mut frame[F_DATA..], sender_id, self.seq, scope, lobby, name, bytes);
+            wire::write_chat(&mut frame[F_DATA..], sender_id, self.seq, scope, channel, name, bytes);
             self.seq = self.seq.wrapping_add(1);
             (self.send)(vip, Bytes::from(frame));
         }
