@@ -106,7 +106,8 @@ test('every locale translates app messages except native terms and technical ide
   };
   for (const lang of LANGUAGE_FILES) {
     const dict = JSON.parse(fs.readFileSync(langFile(lang), 'utf8'));
-    const allowed = new Set(nativeOrTechnical[lang] ?? []);
+    // These are source asset identifiers, not translatable UI copy.
+    const allowed = new Set([...(nativeOrTechnical[lang] ?? []), 'Controller02', 'Site03']);
     const untranslated = [...keys.keys()].filter(key => typeof dict[key] === 'string' && dict[key] === key && !allowed.has(key));
     assert.deepEqual(untranslated, [], `${lang}: an app message still falls back to English`);
   }
