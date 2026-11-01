@@ -358,7 +358,7 @@ mod tests {
         let tag = made.header("etag").unwrap().to_string();
 
         let legacy_read = kit.request("GET", "/vault", &[BEARER], b"").await;
-        assert_eq!(legacy_read.body, b"cloud box");
+        assert_eq!(legacy_read.body.as_slice(), &b"cloud box"[..]);
 
         let legacy_update = kit.request(
             "PUT",
@@ -369,7 +369,7 @@ mod tests {
         assert_eq!(legacy_update.status, 200);
 
         let cloud_read = kit.request("GET", "/cloud/v1/saves", &[BEARER], b"").await;
-        assert_eq!(cloud_read.body, b"legacy update");
+        assert_eq!(cloud_read.body.as_slice(), &b"legacy update"[..]);
         assert_eq!(cloud_read.header("x-trpolaris-cloud-saved"), cloud_read.header("x-vault-saved"));
 
         assert_eq!(kit.request("DELETE", "/cloud/v1/saves", &[BEARER], b"").await.status, 200);
