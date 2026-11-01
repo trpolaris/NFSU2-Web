@@ -807,16 +807,25 @@ html:has(> body > .stage:not([hidden])) { overflow: hidden; }
 /* Direct integration of the supplied racing-chat HUD stylesheet. */
 .racing-chat-wrapper {
   position: absolute; top: clamp(12px, 2.2vh, 24px); left: clamp(12px, 2.2vw, 24px); z-index: 4;
-  width: min(360px, calc(100% - 24px)); max-width: calc(100% - 24px);
+  width: min(calc(360px * var(--chat-scale, .9)), calc(100% - 24px)); max-width: calc(100% - 24px);
   font-family: var(--font-racing); font-size: calc(clamp(13px, 0.85vw, 15px) * var(--chat-scale, .9)); font-weight: 700;
-  display: flex; flex-direction: column; gap: 8px;
+  display: flex; flex-direction: column; gap: calc(8px * var(--chat-scale, .9));
   pointer-events: none;
 }
 
-/* Message flow */
+/* Message flow. Both sliders now affect the complete visible chat HUD, not just its composer. */
 .chat-messages {
-  display: flex; flex-direction: column; gap: 5px;
-  max-height: min(22vh, 220px); overflow-y: hidden; padding-right: 6px;
+  display: flex; flex-direction: column; gap: calc(5px * var(--chat-scale, .9));
+  max-height: min(calc(22vh * var(--chat-scale, .9)), calc(220px * var(--chat-scale, .9)));
+  overflow-y: hidden;
+  padding: calc(7px * var(--chat-scale, .9)) calc(9px * var(--chat-scale, .9));
+  border-left: calc(2px * var(--chat-scale, .9)) solid var(--color-team);
+  border-radius: 0 5px 5px 0;
+  background: linear-gradient(90deg,
+    rgba(0, 0, 0, var(--chat-opacity, .72)) 0%,
+    rgba(0, 0, 0, var(--chat-opacity, .72)) 76%,
+    rgba(0, 0, 0, 0) 100%);
+  transition: background .18s ease, padding .18s ease, max-height .18s ease;
 }
 .racing-chat-wrapper .message {
   font-style: italic; text-shadow: 2px 2px 0 #000; letter-spacing: .25px;
@@ -829,7 +838,7 @@ html:has(> body > .stage:not([hidden])) { overflow: hidden; }
 .racing-chat-wrapper .message.system { color: var(--color-system); font-family: var(--font-hud); font-size: calc(13px * var(--chat-scale, .9)); }
 .racing-chat-wrapper .message.quick { color: var(--color-quick); }
 .racing-chat-wrapper .channel {
-  display: inline-block; max-width: min(48%, 160px); margin-right: 5px; overflow: hidden;
+  display: inline-block; max-width: min(48%, 160px); margin-right: calc(5px * var(--chat-scale, .9)); overflow: hidden;
   text-overflow: ellipsis; vertical-align: bottom; white-space: nowrap;
 }
 .racing-chat-wrapper .sender {
@@ -844,8 +853,8 @@ html:has(> body > .stage:not([hidden])) { overflow: hidden; }
 .chat-input-area {
   display: flex; align-items: center; min-width: 0;
   background: linear-gradient(90deg, rgba(0,0,0,var(--chat-opacity, .72)) 0%, rgba(0,0,0,0) 100%);
-  border-left: 3px solid var(--color-team); padding: 6px 9px;
-  border-radius: 0 4px 4px 0; gap: 8px;
+  border-left: 3px solid var(--color-team); padding: calc(6px * var(--chat-scale, .9)) calc(9px * var(--chat-scale, .9));
+  border-radius: 0 4px 4px 0; gap: calc(8px * var(--chat-scale, .9));
   opacity: 0; transform: translateX(-20px);
   transition: all .25s cubic-bezier(.1,.9,.2,1);
   pointer-events: none;
@@ -853,12 +862,12 @@ html:has(> body > .stage:not([hidden])) { overflow: hidden; }
 
 /* Original quick-message button row. */
 .quick-chat-panel {
-  display: flex; gap: 6px; opacity: 0; transform: translateY(-10px);
+  display: flex; gap: calc(6px * var(--chat-scale, .9)); opacity: 0; transform: translateY(-10px);
   transition: all .2s ease; pointer-events: none;
 }
 .quick-chat-panel button {
   background: rgba(0,0,0,.7); border: 1px solid rgba(255,255,255,.2);
-  color: var(--color-quick); padding: 3px 8px; font-size: 13px;
+  color: var(--color-quick); padding: calc(3px * var(--chat-scale, .9)) calc(8px * var(--chat-scale, .9)); font-size: calc(13px * var(--chat-scale, .9));
   font-family: var(--font-racing); font-weight: 700; cursor: pointer;
   border-radius: 3px; font-style: italic; transition: background .2s;
 }
@@ -898,7 +907,7 @@ html:has(> body > .stage:not([hidden])) { overflow: hidden; }
     width: min(360px, calc(100% - 24px)); max-width: calc(100% - 24px); font-size: calc(13px * var(--chat-scale, .9));
   }
   #chatInput { font-size: calc(13px * var(--chat-scale, .9)); }
-  .quick-chat-panel { flex-wrap: wrap; gap: 4px; }
+  .quick-chat-panel { flex-wrap: wrap; gap: calc(4px * var(--chat-scale, .9)); }
 }
 .qc-picker {
   --u: 1px;
