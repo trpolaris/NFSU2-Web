@@ -340,9 +340,14 @@ impl App {
                 return Err(Fail::Gone);
             }
         };
-        let body = match json_body(&bytes) {
-            Ok(value) => value,
-            Err(e) => return self.hub_error(q, s, 400, e).await,
+        // DELETE identifies the garage vehicle in the URL and intentionally has no JSON body.
+        let body = if q.method == "DELETE" && path.starts_with("/api/v1/garage/") {
+            Value::Null
+        } else {
+            match json_body(&bytes) {
+                Ok(value) => value,
+                Err(e) => return self.hub_error(q, s, 400, e).await,
+            }
         };
 
         if path == "/api/v1/me" && q.method == "PUT" {
