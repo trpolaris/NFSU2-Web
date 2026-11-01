@@ -1458,3 +1458,9 @@ dialog.menu {
   .racing-chat-wrapper[data-position="bottom-right"] { right: max(12px, env(safe-area-inset-right)); left: auto; }
   .racing-chat-wrapper[data-position="bottom-left"] { left: max(12px, env(safe-area-inset-left)); right: auto; }
 }
+
+.menu-slider select {
+  width: 100%; min-height: 34px; padding: 6px 9px;
+  border: 1px solid rgba(0,255,204,.2); border-radius: 3px;
+  color: #effffb; background: #0a1516; font: 700 11px/1.3 var(--font-racing);
+}
