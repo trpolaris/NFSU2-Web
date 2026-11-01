@@ -1,6 +1,6 @@
 // Keyphrase saves in the page (web/src/app/vault.ts):
 //   node --test web/test/vault.test.mjs
-// - keyphrases: "trpolaris-cloud-" for new saves; old "nfsu2-xyz-" phrases remain readable of the list, read back in any case and with any separators
+// - keyphrases: new saves use "trpolaris-cloud-"; old "nfsu2-xyz-" phrases and unprefixed legacy phrases remain readable
 // - the key and the token: PBKDF2-SHA-256 as node:crypto makes it; sealed saves open only with their keyphrase
 // - packing: a player's folder (a profile, the text files) packs far below the server's 256 KB; the content hash
 //   ignores the files' times; the DVD and magazine covers are not kept (a picture of 1 MB each)
@@ -70,6 +70,23 @@ test('keyphrases: made from the list, read back however they are typed', () => {
   assert.match(V.readPhrase('nfsu2-xyz-acid-acorn-acre-acts-afar-affix-aged').bad, /8 words .* this has 7/);
   assert.match(V.readPhrase(p + '-agent').bad, /this has 9/);
   assert.match(V.readPhrase('nfsu2-xyz-acid-acorn-acre-acts-afar-affix-aged-agnet').bad, /"agnet" is not a passphrase word/);
+  assert.deepEqual(V.readPhrase('trpolaris-cloud-acid-acorn-acre-acts-afar-affix-aged-agent'), {
+    phrase: 'trpolaris-cloud-acid-acorn-acre-acts-afar-affix-aged-agent',
+  });
+});
+
+test('new TRPOLARIS Cloud keys use their own crypto context; old keys keep the legacy context', async () => {
+  const freshPhrase = 'trpolaris-cloud-acid-acorn-acre-acts-afar-affix-aged-agent';
+  const oldPhrase = 'nfsu2-xyz-acid-acorn-acre-acts-afar-affix-aged-agent';
+  const fresh = await V.keysOf(freshPhrase);
+  const old = await V.keysOf(oldPhrase);
+  assert.equal(fresh.aad, 'trpolaris-cloud keyphrase saves v1');
+  assert.equal(old.aad, 'nfsu2-xyz keyphrase saves v1');
+  assert.notEqual(fresh.token, old.token);
+  const plain = enc.encode('TRPOLARIS Cloud payload');
+  const box = await V.seal(fresh.key, plain, fresh.aad);
+  assert.deepEqual(await V.unseal(fresh.key, box, fresh.aad), plain);
+  await assert.rejects(V.unseal(old.key, box, old.aad), /do not open with this passphrase/);
 });
 
 test('the key and token: PBKDF2-SHA-256, 100,000 rounds; sealed saves open with their keyphrase only', async () => {
