@@ -1,8 +1,20 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import * as esbuild from 'esbuild';
+
+const HERE = path.dirname(fileURLToPath(import.meta.url));
+const bundled = await esbuild.build({
+  entryPoints: [path.join(HERE, '../src/app/network-quality.ts')],
+  bundle: true,
+  write: false,
+  format: 'esm',
+  platform: 'neutral',
+});
+const {
   linkStateCode, linkStateLabel, networkQualityCode, networkQualityLabel,
-} from '../src/app/network-quality.ts';
+} = await import('data:text/javascript;base64,' + Buffer.from(bundled.outputFiles[0].text).toString('base64'));
 
 test('link states map to stable diagnostic labels', () => {
   for (const [state, code] of Object.entries({
