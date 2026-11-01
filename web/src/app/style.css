@@ -1330,3 +1330,43 @@ dialog.menu {
   .menu-live { display: none; }
   .vault-endpoint { display: block; width: 100%; margin-left: 0; }
 }
+
+
+/* Retain the supplied menu's original glow classes and layered rain/neon atmosphere. */
+.menu-shell::before {
+  position: absolute; z-index: 0; right: 0; bottom: 0; width: 190px; height: 2px;
+  content: ""; background: linear-gradient(270deg, #10b981, transparent);
+  box-shadow: 0 0 10px #10b981; opacity: .7;
+}
+.menu-main { position: relative; isolation: isolate; }
+.menu-main::before {
+  position: absolute; z-index: -1; inset: 0; content: "";
+  background-image: repeating-linear-gradient(112deg,
+    transparent 0, transparent 52px,
+    rgba(0,255,204,.018) 53px, transparent 54px);
+  background-size: 220% 220%;
+  animation: trpolaris-rain-background 24s linear infinite;
+  pointer-events: none;
+}
+@keyframes trpolaris-rain-background {
+  0% { background-position: 0% 0%; }
+  50% { background-position: 50% 100%; }
+  100% { background-position: 100% 0%; }
+}
+.hover-glow-cyan:hover {
+  box-shadow: 0 0 20px rgba(0,255,204,.4), inset 0 0 15px rgba(0,255,204,.2);
+  text-shadow: 0 0 8px rgba(0,255,204,.6);
+}
+.hover-glow-green:hover {
+  box-shadow: 0 0 20px rgba(16,185,129,.4), inset 0 0 15px rgba(16,185,129,.2);
+  text-shadow: 0 0 8px rgba(16,185,129,.6);
+}
+.hover-glow-amber:hover {
+  box-shadow: 0 0 20px rgba(245,158,11,.4), inset 0 0 15px rgba(245,158,11,.2);
+  text-shadow: 0 0 8px rgba(245,158,11,.6);
+}
+.menu-radio-orb.is-playing svg { animation: trpolaris-radio-spin 4s linear infinite; }
+@keyframes trpolaris-radio-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .menu-sidebar::before, .menu-main::before, .menu-radio-orb.is-playing svg, .menu-page { animation: none !important; }
+}
