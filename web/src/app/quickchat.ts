@@ -487,7 +487,7 @@ export class QuickChat {
     this.trimChatHistory();
     this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
     if (!this.chatHud.classList.contains('active')) this.startMessageFade(row);
-    this.deps.log(`[chat] ${s.scope === 'crew' ? 'Crew ' + label : 'FreeRoam'}: ${s.name}: ${s.text}`);
+    this.deps.log(`[chat] ${s.scope === 'crew' ? 'Crew ' + label : 'FreeRoam'}: ${name}: ${body}`);
   }
 
   /** every frame drawn (the renderer's onMarks): the lines over the cars where this frame has their names */
