@@ -76,10 +76,8 @@ jobs:
         working-directory: web
         run: npm run build
 
-      - name: Diagnose Cargo.lock delta (temporary)
-        run: |
-          cargo metadata --format-version 1 --manifest-path web/server-rs/Cargo.toml > /dev/null
-          git diff -- web/server-rs/Cargo.lock
+      - name: Verify Cargo.lock is current
+        run: cargo metadata --locked --format-version 1 --manifest-path web/server-rs/Cargo.toml > /dev/null
 
       - name: Run Rust workspace tests
         run: |
