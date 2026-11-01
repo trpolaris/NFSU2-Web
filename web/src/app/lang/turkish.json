@@ -1354,6 +1354,27 @@
   "New messages": "Yeni mesajlar",
   "Show newest chat messages": "En yeni sohbet mesajlarını göster",
   "CHAT SCALE": "SOHBET BOYUTU",
-  "CHAT BACKGROUND": "SOHBET ARKA PLANI"
+  "CHAT BACKGROUND": "SOHBET ARKA PLANI",
+  "Chat filters": "Sohbet filtreleri",
+  "All messages": "Tüm mesajlar",
+  "Everyone": "Herkes",
+  "Crew chat": "Ekip sohbeti",
+  "System messages": "Sistem mesajları",
+  "Search chat…": "Sohbette ara…",
+  "Mention sound: on": "Etiket bildirim sesi: açık",
+  "Mention sound: off": "Etiket bildirim sesi: kapalı",
+  "Muted: {n}": "Sessize alınan: {n}",
+  "No muted players": "Sessize alınmış oyuncu yok",
+  "Unmute": "Sesi aç",
+  "Mute player": "Oyuncuyu sessize al",
+  "Unmute player": "Oyuncunun sesini aç",
+  "CHAT POSITION": "SOHBET KONUMU",
+  "Top left": "Sol üst",
+  "Top right": "Sağ üst",
+  "Bottom left": "Sol alt",
+  "Bottom right": "Sağ alt",
+  "Choose where the chat panel stays on screen.": "Sohbet panelinin ekranda duracağı konumu seç.",
+  "CHAT WIDTH": "SOHBET GENİŞLİĞİ",
+  "Adjust the chat panel width independently of its scale.": "Sohbet panelinin genişliğini ölçekten bağımsız ayarla."
 
 }
