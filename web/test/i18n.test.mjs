@@ -21,8 +21,8 @@ const { keys, bad } = catalog();
 test('the texts in use are literals the extraction reads', () => {
   assert.deepEqual(bad, []);
   assert.ok(keys.size > 500, `${keys.size} texts`);
-  assert.ok(keys.has('Fan project. Not affiliated with or endorsed by Electronic Arts.'), 'index.html data-i18n');
-  assert.ok(keys.has('Help get it fixed: download the log and post it in <0>#bug-reports on our Discord</0>, with what you were doing when it happened.'), 'index.html data-i18n-html');
+  assert.ok(keys.has('TRPOLARIS is an independent fan project and is not affiliated with or endorsed by Electronic Arts.'), 'index.html data-i18n');
+  assert.ok(keys.has('The source code and project updates are available on <0>GitHub</0>.'), 'index.html data-i18n-html');
   assert.ok(keys.get('{n} laps')?.plural, 'tn()');
 });
 
