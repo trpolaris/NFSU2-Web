@@ -152,7 +152,7 @@ const STATUS: [(u16, &str); 8] = [
     (503, "Service Unavailable"),
 ];
 
-pub const ROBOTS_TXT: &str = "User-agent: *\nAllow: /\nDisallow: /data/\nDisallow: /data-manifest\nDisallow: /game.wasm\nDisallow: /game.json\nDisallow: /players\nDisallow: /lan\nDisallow: /vault\nDisallow: /names";
+pub const ROBOTS_TXT: &str = "User-agent: *\nAllow: /\nDisallow: /data/\nDisallow: /data-manifest\nDisallow: /game.wasm\nDisallow: /game.json\nDisallow: /players\nDisallow: /lan\nDisallow: /vault\nDisallow: /cloud/\nDisallow: /names";
 
 /// what a client may ask a file to be sent as
 const TYPES: [(&str, &str); 11] = [
@@ -537,8 +537,8 @@ impl App {
         if q.method == "PUT" && self.o.dev && !self.o.artifacts.is_empty() && p.starts_with("/artifacts/") {
             return self.put_artifact(q, s, &p[11..]).await;
         }
-        // keyphrase saves and claimed names: their own methods and bodies (vault.rs, names.rs)
-        if p == "/vault" {
+        // TRPOLARIS Cloud v1 (new clients) and /vault (legacy clients) share the same encrypted save records.
+        if p == "/cloud/v1/saves" || p == "/vault" {
             return self.vault(q, s, &u).await;
         }
         if p == "/names" {
