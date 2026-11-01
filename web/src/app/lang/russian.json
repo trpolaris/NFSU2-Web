@@ -1458,5 +1458,10 @@
   "Race chat": "Чат гонки",
   "FreeRoam chat": "Чат FreeRoam",
   "Type a FreeRoam message": "Написать сообщение FreeRoam",
-  "Type a race message": "Написать сообщение гонки"
+  "Type a race message": "Написать сообщение гонки",
+  "New messages": "Новые сообщения",
+  "Show newest chat messages": "Показать последние сообщения чата",
+  "CHAT SCALE": "РАЗМЕР ЧАТА",
+  "CHAT BACKGROUND": "ФОН ЧАТА"
+
 }
