@@ -340,6 +340,7 @@ export class QuickChat {
     this.chatTools.querySelector('.chat-filter-group')?.setAttribute('aria-label', t('Chat filters'));
     this.renderMutedPlayers();
     this.updateChatToolStates();
+    this.applyChatView();
   }
   private updateChatToolStates() {
     for (const button of this.chatTools.querySelectorAll<HTMLButtonElement>('[data-chat-filter]')) {
@@ -436,6 +437,8 @@ export class QuickChat {
     }
     this.messageTimers.clear(); this.chatSentAt = []; this.lastRateNoticeAt = -Infinity;
     this.chatMessages.replaceChildren(); this.historyButton.hidden = true; this.followingChat = true;
+    this.chatFilter = 'all'; this.chatSearch = ''; this.searchInput.value = '';
+    this.mutedPanel.hidden = true; this.updateChatToolStates();
     this.chatHud.classList.remove('active');
   }
 
