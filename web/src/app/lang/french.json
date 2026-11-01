@@ -1435,5 +1435,10 @@
   "Race chat": "Discussion de course",
   "FreeRoam chat": "Discussion FreeRoam",
   "Type a FreeRoam message": "Écrire un message FreeRoam",
-  "Type a race message": "Écrire un message de course"
+  "Type a race message": "Écrire un message de course",
+  "New messages": "Nouveaux messages",
+  "Show newest chat messages": "Afficher les derniers messages du chat",
+  "CHAT SCALE": "TAILLE DU CHAT",
+  "CHAT BACKGROUND": "ARRIÈRE-PLAN DU CHAT"
+
 }
