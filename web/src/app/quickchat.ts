@@ -22,6 +22,10 @@ const PICK_MS = 4000;
 const BURST = 3, WINDOW_MS = 6000;
 /** a line over a car: this long (ms; roam_game.c SAY_SHOW_US), the last FADE_MS of it fading */
 const SHOW_MS = 5000, FADE_MS = 600;
+/** typed chat: keep the HUD's DOM history bounded even while its composer is open */
+const CHAT_HISTORY_LIMIT = 40;
+/** a typed line stays for five seconds, then its CSS fade completes before its node is removed */
+const CHAT_MESSAGE_MS = 5000, CHAT_REMOVE_MS = 450;
 /** the name over a friend's car is about this tall (HUD units at scale 1): the line goes above it */
 const NAME_H = 13;
 /** a line shrinks with the distance as the name under it does (to 0.5), but not below this: it stays readable */
@@ -244,8 +248,14 @@ export class QuickChat {
     const old = this.messageTimers.get(el);
     if (old) { clearTimeout(old.fade); if (old.remove !== undefined) clearTimeout(old.remove); }
     const fade = window.setTimeout(() => {
-      if (!this.chatHud.classList.contains('active')) el.classList.add('fade-out');
-    }, 5000);
+      if (this.chatHud.classList.contains('active')) return;
+      el.classList.add('fade-out');
+      const remove = window.setTimeout(() => {
+        this.messageTimers.delete(el);
+        el.remove();
+      }, CHAT_REMOVE_MS);
+      this.messageTimers.set(el, { fade, remove });
+    }, CHAT_MESSAGE_MS);
     this.messageTimers.set(el, { fade });
   }
   private resumeMessageFade() { for (const el of this.chatMessages.children) this.startMessageFade(el as HTMLElement); }
@@ -410,6 +420,18 @@ export class QuickChat {
     const sender = document.createElement('span'); sender.className = 'sender'; sender.textContent = `${s.name}:`;
     const text = document.createElement('span'); text.className = 'text'; text.textContent = s.text;
     row.append(channel, sender, text); this.chatMessages.append(row);
+    // A player can keep the composer open while a busy room continues chatting. Keep that case bounded too.
+    while (this.chatMessages.childElementCount > CHAT_HISTORY_LIMIT) {
+      const oldest = this.chatMessages.firstElementChild as HTMLElement | null;
+      if (!oldest) break;
+      const timers = this.messageTimers.get(oldest);
+      if (timers) {
+        clearTimeout(timers.fade);
+        if (timers.remove !== undefined) clearTimeout(timers.remove);
+      }
+      this.messageTimers.delete(oldest);
+      oldest.remove();
+    }
     this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
     if (!this.chatHud.classList.contains('active')) this.startMessageFade(row);
     this.deps.log(`[chat] ${s.scope === 'crew' ? 'Crew ' + label : 'FreeRoam'}: ${s.name}: ${s.text}`);
