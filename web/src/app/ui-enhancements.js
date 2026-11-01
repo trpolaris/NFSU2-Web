@@ -3,9 +3,13 @@
  * Handles navigation, PWA install guidance, orientation resize, and deferred previews only.
  */
 const $ = (selector) => document.querySelector(selector);
+let motionAnimate = null;
 
 export function setupUIEnhancements() {
   setupNavigation();
+  setupMotionTransitions();
+  setupLucideIcons();
+  setupHeroParticles();
   setupInstallExperience();
   setupViewportStability();
   setupLazyPreviews();
@@ -55,6 +59,17 @@ function setupNavigation() {
     if (side) side.hidden = isHome || !wrapperHasContent(side);
     if (content) content.hidden = isHome || !wrapperHasContent(content);
     document.body.dataset.uiPage = page;
+    if (motionAnimate && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      const target = isHome ? home.querySelector('.landing-hero') : sections.find(section => !section.hidden);
+      if (target) {
+        try {
+          motionAnimate(target, { opacity: [0, 1], y: [10, 0] }, {
+            duration: .26,
+            ease: 'easeOut',
+          });
+        } catch { /* The page remains fully usable without motion. */ }
+      }
+    }
     for (const link of links) {
       const active = link.dataset.page === page;
       link.classList.toggle('active', active);
@@ -230,4 +245,138 @@ function setupLazyPreviews() {
       el.dataset.lazyObserved = 'true'; observer.observe(el);
     });
   });
+}
+
+
+/* Optional visual libraries are progressive enhancements, never application dependencies. */
+function setupMotionTransitions() {
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const moduleUrl = 'https://cdn.jsdelivr.net/npm/motion@14.8.0/+esm';
+  import(moduleUrl).then(module => {
+    if (typeof module.animate !== 'function') return;
+    motionAnimate = module.animate;
+  }).catch(() => {
+    // CSS transitions remain available when the remote motion module is unavailable.
+  });
+}
+
+async function setupLucideIcons() {
+  const definitions = [
+    ['.quick-link[data-page="home"]', 'house', 'House'],
+    ['.quick-link[data-page="online"]', 'users', 'Users'],
+    ['.quick-link[data-page="mods"]', 'car-front', 'CarFront'],
+    ['.quick-link[data-page="saves"]', 'save', 'Save'],
+    ['.quick-link[data-page="controls"]', 'gamepad-2', 'Gamepad2'],
+    ['.quick-link[data-page="settings"]', 'settings', 'Settings'],
+    ['.quick-link[data-page="system"]', 'activity', 'Activity'],
+    ['.quick-link[data-page="about"]', 'info', 'Info'],
+  ];
+  const moduleUrl = 'https://cdn.jsdelivr.net/npm/lucide@1.66.0/+esm';
+
+  try {
+    const lucide = await import(moduleUrl);
+    if (typeof lucide.createIcons !== 'function') return;
+
+    const icons = {};
+    const replaced = [];
+    for (const [selector, dataName, exportName] of definitions) {
+      const icon = lucide[exportName];
+      const link = $(selector);
+      const fallback = link?.querySelector(':scope > svg');
+      if (!icon || !link || !fallback) continue;
+
+      const placeholder = document.createElement('i');
+      placeholder.setAttribute('data-lucide', dataName);
+      placeholder.setAttribute('aria-hidden', 'true');
+      placeholder.className = 'ui-lucide';
+      fallback.replaceWith(placeholder);
+      icons[exportName] = icon;
+      replaced.push({ placeholder, fallback });
+    }
+
+    try {
+      lucide.createIcons({ icons });
+    } catch {
+      for (const item of replaced) {
+        if (item.placeholder.isConnected) item.placeholder.replaceWith(item.fallback);
+      }
+    }
+  } catch {
+    // The original inline SVG icons remain in the HTML when Lucide cannot load.
+  }
+}
+
+async function setupHeroParticles() {
+  const root = $('#hero-particles');
+  const home = $('#home-page');
+  if (!root || !home) return;
+
+  const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const connection = navigator.connection;
+  const lowPowerDevice = (navigator.hardwareConcurrency || 8) <= 4;
+  if (reducedMotion || connection?.saveData || lowPowerDevice) {
+    root.hidden = true;
+    return;
+  }
+
+  const engineUrl = 'https://cdn.jsdelivr.net/npm/@tsparticles/engine@4.4.0/+esm';
+  const slimUrl = 'https://cdn.jsdelivr.net/npm/@tsparticles/slim@4.4.0/+esm';
+  try {
+    const [engine, slim] = await Promise.all([import(engineUrl), import(slimUrl)]);
+    if (!engine.tsParticles || typeof slim.loadSlim !== 'function') return;
+    await slim.loadSlim(engine.tsParticles);
+
+    const container = await engine.tsParticles.load({
+      id: 'hero-particles',
+      options: {
+        fullScreen: { enable: false },
+        background: { color: { value: 'transparent' } },
+        detectRetina: false,
+        fpsLimit: 24,
+        pauseOnBlur: true,
+        particles: {
+          number: { value: 24, density: { enable: true, area: 1100 } },
+          color: { value: ['#00ffcc', '#10b981'] },
+          links: {
+            enable: true,
+            distance: 128,
+            color: '#00ffcc',
+            opacity: 0.11,
+            width: 1,
+          },
+          move: {
+            enable: true,
+            direction: 'none',
+            random: true,
+            speed: 0.34,
+            outModes: { default: 'out' },
+          },
+          opacity: { value: { min: 0.07, max: 0.22 } },
+          size: { value: { min: 1, max: 2 } },
+        },
+        interactivity: {
+          events: {
+            onClick: { enable: false },
+            onHover: { enable: false },
+          },
+        },
+      },
+    });
+
+    if (!container) return;
+    const syncPlayback = () => {
+      const visible = !document.hidden && !home.hidden && root.getClientRects().length > 0;
+      if (visible) container.play?.();
+      else container.pause?.();
+    };
+    document.addEventListener('visibilitychange', syncPlayback);
+    if ('MutationObserver' in window) {
+      const observer = new MutationObserver(syncPlayback);
+      observer.observe(home, { attributes: true, attributeFilter: ['hidden'] });
+    }
+    syncPlayback();
+  } catch {
+    // The hero keeps its CSS gradient/grid treatment when tsParticles is unavailable.
+    root.hidden = true;
+  }
 }
