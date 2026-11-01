@@ -26,7 +26,7 @@ Orijinal hızlı mesaj butonları ve mevcut sabit ifade Quick Chat sistemi ayrı
 - Sunucu protokolü 160 Unicode karakter ve 512 UTF-8 byte üst sınırı uygular.
 - Sunucu, oyuncu başına kayan 5 saniyelik pencerede en fazla 4 yazılı mesaj kabul eder. İstemci aynı sınırı önceden uygular.
 - Yerel bekleme sınırına ulaşıldığında HUD'da sistem bildirimi görünür. Gönderilmeyen taslak korunur ve yazma alanı açık kalır.
-- Sunucu ayrıca aktif FreeRoam durumunu, aynı odayı, Crew üyeliğini, kontrol karakterlerini ve isim/mesaj filtresini doğrular. Sunucu tarafından reddedilen mesajlara ayrı bir teslim/alındı onayı yoktur; yerel uyarı yalnızca istemci tarafında bilinen hız sınırı içindir.
+- Sunucu ayrıca aktif FreeRoam durumunu, aynı odayı ve Crew üyeliğini doğrular; kontrol karakterlerini ve mesaj içerik filtresini uygular, gönderen adını da kendi aktif oyuncu kaydından ekler. Sunucu tarafından reddedilen mesajlara ayrı bir teslim/alındı onayı yoktur; yerel uyarı yalnızca istemci tarafında bilinen hız sınırı içindir.
 
 ## Mesaj geçmişi ve kaynak kullanımı
 
