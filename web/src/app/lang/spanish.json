@@ -1439,6 +1439,27 @@
   "New messages": "Nuevos mensajes",
   "Show newest chat messages": "Mostrar los mensajes más recientes del chat",
   "CHAT SCALE": "TAMAÑO DEL CHAT",
-  "CHAT BACKGROUND": "FONDO DEL CHAT"
+  "CHAT BACKGROUND": "FONDO DEL CHAT",
+  "Chat filters": "Filtros del chat",
+  "All messages": "Todos los mensajes",
+  "Everyone": "Todos",
+  "Crew chat": "Chat del equipo",
+  "System messages": "Mensajes del sistema",
+  "Search chat…": "Buscar en el chat…",
+  "Mention sound: on": "Sonido de menciones: activado",
+  "Mention sound: off": "Sonido de menciones: desactivado",
+  "Muted: {n}": "Silenciados: {n}",
+  "No muted players": "No hay jugadores silenciados",
+  "Unmute": "Activar sonido",
+  "Mute player": "Silenciar jugador",
+  "Unmute player": "Dejar de silenciar al jugador",
+  "CHAT POSITION": "POSICIÓN DEL CHAT",
+  "Top left": "Arriba a la izquierda",
+  "Top right": "Arriba a la derecha",
+  "Bottom left": "Abajo a la izquierda",
+  "Bottom right": "Abajo a la derecha",
+  "Choose where the chat panel stays on screen.": "Elige dónde se mantiene el panel del chat en la pantalla.",
+  "CHAT WIDTH": "ANCHO DEL CHAT",
+  "Adjust the chat panel width independently of its scale.": "Ajusta el ancho del panel de chat independientemente de su escala."
 
 }
