@@ -36,6 +36,21 @@ test('TRPOLARIS neon design system integrates Tailwind v4 without resetting game
 });
 
 
+test('online controls display only the live player and room counts supplied by /players', () => {
+  const design = fs.readFileSync(path.join(ROOT, 'src/app/design-system.css'), 'utf8');
+  const playerSource = fs.readFileSync(path.join(ROOT, 'src/app/players.ts'), 'utf8');
+  const renderer = fs.readFileSync(path.join(ROOT, 'src/app/settings-ui.ts'), 'utf8');
+  assert.match(html, /id="online-body"/);
+  assert.match(renderer, /this\.online\.querySelector<HTMLElement>\('#online-body'\)!\.replaceChildren/);
+  assert.match(renderer, /id = 'group-status'/);
+  assert.match(playerSource, /export function playersText\(/);
+  assert.match(playerSource, /On this server now:/);
+  assert.match(design, /#online \.group-status:not\(\[hidden\]\)/);
+  assert.match(design, /#online \.set-control/);
+  assert.match(design, /@media \(max-width: 720px\)[\s\S]*?#online \.set/);
+});
+
+
 test('Nightshift shell keeps the runtime anchors used by the game modules', () => {
   for (const id of [
     'app','lang-pick','install-app','home-page','play-panel','play','progress','progress-fill',
