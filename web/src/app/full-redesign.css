@@ -377,6 +377,7 @@ code { border-color: var(--line); background: #0a111d; color: #ff9d82; }
 .experience-shell .hero-vehicle-art .vehicle-rim {
   fill: none; stroke: rgba(255,105,69,.9); stroke-width: 5;
   stroke-dasharray: 12 8; transform-origin: center;
+  animation: trpSpin 7s linear infinite;
 }
 .experience-shell .hero-visual-index {
   position: absolute; right: 28px; top: 28px;
@@ -669,10 +670,6 @@ code { border-color: var(--line); background: #0a111d; color: #ff9d82; }
 @keyframes trpAura { from { transform: scale(.92) translate3d(0,0,0); opacity: .62; } to { transform: scale(1.08) translate3d(-2%,2%,0); opacity: 1; } }
 @keyframes trpCarFloat { 0%,100% { transform: translate3d(0,0,0) rotate(-3deg) scale(1.02); } 50% { transform: translate3d(0,-10px,0) rotate(-2.2deg) scale(1.025); } }
 @keyframes trpSpin { to { transform: rotate(360deg); } }
-.experience-shell .home-page .landing-copy { animation: trpFadeUp .72s cubic-bezier(.2,.7,.25,1) both; }
-.experience-shell .home-page .play-console { animation: trpFadeUp .82s .12s cubic-bezier(.2,.7,.25,1) both; }
-.experience-shell .home-page .home-status-panel { animation: trpFadeUp .7s .18s cubic-bezier(.2,.7,.25,1) both; }
-.experience-shell .home-page .home-quick-section { animation: trpFadeUp .7s .25s cubic-bezier(.2,.7,.25,1) both; }
 .experience-shell .home-action-card { transition: transform .22s ease, border-color .22s ease, background .22s ease, box-shadow .22s ease; }
 .experience-shell .home-action-card:active { transform: scale(.985); }
 .experience-shell .ui-lucide { width: 20px; height: 20px; stroke-width: 1.8; }
@@ -711,15 +708,16 @@ code { border-color: var(--line); background: #0a111d; color: #ff9d82; }
   .experience-shell .top-product-note { display: none; }
   .experience-shell > .quick-nav {
     position: sticky; bottom: 8px; top: auto; align-self: end;
-    flex-direction: row; align-items: stretch; justify-content: space-between;
+    flex-direction: row; align-items: stretch; justify-content: flex-start;
     width: 100%; min-height: 66px; gap: 3px; padding: 6px;
+    overflow-x: auto; overflow-y: hidden; scrollbar-width: none;
     border-radius: 18px; background: rgba(10,16,27,.95);
     -webkit-backdrop-filter: blur(22px); backdrop-filter: blur(22px);
     box-shadow: 0 16px 42px rgba(0,0,0,.46);
   }
   .experience-shell .nav-overline { display: none !important; }
   .experience-shell .quick-link {
-    flex: 1 1 0; min-width: 0; min-height: 52px; padding: 5px 1px;
+    flex: 0 0 64px; min-width: 64px; min-height: 52px; padding: 5px 1px;
     gap: 4px; border-radius: 12px; font-size: .54rem;
   }
   .experience-shell .quick-link svg { width: 18px; height: 18px; }
