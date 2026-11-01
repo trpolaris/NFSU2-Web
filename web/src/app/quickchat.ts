@@ -89,6 +89,8 @@ export class QuickChat {
   private drive = 0;
   private driveAt = 0;
   private armed = true;
+  /** the HUD's local display preferences; these never alter the game's network or save data */
+  private chatAppearance = { scale: 0.9, opacity: 0.72 };
   /** the player's sixteen: the phrase in each slot (group * 4 + place), and each group's name */
   private layout: readonly number[] = DEFAULT_PHRASES;
   private groups: readonly CatId[] = DEFAULT_GROUPS;
@@ -112,6 +114,7 @@ export class QuickChat {
     this.chatHud.className = 'racing-chat-wrapper';
     this.chatHud.id = 'racingChat';
     this.chatHud.dataset.nfsu2Ui = '';
+    this.loadChatAppearance();
 
     this.chatMessages = document.createElement('div');
     this.chatMessages.className = 'chat-messages';
@@ -158,6 +161,36 @@ export class QuickChat {
     stage.addEventListener('pointerdown', e => {
       if (this.open === 4 && !this.picker.contains(e.target as Node) && !(e.target as Element).closest?.('[data-ctl="chat"]')) this.close();
     }, { capture: true });
+  }
+
+  /** Read and apply the player's HUD-only chat preferences. Values are bounded to keep the overlay usable. */
+  private loadChatAppearance() {
+    try {
+      const saved = JSON.parse(localStorage.getItem('trpolaris.nfsu2.chat-hud.v1') || 'null') as { scale?: unknown; opacity?: unknown } | null;
+      if (saved && typeof saved === 'object') {
+        const scale = Number(saved.scale), opacity = Number(saved.opacity);
+        if (Number.isFinite(scale)) this.chatAppearance.scale = Math.min(1.15, Math.max(0.75, scale));
+        if (Number.isFinite(opacity)) this.chatAppearance.opacity = Math.min(0.92, Math.max(0.35, opacity));
+      }
+    } catch { /* Storage may be unavailable in private or restricted browser contexts. */ }
+    this.applyChatAppearance();
+  }
+
+  private applyChatAppearance() {
+    this.chatHud.style.setProperty('--chat-scale', String(this.chatAppearance.scale));
+    this.chatHud.style.setProperty('--chat-opacity', String(this.chatAppearance.opacity));
+  }
+
+  /** Current chat HUD appearance for the in-game control deck. */
+  appearance() { return { ...this.chatAppearance }; }
+
+  /** Update the HUD without reloading the game; stored per browser, not in the career or settings.ini. */
+  setAppearance(scale: number, opacity: number) {
+    if (Number.isFinite(scale)) this.chatAppearance.scale = Math.min(1.15, Math.max(0.75, scale));
+    if (Number.isFinite(opacity)) this.chatAppearance.opacity = Math.min(0.92, Math.max(0.35, opacity));
+    this.applyChatAppearance();
+    try { localStorage.setItem('trpolaris.nfsu2.chat-hud.v1', JSON.stringify(this.chatAppearance)); }
+    catch { /* The current session still uses the changed values. */ }
   }
 
   /** a game started: quick chat on (the setting) or off, with the player's sixteen (phrases.ts phrasesOf, groupsOf) */
