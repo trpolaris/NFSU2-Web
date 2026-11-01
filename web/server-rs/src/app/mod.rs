@@ -232,7 +232,7 @@ pub struct App {
     /// the operator's bans (the control socket: control.rs), checked at /lan
     pub bans: Arc<nfsu2_bans::Bans>,
     /// browser-private profiles and player-entered garage records, kept in the existing state volume
-    pub hub: player_hub::HubStore,
+    hub: player_hub::HubStore,
     /// SO_SNDBUF for /lan connections (NFSU2_LAN_SNDBUF, a measurement knob; 0: the kernel's own, which Linux grows
     /// to megabytes, ahead of the switch's own queue rules)
     lan_sndbuf: usize,
@@ -321,6 +321,7 @@ impl App {
             raw.insert(code, s.into_bytes());
         }
         let max_conns = limits::max_connections(o.max_peers);
+        let hub = player_hub::HubStore::open(&real_state);
         App {
             host_check,
             real_state,
@@ -350,7 +351,7 @@ impl App {
             vault: vault.map(vault::VaultRoute::new),
             names,
             bans,
-            hub: player_hub::HubStore::open(&real_state),
+            hub,
             lan_sndbuf,
             o,
         }
