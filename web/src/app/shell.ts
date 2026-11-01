@@ -1197,6 +1197,7 @@ function openMenu() {
   crews.textContent = crewsLabel();
   m.querySelector<HTMLButtonElement>('[data-act="quit"]')!.textContent = quitLabel();
   showRadio(m);
+  syncChatMenuAppearance();
   const line = $('#menu-save');
   if (saved) line.textContent = t('Last saved at {when} ({name}).', { when: when(saved.at), name: saved.name });
   else {
@@ -1208,6 +1209,23 @@ function openMenu() {
   $('#stage').classList.add('cursor');
   m.showModal();
 }
+/** The menu's chat sliders change only this browser's HUD presentation, not game/network settings. */
+function syncChatMenuAppearance() {
+  const a = quickChat.appearance();
+  const scale = Math.round(a.scale * 100), opacity = Math.round(a.opacity * 100);
+  $<HTMLInputElement>('#menu-chat-scale').value = String(scale);
+  $<HTMLInputElement>('#menu-chat-opacity').value = String(opacity);
+  $('#menu-chat-scale-value').textContent = `${scale}%`;
+  $('#menu-chat-opacity-value').textContent = `${opacity}%`;
+}
+function updateChatMenuAppearance() {
+  const scale = Number($<HTMLInputElement>('#menu-chat-scale').value) / 100;
+  const opacity = Number($<HTMLInputElement>('#menu-chat-opacity').value) / 100;
+  quickChat.setAppearance(scale, opacity);
+  $('#menu-chat-scale-value').textContent = `${Math.round(scale * 100)}%`;
+  $('#menu-chat-opacity-value').textContent = `${Math.round(opacity * 100)}%`;
+}
+
 /** the menu's frame-rate counter and Ghost mode buttons, with what they are at now */
 const fpsLabel = (mode: string) => t('Frame-rate counter: {mode}', { mode: t(mode === 'on' ? N('on') : mode === 'detailed' ? N('detailed') : N('off')) });
 const ghostLabel = () => solidCars ? t('Ghost mode: off') : t('Ghost mode: on');
@@ -1673,6 +1691,8 @@ export async function boot() {
   $<HTMLButtonElement>('#diagnostics-refresh').onclick = () => void refreshDiagnostics();
   $<HTMLButtonElement>('#diagnostics-download').onclick = downloadDiagnostics;
   $('#menu').addEventListener('click', e => { const a = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-act]'); if (a) void menuAction(a.dataset.act!); });
+  $('#menu-chat-scale').addEventListener('input', updateChatMenuAppearance);
+  $('#menu-chat-opacity').addEventListener('input', updateChatMenuAppearance);
   $('#playlist-body').addEventListener('change', setTrackMode);
   $('#playlist-shuffle').addEventListener('change', setShuffle);
   $('#menu').addEventListener('close', () => {
