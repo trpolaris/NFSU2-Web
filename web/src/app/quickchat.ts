@@ -24,6 +24,8 @@ const BURST = 3, WINDOW_MS = 6000;
 const SHOW_MS = 5000, FADE_MS = 600;
 /** typed chat: keep the HUD's DOM history bounded even while its composer is open */
 const CHAT_HISTORY_LIMIT = 40;
+/** mirror the hub's typed-chat allowance: four accepted messages in any rolling five-second window */
+const CHAT_RATE_MAX = 4, CHAT_RATE_WINDOW_MS = 5000;
 /** a typed line stays for five seconds, then its CSS fade completes before its node is removed */
 const CHAT_MESSAGE_MS = 5000, CHAT_REMOVE_MS = 450;
 /** the name over a friend's car is about this tall (HUD units at scale 1): the line goes above it */
@@ -74,6 +76,9 @@ export class QuickChat {
   private crews: CrewChannel[] = [];
   private channelIndex = 0;
   private messageTimers = new Map<HTMLElement, { fade: number; remove?: number }>();
+  /** local mirror of the server's rolling typed-chat limit, for immediate feedback before a send */
+  private chatSentAt: number[] = [];
+  private lastRateNoticeAt = -Infinity;
   /** the lines over cars by the player's id (until: performance.now() it goes; out: fading) */
   private lines = new Map<number, { el: HTMLElement; until: number; me: boolean; shown: boolean; out: boolean }>();
   /** the picker: closed (-1), a group open (0-3), all of them (4, touch) */
@@ -173,7 +178,8 @@ export class QuickChat {
     for (const timers of this.messageTimers.values()) {
       clearTimeout(timers.fade); if (timers.remove !== undefined) clearTimeout(timers.remove);
     }
-    this.messageTimers.clear(); this.chatMessages.replaceChildren(); this.chatHud.classList.remove('active');
+    this.messageTimers.clear(); this.chatSentAt = []; this.lastRateNoticeAt = -Infinity;
+    this.chatMessages.replaceChildren(); this.chatHud.classList.remove('active');
   }
 
   /** the picker's place: the notices' (shell.ts placeNotices), u: CSS px per HUD unit */
@@ -205,9 +211,9 @@ export class QuickChat {
   }
   private updateChannel() {
     const c = this.currentChannel();
-    this.channelButton.textContent = c.scope === 'room' ? '[HERKES]' : '[KULÜP]';
+    this.channelButton.textContent = c.scope === 'room' ? '[HERKES]' : `[${c.label}]`;
     this.channelButton.dataset.scope = c.scope;
-    this.channelButton.title = t('Tab to switch channel');
+    this.channelButton.title = c.scope === 'crew' ? c.label : t('Tab to switch channel');
   }
   private cycleChannel() { this.channelIndex = (this.channelIndex + 1) % (this.crews.length + 1); this.updateChannel(); }
   private openTextChat(): boolean {
@@ -223,18 +229,64 @@ export class QuickChat {
     if (document.activeElement === this.chatInput) this.chatInput.blur();
     this.resumeMessageFade();
   }
+  /** milliseconds until the hub's rolling 4-per-5-second allowance has a free slot */
+  private chatWaitMs(now = performance.now()): number {
+    this.chatSentAt = this.chatSentAt.filter(at => now - at < CHAT_RATE_WINDOW_MS);
+    return this.chatSentAt.length < CHAT_RATE_MAX
+      ? 0
+      : Math.max(0, this.chatSentAt[0] + CHAT_RATE_WINDOW_MS - now);
+  }
+  private trimChatHistory() {
+    while (this.chatMessages.childElementCount > CHAT_HISTORY_LIMIT) {
+      const oldest = this.chatMessages.firstElementChild as HTMLElement | null;
+      if (!oldest) break;
+      const timers = this.messageTimers.get(oldest);
+      if (timers) {
+        clearTimeout(timers.fade);
+        if (timers.remove !== undefined) clearTimeout(timers.remove);
+      }
+      this.messageTimers.delete(oldest);
+      oldest.remove();
+    }
+  }
+  private systemMessage(message: string) {
+    const row = document.createElement('div');
+    row.className = 'message system';
+    const marker = document.createElement('span'); marker.className = 'channel'; marker.textContent = '!';
+    const text = document.createElement('span'); text.className = 'text'; text.textContent = message;
+    row.append(marker, text);
+    this.chatMessages.append(row);
+    this.trimChatHistory();
+    this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
+    if (!this.chatHud.classList.contains('active')) this.startMessageFade(row);
+  }
   private transmit(text: string): boolean {
     const s = this.session, clean = text.trim(), channel = this.currentChannel();
     if (!s?.net?.chat || !clean) return false;
-    if (!s.net.chat(clean, channel.scope, channel.id)) {
-      this.deps.log('[chat] message not sent: FreeRoam connection, Crew membership or rate limit'); return false;
+    const now = performance.now(), wait = this.chatWaitMs(now);
+    if (wait > 0) {
+      const seconds = Math.max(1, Math.ceil(wait / 1000));
+      if (now - this.lastRateNoticeAt >= 900) {
+        this.systemMessage(`${t('Wait a moment')} (${seconds}s)`);
+        this.lastRateNoticeAt = now;
+      }
+      this.deps.log(`[chat] rate limited locally; retry in ${seconds}s`);
+      return false;
     }
+    if (!s.net.chat(clean, channel.scope, channel.id)) {
+      this.deps.log('[chat] message not sent: FreeRoam connection or Crew membership');
+      return false;
+    }
+    this.chatSentAt.push(now);
     return true;
   }
   private sendText() {
     const text = this.chatInput.value.trim();
-    if (text && this.transmit(text)) this.chatInput.value = '';
-    this.closeTextChat();
+    if (!text) { this.closeTextChat(); return; }
+    if (this.transmit(text)) {
+      this.chatInput.value = '';
+      this.closeTextChat();
+    }
   }
   private sendQuick(text: string) { if (this.transmit(text)) this.closeTextChat(); }
   private holdMessageFade() {
@@ -406,32 +458,31 @@ export class QuickChat {
   chat(json: string) {
     let s: TypedChat;
     try { s = JSON.parse(json) as TypedChat; } catch { this.deps.log('[chat] invalid server message'); return; }
-    if (!this.session || typeof s.id !== 'number' || typeof s.name !== 'string' || typeof s.text !== 'string'
-        || (s.scope !== 'room' && s.scope !== 'crew') || !Number.isSafeInteger(s.channel)) return;
+    if (!this.session || !Number.isSafeInteger(s.id) || s.id <= 0 || typeof s.name !== 'string' || typeof s.text !== 'string'
+        || (s.scope !== 'room' && s.scope !== 'crew') || !Number.isSafeInteger(s.channel) || s.channel < 0 || s.channel > 0xffffffff) return;
+    const name = s.name.trim(), body = s.text.trim();
+    if (!name || Array.from(name).length > 32 || /[\\u0000-\\u001f\\u007f]/.test(name)
+        || !body || Array.from(body).length > 160 || new TextEncoder().encode(body).length > 512
+        || /[\\u0000-\\u001f\\u007f]/.test(body)) return;
     const crew = s.scope === 'crew' ? this.crews.find(c => c.id === s.channel) : undefined;
     if (s.scope === 'crew' && (!crew || s.channel === 0)) return;
     if (s.scope === 'room' && s.channel !== 0) return;
     const label = crew?.name ?? t('All');
-    const quickMessage = QUICK_CHAT.some(item => item.text === s.text);
+    const quickMessage = QUICK_CHAT.some(item => item.text === body);
+    const mine = s.me === true;
     const row = document.createElement('div');
-    row.className = `message ${quickMessage ? 'quick' : s.scope === 'crew' ? 'team' : 'all'}`;
+    row.className = `message ${quickMessage ? 'quick' : s.scope === 'crew' ? 'team' : 'all'}${mine ? ' me' : ''}`;
+    row.dataset.senderId = String(s.id);
+    if (mine) row.dataset.self = 'true';
     const channel = document.createElement('span'); channel.className = 'channel';
-    channel.textContent = quickMessage ? '⚡' : s.scope === 'crew' ? '[KULÜP]' : '[HERKES]';
-    const sender = document.createElement('span'); sender.className = 'sender'; sender.textContent = `${s.name}:`;
-    const text = document.createElement('span'); text.className = 'text'; text.textContent = s.text;
+    channel.textContent = quickMessage ? '⚡' : s.scope === 'crew' ? `[${label}]` : '[HERKES]';
+    const sender = document.createElement('span'); sender.className = 'sender';
+    sender.textContent = `${name}:`; sender.title = name;
+    const text = document.createElement('span'); text.className = 'text'; text.textContent = body;
+    row.setAttribute('aria-label', `${label}, ${name}: ${body}`);
     row.append(channel, sender, text); this.chatMessages.append(row);
     // A player can keep the composer open while a busy room continues chatting. Keep that case bounded too.
-    while (this.chatMessages.childElementCount > CHAT_HISTORY_LIMIT) {
-      const oldest = this.chatMessages.firstElementChild as HTMLElement | null;
-      if (!oldest) break;
-      const timers = this.messageTimers.get(oldest);
-      if (timers) {
-        clearTimeout(timers.fade);
-        if (timers.remove !== undefined) clearTimeout(timers.remove);
-      }
-      this.messageTimers.delete(oldest);
-      oldest.remove();
-    }
+    this.trimChatHistory();
     this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
     if (!this.chatHud.classList.contains('active')) this.startMessageFade(row);
     this.deps.log(`[chat] ${s.scope === 'crew' ? 'Crew ' + label : 'FreeRoam'}: ${s.name}: ${s.text}`);
