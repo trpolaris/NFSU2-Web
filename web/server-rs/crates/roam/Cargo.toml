@@ -7,6 +7,9 @@ license.workspace = true
 publish.workspace = true
 
 [dependencies]
+unicode-normalization.workspace = true
+flate2.workspace = true
+base64.workspace = true
 nfsu2-util.workspace = true
 nfsu2-claims.workspace = true
 nfsu2-names.workspace = true
