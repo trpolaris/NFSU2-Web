@@ -69,15 +69,17 @@ const IN_TURN = [], BESIDE = [];
 const inTurn = (...a) => IN_TURN.push(a), beside = (...a) => BESIDE.push(a);
 
 // ---- what must never be in a response ----
+// Public project name; not a private machine identifier.
+const PUBLIC_BRAND = 'trpolaris';
 const hostShort = os.hostname().replace(/\.local$/i, '');
 const NEEDLES = [...new Set([
   os.homedir(), os.hostname(), hostShort, `${hostShort}.local`, DATA, REPO, TMP, fs.realpathSync(TMP), process.version, `Node.js/${process.versions.node}`,
   ...Object.values(os.networkInterfaces()).flat().filter(a => a && !a.internal).map(a => a.address),
-])].filter(s => s && s.length >= 4);
+])].filter(s => s && s.length >= 4 && s.toLowerCase() !== PUBLIC_BRAND);
 const USER = os.userInfo().username;
 // in text answers: no absolute path of any machine, no stack trace
 const TEXT_PATTERNS = [/\/Users\/|\/home\/|\/root\/|\/private\/|\/var\/folders|(?<![A-Za-z0-9])[A-Z]:\\/,   // a drive letter, not 'macOS:\n' /\n\s*at .*:\d+:\d+/, /node:internal|ERR_[A-Z_]{4,}/,
-  new RegExp(`\\b${USER.replace(/[^A-Za-z0-9]/g, '.')}\\b`, 'i')];
+  ...(USER.toLowerCase() === PUBLIC_BRAND ? [] : [new RegExp(`\\b${USER.replace(/[^A-Za-z0-9]/g, '.')}\\b`, 'i')])];
 function leaks(text, { binary = false } = {}) {
   const found = NEEDLES.filter(n => text.toLowerCase().includes(n.toLowerCase()));
   if (!binary) for (const re of TEXT_PATTERNS) if (re.test(text)) found.push(String(re));
