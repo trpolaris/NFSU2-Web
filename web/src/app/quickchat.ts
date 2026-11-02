@@ -183,7 +183,7 @@ export class QuickChat {
     closeButton.textContent = '×';
     closeButton.setAttribute('aria-label', t('Close chat'));
     closeButton.title = t('Close chat');
-    closeButton.addEventListener('click', () => this.closeTextChat());
+    closeButton.addEventListener('click', () => { uiSounds.play('click'); this.closeTextChat(); });
     closeButton.dataset.noSound = 'true';
     actions.append(shortcut, this.chatSoundButton, closeButton);
     this.chatHeader.append(identity, live, actions);
