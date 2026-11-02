@@ -28,6 +28,33 @@ const { LANGUAGES } = await import('data:text/javascript;base64,' + Buffer.from(
 const SKIP = !fs.existsSync(path.join(HERE, '../dist/main.js')) ? 'no page built (node web/build.mjs)'
   : process.platform !== 'win32' && !fs.existsSync(SERVER_BIN) ? 'no server (web/server-rs/build.sh)' : false;
 
+const SERVER_ROOT = path.join(HERE, '../server-rs');
+
+/** Rebuild the default server when Rust sources are newer than the copied test binary. */
+async function ensureCurrentServer() {
+  // An explicit NFSU2_SERVER_BIN is a deliberate override (e.g. a negative-control build); never replace it.
+  if (process.platform === 'win32' || process.env.NFSU2_SERVER_BIN) return;
+  const binary = fs.statSync(SERVER_BIN, { throwIfNoEntry: false });
+  if (!binary) return; // SKIP below has already handled a missing default binary.
+  const sourceDirs = ['src', 'crates'].map(d => path.join(SERVER_ROOT, d));
+  const sourceFiles = [
+    path.join(SERVER_ROOT, 'Cargo.toml'),
+    path.join(SERVER_ROOT, 'Cargo.lock'),
+    ...sourceDirs.flatMap(dir => fs.readdirSync(dir, { recursive: true }).map(file => path.join(dir, String(file)))),
+  ];
+  const newestSource = Math.max(0, ...sourceFiles
+    .filter(file => /\\.(?:rs|toml)$/.test(file))
+    .map(file => fs.statSync(file, { throwIfNoEntry: false })?.mtimeMs ?? 0));
+  if (newestSource <= binary.mtimeMs) return;
+
+  console.log('[page-narrow] Rust server sources changed; rebuilding out/web/server-rs/nfsu2-server');
+  await new Promise((resolve, reject) => {
+    const build = spawn('bash', [path.join(SERVER_ROOT, 'build.sh')], { stdio: 'inherit' });
+    build.once('error', reject);
+    build.once('exit', code => code === 0 ? resolve() : reject(new Error(`Rust server rebuild failed (exit ${code}); run bash server-rs/build.sh`)));
+  });
+}
+
 /** The page's source (what web/build.mjs reads) newer than the built page in web/dist, or '': the test measures the
  *  page as web/dist has it, so an older build would measure the old stylesheet and text, not this checkout's. */
 function newerSource() {
@@ -44,6 +71,7 @@ function newerSource() {
 }
 
 async function server() {
+  await ensureCurrentServer();
   const tmp = fs.mkdtempSync(path.join(process.env.TMPDIR || os.tmpdir(), 'nfsu2-page-test-'));
   let data = process.env.NFSU2_DATA || path.join(os.homedir(), 'projects/nsfu2/Need for Speed - Underground 2');
   if (!fs.existsSync(path.join(data, 'SPEED2.EXE'))) {
