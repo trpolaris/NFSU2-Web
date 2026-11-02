@@ -157,6 +157,9 @@ async function look(browser, kind, touch) {
     });
     assert.equal(cloudStatus, 401,
       `test server must expose TRPOLARIS Cloud v1 (HTTP 401 without a token); got HTTP ${cloudStatus}. Rebuild it with: bash server-rs/build.sh`);
+    // The redesigned UI keeps Saves and Controls on separate pages; visit Saves before testing its cloud controls.
+    await page.click('.quick-link[data-page="saves"]');
+    await page.waitForFunction(() => document.body.dataset.uiPage === 'saves', null, { timeout: 10_000 });
     // VaultPanel.start() probes this endpoint asynchronously; settings readiness alone does not make #vault visible.
     await page.waitForFunction(() => {
       const vault = document.querySelector('#vault');
@@ -164,6 +167,9 @@ async function look(browser, kind, touch) {
     }, null, { timeout: 30_000 });
     await page.click('#vault-make');
     await page.waitForFunction(() => !document.querySelector('#vault-on').hidden, null, { timeout: 30_000 });
+    // The layout loop exercises Controls tabs; make that page active instead of clicking through a hidden panel.
+    await page.click('.quick-link[data-page="controls"]');
+    await page.waitForFunction(() => document.body.dataset.uiPage === 'controls', null, { timeout: 10_000 });
     const frames = () => page.evaluate(() => document.fonts.ready.then(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))));
     for (const lang of LANGUAGES) {
       if (await page.evaluate(() => document.querySelector('#lang-pick').value) !== lang) {
