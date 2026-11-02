@@ -45,37 +45,28 @@ Orijinal projenin kaynak kodu ve katkıları kendi geliştiricilerine aittir. TR
 
 ## Ekran görüntüleri
 
-Aşağıdaki galeriler, paylaşılan 16 ekran görüntüsünü numaralandırılmış şekilde gruplar. Görseller README boyutuna uygun, sıkıştırılmış JPEG panelleridir. Kayıtlar ekranındaki bulut anahtarı ve özel LAN adresi, herkese açık dokümantasyona girmemesi için maskelenmiştir.
+NFSU2 Web arayüzünün depoda bulunan ekran görüntüleri, dosyaların gerçek konumları ve adları kullanılarak aşağıda listelenmiştir.
 
-### 1–8 · NFSU2 Web arayüzü
+<table>
+<tr>
+<td align="center"><strong>09 · Ana Sayfa</strong><br/><img src="docs/screenshots/web/09-ana-sayfa.jpg" alt="NFSU2 Web ana sayfa ve oyun başlatma" width="460" /></td>
+<td align="center"><strong>10 · Çevrimiçi</strong><br/><img src="docs/screenshots/web/10-cevrimici.jpg" alt="NFSU2 Web çevrimiçi ekranı" width="460" /></td>
+</tr>
+<tr>
+<td align="center"><strong>11 · Mod Kitaplığı</strong><br/><img src="docs/screenshots/web/11-mod-kitapligi.jpg" alt="NFSU2 Web mod kitaplığı" width="460" /></td>
+<td align="center"><strong>12 · Kayıtlar</strong><br/><img src="docs/screenshots/web/12-kayitlar.jpg" alt="NFSU2 Web kayıtlar ekranı" width="460" /></td>
+</tr>
+<tr>
+<td align="center"><strong>13 · Kontroller</strong><br/><img src="docs/screenshots/web/13-kontroller.jpg" alt="NFSU2 Web kontrol ayarları" width="460" /></td>
+<td align="center"><strong>14 · Ayarlar</strong><br/><img src="docs/screenshots/web/14-ayarlar.jpg" alt="NFSU2 Web ayarlar ekranı" width="460" /></td>
+</tr>
+<tr>
+<td align="center"><strong>15 · Sistem Tanılaması</strong><br/><img src="docs/screenshots/web/15-sistem-tanilamasi.jpg" alt="NFSU2 Web sistem tanılaması" width="460" /></td>
+<td align="center"><strong>16 · Proje Hakkında</strong><br/><img src="docs/screenshots/web/16-proje-hakkinda.jpg" alt="NFSU2 Web proje hakkında ekranı" width="460" /></td>
+</tr>
+</table>
 
-**01 Kontroller · 02 Mod Kitaplığı · 03 Proje Hakkında · 04 Kayıtlar**
-
-<p align="center">
-  <img src="docs/screenshots/readme-refresh/nfsu2-web-interface-01.jpg" alt="NFSU2 Web: kontroller, mod kitaplığı, proje hakkında ve kayıtlar sayfaları" width="100%" />
-</p>
-
-**05 Sistem Tanılaması · 06 Ayarlar · 07 Çevrimiçi · 08 Ana Sayfa / Oyun Başlatma**
-
-<p align="center">
-  <img src="docs/screenshots/readme-refresh/nfsu2-web-interface-02.jpg" alt="NFSU2 Web: sistem tanılaması, ayarlar, çevrimiçi ve ana sayfa" width="100%" />
-</p>
-
-### 9–13 · TRPOLARIS Player Hub
-
-**09 Profilim · 10 Çevrimiçi Oyuncular · 11 Garajım · 12 Genel Bakış · 13 İstatistikler**
-
-<p align="center">
-  <img src="docs/screenshots/readme-refresh/trpolaris-player-hub.jpg" alt="TRPOLARIS Player Hub: profil, çevrimiçi oyuncular, garaj, genel bakış ve istatistik ekranları" width="100%" />
-</p>
-
-### 14–16 · Oyun içi menü ve sohbet
-
-**14 F9 kontrol menüsü · 15 Kapalı sohbet HUD'u · 16 Açık sohbet HUD'u**
-
-<p align="center">
-  <img src="docs/screenshots/readme-refresh/gameplay-overlays.jpg" alt="NFSU2 oyun içi F9 kontrol menüsü ve sohbet HUD'unun kapalı/açık durumları" width="100%" />
-</p>
+> Player Hub ve oyun içi HUD ekranları için yeni görseller henüz bu depoya eklenmediğinden, bu bölümde yalnızca GitHub'da mevcut olan ekran görüntüleri gösterilir.
 
 ### Control Center
 
@@ -95,6 +86,8 @@ Control Center ekranları ayrı bir masaüstü uygulamasına aittir. Mevcut gale
 | [Tanılama ve Bakım](docs/screenshots/control-center/06-tanilama-ve-bakim.jpg) | WSL, Docker, port ve sunucu kontrolleri. |
 | [Kaldırma Merkezi](docs/screenshots/control-center/07-kaldirma-merkezi.jpg) | NFSU2 bileşenlerini seçerek kaldırma. |
 | [Canlı İşlem Günlüğü](docs/screenshots/control-center/08-canli-islem-gunlugu.jpg) | PowerShell ve WSL işlemlerini izleme. |
+
+---
 
 ---
 
