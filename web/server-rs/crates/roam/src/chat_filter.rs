@@ -28,6 +28,19 @@ const ARCHIVE_BASE64: &str = concat!(
 
 const MASK: &str = "*******";
 
+// The supplied Turkish locale list is deliberately conservative and does not include common
+// modern chat shortcuts/insults. Keep these as explicit supplemental entries so they are
+// normalized by the same Unicode path and masked by the same word/phrase matcher.
+const TURKISH_CHAT_SUPPLEMENTS: &[&str] = &[
+    "amk",
+    "ananı",
+    "ananı sikeyim",
+    "ananı sikerim",
+    "amına koyayım",
+    "amına koyim",
+    "amınakoyim",
+];
+
 #[derive(Debug)]
 struct Filter {
     terms: HashSet<String>,
@@ -215,6 +228,17 @@ fn build_filter() -> Result<Filter, String> {
             terms.insert(normalized);
         }
     }
+    // Add common Turkish chat terms missing from the original supplied locale archive.
+    for raw in TURKISH_CHAT_SUPPLEMENTS {
+        let parts = tokens(raw);
+        if parts.is_empty() {
+            continue;
+        }
+        let normalized = parts.iter().map(|part| part.normalized.as_str()).collect::<Vec<_>>().join(" ");
+        max_words = max_words.max(parts.len());
+        terms.insert(normalized);
+    }
+
     if terms.is_empty() {
         return Err("chat filter word list is empty".into());
     }
@@ -286,6 +310,15 @@ mod tests {
     fn masks_turkish_and_english_terms_but_preserves_punctuation() {
         assert_eq!(censor("Merhaba AMCIK!"), "Merhaba *******!");
         assert_eq!(censor("This is SHIT."), "This is *******.");
+    }
+
+    #[test]
+    fn masks_common_turkish_chat_terms_missing_from_the_source_archive() {
+        assert_eq!(censor("TRPOLARIS8411:amk"), "TRPOLARIS8411:*******");
+        assert_eq!(censor("TRPOLARIS8411:ananı"), "TRPOLARIS8411:*******");
+        assert_eq!(censor("AMK ve anani!"), "******* ve *******!");
+        assert_eq!(censor("amına koyayım"), "*******");
+        assert_eq!(censor("I am ready"), "I am ready");
     }
 
     #[test]
