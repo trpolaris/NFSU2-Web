@@ -43,7 +43,7 @@ async function ensureCurrentServer() {
     ...sourceDirs.flatMap(dir => fs.readdirSync(dir, { recursive: true }).map(file => path.join(dir, String(file)))),
   ];
   const newestSource = Math.max(0, ...sourceFiles
-    .filter(file => /\\.(?:rs|toml|lock)$/.test(file))
+    .filter(file => /\.(?:rs|toml|lock)$/.test(file))
     .map(file => fs.statSync(file, { throwIfNoEntry: false })?.mtimeMs ?? 0));
   if (newestSource <= binary.mtimeMs) return;
 
