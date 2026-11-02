@@ -66,7 +66,7 @@ test('room presence events populate @ autocomplete and announce joins/leaves', {
   if (!result) return;
   assert.deepEqual(result.suggestions, ['CharlieÇEVRİMİÇİ']);
   assert.equal(result.inserted, 'Selam @Charlie ');
-  assert.equal(result.players, 2, 'self is not part of the mention suggestions/roster received');
+  assert.equal(result.players, 3, 'the received roster contains the three initial names plus Charlie, minus Alice');
   assert.equal(result.presenceLines.length, 2);
   assert.match(result.presenceLines[0], /Charlie.*oyuna katıldı/);
   assert.match(result.presenceLines[1], /Alice.*oyundan ayrıldı/);

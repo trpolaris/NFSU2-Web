@@ -603,10 +603,13 @@ export class QuickChat {
     const value = this.chatInput.value;
     const caret = this.chatInput.selectionStart ?? value.length;
     const prefix = value.slice(0, caret);
-    const match = /(^|[\\s([,{:])@([^\\s@]*)$/u.exec(prefix);
-    if (!match) { this.hideMentionSuggestions(); return; }
-    const query = normalizedPlayerName(match[2]);
-    const at = caret - match[2].length - 1;
+    const at = prefix.lastIndexOf('@');
+    if (at < 0 || (at > 0 && !/\s/u.test(prefix[at - 1]) && !'([{,:'.includes(prefix[at - 1]))) {
+      this.hideMentionSuggestions(); return;
+    }
+    const queryText = prefix.slice(at + 1);
+    if (/\s|@/u.test(queryText)) { this.hideMentionSuggestions(); return; }
+    const query = normalizedPlayerName(queryText);
     const own = normalizedPlayerName(this.playerName);
     const matches = [...this.onlinePlayers.entries()]
       .filter(([, name]) => normalizedPlayerName(name) !== own && normalizedPlayerName(name).startsWith(query))
@@ -699,7 +702,8 @@ export class QuickChat {
       if (!entry || typeof entry !== 'object') return false;
       const p = entry as { id?: unknown; name?: unknown };
       return Number.isSafeInteger(p.id) && (p.id as number) > 0 && typeof p.name === 'string'
-        && !!p.name.trim() && Array.from(p.name).length <= 32 && !/[\\u0000-\\u001f\\u007f]/.test(p.name);
+        && !!p.name.trim() && Array.from(p.name).length <= 32
+        && !Array.from(p.name).some(ch => { const code = ch.codePointAt(0)!; return code < 32 || code === 127; });
     });
     if (event.type === 'snapshot') {
       if (event.first === true) this.onlinePlayers.clear();
