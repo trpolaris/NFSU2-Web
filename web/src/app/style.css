@@ -1971,3 +1971,33 @@ dialog.menu[open]::backdrop { animation: trpolaris-f9-backdrop-in .28s ease both
 .chat-presence .channel { color: #00ffcc; font-style: normal; }
 .chat-presence .sender { text-transform: none; }
 .chat-presence.left .channel { color: #f6a36e; }
+
+
+/* Crisp text for sender identities and @mentions: no inherited HUD shadow/glow blur. */
+.racing-chat-wrapper .message .sender,
+.racing-chat-wrapper .chat-mention {
+  font-style: normal !important;
+  letter-spacing: 0 !important;
+  text-shadow: none !important;
+  filter: none !important;
+  -webkit-filter: none !important;
+}
+.racing-chat-wrapper .chat-mention {
+  display: inline-block;
+  padding: 0 4px;
+  border: 1px solid rgba(0, 255, 204, .72);
+  border-radius: 2px;
+  color: #06251d !important;
+  background: #8fffe5 !important;
+  box-shadow: none !important;
+  font-weight: 900;
+  line-height: 1.25;
+  vertical-align: baseline;
+}
+.chat-mention-option strong {
+  font-style: normal;
+  letter-spacing: 0;
+  text-shadow: none !important;
+  filter: none !important;
+  font: 800 12px/1.35 var(--font);
+}
