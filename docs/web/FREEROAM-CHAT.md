@@ -30,15 +30,17 @@ Orijinal hızlı mesaj butonları ve mevcut sabit ifade Quick Chat sistemi ayrı
 
 ## Mesaj geçmişi ve kaynak kullanımı
 
-- Mesajlar normal durumda 5 saniye görünür; ardından kısa fade animasyonu tamamlanınca DOM'dan kaldırılır.
-- Sohbet yazma alanı açıkken mesaj zamanlayıcıları bekletilir. Yoğun odalarda bile HUD en fazla 40 satır tutar; en eski satırlar önce kaldırılır.
-- Kaldırılan satırların zamanlayıcıları temizlenir. Oyun oturumu bittiğinde tüm mesajlar, zamanlayıcılar ve çizim katmanları temizlenir.
+- Sohbet kapalıyken yeni mesajlar 5 saniye sonra kısa bir fade animasyonuyla soluklaşır; satırlar oturum geçmişinde kalır ve sohbet yeniden açıldığında tekrar okunabilir.
+- Sohbet yazma alanı açıkken fade zamanlayıcıları bekletilir ve mevcut satırlar görünür tutulur. Alan kapatıldığında geçmiş satırların fade süresi yeniden başlar.
+- HUD, sohbet açıkken de kapalıyken de en fazla 200 mesaj satırı tutar. Sınır aşıldığında en eski satırlar ve bunların zamanlayıcıları temizlenir.
+- Oyun oturumu bittiğinde tüm mesajlar, zamanlayıcılar ve çizim katmanları temizlenir.
 
 ## Test
 
 Depodaki otomatik kontroller:
 
-- `web/test/quickchat-history.test.mjs`: fade sonrası DOM temizliği, timer temizliği ve 40 satırlık üst sınır.
+- `web/test/quickchat-history.test.mjs`: fade ve yeniden görünür olma davranışı, 200 satır sınırı ve oturum sonunda temizleme.
+- `web/test/quickchat-appearance.test.mjs`: geçmişte okuma konumunun korunması ve en yeni mesaja yumuşak kaydırma.
 - `web/test/quickchat-ux.test.mjs`: Crew isimleri, güvenli oyuncu adı çizimi, kendi mesaj vurgusu ve 4/5 sn gönderim limiti.
 - `web/server-rs/crates/roam/src/wire.rs`: geçerli/geçersiz chat wire frame'leri.
 - Multiplayer CI, Rust workspace testleri, web build ve regresyon paketini çalıştırır.
