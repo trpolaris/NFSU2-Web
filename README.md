@@ -42,38 +42,37 @@ Orijinal projenin kaynak kodu ve katkıları kendi geliştiricilerine aittir. TR
 > Bu depo **Need for Speed: Underground 2 oyun dosyalarını içermez**. `SPEED2.EXE`, `server.dll`, oyun arşivleri, sesler, videolar veya başka telifli oyun varlıkları Git deposuna ya da Docker imajına eklenmez. Derleme ve kullanım için kendi yasal PC oyun kopyanız gerekir.
 
 ---
+### Web Ui
 
-## Ekran görüntüleri
+<p align="center">
+  <img src="docs/screenshots/trpolaris-main-web-explained-compact-info.gif" alt="Web Ui" width="100%" />
+</p>
 
-NFSU2 Web arayüzünün depoda bulunan ekran görüntüleri, dosyaların gerçek konumları ve adları kullanılarak aşağıda listelenmiştir.
+### Player Hub
 
-<table>
-<tr>
-<td align="center"><strong>09 · Ana Sayfa</strong><br/><img src="docs/screenshots/web/09-ana-sayfa.jpg" alt="NFSU2 Web ana sayfa ve oyun başlatma" width="460" /></td>
-<td align="center"><strong>10 · Çevrimiçi</strong><br/><img src="docs/screenshots/web/10-cevrimici.jpg" alt="NFSU2 Web çevrimiçi ekranı" width="460" /></td>
-</tr>
-<tr>
-<td align="center"><strong>11 · Mod Kitaplığı</strong><br/><img src="docs/screenshots/web/11-mod-kitapligi.jpg" alt="NFSU2 Web mod kitaplığı" width="460" /></td>
-<td align="center"><strong>12 · Kayıtlar</strong><br/><img src="docs/screenshots/web/12-kayitlar.jpg" alt="NFSU2 Web kayıtlar ekranı" width="460" /></td>
-</tr>
-<tr>
-<td align="center"><strong>13 · Kontroller</strong><br/><img src="docs/screenshots/web/13-kontroller.jpg" alt="NFSU2 Web kontrol ayarları" width="460" /></td>
-<td align="center"><strong>14 · Ayarlar</strong><br/><img src="docs/screenshots/web/14-ayarlar.jpg" alt="NFSU2 Web ayarlar ekranı" width="460" /></td>
-</tr>
-<tr>
-<td align="center"><strong>15 · Sistem Tanılaması</strong><br/><img src="docs/screenshots/web/15-sistem-tanilamasi.jpg" alt="NFSU2 Web sistem tanılaması" width="460" /></td>
-<td align="center"><strong>16 · Proje Hakkında</strong><br/><img src="docs/screenshots/web/16-proje-hakkinda.jpg" alt="NFSU2 Web proje hakkında ekranı" width="460" /></td>
-</tr>
-</table>
+<p align="center">
+  <img src="docs/screenshots/trpolaris-player-hub-explained-compact-info.gif" alt="Player Hub" width="100%" />
+</p>
 
-> Player Hub ve oyun içi HUD ekranları için yeni görseller henüz bu depoya eklenmediğinden, bu bölümde yalnızca GitHub'da mevcut olan ekran görüntüleri gösterilir.
+### Chat
+
+<p align="center">
+  <img src="docs/screenshots/trpolaris-chat-hud-explained.gif" alt="Chat" width="100%" />
+</p>
+
+### F9 Menu
+
+<p align="center">
+  <img src="docs/screenshots/trpolaris-f9-driver-options-explained-fixed.gif" alt="F9 Menu" width="100%" />
+</p>
+
 
 ### Control Center
 
 Control Center ekranları ayrı bir masaüstü uygulamasına aittir. Mevcut galeri ve ayrıntılı açıklamalar:
 
 <p align="center">
-  <img src="docs/screenshots/control-center/slider.gif" alt="TRPOLARIS Control Center ekran galerisi" width="100%" />
+  <img src="docs/screenshots/trpolaris-control-center-explained.gif" alt="TRPOLARIS Control Center ekran galerisi" width="100%" />
 </p>
 
 | Ekran | Açıklama |
