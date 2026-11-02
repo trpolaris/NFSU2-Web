@@ -31,8 +31,17 @@ const bytes = (size, seed, packs) => {
   if (packs) for (let i = 0; i < size; i++) b[i] = (b[i] & 3) * 0x41;
   return b;
 };
+// A little redundancy, but not the 4-symbol data used by the functional tests:
+// its zstd output stays larger than a typical TCP receive buffer. Pausing the
+// HTTP response therefore really holds each server-side compressor slot.
+const saturationBytes = (size, seed) => {
+  const b = bytes(size, seed, false);
+  for (let i = 0; i < size; i += 4) b[i] = 0;
+  return b;
+};
 const DATA = path.join(TMP, 'game');
 const FILES = { 'SPEED2.EXE': bytes(3 * M + 17, 'exe', false), 'TRACKS/L4RA.BUN': bytes(8 * M + 5, 'track', true),
+  'TRACKS/SATURATE.BUN': saturationBytes(8 * M + 5, 'saturate'),
   'MOVIES/INTRO.VP6': bytes(2 * M, 'movie', false),
   // a first block that does not compress before two that do (as the game's music): judged per run
   'PFDATA/MIX.MUS': Buffer.concat([bytes(M, 'mix0', false), bytes(2 * M, 'mix1', true)]) };
@@ -226,7 +235,7 @@ test('/data-blocks/: past the 128 compressors of all clients, the next client ge
   try {
     // a client is an X-Forwarded-For address (this machine is a trusted proxy); its compressed runs are not read
     const open = c => new Promise((res, rej) => {
-      const q = http.request({ host: '127.0.0.1', port: PORT, path: '/data-blocks/TRACKS/L4RA.BUN?b=0&n=8',
+      const q = http.request({ host: '127.0.0.1', port: PORT, path: '/data-blocks/TRACKS/SATURATE.BUN?b=0&n=8',
         headers: { host: `localhost:${PORT}`, 'accept-encoding': 'zstd, br, gzip', 'x-forwarded-for': `192.0.2.${c}` } }, r => {
         r.pause(); held.push(r); res(r.headers['content-encoding'] ?? 'none');
       });
