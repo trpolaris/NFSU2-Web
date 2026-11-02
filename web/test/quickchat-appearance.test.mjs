@@ -117,6 +117,11 @@ test('chat history keeps the latest 200 lines and does not pull the reader away 
     assert.ok(await page.locator('#chatHistoryLatest').isVisible(), 'a jump-to-latest control appears while older messages are open');
 
     await page.locator('#chatHistoryLatest').click();
+    // scrollChatToLatest(true) intentionally animates; measure only after the smooth scroll completes.
+    await page.waitForFunction(() => {
+      const el = document.querySelector('#chatMessages');
+      return !!el && el.scrollHeight - el.clientHeight - el.scrollTop <= 2;
+    }, null, { timeout: 5000 });
     const latest = await list.evaluate(el => ({
       top: el.scrollTop,
       max: el.scrollHeight - el.clientHeight,
