@@ -31,6 +31,47 @@ async function browserTest(t, run) {
   }
 }
 
+
+test('room presence events populate @ autocomplete and announce joins/leaves', { timeout: 30_000 }, async t => {
+  const result = await browserTest(t, async bundleUrl => {
+    const { QuickChat } = await import(bundleUrl);
+    const chat = new QuickChat(document.querySelector('#stage'), { line() {}, lobby() {}, place() {}, log() {} });
+    const session = {
+      net: { chat: () => true },
+      status: { read: () => ({ get: key => key === 'drive' ? 2 : 0 }) },
+    };
+    chat.start(session, false, [], [], [], 'Driver');
+    chat.presence(JSON.stringify({
+      type: 'snapshot', first: true, last: true,
+      players: [{ id: 1, name: 'Alice' }, { id: 2, name: 'Bob' }, { id: 3, name: 'Driver' }],
+    }));
+    chat.presence(JSON.stringify({ type: 'join', players: [{ id: 4, name: 'Charlie' }] }));
+    chat.presence(JSON.stringify({ type: 'leave', players: [{ id: 1, name: 'Alice' }] }));
+    chat.driveAt = -Infinity;
+    chat.toggle();
+    chat.chatInput.value = 'Selam @ch';
+    chat.chatInput.setSelectionRange(9, 9);
+    chat.chatInput.dispatchEvent(new Event('input', { bubbles: true }));
+    const before = [...chat.mentionSuggestions.querySelectorAll('[data-mention-index]')].map(x => x.textContent);
+    chat.mentionSuggestions.querySelector('[data-mention-index="0"]')?.click();
+    const out = {
+      suggestions: before,
+      inserted: chat.chatInput.value,
+      presenceLines: [...chat.chatMessages.querySelectorAll('.chat-presence')].map(x => x.textContent),
+      players: chat.onlinePlayers.size,
+    };
+    chat.stop();
+    return out;
+  });
+  if (!result) return;
+  assert.deepEqual(result.suggestions, ['CharlieÇEVRİMİÇİ']);
+  assert.equal(result.inserted, 'Selam @Charlie ');
+  assert.equal(result.players, 2, 'self is not part of the mention suggestions/roster received');
+  assert.equal(result.presenceLines.length, 2);
+  assert.match(result.presenceLines[0], /Charlie.*oyuna katıldı/);
+  assert.match(result.presenceLines[1], /Alice.*oyundan ayrıldı/);
+});
+
 test('Crew names, player identity and message content are visible and safely rendered', { timeout: 30_000 }, async t => {
   const result = await browserTest(t, async bundleUrl => {
     const { QuickChat } = await import(bundleUrl);

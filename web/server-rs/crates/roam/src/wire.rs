@@ -26,6 +26,13 @@ const RACEREP_NAME: usize = 16;
 pub(crate) const MSG_RACERES: u8 = 16;
 /// typed FreeRoam chat, routed by the hub to a room or one shared Crew
 pub(crate) const MSG_CHAT: u8 = 17;
+/// room chat roster and join/leave events, sent only from the hub to active room members
+pub(crate) const MSG_PRESENCE: u8 = 18;
+pub(crate) const PRESENCE_SNAPSHOT: u8 = 0;
+pub(crate) const PRESENCE_JOIN: u8 = 1;
+pub(crate) const PRESENCE_LEAVE: u8 = 2;
+pub(crate) const PRESENCE_FIRST: u8 = 0x01;
+pub(crate) const PRESENCE_LAST: u8 = 0x02;
 pub(crate) const CHAT_MAX_BYTES: usize = 512;
 pub(crate) const CHAT_MAX_CHARS: usize = 160;
 /// its head and each row (roam_core.h RC_RACERES_HEAD, RC_RACERES_ROW); a row's flags (RC_RS_FINISHED, RC_RS_OURS)
@@ -512,6 +519,44 @@ pub(crate) fn write_lobbies(b: &mut [u8], sender: u32, seq: u16, req: u16, list:
     b[len - CRC..].copy_from_slice(&crc.to_le_bytes());
 }
 
+/// Length of a room-presence datagram with its variable-size player names.
+pub(crate) fn presence_len(entries: &[(u32, String)]) -> usize {
+    HDR + 3 + entries.iter().map(|(_, name)| 5 + name.len().min(32)).sum::<usize>() + CRC
+}
+
+/// A hub-to-client room roster/event datagram. Snapshot flags delimit batches; join/leave carry one player.
+pub(crate) fn write_presence(
+    b: &mut [u8],
+    sender: u32,
+    seq: u16,
+    op: u8,
+    flags: u8,
+    entries: &[(u32, String)],
+) {
+    let len = b.len();
+    b[..4].copy_from_slice(b"N2FR");
+    b[4] = 1;
+    b[5] = MSG_PRESENCE;
+    b[6..8].copy_from_slice(&(len as u16).to_le_bytes());
+    b[8..12].copy_from_slice(&sender.to_le_bytes());
+    b[12..14].copy_from_slice(&seq.to_le_bytes());
+    b[14..16].copy_from_slice(&[0, 0]);
+    b[16] = op;
+    b[17] = flags;
+    b[18] = entries.len().min(255) as u8;
+    let mut at = 19;
+    for (id, name) in entries.iter().take(255) {
+        let bytes = name.as_bytes();
+        let n = bytes.len().min(32);
+        b[at..at + 4].copy_from_slice(&id.to_le_bytes());
+        b[at + 4] = n as u8;
+        b[at + 5..at + 5 + n].copy_from_slice(&bytes[..n]);
+        at += 5 + n;
+    }
+    let crc = crc32fast::hash(&b[..len - CRC]);
+    b[len - CRC..].copy_from_slice(&crc.to_le_bytes());
+}
+
 /// the length of a MAP datagram of n entries
 pub(crate) fn map_len(n: usize) -> usize {
     HDR + 7 + MAP_ENTRY * n + CRC
@@ -616,6 +661,29 @@ mod chat_tests {
         let mut bad = request(0, 0, b"hello");
         *bad.last_mut().unwrap() ^= 1;
         assert!(decode(&bad).is_none());
+    }
+
+    #[test]
+    fn presence_snapshot_and_join_frames_have_checked_lengths_and_crc() {
+        let players = vec![(7u32, "Racer".to_string()), (9u32, "Night Driver".to_string())];
+        let mut b = vec![0u8; presence_len(&players)];
+        write_presence(&mut b, 1, 4, PRESENCE_SNAPSHOT, PRESENCE_FIRST | PRESENCE_LAST, &players);
+        assert_eq!(&b[..4], b"N2FR");
+        assert_eq!(b[5], MSG_PRESENCE);
+        assert_eq!((b[16], b[17], b[18]), (PRESENCE_SNAPSHOT, PRESENCE_FIRST | PRESENCE_LAST, 2));
+        assert_eq!(u32_le(&b, 19), 7);
+        assert_eq!(b[23], 5);
+        assert_eq!(&b[24..29], b"Racer");
+        assert_eq!(u32_le(&b, 29), 9);
+        assert_eq!(b[33], 12);
+        assert_eq!(&b[34..46], b"Night Driver");
+        assert_eq!(u32_le(&b, b.len() - CRC), crc32fast::hash(&b[..b.len() - CRC]));
+
+        let one = [(11u32, "Joined".to_string())];
+        let mut event = vec![0u8; presence_len(&one)];
+        write_presence(&mut event, 1, 5, PRESENCE_JOIN, 0, &one);
+        assert_eq!((event[16], event[17], event[18]), (PRESENCE_JOIN, 0, 1));
+        assert_eq!(u32_le(&event, 19), 11);
     }
 
     #[test]

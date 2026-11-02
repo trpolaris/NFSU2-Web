@@ -747,7 +747,7 @@ async function startGame() {
     // longer than the game), and a closure from this function would keep its
     // scope, and with it this game, reachable
     session = await GameSession.start({
-      module: loaded!.module, info: loaded!.info, saveDir: SAVE, env: r.env, canvas, stage, audio, displayHz, netName, notice, lobby, say, chat, marks,
+      module: loaded!.module, info: loaded!.info, saveDir: SAVE, env: r.env, canvas, stage, audio, displayHz, netName, notice, lobby, say, chat, presence, marks,
       netBack, netQueue, onSaved,
       netId: net ? pageId() : undefined, netClaim: net ? await vault.token().catch(() => null) ?? undefined : undefined, netRemoved,
       netBlock: net && r.env.NFSU2_ROAM === '1' ? blockList(r.env.NFSU2_ROAM_BLOCK ?? '') : undefined,
@@ -1061,6 +1061,10 @@ function say(json: string) {
 /** typed FreeRoam / race-lobby chat returned by the server */
 function chat(json: string) {
   quickChat.chat(json);
+}
+/** active FreeRoam room roster and join/leave events returned by the hub */
+function presence(json: string) {
+  quickChat.presence(json);
 }
 function marks(n: number, m: Float32Array, ids: Uint32Array) { quickChat.marks(n, m, ids); }
 /** quick chat's line in the log: a speech balloon, the name, the phrase; in the notices' box, for 8 s */

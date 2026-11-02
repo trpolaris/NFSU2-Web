@@ -128,6 +128,9 @@ fn race_line(player: &str, r: &wire::RaceRep) -> String {
 
 /// how often a player's claim hears that it plays (the claim holds 180 days from its last game: an hour is plenty)
 const SEEN_EVERY_MS: f64 = 600_000.0;
+/// Typed chat and its live roster include players with a fresh FreeRoam position.
+const PRESENCE_ACTIVE_MS: f64 = 15_000.0;
+const PRESENCE_SNAPSHOT_BATCH: usize = 20;
 
 /// a link: the player it is to, and since when
 #[derive(Clone, Copy, Debug)]
@@ -187,6 +190,8 @@ struct Player {
     seen_claim: f64,
     /// recent typed chat sends, used for the hub-side per-player rate limit
     chat_at: Vec<f64>,
+    /// announced in the room chat roster after a fresh FreeRoam position
+    present: bool,
 }
 
 impl Player {
@@ -220,9 +225,14 @@ impl Block {
         self.owners = self.names.iter().filter_map(|n| c.holder(n, now as i64)).collect();
     }
 
+    /// whether it blocks a player identity
+    fn has_identity(&self, canon: &str, owner: Option<&Arc<str>>) -> bool {
+        (!canon.is_empty() && self.names.iter().any(|n| n == canon)) || owner.is_some_and(|o| self.owners.contains(o))
+    }
+
     /// whether it blocks player p
     fn has(&self, p: &Player) -> bool {
-        (!p.canon.is_empty() && self.names.contains(&p.canon)) || p.owner.as_ref().is_some_and(|o| self.owners.contains(o))
+        self.has_identity(&p.canon, p.owner.as_ref())
     }
 }
 
@@ -568,6 +578,11 @@ impl Hub {
     fn remove(&mut self, slot: u32, keep: bool) -> bool {
         let Some(mut p) = self.slots.get_mut(slot as usize).and_then(Option::take) else { return false };
         let now = (self.now)();
+        if p.present {
+            self.broadcast_presence(
+                p.room, slot, wire::PRESENCE_LEAVE, p.vip, &p.canon, p.owner.as_ref(), p.id, &p.name,
+            );
+        }
         if keep && self.kept.len() < self.o.max_players {
             let w = KeptWatch { watch: std::mem::replace(&mut p.watch, Watch::new(now)), id: p.id, name: p.name.clone(), at: now };
             self.kept.insert(p.key(), w);
@@ -709,11 +724,16 @@ impl Hub {
                     checked: 0,
                     seen_claim: f64::NEG_INFINITY,
                     chat_at: Vec::new(),
+                    present: false,
                 })
             }
         };
         let now = (self.now)();
         let degree = self.o.degree;
+        let (was_present, was_room, was_vip, was_id, was_name, was_canon, was_owner) = {
+            let Some(p) = self.player(slot) else { return };
+            (p.present, p.room, p.vip, p.id, p.name.clone(), p.canon.clone(), p.owner.clone())
+        };
         let Some(Some(p)) = self.slots.get_mut(slot as usize) else { return };
         p.seen = now;
         p.hub_port = dport;
@@ -732,6 +752,8 @@ impl Hub {
                 if p.id != sender {
                     p.links.clear();
                     p.watch.reset();
+                    p.p = None;
+                    p.pos_at = 0.0;
                 }
                 p.id = sender;
                 p.room = room;
@@ -791,6 +813,27 @@ impl Hub {
         if check {
             self.check_claim(slot, now);
         }
+        let current = self.player(slot).map(|p| {
+            let active = !p.impostor && p.id != 0 && matches!(p.status, 2 | 5)
+                && p.p.is_some()
+                && now - p.pos_at <= PRESENCE_ACTIVE_MS
+                && now - p.seen <= PRESENCE_ACTIVE_MS;
+            (p.present, active, p.room, p.vip, p.id, p.name.clone(), p.canon.clone(), p.owner.clone())
+        });
+        if let Some((is_announced, active, room, vip, id, name, canon, player_owner)) = current {
+            let identity_changed = was_room != room || was_vip != vip || was_id != id || was_name != name;
+            if was_present && (!active || identity_changed) {
+                if let Some(Some(p)) = self.slots.get_mut(slot as usize) { p.present = false; }
+                self.broadcast_presence(
+                    was_room, slot, wire::PRESENCE_LEAVE, was_vip, &was_canon, was_owner.as_ref(), was_id, &was_name,
+                );
+            }
+            if active && (!is_announced || identity_changed) {
+                if let Some(Some(p)) = self.slots.get_mut(slot as usize) { p.present = true; }
+                self.broadcast_presence(room, slot, wire::PRESENCE_JOIN, vip, &canon, player_owner.as_ref(), id, &name);
+                self.presence_snapshot(slot);
+            }
+        }
         if let Some(line) = report {
             self.st.race_reports += 1;
             (self.log)(&line);
@@ -811,10 +854,88 @@ impl Hub {
         }
     }
 
+    /// Send one presence datagram to a single endpoint.
+    fn send_presence_to(
+        &mut self,
+        recipient: (u32, u16, u16),
+        op: u8,
+        flags: u8,
+        entries: &[(u32, String)],
+    ) {
+        let (vip, port, hub_port) = recipient;
+        let mut frame = vec![0u8; F_DATA + wire::presence_len(entries)];
+        frame[0] = KIND_UDP;
+        frame[4..8].copy_from_slice(&ROAM_HUB_VIP.to_be_bytes());
+        frame[8..12].copy_from_slice(&vip.to_be_bytes());
+        frame[12..14].copy_from_slice(&hub_port.to_be_bytes());
+        frame[14..16].copy_from_slice(&port.to_be_bytes());
+        wire::write_presence(&mut frame[F_DATA..], self.id, self.seq, op, flags, entries);
+        self.seq = self.seq.wrapping_add(1);
+        (self.send)(vip, Bytes::from(frame));
+    }
+
+    /// Announce a join or leave only to active members of the same room; honor both players' block lists.
+    fn broadcast_presence(
+        &mut self,
+        room: u32,
+        exclude: u32,
+        op: u8,
+        sender_vip: u32,
+        sender_canon: &str,
+        sender_owner: Option<&Arc<str>>,
+        sender_id: u32,
+        sender_name: &str,
+    ) {
+        let recipients: Vec<(u32, u16, u16)> = self.order.iter().filter_map(|&slot| {
+            if slot == exclude { return None; }
+            let p = self.player(slot)?;
+            if !p.present || p.room != room
+                || self.blocks.get(&sender_vip).is_some_and(|b| b.has(p))
+                || self.blocks.get(&p.vip).is_some_and(|b| b.has_identity(sender_canon, sender_owner))
+            {
+                return None;
+            }
+            Some((p.vip, p.port, p.hub_port))
+        }).collect();
+        let entries = [(sender_id, sender_name.to_string())];
+        for recipient in recipients {
+            self.send_presence_to(recipient, op, 0, &entries);
+        }
+    }
+
+    /// Give a newly announced player an authoritative snapshot of the other active players in its room.
+    fn presence_snapshot(&mut self, slot: u32) {
+        let Some((room, vip, canon, owner, recipient)) = self.player(slot).map(|p| {
+            (p.room, p.vip, p.canon.clone(), p.owner.clone(), (p.vip, p.port, p.hub_port))
+        }) else { return };
+        let entries: Vec<(u32, String)> = self.order.iter().filter_map(|&other| {
+            if other == slot { return None; }
+            let p = self.player(other)?;
+            if !p.present || p.room != room
+                || self.blocks.get(&vip).is_some_and(|b| b.has(p))
+                || self.blocks.get(&p.vip).is_some_and(|b| b.has_identity(&canon, owner.as_ref()))
+            {
+                return None;
+            }
+            Some((p.id, p.name.clone()))
+        }).collect();
+        let total = entries.len().div_ceil(PRESENCE_SNAPSHOT_BATCH).max(1);
+        if entries.is_empty() {
+            self.send_presence_to(
+                recipient, wire::PRESENCE_SNAPSHOT, wire::PRESENCE_FIRST | wire::PRESENCE_LAST, &[],
+            );
+            return;
+        }
+        for (index, chunk) in entries.chunks(PRESENCE_SNAPSHOT_BATCH).enumerate() {
+            let flags = (if index == 0 { wire::PRESENCE_FIRST } else { 0 })
+                | (if index + 1 == total { wire::PRESENCE_LAST } else { 0 });
+            self.send_presence_to(recipient, wire::PRESENCE_SNAPSHOT, flags, chunk);
+        }
+    }
+
     /// A typed line, relayed only to the sender's active FreeRoam room or selected Crew.
     /// Recipients are chosen here, not by the page, so a client cannot read another channel by changing its UI.
     fn chat(&mut self, slot: u32, scope: u8, channel: u32, text: &str, now: f64) {
-        const ACTIVE_MS: f64 = 15_000.0;
         const RATE_MS: f64 = 5_000.0;
         const RATE_MAX: usize = 4;
         let (sender_id, room, sender_name) = {
@@ -831,11 +952,11 @@ impl Hub {
                 if channel != 0 { return; }
                 // All: active players in this configured FreeRoam room, except blocked pairs.
                 let Some(sender) = self.player(slot) else { return };
-                if !matches!(sender.status, 2 | 5) || sender.p.is_none() || now - sender.pos_at > ACTIVE_MS { return; }
+                if !matches!(sender.status, 2 | 5) || sender.p.is_none() || now - sender.pos_at > PRESENCE_ACTIVE_MS { return; }
                 self.order.iter().filter_map(|&q| {
                     let p = self.player(q)?;
                     if p.impostor || p.room != room || !matches!(p.status, 2 | 5) || p.p.is_none()
-                        || now - p.pos_at > ACTIVE_MS || now - p.seen > ACTIVE_MS
+                        || now - p.pos_at > PRESENCE_ACTIVE_MS || now - p.seen > PRESENCE_ACTIVE_MS
                         || (q != slot && self.apart_from(slot, q, sender, p)) { return None; }
                     Some((p.vip, p.port, p.hub_port))
                 }).collect()
@@ -845,11 +966,11 @@ impl Hub {
                 // Crew: both ends must be active in this room and share the selected Crew hash.
                 let Some(sender) = self.player(slot) else { return };
                 if !sender.crews.contains(&channel) || !matches!(sender.status, 2 | 5)
-                    || sender.p.is_none() || now - sender.pos_at > ACTIVE_MS { return; }
+                    || sender.p.is_none() || now - sender.pos_at > PRESENCE_ACTIVE_MS { return; }
                 self.order.iter().filter_map(|&q| {
                     let p = self.player(q)?;
                     if p.impostor || p.room != room || !p.crews.contains(&channel) || !matches!(p.status, 2 | 5)
-                        || p.p.is_none() || now - p.pos_at > ACTIVE_MS || now - p.seen > ACTIVE_MS
+                        || p.p.is_none() || now - p.pos_at > PRESENCE_ACTIVE_MS || now - p.seen > PRESENCE_ACTIVE_MS
                         || (q != slot && self.apart_from(slot, q, sender, p)) { return None; }
                     Some((p.vip, p.port, p.hub_port))
                 }).collect()
@@ -1053,6 +1174,21 @@ impl Hub {
         let gone_ms = self.o.gone_ms;
         let gone: Vec<u32> = self.order.iter().copied().filter(|&s| self.player(s).is_some_and(|p| now - p.seen > gone_ms)).collect();
         self.drop_slots(&gone, true);
+        // A browser can keep sending HELLO while its game has left FreeRoam. Remove it from the chat roster
+        // once the last fresh FreeRoam position expires, even if its switch connection remains open.
+        let stale_presence: Vec<u32> = self.order.iter().copied().filter(|&slot| {
+            self.player(slot).is_some_and(|p| p.present && (
+                p.impostor || !matches!(p.status, 2 | 5) || p.p.is_none()
+                    || now - p.pos_at > PRESENCE_ACTIVE_MS || now - p.seen > PRESENCE_ACTIVE_MS
+            ))
+        }).collect();
+        for slot in stale_presence {
+            let identity = self.player(slot).map(|p| (p.room, p.vip, p.id, p.name.clone(), p.canon.clone(), p.owner.clone()));
+            if let Some(Some(p)) = self.slots.get_mut(slot as usize) { p.present = false; }
+            if let Some((room, vip, id, name, canon, owner)) = identity {
+                self.broadcast_presence(room, slot, wire::PRESENCE_LEAVE, vip, &canon, owner.as_ref(), id, &name);
+            }
+        }
         // every player gone since the last tick out of the links the tick weighs
         self.purge();
         let gap = self.o.map_gap_ms;

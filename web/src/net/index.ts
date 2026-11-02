@@ -86,6 +86,8 @@ export interface NetOptions {
   onSay?: (json: string) => void;
   /** typed FreeRoam room or Crew chat, relayed by the hub as JSON */
   onChat?: (json: string) => void;
+  /** the active players in this FreeRoam room and their join/leave events */
+  onPresence?: (json: string) => void;
   /** the switch welcomed this page again after the link was lost (a server restart, as for a deploy) */
   onBack?: () => void;
   /** the server is full and this page waits in line for a place: where it is, as the switch last said; null: not
@@ -583,6 +585,7 @@ class Link implements NetLink {
       this.ws = null;
       if (this.pingTimer) { clearInterval(this.pingTimer); this.pingTimer = null; }
       this.pings.clear();
+      this.o.onPresence?.(JSON.stringify({ type: 'reset' }));
       if (this.closed) return;
       if (e.code === CLOSE_KICKED || e.code === CLOSE_BANNED) {
         const r = this.removal ?? { ban: e.code === CLOSE_BANNED, msg: '' };
@@ -820,10 +823,10 @@ class Link implements NetLink {
     const len = b.byteLength - P.F_DATA;
     if (len > P.NET_MAX_PAYLOAD) { this.st.rxOversize++; for (const ep of this.eps()) Atomics.add(ep.i32, P.W_RX_OVERSIZE, 1); return; }
     if (kind === P.NET_KIND_LAN_UDP || kind === P.NET_KIND_LAN_TCP || kind === P.NET_KIND_LAN_ICMP) { this.lanRx(b, kind); return; }
-    // Typed chat is a hub-control datagram. Consume it on the page instead of passing it to the game's UDP socket.
-    if (kind === P.NET_KIND_UDP && b.byteLength >= P.F_DATA + P.ROAM_HDR + 8 + P.ROAM_CRC) {
+    // Hub chat and room-presence datagrams belong to the page, not the game's UDP socket.
+    if (kind === P.NET_KIND_UDP && b.byteLength >= P.F_DATA + P.ROAM_HDR + 3 + P.ROAM_CRC) {
       const fv = new DataView(b);
-      if (fv.getUint32(P.F_SRC) === P.NET_ROAM_HUB && this.takeChat(b)) {
+      if (fv.getUint32(P.F_SRC) === P.NET_ROAM_HUB && (this.takeChat(b) || this.takePresence(b))) {
         this.st.framesIn++; this.st.bytesIn += len;
         return;
       }
@@ -855,6 +858,36 @@ class Link implements NetLink {
     if (!name || !text || Array.from(text).length > P.ROAM_CHAT_MAX_CHARS || /[\u0000-\u001f\u007f]/.test(text)) return false;
     const id = v.getUint32(8, true);
     this.o.onChat?.(JSON.stringify({ id, name, text, scope: scope === 1 ? 'crew' : 'room', channel, me: id === this.roamSelfId }));
+    return true;
+  }
+  private takePresence(b: ArrayBuffer): boolean {
+    const d = new Uint8Array(b, P.F_DATA), n = d.length;
+    const v = new DataView(d.buffer, d.byteOffset, d.byteLength);
+    if (n < P.ROAM_HDR + 3 + P.ROAM_CRC || d[0] !== 0x4e || d[1] !== 0x32 || d[2] !== 0x46 || d[3] !== 0x52
+        || d[4] !== 1 || d[5] !== P.ROAM_MSG_PRESENCE || v.getUint16(6, true) !== n
+        || v.getUint32(n - P.ROAM_CRC, true) !== P.crc32(d, n - P.ROAM_CRC)) return false;
+    const op = d[16], flags = d[17], count = d[18];
+    if (op > 2 || (op === 0 ? (flags & ~3) !== 0 : flags !== 0 || count !== 1)) return false;
+    const decoder = new TextDecoder('utf-8', { fatal: true });
+    const players: Array<{ id: number; name: string }> = [];
+    let at = P.ROAM_HDR + 3;
+    try {
+      for (let i = 0; i < count; i++) {
+        if (at + 5 > n - P.ROAM_CRC) return false;
+        const id = v.getUint32(at, true), nameLen = d[at + 4];
+        at += 5;
+        if (!id || nameLen < 1 || nameLen > 32 || at + nameLen > n - P.ROAM_CRC) return false;
+        const name = decoder.decode(d.subarray(at, at + nameLen));
+        if (!name.trim() || Array.from(name).length > 32 || /[\u0000-\u001f\u007f]/.test(name)) return false;
+        players.push({ id, name });
+        at += nameLen;
+      }
+    } catch { return false; }
+    if (at !== n - P.ROAM_CRC) return false;
+    this.o.onPresence?.(JSON.stringify({
+      type: op === 0 ? 'snapshot' : op === 1 ? 'join' : 'leave',
+      first: !!(flags & 1), last: !!(flags & 2), players,
+    }));
     return true;
   }
   private lanRx(b: ArrayBuffer, kind: number) {

@@ -99,6 +99,12 @@ export class QuickChat {
   private chatBox: HTMLElement;
   private channelButton: HTMLElement;
   private chatInput: HTMLInputElement;
+  private mentionSuggestions: HTMLElement;
+  private onlinePlayers = new Map<number, string>();
+  private mentionMatches: Array<{ id: number; name: string }> = [];
+  private mentionActiveIndex = 0;
+  private mentionStart = -1;
+  private mentionEnd = -1;
   private crews: CrewChannel[] = [];
   private channelIndex = 0;
   private messageTimers = new Map<HTMLElement, { fade: number }>();
@@ -310,9 +316,28 @@ export class QuickChat {
     this.chatInput.maxLength = 80;
     this.chatInput.autocomplete = 'off';
     this.chatInput.spellcheck = true;
-    this.chatInput.placeholder = 'Mesaj yazın… (Tab: kanal)';
+    this.chatInput.placeholder = 'Mesaj yazın… (@: oyuncu etiketle · Tab: kanal)';
+    this.chatInput.setAttribute('aria-autocomplete', 'list');
+    this.chatInput.setAttribute('aria-controls', 'chatMentionSuggestions');
+    this.chatInput.addEventListener('input', () => this.updateMentionSuggestions());
+    this.chatInput.addEventListener('click', () => this.updateMentionSuggestions());
+    this.chatInput.addEventListener('keyup', e => {
+      if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) this.updateMentionSuggestions();
+    });
 
-    this.chatBox.append(this.channelButton, this.chatInput);
+    this.mentionSuggestions = document.createElement('div');
+    this.mentionSuggestions.className = 'chat-mention-suggestions';
+    this.mentionSuggestions.id = 'chatMentionSuggestions';
+    this.mentionSuggestions.setAttribute('role', 'listbox');
+    this.mentionSuggestions.setAttribute('aria-label', 'Çevrimiçi oyuncular');
+    this.mentionSuggestions.hidden = true;
+    this.mentionSuggestions.addEventListener('pointerdown', e => e.preventDefault());
+    this.mentionSuggestions.addEventListener('click', e => {
+      const option = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-mention-index]');
+      if (option) this.chooseMention(Number(option.dataset.mentionIndex));
+    });
+
+    this.chatBox.append(this.channelButton, this.chatInput, this.mentionSuggestions);
     this.chatBox.addEventListener('pointerdown', e => e.stopPropagation());
     this.chatHud.append(this.chatHeader, this.chatMessages, this.historyButton, this.chatTools, this.mutedPanel, quick, this.chatBox);
     stage.append(this.layer, this.picker, this.chatHud);
@@ -512,6 +537,7 @@ export class QuickChat {
     }
     this.messageTimers.clear(); this.chatSentAt = []; this.lastRateNoticeAt = -Infinity;
     this.chatMessages.replaceChildren(); this.chatHud.classList.remove('has-visible-messages'); this.historyButton.hidden = true; this.followingChat = true;
+    this.onlinePlayers.clear(); this.hideMentionSuggestions();
     this.chatFilter = 'all'; this.chatSearch = ''; this.searchInput.value = '';
     this.mutedPanel.hidden = true; this.updateChatToolStates();
     this.chatHud.classList.remove('active');
@@ -562,6 +588,7 @@ export class QuickChat {
   }
   private closeTextChat() {
     if (!this.chatHud.classList.contains('active')) return;
+    this.hideMentionSuggestions();
     this.chatHud.classList.add('is-closing');
     this.chatHud.classList.remove('active');
     if (this.chatCloseTimer) window.clearTimeout(this.chatCloseTimer);
@@ -572,6 +599,128 @@ export class QuickChat {
     if (document.activeElement === this.chatInput) this.chatInput.blur();
     this.resumeMessageFade();
   }
+  private updateMentionSuggestions() {
+    const value = this.chatInput.value;
+    const caret = this.chatInput.selectionStart ?? value.length;
+    const prefix = value.slice(0, caret);
+    const match = /(^|[\\s([,{:])@([^\\s@]*)$/u.exec(prefix);
+    if (!match) { this.hideMentionSuggestions(); return; }
+    const query = normalizedPlayerName(match[2]);
+    const at = caret - match[2].length - 1;
+    const own = normalizedPlayerName(this.playerName);
+    const matches = [...this.onlinePlayers.entries()]
+      .filter(([, name]) => normalizedPlayerName(name) !== own && normalizedPlayerName(name).startsWith(query))
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .slice(0, 8);
+    if (!matches.length) { this.hideMentionSuggestions(); return; }
+    this.mentionStart = at;
+    this.mentionEnd = caret;
+    this.mentionMatches = matches;
+    this.mentionActiveIndex = 0;
+    this.mentionSuggestions.replaceChildren();
+    for (let i = 0; i < matches.length; i++) {
+      const option = document.createElement('button');
+      option.type = 'button';
+      option.className = 'chat-mention-option';
+      option.dataset.mentionIndex = String(i);
+      option.setAttribute('role', 'option');
+      const name = document.createElement('strong');
+      name.textContent = matches[i].name;
+      const state = document.createElement('small');
+      state.textContent = 'ÇEVRİMİÇİ';
+      option.append(name, state);
+      this.mentionSuggestions.append(option);
+    }
+    this.mentionSuggestions.hidden = false;
+    this.updateMentionOptionStates();
+  }
+  private updateMentionOptionStates() {
+    const options = this.mentionSuggestions.querySelectorAll<HTMLButtonElement>('[data-mention-index]');
+    options.forEach((option, index) => {
+      const selected = index === this.mentionActiveIndex;
+      option.setAttribute('aria-selected', String(selected));
+      if (selected) option.scrollIntoView?.({ block: 'nearest' });
+    });
+  }
+  private chooseMention(index: number) {
+    const item = this.mentionMatches[index];
+    if (!item || this.mentionStart < 0) return;
+    const before = this.chatInput.value.slice(0, this.mentionStart);
+    const after = this.chatInput.value.slice(this.mentionEnd);
+    const insert = `@${item.name} `;
+    this.chatInput.value = before + insert + after;
+    const caret = before.length + insert.length;
+    this.hideMentionSuggestions();
+    this.chatInput.focus();
+    this.chatInput.setSelectionRange(caret, caret);
+  }
+  private hideMentionSuggestions() {
+    this.mentionMatches = [];
+    this.mentionActiveIndex = 0;
+    this.mentionStart = this.mentionEnd = -1;
+    if (this.mentionSuggestions) {
+      this.mentionSuggestions.hidden = true;
+      this.mentionSuggestions.replaceChildren();
+    }
+  }
+  private presenceLine(name: string, joined: boolean) {
+    const row = document.createElement('div');
+    row.className = `message system chat-presence ${joined ? 'joined' : 'left'}`;
+    row.dataset.scope = 'system';
+    row.dataset.senderName = name;
+    row.dataset.search = `${name} ${joined ? 'oyuna katıldı' : 'oyundan ayrıldı'}`.toLocaleLowerCase();
+    const marker = document.createElement('span');
+    marker.className = 'channel';
+    marker.textContent = joined ? '＋' : '−';
+    const sender = document.createElement('strong');
+    sender.className = 'sender';
+    sender.style.setProperty('--chat-sender-color', stableSenderColor(name));
+    sender.textContent = name;
+    const text = document.createElement('span');
+    text.className = 'text';
+    text.textContent = joined ? 'oyuna katıldı' : 'oyundan ayrıldı';
+    row.append(marker, sender, text);
+    this.appendHistoryRow(row);
+  }
+  /** Room roster and lifecycle events are authenticated and scoped by the Rust FreeRoam hub. */
+  presence(json: string) {
+    let raw: unknown;
+    try { raw = JSON.parse(json); } catch { return; }
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return;
+    const event = raw as { type?: unknown; first?: unknown; players?: unknown };
+    if (event.type === 'reset') {
+      this.onlinePlayers.clear();
+      this.hideMentionSuggestions();
+      return;
+    }
+    if (!['snapshot', 'join', 'leave'].includes(String(event.type)) || !Array.isArray(event.players)) return;
+    const players = event.players.filter((entry): entry is { id: number; name: string } => {
+      if (!entry || typeof entry !== 'object') return false;
+      const p = entry as { id?: unknown; name?: unknown };
+      return Number.isSafeInteger(p.id) && (p.id as number) > 0 && typeof p.name === 'string'
+        && !!p.name.trim() && Array.from(p.name).length <= 32 && !/[\\u0000-\\u001f\\u007f]/.test(p.name);
+    });
+    if (event.type === 'snapshot') {
+      if (event.first === true) this.onlinePlayers.clear();
+      for (const player of players) this.onlinePlayers.set(player.id, player.name.trim());
+      this.updateMentionSuggestions();
+      return;
+    }
+    const player = players[0];
+    if (!player) return;
+    if (event.type === 'join') {
+      const previous = this.onlinePlayers.get(player.id);
+      this.onlinePlayers.set(player.id, player.name.trim());
+      if (previous !== player.name.trim() && this.session) this.presenceLine(player.name.trim(), true);
+    } else {
+      const previous = this.onlinePlayers.get(player.id);
+      this.onlinePlayers.delete(player.id);
+      if (previous && this.session) this.presenceLine(previous, false);
+    }
+    this.updateMentionSuggestions();
+  }
+
   /** milliseconds until the hub's rolling 4-per-5-second allowance has a free slot */
   private chatWaitMs(now = performance.now()): number {
     this.chatSentAt = this.chatSentAt.filter(at => now - at < CHAT_RATE_WINDOW_MS);
@@ -683,6 +832,23 @@ export class QuickChat {
     if (!this.session || e.metaKey || e.ctrlKey || e.altKey) return;
     const el = e.target as HTMLElement | null;
     if (this.chatHud.classList.contains('active')) {
+      if (el === this.chatInput && !this.mentionSuggestions.hidden) {
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+          e.preventDefault(); e.stopImmediatePropagation();
+          const delta = e.key === 'ArrowDown' ? 1 : -1;
+          this.mentionActiveIndex = (this.mentionActiveIndex + delta + this.mentionMatches.length) % this.mentionMatches.length;
+          this.updateMentionOptionStates();
+          return;
+        }
+        if ((e.key === 'Enter' || e.key === 'Tab') && !e.repeat) {
+          e.preventDefault(); e.stopImmediatePropagation(); this.chooseMention(this.mentionActiveIndex);
+          return;
+        }
+        if (e.key === 'Escape') {
+          e.preventDefault(); e.stopImmediatePropagation(); this.hideMentionSuggestions();
+          return;
+        }
+      }
       if (el && (this.chatTools.contains(el) || this.mutedPanel.contains(el) || this.chatMessages.contains(el)) && el !== this.chatInput) {
         if (e.key === 'Escape') {
           e.preventDefault();
