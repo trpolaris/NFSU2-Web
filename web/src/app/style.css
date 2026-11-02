@@ -1874,3 +1874,43 @@ dialog.menu[open]::backdrop { animation: trpolaris-f9-backdrop-in .28s ease both
   from { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
   to { opacity: 0; transform: translateY(9px) scale(.99); filter: blur(3px); }
 }
+
+
+/* The closed HUD has no empty frame: collapse the compact feed after its last line fades. */
+.racing-chat-wrapper:not(.active):not(.has-visible-messages) .chat-messages {
+  display: none;
+}
+
+/* Keep the F9 return action reachable on shorter desktop windows. */
+.menu-sidebar {
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0,255,204,.32) transparent;
+}
+.menu-resume {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  flex: 0 0 auto;
+  margin-top: auto;
+  box-shadow: 0 -10px 20px rgba(2,10,12,.45), 0 0 22px rgba(0,255,204,.13);
+}
+@media (max-height: 760px) and (min-width: 761px) {
+  .menu-sidebar {
+    gap: clamp(8px, 1.5vh, 13px);
+    padding-top: clamp(12px, 2.2vh, 18px);
+    padding-bottom: clamp(12px, 2vh, 16px);
+  }
+  .menu-brand { gap: 4px; }
+  .menu-brand h2 { font-size: clamp(21px, 2.3vw, 27px); }
+  .menu-session { padding: 9px 11px; }
+  .menu-session p { margin: 6px 0 0; font-size: 11px; line-height: 1.4; }
+  .menu-tabs { gap: 6px; }
+  .menu-tab { min-height: 44px; padding: 8px 10px; }
+  .menu-save-wrap { padding-top: 6px; }
+  .menu-resume { min-height: 44px; }
+  .menu-build-mark { font-size: 8px; }
+}

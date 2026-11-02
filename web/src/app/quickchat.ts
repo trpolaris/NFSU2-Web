@@ -457,6 +457,15 @@ export class QuickChat {
         (el.textContent || '').toLocaleLowerCase().includes(this.chatSearch);
       el.hidden = muted || !filterOk || !searchOk;
     }
+    this.syncCompactFeedState();
+  }
+  /** Keep the compact closed-chat feed only while a readable line is actually visible. */
+  private syncCompactFeedState() {
+    const hasVisibleMessages = [...this.chatMessages.children].some(child => {
+      const row = child as HTMLElement;
+      return !row.hidden && !row.classList.contains('fade-out');
+    });
+    this.chatHud.classList.toggle('has-visible-messages', hasVisibleMessages);
   }
   private isMention(text: string): boolean {
     const own = normalizedPlayerName(this.playerName);
@@ -502,7 +511,7 @@ export class QuickChat {
       clearTimeout(timers.fade);
     }
     this.messageTimers.clear(); this.chatSentAt = []; this.lastRateNoticeAt = -Infinity;
-    this.chatMessages.replaceChildren(); this.historyButton.hidden = true; this.followingChat = true;
+    this.chatMessages.replaceChildren(); this.chatHud.classList.remove('has-visible-messages'); this.historyButton.hidden = true; this.followingChat = true;
     this.chatFilter = 'all'; this.chatSearch = ''; this.searchInput.value = '';
     this.mutedPanel.hidden = true; this.updateChatToolStates();
     this.chatHud.classList.remove('active');
@@ -654,6 +663,7 @@ export class QuickChat {
       el.classList.remove('fade-out');
     }
     this.messageTimers.clear();
+    this.syncCompactFeedState();
   }
   private startMessageFade(el: HTMLElement) {
     const old = this.messageTimers.get(el);
@@ -661,6 +671,7 @@ export class QuickChat {
     const fade = window.setTimeout(() => {
       if (this.chatHud.classList.contains('active')) return;
       el.classList.add('fade-out');
+      this.syncCompactFeedState();
       // Keep the node in the bounded history; opening chat removes this class and exposes it again.
       this.messageTimers.set(el, { fade });
     }, CHAT_MESSAGE_MS);
