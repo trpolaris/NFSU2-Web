@@ -51,7 +51,7 @@ async function server() {
     fs.mkdirSync(data);
     fs.writeFileSync(path.join(data, 'SPEED2.EXE'), 'MZ');
   }
-  const srv = spawn(...serverCommand(['--data', data, '--http-port', String(PORT), '--state', path.join(tmp, 'state')]), { stdio: ['ignore', 'pipe', 'pipe'] });
+  const srv = spawn(...serverCommand(['--data', data, '--http-port', String(PORT), '--vault-gb', '50', '--state', path.join(tmp, 'state')]), { stdio: ['ignore', 'pipe', 'pipe'] });
   await new Promise((res, rej) => {
     let o = '';
     const t = setTimeout(() => rej(new Error('server did not start: ' + o)), 15000);
@@ -120,6 +120,11 @@ async function look(browser, kind, touch) {
     const phase = await page.waitForFunction(() => ['ready', 'error'].includes(window.__nfsu2?.phase) && window.__nfsu2.phase, null, { timeout: 120_000, polling: 250 }).then(h => h.jsonValue());
     // the language is a setting: the tab owns the saves and has read its settings
     await page.waitForFunction(() => !!document.querySelector('#settings .set') && !document.querySelector('#settings').hasAttribute('data-readonly'), null, { timeout: 30_000 });
+    // VaultPanel.start() probes /cloud/v1/saves asynchronously; settings readiness alone does not make #vault visible.
+    await page.waitForFunction(() => {
+      const vault = document.querySelector('#vault');
+      return !!vault && !vault.hidden && !!document.querySelector('#vault-make')?.getClientRects().length;
+    }, null, { timeout: 30_000 });
     await page.click('#vault-make');
     await page.waitForFunction(() => !document.querySelector('#vault-on').hidden, null, { timeout: 30_000 });
     const frames = () => page.evaluate(() => document.fonts.ready.then(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))));
