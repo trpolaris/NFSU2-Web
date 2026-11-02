@@ -15,6 +15,7 @@
 import type { GameSession } from './game';
 import { onLanguage, t } from './i18n';
 import { catName, DEFAULT_GROUPS, DEFAULT_PHRASES, PHRASES, type CatId } from './phrases';
+import { bindUiSounds, uiSounds } from './ui-sound';
 
 /** the picker closes this long after it opened or the last pick in it (ms) */
 const PICK_MS = 4000;
@@ -78,6 +79,9 @@ export class QuickChat {
   private layer: HTMLElement;
   private picker: HTMLElement;
   private chatHud: HTMLElement;
+  private chatHeader: HTMLElement;
+  private chatSoundButton: HTMLButtonElement;
+  private chatCloseTimer = 0;
   private chatMessages: HTMLElement;
   private historyButton: HTMLButtonElement;
   private followingChat = true;
@@ -120,6 +124,7 @@ export class QuickChat {
   private groups: readonly CatId[] = DEFAULT_GROUPS;
 
   constructor(stage: HTMLElement, private deps: QuickChatDeps) {
+    bindUiSounds();
     this.layer = document.createElement('div');
     this.layer.className = 'qc-lines';
     this.picker = document.createElement('div');
@@ -139,6 +144,51 @@ export class QuickChat {
     this.chatHud.id = 'racingChat';
     this.chatHud.dataset.nfsu2Ui = '';
     this.loadChatAppearance();
+
+    // The compact/expanded HUD uses the supplied TRPOLARIS live-chat header.
+    // Message data and transmission remain owned by QuickChat and the Rust hub.
+    this.chatHeader = document.createElement('header');
+    this.chatHeader.className = 'chat-hud-header';
+    const identity = document.createElement('div');
+    identity.className = 'chat-hud-identity';
+    const brand = document.createElement('strong');
+    brand.textContent = 'TRPOLARIS';
+    const edition = document.createElement('small');
+    edition.textContent = 'NFSU2 WEB / SOHBET HUD';
+    identity.append(brand, edition);
+
+    const live = document.createElement('span');
+    live.className = 'chat-hud-live';
+    const liveDot = document.createElement('i');
+    liveDot.setAttribute('aria-hidden', 'true');
+    const liveLabel = document.createElement('span');
+    liveLabel.textContent = t('Live chat');
+    live.append(liveDot, liveLabel);
+
+    const actions = document.createElement('div');
+    actions.className = 'chat-hud-actions';
+    const shortcut = document.createElement('kbd');
+    shortcut.textContent = 'Y / ESC';
+    shortcut.title = t('Keyboard shortcuts');
+    this.chatSoundButton = document.createElement('button');
+    this.chatSoundButton.type = 'button';
+    this.chatSoundButton.className = 'chat-hud-sound';
+    this.chatSoundButton.setAttribute('aria-label', t('Toggle interface sounds'));
+    this.chatSoundButton.addEventListener('click', () => {
+      uiSounds.setEnabled(!uiSounds.enabled);
+      this.updateChatHeaderSound();
+    });
+    const closeButton = document.createElement('button');
+    closeButton.type = 'button';
+    closeButton.className = 'chat-hud-close';
+    closeButton.textContent = '×';
+    closeButton.setAttribute('aria-label', t('Close chat'));
+    closeButton.title = t('Close chat');
+    closeButton.addEventListener('click', () => { uiSounds.play('click'); this.closeTextChat(); });
+    closeButton.dataset.noSound = 'true';
+    actions.append(shortcut, this.chatSoundButton, closeButton);
+    this.chatHeader.append(identity, live, actions);
+    this.updateChatHeaderSound();
 
     this.chatMessages = document.createElement('div');
     this.chatMessages.className = 'chat-messages';
@@ -245,9 +295,13 @@ export class QuickChat {
     this.chatBox.className = 'chat-input-area';
     this.chatBox.id = 'chatInputArea';
 
-    this.channelButton = document.createElement('span');
+    this.channelButton = document.createElement('button');
+    (this.channelButton as HTMLButtonElement).type = 'button';
     this.channelButton.className = 'active-channel';
     this.channelButton.id = 'activeChannel';
+    this.channelButton.title = t('Tab to switch channel');
+    this.channelButton.setAttribute('aria-label', t('Switch chat channel'));
+    this.channelButton.addEventListener('click', () => this.cycleChannel());
 
     this.chatInput = document.createElement('input');
     this.chatInput.className = 'chat-input';
@@ -260,7 +314,7 @@ export class QuickChat {
 
     this.chatBox.append(this.channelButton, this.chatInput);
     this.chatBox.addEventListener('pointerdown', e => e.stopPropagation());
-    this.chatHud.append(this.chatMessages, this.historyButton, this.chatTools, this.mutedPanel, quick, this.chatBox);
+    this.chatHud.append(this.chatHeader, this.chatMessages, this.historyButton, this.chatTools, this.mutedPanel, quick, this.chatBox);
     stage.append(this.layer, this.picker, this.chatHud);
     // caught before the game's input (attached later, at each Play): the keys the picker uses go to it alone
     window.addEventListener('keydown', e => this.key(e), { capture: true });
@@ -327,6 +381,13 @@ export class QuickChat {
       this.mentionSound = localStorage.getItem('trpolaris.nfsu2.chat-mention-sound.v1') !== '0';
     } catch { /* storage may be unavailable */ }
   }
+  private updateChatHeaderSound() {
+    const enabled = uiSounds.enabled;
+    this.chatSoundButton.textContent = enabled ? 'SFX ON' : 'SFX OFF';
+    this.chatSoundButton.setAttribute('aria-pressed', String(enabled));
+    this.chatSoundButton.title = enabled ? t('Interface sounds on') : t('Interface sounds off');
+  }
+
   private updateChatToolsLanguage() {
     const labels: Record<ChatFilter, string> = {
       all: t('All messages'), room: t('Everyone'), crew: t('Crew chat'), system: t('System messages'),
@@ -352,6 +413,7 @@ export class QuickChat {
     this.mentionSoundButton.setAttribute('aria-pressed', String(this.mentionSound));
     this.mutedButton.textContent = t('Muted: {n}', { n: this.mutedPlayers.size });
     this.mutedButton.setAttribute('aria-expanded', String(!this.mutedPanel.hidden));
+    this.updateChatHeaderSound();
   }
   private renderMutedPlayers() {
     if (!this.mutedList) return;
@@ -429,7 +491,11 @@ export class QuickChat {
   }
   stop() {
     this.session = null; this.on = false;
+    if (this.chatCloseTimer) { window.clearTimeout(this.chatCloseTimer); this.chatCloseTimer = 0; }
+    this.chatHud.classList.remove('is-closing');
     this.close(); this.closeTextChat();
+    if (this.chatCloseTimer) { window.clearTimeout(this.chatCloseTimer); this.chatCloseTimer = 0; }
+    this.chatHud.classList.remove('is-closing');
     for (const l of this.lines.values()) l.el.remove();
     this.lines.clear();
     for (const timers of this.messageTimers.values()) {
@@ -479,13 +545,21 @@ export class QuickChat {
   private openTextChat(): boolean {
     const s = this.session;
     if (!s?.net?.chat || !this.freeRoamDriving()) return false;
-    this.close(); this.chatHud.classList.add('active');
+    if (this.chatCloseTimer) { window.clearTimeout(this.chatCloseTimer); this.chatCloseTimer = 0; }
+    this.chatHud.classList.remove('is-closing');
+    this.close(); uiSounds.play('click'); this.chatHud.classList.add('active');
     this.updateChannel(); this.holdMessageFade(); this.scrollChatToLatest(); this.deps.place(); this.chatInput.focus();
     return true;
   }
   private closeTextChat() {
     if (!this.chatHud.classList.contains('active')) return;
+    this.chatHud.classList.add('is-closing');
     this.chatHud.classList.remove('active');
+    if (this.chatCloseTimer) window.clearTimeout(this.chatCloseTimer);
+    this.chatCloseTimer = window.setTimeout(() => {
+      this.chatHud.classList.remove('is-closing');
+      this.chatCloseTimer = 0;
+    }, 230);
     if (document.activeElement === this.chatInput) this.chatInput.blur();
     this.resumeMessageFade();
   }

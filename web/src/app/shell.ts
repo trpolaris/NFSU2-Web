@@ -54,6 +54,7 @@ import { RadioLink } from './radio-link';
 import { FpsOverlay, FPS_MODES, type FpsMode } from './overlay';
 import { LobbyPanel } from './lobby';
 import { ICON as CHAT_ICON, QuickChat } from './quickchat';
+import { uiSounds } from './ui-sound';
 import { groupsOf, phrasesOf } from './phrases';
 import { GameSession } from './game';
 import { AwayCheck, AWAY_LIMITS, type AwayLimits } from './away';
@@ -1182,9 +1183,32 @@ async function screenshot() {
 }
 
 // ----------------------------------------------------------- page menu --
+let menuCloseTimer = 0;
+
+/** Play the closing animation before releasing the native modal dialog. */
+function closeMenu(after?: () => void) {
+  const m = $<HTMLDialogElement>('#menu');
+  if (!m.open) { after?.(); return; }
+  if (menuCloseTimer) window.clearTimeout(menuCloseTimer);
+  m.classList.add('is-closing');
+  menuCloseTimer = window.setTimeout(() => {
+    menuCloseTimer = 0;
+    m.classList.remove('is-closing');
+    if (m.open) m.close();
+    after?.();
+  }, 190);
+}
+
+function syncMenuUiSound() {
+  const button = $<HTMLButtonElement>('#menu-ui-sounds');
+  button.textContent = uiSounds.enabled ? 'UI SOUNDS: ON' : 'UI SOUNDS: OFF';
+  button.setAttribute('aria-pressed', String(uiSounds.enabled));
+}
+
+/** F9 driver deck: the supplied visual treatment, with the existing live game actions. */
 function openMenu() {
   const m = $<HTMLDialogElement>('#menu');
-  if (m.open) { $<HTMLDialogElement>('#playlist').close(); m.close(); return; }                // (its Crews popup too: the menu's close)
+  if (m.open) { uiSounds.play('click'); $<HTMLDialogElement>('#playlist').close(); closeMenu(); return; }                // (its Crews popup too: the menu's close)
   const fsButton = m.querySelector<HTMLButtonElement>('[data-act="fullscreen"]')!;
   fsButton.textContent = isFullscreen() ? t('Leave full screen') : t('Full screen');
   fsButton.hidden = !canFullscreen() && fromHomeScreen();         // from an iPhone's Home Screen: already without bars
@@ -1198,6 +1222,7 @@ function openMenu() {
   m.querySelector<HTMLButtonElement>('[data-act="quit"]')!.textContent = quitLabel();
   showRadio(m);
   syncChatMenuAppearance();
+  syncMenuUiSound();
   const line = $('#menu-save');
   if (saved) line.textContent = t('Last saved at {when} ({name}).', { when: when(saved.at), name: saved.name });
   else {
@@ -1208,7 +1233,10 @@ function openMenu() {
   }
   $('#stage').classList.add('cursor');
   selectMenuTab(m.dataset.activeTab || 'chat');
+  m.classList.remove('is-closing');
+  if (menuCloseTimer) { window.clearTimeout(menuCloseTimer); menuCloseTimer = 0; }
   m.showModal();
+  uiSounds.play('click');
 }
 /** Switch the F9 control deck between real, native game features. */
 function selectMenuTab(name: string) {
@@ -1352,10 +1380,9 @@ function setTrackMode(e: Event) {
 async function menuAction(act: string) {
   const m = $<HTMLDialogElement>('#menu');
   switch (act) {
-    case 'resume': m.close(); break;
+    case 'resume': closeMenu(); break;
     case 'fullscreen':
-      m.close();
-      toggleFullscreen();
+      closeMenu(() => toggleFullscreen());
       break;
     case 'fps': fps.cycle(); m.querySelector<HTMLButtonElement>('[data-act="fps"]')!.textContent = fpsLabel(fps.mode); break;
     case 'solid': {
@@ -1373,16 +1400,16 @@ async function menuAction(act: string) {
     case 'crews': openCrews(); break;
     case 'radio-folder': case 'radio': await radioClick(act); showRadio(m); break;
     case 'playlist': openPlaylist(); break;
-    case 'help': m.close(); openHelp(); break;
+    case 'help': closeMenu(openHelp); break;
     case 'offline':
-      m.close();
+      closeMenu();
       if (!inLine || !session?.net?.offline) break;
       session.net.offline();
       toast(t('Playing offline: you left the line. Free roam and Online stay off until the next game.'), 5000);
       break;
     case 'log': downloadLog(); break;
     case 'quit': {
-      m.close();
+      closeMenu();
       const s = session;
       if (!s) break;
       const stage = quitStage(s);
@@ -1725,10 +1752,27 @@ export async function boot() {
   $('#menu-chat-opacity').addEventListener('input', updateChatMenuAppearance);
   $('#menu-chat-width').addEventListener('input', updateChatMenuAppearance);
   $('#menu-chat-position').addEventListener('change', updateChatMenuAppearance);
+  $('#menu-ui-sounds').addEventListener('click', () => {
+    uiSounds.setEnabled(!uiSounds.enabled);
+    syncMenuUiSound();
+  });
+  $('#menu').addEventListener('cancel', e => {
+    e.preventDefault();
+    uiSounds.play('click');
+    closeMenu();
+  });
+  $('#menu').addEventListener('pointermove', e => {
+    const main = $('#menu .menu-main');
+    const rect = main.getBoundingClientRect();
+    main.style.setProperty('--menu-glow-x', `${Math.round(e.clientX - rect.left)}px`);
+    main.style.setProperty('--menu-glow-y', `${Math.round(e.clientY - rect.top)}px`);
+  }, { passive: true });
   $('#playlist-body').addEventListener('change', setTrackMode);
   $('#playlist-shuffle').addEventListener('change', setShuffle);
   $('#menu').addEventListener('close', () => {
     const pop = $<HTMLDialogElement>('#crews-pop'); if (pop.open) pop.close();      // the menu's Crews go with it
+    $('#menu').classList.remove('is-closing');
+    if (menuCloseTimer) { window.clearTimeout(menuCloseTimer); menuCloseTimer = 0; }
     $('#stage').classList.remove('cursor'); $('#stage').querySelector('canvas')?.focus();
   });
   // the menu's Crews popup: Done closes it; back on the menu's Crews button, with its count as it is now
