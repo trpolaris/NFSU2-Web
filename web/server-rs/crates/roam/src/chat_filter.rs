@@ -104,7 +104,7 @@ fn push_token(input: &str, start: usize, end: usize, out: &mut Vec<Token>) {
 }
 
 fn tokens(input: &str) -> Vec<Token> {
-    let mut out = Vec::new();
+    let mut out: Vec<Token> = Vec::new();
     let mut start: Option<usize> = None;
     for (at, ch) in input.char_indices().chain(std::iter::once((input.len(), '\0'))) {
         let end = at + ch.len_utf8();
