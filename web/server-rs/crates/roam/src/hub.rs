@@ -981,7 +981,7 @@ impl Hub {
         };
         if recipients.is_empty() { return; }
         let clean = chat_filter::censor(text.trim());
-        if clean.is_empty() || nfsu2_names::chat_slur(&clean).is_some() { return; }
+        if clean.is_empty() { return; }
         let bytes = clean.as_bytes();
         if bytes.len() > wire::CHAT_MAX_BYTES || clean.chars().count() > wire::CHAT_MAX_CHARS { return; }
         for (vip, port, hub_port) in recipients {
