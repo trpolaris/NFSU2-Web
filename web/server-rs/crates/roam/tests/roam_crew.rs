@@ -121,7 +121,7 @@ fn the_lists_mark_crew_mates_and_name_no_other_crews() {
         let sent = k.sent.lock().clone();
         let of = |i: u32| {
             sent.iter()
-                .find(|(vip, frame)| *vip == V(i) && frame.get(16 + 5) == Some(&2))
+                .find(|(vip, frame)| *vip == V(i) && is_peers_frame(frame))
                 .map(|(_, frame)| frame.clone())
                 .unwrap_or_else(|| panic!("{how}: a PEERS list to {i}"))
         };
