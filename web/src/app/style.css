@@ -1999,5 +1999,5 @@ dialog.menu[open]::backdrop { animation: trpolaris-f9-backdrop-in .28s ease both
   letter-spacing: 0;
   text-shadow: none !important;
   filter: none !important;
-  font: 800 12px/1.35 var(--font);
+  font: 800 12px/1.35 var(--font-racing);
 }
