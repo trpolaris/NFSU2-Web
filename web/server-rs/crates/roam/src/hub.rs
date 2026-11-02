@@ -6,6 +6,8 @@
 //! until then links to it count for nothing) and `order` lists the slots in the order the players came.
 
 use std::collections::{HashMap, HashSet};
+
+use super::chat_filter;
 use std::time::Instant;
 
 use bytes::{Bytes, BytesMut};
@@ -978,8 +980,8 @@ impl Hub {
             _ => return,
         };
         if recipients.is_empty() { return; }
-        let clean = text.trim();
-        if nfsu2_names::chat_slur(clean).is_some() { return; }
+        let clean = chat_filter::censor(text.trim());
+        if clean.is_empty() || nfsu2_names::chat_slur(&clean).is_some() { return; }
         let bytes = clean.as_bytes();
         if bytes.len() > wire::CHAT_MAX_BYTES || clean.chars().count() > wire::CHAT_MAX_CHARS { return; }
         for (vip, port, hub_port) in recipients {
