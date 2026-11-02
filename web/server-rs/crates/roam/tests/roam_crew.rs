@@ -119,8 +119,12 @@ fn the_lists_mark_crew_mates_and_name_no_other_crews() {
         }
         k.hub.tick();
         let sent = k.sent.lock().clone();
-        let of =
-            |i: u32| sent.iter().find(|(vip, _)| *vip == V(i)).map(|(_, f)| f.clone()).unwrap_or_else(|| panic!("{how}: a list to {i}"));
+        let of = |i: u32| {
+            sent.iter()
+                .find(|(vip, frame)| *vip == V(i) && frame.get(16 + 5) == Some(&2))
+                .map(|(_, frame)| frame.clone())
+                .unwrap_or_else(|| panic!("{how}: a PEERS list to {i}"))
+        };
         let mark = |i: u32, j: u32| {
             let f = of(i);
             let at = peers_of(&f).iter().position(|e| e.vip == V(j)).unwrap_or_else(|| panic!("{how}: {j} on {i}'s list"));
