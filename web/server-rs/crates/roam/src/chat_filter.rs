@@ -95,7 +95,7 @@ fn tokens(input: &str) -> Vec<Token> {
 fn unzip_local_files(data: &[u8]) -> Result<Vec<(String, Vec<u8>)>, String> {
     let mut out = Vec::new();
     let mut at = 0usize;
-    while data.get(at..at + 4) == Some(b"PK\x03\x04") {
+    while data.get(at..at + 4).is_some_and(|signature| signature == &b"PK\x03\x04"[..]) {
         if at + 30 > data.len() {
             return Err("truncated ZIP local header".into());
         }
