@@ -81,6 +81,7 @@ export class QuickChat {
   private chatHud: HTMLElement;
   private chatHeader: HTMLElement;
   private chatSoundButton: HTMLButtonElement;
+  private chatCloseTimer = 0;
   private chatMessages: HTMLElement;
   private historyButton: HTMLButtonElement;
   private followingChat = true;
@@ -490,6 +491,8 @@ export class QuickChat {
   }
   stop() {
     this.session = null; this.on = false;
+    if (this.chatCloseTimer) { window.clearTimeout(this.chatCloseTimer); this.chatCloseTimer = 0; }
+    this.chatHud.classList.remove('is-closing');
     this.close(); this.closeTextChat();
     for (const l of this.lines.values()) l.el.remove();
     this.lines.clear();
@@ -540,13 +543,21 @@ export class QuickChat {
   private openTextChat(): boolean {
     const s = this.session;
     if (!s?.net?.chat || !this.freeRoamDriving()) return false;
+    if (this.chatCloseTimer) { window.clearTimeout(this.chatCloseTimer); this.chatCloseTimer = 0; }
+    this.chatHud.classList.remove('is-closing');
     this.close(); uiSounds.play('click'); this.chatHud.classList.add('active');
     this.updateChannel(); this.holdMessageFade(); this.scrollChatToLatest(); this.deps.place(); this.chatInput.focus();
     return true;
   }
   private closeTextChat() {
     if (!this.chatHud.classList.contains('active')) return;
+    this.chatHud.classList.add('is-closing');
     this.chatHud.classList.remove('active');
+    if (this.chatCloseTimer) window.clearTimeout(this.chatCloseTimer);
+    this.chatCloseTimer = window.setTimeout(() => {
+      this.chatHud.classList.remove('is-closing');
+      this.chatCloseTimer = 0;
+    }, 230);
     if (document.activeElement === this.chatInput) this.chatInput.blur();
     this.resumeMessageFade();
   }

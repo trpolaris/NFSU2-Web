@@ -1865,3 +1865,12 @@ dialog.menu[open]::backdrop { animation: trpolaris-f9-backdrop-in .28s ease both
     transition: none !important;
   }
 }
+
+.racing-chat-wrapper.is-closing {
+  pointer-events: none;
+  animation: trpolaris-chat-close .22s cubic-bezier(.4,0,1,1) both;
+}
+@keyframes trpolaris-chat-close {
+  from { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+  to { opacity: 0; transform: translateY(9px) scale(.99); filter: blur(3px); }
+}

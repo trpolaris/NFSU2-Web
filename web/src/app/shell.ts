@@ -1190,7 +1190,6 @@ function closeMenu(after?: () => void) {
   const m = $<HTMLDialogElement>('#menu');
   if (!m.open) { after?.(); return; }
   if (menuCloseTimer) window.clearTimeout(menuCloseTimer);
-  uiSounds.play('click');
   m.classList.add('is-closing');
   menuCloseTimer = window.setTimeout(() => {
     menuCloseTimer = 0;
@@ -1209,7 +1208,7 @@ function syncMenuUiSound() {
 /** F9 driver deck: the supplied visual treatment, with the existing live game actions. */
 function openMenu() {
   const m = $<HTMLDialogElement>('#menu');
-  if (m.open) { $<HTMLDialogElement>('#playlist').close(); closeMenu(); return; }                // (its Crews popup too: the menu's close)
+  if (m.open) { uiSounds.play('click'); $<HTMLDialogElement>('#playlist').close(); closeMenu(); return; }                // (its Crews popup too: the menu's close)
   const fsButton = m.querySelector<HTMLButtonElement>('[data-act="fullscreen"]')!;
   fsButton.textContent = isFullscreen() ? t('Leave full screen') : t('Full screen');
   fsButton.hidden = !canFullscreen() && fromHomeScreen();         // from an iPhone's Home Screen: already without bars
@@ -1759,6 +1758,7 @@ export async function boot() {
   });
   $('#menu').addEventListener('cancel', e => {
     e.preventDefault();
+    uiSounds.play('click');
     closeMenu();
   });
   $('#menu').addEventListener('pointermove', e => {
