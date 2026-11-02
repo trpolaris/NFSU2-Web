@@ -54,13 +54,19 @@ fn read_u32(data: &[u8], at: usize) -> Result<u32, String> {
     Ok(u32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]))
 }
 
-/// Unicode decomposition, case folding, diacritic removal and Turkish dotless-i handling.
+/// Unicode decomposition, case folding, Latin diacritic removal and Turkish dotless-i handling.
+/// Combining marks in non-Latin scripts (Arabic, Devanagari, Thai, etc.) are retained.
 fn normalize(input: &str) -> String {
     let mut out = String::with_capacity(input.len());
+    let mut previous_base_is_latin = false;
     for ch in input.nfkd() {
         if is_combining_mark(ch) {
+            if !previous_base_is_latin {
+                out.push(ch);
+            }
             continue;
         }
+        previous_base_is_latin = ch.is_ascii_alphabetic();
         for lower in ch.to_lowercase() {
             match lower {
                 'ı' => out.push('i'),
@@ -72,19 +78,58 @@ fn normalize(input: &str) -> String {
     out
 }
 
+/// Scripts whose ordinary text is commonly written without spaces between words.
+/// Their letters are emitted as individual matchable units so profanity is found inside a sentence.
+fn is_unspaced_script(ch: char) -> bool {
+    matches!(ch as u32,
+        0x0E00..=0x0E7F | // Thai
+        0x0E80..=0x0EFF | // Lao
+        0x0F00..=0x0FFF | // Tibetan
+        0x1000..=0x109F | // Myanmar
+        0x1780..=0x17FF | // Khmer
+        0x3040..=0x30FF | // Hiragana and Katakana
+        0x3400..=0x4DBF |
+        0x4E00..=0x9FFF | // CJK ideographs
+        0xAC00..=0xD7AF | // Hangul syllables
+        0xF900..=0xFAFF |
+        0x20000..=0x3134F
+    )
+}
+
+fn push_token(input: &str, start: usize, end: usize, out: &mut Vec<Token>) {
+    let normalized = normalize(&input[start..end]);
+    if !normalized.is_empty() {
+        out.push(Token { start, end, normalized });
+    }
+}
+
 fn tokens(input: &str) -> Vec<Token> {
     let mut out = Vec::new();
     let mut start: Option<usize> = None;
     for (at, ch) in input.char_indices().chain(std::iter::once((input.len(), '\0'))) {
-        if ch.is_alphanumeric() || is_combining_mark(ch) {
-            if start.is_none() && !is_combining_mark(ch) {
+        let end = at + ch.len_utf8();
+        if is_combining_mark(ch) {
+            if start.is_none() {
+                if let Some(previous) = out.last_mut() {
+                    if previous.end == at {
+                        previous.end = end;
+                        previous.normalized = normalize(&input[previous.start..end]);
+                    }
+                }
+            }
+            continue;
+        }
+        if ch.is_alphanumeric() && is_unspaced_script(ch) {
+            if let Some(from) = start.take() {
+                push_token(input, from, at, &mut out);
+            }
+            push_token(input, at, end, &mut out);
+        } else if ch.is_alphanumeric() {
+            if start.is_none() {
                 start = Some(at);
             }
         } else if let Some(from) = start.take() {
-            let normalized = normalize(&input[from..at]);
-            if !normalized.is_empty() {
-                out.push(Token { start: from, end: at, normalized });
-            }
+            push_token(input, from, at, &mut out);
         }
     }
     out
@@ -262,5 +307,10 @@ mod tests {
     #[test]
     fn masks_obfuscated_hate_speech_caught_by_the_existing_server_matcher() {
         assert_eq!(censor("n i g g a"), "*******");
+    }
+
+    #[test]
+    fn matches_cjk_terms_inside_text_without_word_spaces() {
+        assert_eq!(censor("你好你妈的"), "你好*******");
     }
 }
