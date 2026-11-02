@@ -146,7 +146,8 @@ async function look(browser, kind, touch) {
     page.on('pageerror', e => errors.push(String(e)));
     // Separate origins also separate the OPFS save area and its Web Lock between the two viewports.
     const host = touch ? 'localhost' : '127.0.0.1';
-    await page.goto(`http://${host}:${PORT}/`);
+    // Suppress the real first-run modal in the automated layout harness (platform.ts isAutomatedTest()).
+    await page.goto(`http://${host}:${PORT}/?test=page-narrow`);
     const phase = await page.waitForFunction(() => ['ready', 'error'].includes(window.__nfsu2?.phase) && window.__nfsu2.phase, null, { timeout: 120_000, polling: 250 }).then(h => h.jsonValue());
     // the language is a setting: the tab owns the saves and has read its settings
     await page.waitForFunction(() => !!document.querySelector('#settings .set') && !document.querySelector('#settings').hasAttribute('data-readonly'), null, { timeout: 30_000 });
