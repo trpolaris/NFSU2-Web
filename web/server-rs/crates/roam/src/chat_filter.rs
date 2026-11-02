@@ -215,6 +215,14 @@ pub(super) fn censor(input: &str) -> String {
         index = end;
     }
     output.push_str(&input[cursor..]);
+
+    // Keep the existing server-side anti-slur matcher as a fallback for obfuscated forms
+    // not present in the supplied locale files, but mask them instead of dropping the whole line.
+    while let Some(offensive) = nfsu2_names::chat_slur(&output).map(str::to_owned) {
+        let Some(start) = output.find(&offensive) else { break; };
+        let end = start + offensive.len();
+        output.replace_range(start..end, MASK);
+    }
     output
 }
 
@@ -249,5 +257,10 @@ mod tests {
     #[test]
     fn preserves_unmatched_text_and_masks_multiple_terms() {
         assert_eq!(censor("SHIT, this is AMCIK."), "*******, this is *******.");
+    }
+
+    #[test]
+    fn masks_obfuscated_hate_speech_caught_by_the_existing_server_matcher() {
+        assert_eq!(censor("n i g g a"), "*******");
     }
 }
