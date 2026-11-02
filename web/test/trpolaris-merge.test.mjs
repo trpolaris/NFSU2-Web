@@ -59,7 +59,7 @@ test('screenshot thumbnails are decoded only when approaching the viewport', () 
 test('PWA assets and cache are versioned together with trusted-origin guidance', () => {
   assert.match(html, /rel="manifest" href="\/manifest\.json"/);
   assert.match(html, /rel="icon" href="\/favicon\.ico"/);
-  assert.match(sw, /nfsu2-offline-16/);
+  assert.match(sw, /nfsu2-offline-19/);
   for (const asset of ['/manifest.json', '/app-version.json', '/favicon.ico', '/icon-192.png', '/icon-512.png']) {
     assert.ok(sw.includes(asset), `service worker should cache ${asset}`);
   }

@@ -19,6 +19,7 @@ mod lan;
 mod manifest;
 mod names;
 mod pool;
+mod player_hub;
 #[cfg(test)]
 mod route_tests;
 mod run;
@@ -152,7 +153,7 @@ const STATUS: [(u16, &str); 8] = [
     (503, "Service Unavailable"),
 ];
 
-pub const ROBOTS_TXT: &str = "User-agent: *\nAllow: /\nDisallow: /data/\nDisallow: /data-manifest\nDisallow: /game.wasm\nDisallow: /game.json\nDisallow: /players\nDisallow: /lan\nDisallow: /vault\nDisallow: /names";
+pub const ROBOTS_TXT: &str = "User-agent: *\nAllow: /\nDisallow: /data/\nDisallow: /data-manifest\nDisallow: /game.wasm\nDisallow: /game.json\nDisallow: /players\nDisallow: /lan\nDisallow: /vault\nDisallow: /cloud/\nDisallow: /names";
 
 /// what a client may ask a file to be sent as
 const TYPES: [(&str, &str); 11] = [
@@ -230,6 +231,8 @@ pub struct App {
     pub names: Option<names::NamesRoute>,
     /// the operator's bans (the control socket: control.rs), checked at /lan
     pub bans: Arc<nfsu2_bans::Bans>,
+    /// browser-private profiles and player-entered garage records, kept in the existing state volume
+    hub: player_hub::HubStore,
     /// SO_SNDBUF for /lan connections (NFSU2_LAN_SNDBUF, a measurement knob; 0: the kernel's own, which Linux grows
     /// to megabytes, ahead of the switch's own queue rules)
     lan_sndbuf: usize,
@@ -318,6 +321,7 @@ impl App {
             raw.insert(code, s.into_bytes());
         }
         let max_conns = limits::max_connections(o.max_peers);
+        let hub = player_hub::HubStore::open(&real_state);
         App {
             host_check,
             real_state,
@@ -347,6 +351,7 @@ impl App {
             vault: vault.map(vault::VaultRoute::new),
             names,
             bans,
+            hub,
             lan_sndbuf,
             o,
         }
@@ -534,11 +539,15 @@ impl App {
         if p.chars().any(|c| c <= '\u{1f}' || c == '\u{7f}' || c == '\\') || p.contains("//") {
             return self.bad_request(q, s).await;
         }
+        // The React player hub API (same origin, browser-private session; its own methods and body limits).
+        if p.starts_with("/api/v1/") {
+            return self.player_hub_api(q, s, &p, &u).await;
+        }
         if q.method == "PUT" && self.o.dev && !self.o.artifacts.is_empty() && p.starts_with("/artifacts/") {
             return self.put_artifact(q, s, &p[11..]).await;
         }
-        // keyphrase saves and claimed names: their own methods and bodies (vault.rs, names.rs)
-        if p == "/vault" {
+        // TRPOLARIS Cloud v1 (new clients) and /vault (legacy clients) share the same encrypted save records.
+        if p == "/cloud/v1/saves" || p == "/vault" {
             return self.vault(q, s, &u).await;
         }
         if p == "/names" {

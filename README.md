@@ -42,47 +42,37 @@ Orijinal projenin kaynak kodu ve katkıları kendi geliştiricilerine aittir. TR
 > Bu depo **Need for Speed: Underground 2 oyun dosyalarını içermez**. `SPEED2.EXE`, `server.dll`, oyun arşivleri, sesler, videolar veya başka telifli oyun varlıkları Git deposuna ya da Docker imajına eklenmez. Derleme ve kullanım için kendi yasal PC oyun kopyanız gerekir.
 
 ---
-
-## Ekran görüntüleri
-
-Aşağıdaki galeriler, paylaşılan 16 ekran görüntüsünü numaralandırılmış şekilde gruplar. Görseller README boyutuna uygun, sıkıştırılmış JPEG panelleridir. Kayıtlar ekranındaki bulut anahtarı ve özel LAN adresi, herkese açık dokümantasyona girmemesi için maskelenmiştir.
-
-### 1–8 · NFSU2 Web arayüzü
-
-**01 Kontroller · 02 Mod Kitaplığı · 03 Proje Hakkında · 04 Kayıtlar**
+### Web Ui
 
 <p align="center">
-  <img src="docs/screenshots/readme-refresh/nfsu2-web-interface-01.jpg" alt="NFSU2 Web: kontroller, mod kitaplığı, proje hakkında ve kayıtlar sayfaları" width="100%" />
+  <img src="docs/screenshots/trpolaris-main-web-explained-compact-info.gif" alt="Web Ui" width="100%" />
 </p>
 
-**05 Sistem Tanılaması · 06 Ayarlar · 07 Çevrimiçi · 08 Ana Sayfa / Oyun Başlatma**
+### Player Hub
 
 <p align="center">
-  <img src="docs/screenshots/readme-refresh/nfsu2-web-interface-02.jpg" alt="NFSU2 Web: sistem tanılaması, ayarlar, çevrimiçi ve ana sayfa" width="100%" />
+  <img src="docs/screenshots/trpolaris-player-hub-explained-compact-info.gif" alt="Player Hub" width="100%" />
 </p>
 
-### 9–13 · TRPOLARIS Player Hub
-
-**09 Profilim · 10 Çevrimiçi Oyuncular · 11 Garajım · 12 Genel Bakış · 13 İstatistikler**
+### Chat
 
 <p align="center">
-  <img src="docs/screenshots/readme-refresh/trpolaris-player-hub.jpg" alt="TRPOLARIS Player Hub: profil, çevrimiçi oyuncular, garaj, genel bakış ve istatistik ekranları" width="100%" />
+  <img src="docs/screenshots/trpolaris-chat-hud-explained.gif" alt="Chat" width="100%" />
 </p>
 
-### 14–16 · Oyun içi menü ve sohbet
-
-**14 F9 kontrol menüsü · 15 Kapalı sohbet HUD'u · 16 Açık sohbet HUD'u**
+### F9 Menu
 
 <p align="center">
-  <img src="docs/screenshots/readme-refresh/gameplay-overlays.jpg" alt="NFSU2 oyun içi F9 kontrol menüsü ve sohbet HUD'unun kapalı/açık durumları" width="100%" />
+  <img src="docs/screenshots/trpolaris-f9-driver-options-explained-fixed.gif" alt="F9 Menu" width="100%" />
 </p>
+
 
 ### Control Center
 
 Control Center ekranları ayrı bir masaüstü uygulamasına aittir. Mevcut galeri ve ayrıntılı açıklamalar:
 
 <p align="center">
-  <img src="docs/screenshots/control-center/slider.gif" alt="TRPOLARIS Control Center ekran galerisi" width="100%" />
+  <img src="docs/screenshots/trpolaris-control-center-explained.gif" alt="TRPOLARIS Control Center ekran galerisi" width="100%" />
 </p>
 
 | Ekran | Açıklama |
@@ -95,6 +85,8 @@ Control Center ekranları ayrı bir masaüstü uygulamasına aittir. Mevcut gale
 | [Tanılama ve Bakım](docs/screenshots/control-center/06-tanilama-ve-bakim.jpg) | WSL, Docker, port ve sunucu kontrolleri. |
 | [Kaldırma Merkezi](docs/screenshots/control-center/07-kaldirma-merkezi.jpg) | NFSU2 bileşenlerini seçerek kaldırma. |
 | [Canlı İşlem Günlüğü](docs/screenshots/control-center/08-canli-islem-gunlugu.jpg) | PowerShell ve WSL işlemlerini izleme. |
+
+---
 
 ---
 

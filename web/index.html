@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="dark">
-<meta name="theme-color" content="#090c0d">
+<meta name="theme-color" content="#080b12">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -27,6 +27,7 @@
 <link rel="manifest" href="/manifest.json">
 <link rel="apple-touch-icon" sizes="512x512" href="/icon.png">
 <link rel="stylesheet" href="/main.css">
+<link rel="stylesheet" href="/tailwind.css">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -56,6 +57,7 @@
       <div class="top-end">
         <label class="lang-pick"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9M12 3C9.5 5.6 8.2 8.6 8.2 12s1.3 6.4 3.8 9"/></svg><select class="form-select" id="lang-pick" data-i18n-attr="aria-label" aria-label="Language"></select></label>
         <button type="button" class="btn install-app" id="install-app" data-i18n-attr="aria-label" aria-label="Install app"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v11m-5-5 5 5 5-5M4 16v4h16v-4"/></svg><span data-i18n>Install app</span></button>
+        <a class="hub-entry" href="/hub/" aria-label="Player Hub" title="Player Hub"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M4.5 20v-1.5a7.5 7.5 0 0 1 15 0V20M18 5.5a2.8 2.8 0 0 1 0 5.2"/></svg><span>Player Hub</span></a>
       </div>
     </div>
   </header>
@@ -74,7 +76,60 @@
 
   <div id="home-page" class="home-page">
     <div class="install-security-notice" id="install-security-notice" hidden role="status" aria-live="polite"></div>
-    <section class="landing-hero" aria-labelledby="landing-heading">
+    <section class="landing-hero relative isolate overflow-hidden" aria-labelledby="landing-heading">
+      <div id="hero-particles" class="pointer-events-none absolute inset-0 z-0" aria-hidden="true"></div>
+      <div class="hero-visual" aria-hidden="true">
+        <div class="hero-visual-grid"></div>
+        <div class="hero-visual-glow"></div>
+        <div class="hero-visual-index"><span>MIDNIGHT RUN</span><strong>02 / 04</strong></div>
+        <svg class="hero-vehicle-art" viewBox="0 0 1100 560" role="presentation" focusable="false">
+          <defs>
+            <linearGradient id="vehicle-shell-gradient" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#f2f4fb" stop-opacity=".92"/>
+              <stop offset=".42" stop-color="#7f8da7" stop-opacity=".86"/>
+              <stop offset="1" stop-color="#28344b" stop-opacity=".98"/>
+            </linearGradient>
+            <linearGradient id="vehicle-glass-gradient" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#a9bbdf" stop-opacity=".42"/>
+              <stop offset="1" stop-color="#111b2d" stop-opacity=".94"/>
+            </linearGradient>
+            <linearGradient id="vehicle-accent-gradient" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0" stop-color="#ff6945"/>
+              <stop offset="1" stop-color="#a69aff"/>
+            </linearGradient>
+            <radialGradient id="vehicle-floor-gradient">
+              <stop offset="0" stop-color="#ff6945" stop-opacity=".27"/>
+              <stop offset="1" stop-color="#ff6945" stop-opacity="0"/>
+            </radialGradient>
+          </defs>
+          <ellipse cx="550" cy="435" rx="440" ry="54" fill="url(#vehicle-floor-gradient)"/>
+          <g class="vehicle-motion-lines" fill="none" stroke="#a69aff" stroke-opacity=".25" stroke-width="2">
+            <path d="M80 300H320M25 330H235M755 185H1010M830 215H1080"/>
+            <path d="M110 455H365M780 470H1035"/>
+          </g>
+          <path d="M132 365 179 317 310 286 395 213Q427 184 482 179L628 186Q682 190 733 238L816 273 923 302 970 351 954 389 883 414 210 418 150 397Z" class="vehicle-shell"/>
+          <path d="M329 285 407 211Q432 190 480 190L617 197Q661 202 704 244L754 284Z" class="vehicle-glass"/>
+          <path d="M474 193 470 283M623 201 670 283M393 216 358 284" class="vehicle-detail"/>
+          <path d="M187 319 312 292 355 294 329 329 183 352Z" fill="#111827" stroke="#d8dfef" stroke-opacity=".45" stroke-width="2"/>
+          <path d="M778 282 883 308 930 337 910 351 785 332Z" fill="#101827" stroke="#ffb09a" stroke-opacity=".7" stroke-width="2"/>
+          <path d="M176 357 329 337 472 344 632 340 795 347 925 358" class="vehicle-detail"/>
+          <path d="M300 365Q356 333 412 365L435 406H280Z" fill="#0a101b" stroke="#9ba9c4" stroke-opacity=".55" stroke-width="3"/>
+          <path d="M715 366Q773 332 821 366L848 407H697Z" fill="#0a101b" stroke="#9ba9c4" stroke-opacity=".55" stroke-width="3"/>
+          <circle cx="360" cy="382" r="54" class="vehicle-wheel"/>
+          <circle cx="360" cy="382" r="30" class="vehicle-rim"/>
+          <circle cx="360" cy="382" r="10" fill="#8c99b3"/>
+          <circle cx="774" cy="382" r="54" class="vehicle-wheel"/>
+          <circle cx="774" cy="382" r="30" class="vehicle-rim"/>
+          <circle cx="774" cy="382" r="10" fill="#8c99b3"/>
+          <path d="M164 354 247 339 270 348 252 363 166 373Z" fill="#ff7958" fill-opacity=".9"/>
+          <path d="M877 321 927 337 946 350 911 354 870 342Z" fill="#ffb09a" fill-opacity=".9"/>
+          <path d="M208 398 340 405 472 405 618 403 792 405 908 392" class="vehicle-accent"/>
+          <path d="M476 294 600 298M486 309 602 312M501 323 615 326" class="vehicle-detail"/>
+          <path d="M500 351 620 350 672 363" stroke="#101827" stroke-width="8" fill="none"/>
+          <path d="M500 351 620 350 672 363" stroke="#c6d1e7" stroke-opacity=".6" stroke-width="1.5" fill="none"/>
+          <path d="M148 389 116 381 95 385M951 388 989 381 1012 387" stroke="#ff6945" stroke-width="4" fill="none" stroke-linecap="round"/>
+        </svg>
+      </div>
       <div class="landing-copy">
         <div class="hero-kicker"><span class="signal-dot" aria-hidden="true"></span><span class="kicker-brand">TRPOLARIS <i>/</i> NFSU2</span><span class="kicker-tag" data-i18n>STREET RACING / 2004</span></div>
         <p class="hero-overline" data-i18n>THE CITY NEVER SLEEPS</p>
@@ -263,6 +318,8 @@
       <ul class="shots" id="shots" data-i18n-attr="aria-label" aria-label="Screenshots in this browser"></ul>
       <div class="vault" id="vault" hidden>
         <div class="panel-head sub">
+          <span class="vault-brand">TRPOLARIS CLOUD / PRIVATE SYNC</span>
+          <span class="vault-endpoint">THIS SERVER <code id="vault-host">checking…</code></span>
           <h3 data-i18n>Cloud saves</h3>
           <button type="button" class="btn" id="vault-make" data-i18n>Enable cloud saving</button>
           <p class="hint" id="vault-when" role="status" hidden></p>
@@ -499,25 +556,191 @@
   <div id="help-body"></div>
 </dialog>
 
-<dialog class="dlg menu" id="menu" aria-labelledby="menu-title">
-  <h2 id="menu-title" data-i18n>Menu</h2>
-  <p class="hint" data-i18n>The game keeps running behind this menu.</p>
-  <p class="hint" id="menu-save"></p>
-  <div class="menu-actions">
-    <button type="button" class="btn selected" data-act="resume" data-i18n>Back to the game</button>
-    <button type="button" class="btn" data-act="fullscreen" data-i18n>Full screen</button>
-    <button type="button" class="btn" data-act="fps" data-i18n>Frame-rate counter: off</button>
-    <button type="button" class="btn" data-act="solid" data-i18n-attr="title" title="On: you drive through the other players' cars, and they through yours. Off: you collide with them." hidden>Ghost mode: off</button>
-    <button type="button" class="btn" data-act="crews" data-i18n aria-haspopup="dialog" hidden>Crews: none</button>
-    <div class="menu-radio">
-      <button type="button" class="btn" data-act="radio" aria-pressed="false"><span id="radio-label" data-i18n>Radio: off</span></button>
-      <button type="button" class="icon" data-act="radio-folder" data-i18n-attr="aria-label title" aria-label="Music folder" title="Music folder"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h6l2 2h10v11H3z"/></svg></button>
-      <button type="button" class="icon" data-act="playlist" data-i18n-attr="aria-label title" aria-label="Playlist" title="Playlist"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h12M9 12h12M9 18h12M4 6h.01M4 12h.01M4 18h.01"/></svg></button>
-    </div>
-    <button type="button" class="btn" data-act="help" data-i18n>Controls</button>
-    <button type="button" class="btn" data-act="offline" hidden data-i18n>Stop waiting: play offline</button>
-    <button type="button" class="btn" data-act="log" data-i18n>Download log</button>
-    <button type="button" class="btn danger" data-act="quit" data-i18n>Quit game</button>
+<dialog class="dlg menu" id="menu" aria-labelledby="menu-title" data-active-tab="chat">
+  <div class="menu-shell">
+    <aside class="menu-sidebar">
+      <div class="menu-brand">
+        <span class="menu-kicker">TRPOLARIS // NIGHT DRIVER SYSTEM</span>
+        <h2 id="menu-title">UNDERGROUND<span>2</span></h2>
+        <span class="menu-edition">CONTROL INTERFACE / BAYVIEW</span>
+      </div>
+
+      <div class="menu-session">
+        <span class="menu-section-label" data-i18n>SESSION STATUS</span>
+        <strong><i aria-hidden="true"></i> <span data-i18n>GAME ACTIVE</span></strong>
+        <p class="hint" data-i18n>The game keeps running behind this menu.</p>
+      </div>
+
+      <nav class="menu-tabs" aria-label="Driver control tabs">
+        <button type="button" class="menu-tab is-active hover-glow-cyan" data-menu-tab="chat" aria-pressed="true">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v8a2.5 2.5 0 0 1-2.5 2.5H10l-5 4v-4.4a2.5 2.5 0 0 1-1-2.1z"/><path d="M8 8h8M8 11.5h5"/></svg>
+          <span data-i18n>CHAT HUD</span><small>01</small>
+        </button>
+        <button type="button" class="menu-tab hover-glow-green" data-menu-tab="session" aria-pressed="false">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 13.5 6 7h12l2 6.5v5h-3v-2H7v2H4z"/><path d="M7 13h10M8 10h.01M16 10h.01"/></svg>
+          <span data-i18n>GAME SESSION</span><small>02</small>
+        </button>
+        <button type="button" class="menu-tab hover-glow-cyan" data-menu-tab="multiplayer" aria-pressed="false">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M3 20c.4-3.4 2.4-5 6-5s5.6 1.6 6 5M15 15c3.7-.1 5.7 1.5 6 4"/></svg>
+          <span data-i18n>DRIVER / ONLINE</span><small>03</small>
+        </button>
+        <button type="button" class="menu-tab hover-glow-amber" data-menu-tab="radio" aria-pressed="false">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16v13H4zM4 7l13-4M8 11h8M8 15h3"/><circle cx="17" cy="15" r="1.5"/></svg>
+          <span data-i18n>RADIO / MUSIC</span><small>04</small>
+        </button>
+      </nav>
+
+      <div class="menu-save-wrap">
+        <span class="menu-section-label" data-i18n>CAREER DATA</span>
+        <p class="hint" id="menu-save"></p>
+      </div>
+      <button type="button" class="btn selected menu-resume" data-act="resume" data-i18n>Back to the game</button>
+      <span class="menu-build-mark">NFSU2 WEB <b>·</b> TRPOLARIS</span>
+    </aside>
+
+    <section class="menu-main">
+      <header class="menu-header">
+        <div>
+          <span class="menu-kicker">CONTROL DECK / TRPOLARIS</span>
+          <h3 data-i18n>DRIVER OPTIONS</h3>
+        </div>
+        <span class="menu-live"><span data-i18n>LOCAL SESSION</span> <i aria-hidden="true"></i></span>
+      </header>
+
+      <div class="menu-pages">
+        <section class="menu-page" data-menu-page="chat">
+          <div class="menu-page-title">
+            <span class="menu-section-label" data-i18n>01 / CHAT PRESENTATION</span>
+            <h4 data-i18n>CHAT HUD SETTINGS</h4>
+            <p class="hint" data-i18n>Changes apply immediately to the on-screen chat and are saved in this browser.</p>
+          </div>
+          <div class="menu-setting-card">
+            <label class="menu-slider" for="menu-chat-scale">
+              <span><span data-i18n>CHAT SCALE</span><output id="menu-chat-scale-value">90%</output></span>
+              <input id="menu-chat-scale" type="range" min="75" max="115" step="1" value="90">
+              <small data-i18n>Adjust the size of the chat panel, messages and controls.</small>
+            </label>
+          </div>
+          <div class="menu-setting-card">
+            <label class="menu-slider" for="menu-chat-opacity">
+              <span><span data-i18n>CHAT BACKGROUND</span><output id="menu-chat-opacity-value">72%</output></span>
+              <input id="menu-chat-opacity" type="range" min="35" max="92" step="1" value="72">
+              <small data-i18n>Adjust the background opacity behind chat messages.</small>
+            </label>
+          </div>
+          <div class="menu-setting-card">
+            <label class="menu-slider" for="menu-chat-position">
+              <span><span data-i18n>CHAT POSITION</span></span>
+              <select id="menu-chat-position">
+                <option value="top-left" data-i18n>Top left</option>
+                <option value="top-right" data-i18n>Top right</option>
+                <option value="bottom-left" data-i18n>Bottom left</option>
+                <option value="bottom-right" data-i18n>Bottom right</option>
+              </select>
+              <small data-i18n>Choose where the chat panel stays on screen.</small>
+            </label>
+          </div>
+          <div class="menu-setting-card">
+            <label class="menu-slider" for="menu-chat-width">
+              <span><span data-i18n>CHAT WIDTH</span><output id="menu-chat-width-value">360 px</output></span>
+              <input id="menu-chat-width" type="range" min="280" max="520" step="10" value="360">
+              <small data-i18n>Adjust the chat panel width independently of its scale.</small>
+            </label>
+          </div>
+          <div class="menu-inline-note"><i aria-hidden="true"></i><span data-i18n>LOCAL PROFILE · DISPLAY SETTINGS ONLY</span></div>
+        </section>
+
+        <section class="menu-page" data-menu-page="session" hidden>
+          <div class="menu-page-title">
+            <span class="menu-section-label" data-i18n>02 / GAME CONTROL</span>
+            <h4 data-i18n>SESSION OPTIONS</h4>
+            <p class="hint" data-i18n>Manage the running game session.</p>
+          </div>
+          <div class="menu-controls-grid">
+            <div class="menu-control-card">
+              <span class="menu-card-kicker" data-i18n>DISPLAY</span>
+              <h5 data-i18n>Fullscreen</h5>
+              <p class="hint" data-i18n>Toggle the game display mode.</p>
+              <button type="button" class="btn menu-action" data-act="fullscreen" data-i18n>Full screen</button>
+            </div>
+            <div class="menu-control-card">
+              <span class="menu-card-kicker" data-i18n>PERFORMANCE</span>
+              <h5 data-i18n>Frame counter</h5>
+              <p class="hint" data-i18n>Cycle the in-game frame-rate overlay.</p>
+              <button type="button" class="btn menu-action" data-act="fps" data-i18n>Frame-rate counter: off</button>
+            </div>
+            <div class="menu-control-card">
+              <span class="menu-card-kicker" data-i18n>NETWORK</span>
+              <h5 data-i18n>Offline mode</h5>
+              <p class="hint" data-i18n>Leave the online session and continue offline.</p>
+              <button type="button" class="btn menu-action" data-act="offline" hidden data-i18n>Stop waiting: play offline</button>
+            </div>
+            <div class="menu-control-card menu-control-danger">
+              <span class="menu-card-kicker" data-i18n>EXIT</span>
+              <h5 data-i18n>End session</h5>
+              <p class="hint" data-i18n>Close the current game safely.</p>
+              <button type="button" class="btn danger menu-action" data-act="quit" data-i18n>Quit game</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="menu-page" data-menu-page="multiplayer" hidden>
+          <div class="menu-page-title">
+            <span class="menu-section-label" data-i18n>03 / DRIVER NETWORK</span>
+            <h4 data-i18n>ONLINE & DRIVER TOOLS</h4>
+            <p class="hint" data-i18n>Multiplayer controls that are available in the current session.</p>
+          </div>
+          <div class="menu-controls-grid">
+            <div class="menu-control-card">
+              <span class="menu-card-kicker" data-i18n>COLLISION</span>
+              <h5 data-i18n>Ghost mode</h5>
+              <p class="hint" data-i18n>Choose whether cars collide with other players.</p>
+              <button type="button" class="btn menu-action" data-act="solid" data-i18n-attr="title" title="On: you drive through the other players' cars, and they through yours. Off: you collide with them." hidden>Ghost mode: off</button>
+            </div>
+            <div class="menu-control-card">
+              <span class="menu-card-kicker" data-i18n>CREW SYSTEM</span>
+              <h5 data-i18n>Crews</h5>
+              <p class="hint" data-i18n>Manage your free-roam crew groups.</p>
+              <button type="button" class="btn menu-action" data-act="crews" data-i18n aria-haspopup="dialog" hidden>Crews: none</button>
+            </div>
+            <div class="menu-control-card">
+              <span class="menu-card-kicker" data-i18n>REFERENCE</span>
+              <h5 data-i18n>Driving controls</h5>
+              <p class="hint" data-i18n>Open the keyboard and controller guide.</p>
+              <button type="button" class="btn menu-action" data-act="help" data-i18n>Controls</button>
+            </div>
+            <div class="menu-control-card">
+              <span class="menu-card-kicker" data-i18n>DIAGNOSTICS</span>
+              <h5 data-i18n>Session log</h5>
+              <p class="hint" data-i18n>Download this session's diagnostic log.</p>
+              <button type="button" class="btn menu-action" data-act="log" data-i18n>Download log</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="menu-page" data-menu-page="radio" hidden>
+          <div class="menu-page-title">
+            <span class="menu-section-label" data-i18n>04 / PERSONAL AUDIO</span>
+            <h4 data-i18n>RADIO & PLAYLIST</h4>
+            <p class="hint" data-i18n>Play music from a local folder on this device. No tracks are uploaded.</p>
+          </div>
+          <div class="menu-radio-card" data-menu-radio>
+            <div class="menu-radio-orb"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/><path d="m18.4 5.6-4.3 4.3"/></svg></div>
+            <div class="menu-radio-copy">
+              <span class="menu-card-kicker" data-i18n>LOCAL MUSIC PLAYER</span>
+              <h5 id="radio-label" data-i18n>Radio: off</h5>
+              <p class="hint" data-i18n>Your selected local playlist stays on this device.</p>
+            </div>
+            <div class="menu-radio-actions">
+              <button type="button" class="btn menu-action" data-act="radio" aria-pressed="false" data-i18n>Toggle radio</button>
+              <button type="button" class="icon" data-act="radio-folder" data-i18n-attr="aria-label title" aria-label="Music folder" title="Music folder"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h6l2 2h10v11H3z"/></svg></button>
+              <button type="button" class="icon" data-act="playlist" data-i18n-attr="aria-label title" aria-label="Playlist" title="Playlist"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h12M9 12h12M9 18h12M4 6h.01M4 12h.01M4 18h.01"/></svg></button>
+            </div>
+          </div>
+          <div class="menu-inline-note"><i aria-hidden="true"></i><span data-i18n>LOCAL FILES ONLY · NOTHING IS SENT TO THE SERVER</span></div>
+        </section>
+      </div>
+    </section>
   </div>
 </dialog>
 

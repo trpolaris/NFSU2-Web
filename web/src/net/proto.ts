@@ -34,6 +34,9 @@ export const NET_BUNDLE_MAX = 32 << 10;       // bytes in one bundle the page se
 export const NET_KIND_COMPACT = 33;           // switch to page only (nfsu2-lan compact.rs): a bundle without what the page puts back
 export const NET_BROADCAST = 0xffffffff;
 export const NET_ROAM_HUB = 0x0a4d00fd;       // 10.77.0.253: the server's free-roam hub (web/server-rs/crates/roam)
+// typed FreeRoam room/Crew chat carried as an N2FR datagram to the hub (not game UDP or a global broadcast)
+export const ROAM_HDR = 16, ROAM_CRC = 4, ROAM_MSG_HELLO = 1, ROAM_MSG_CHAT = 17;
+export const ROAM_CHAT_MAX_BYTES = 512, ROAM_CHAT_MAX_CHARS = 160;
 
 // LAN header: the first NET_LAN_HDR bytes of a NET_KIND_LAN_* payload
 //   [0] op  [1] ttl  [2..3] 0  [4..7] connection id (TCP, little-endian)

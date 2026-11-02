@@ -28,6 +28,33 @@ const { LANGUAGES } = await import('data:text/javascript;base64,' + Buffer.from(
 const SKIP = !fs.existsSync(path.join(HERE, '../dist/main.js')) ? 'no page built (node web/build.mjs)'
   : process.platform !== 'win32' && !fs.existsSync(SERVER_BIN) ? 'no server (web/server-rs/build.sh)' : false;
 
+const SERVER_ROOT = path.join(HERE, '../server-rs');
+
+/** Rebuild the default server when Rust sources are newer than the copied test binary. */
+async function ensureCurrentServer() {
+  // An explicit NFSU2_SERVER_BIN is a deliberate override (e.g. a negative-control build); never replace it.
+  if (process.platform === 'win32' || process.env.NFSU2_SERVER_BIN) return;
+  const binary = fs.statSync(SERVER_BIN, { throwIfNoEntry: false });
+  if (!binary) return; // SKIP below has already handled a missing default binary.
+  const sourceDirs = ['src', 'crates'].map(d => path.join(SERVER_ROOT, d));
+  const sourceFiles = [
+    path.join(SERVER_ROOT, 'Cargo.toml'),
+    path.join(SERVER_ROOT, 'Cargo.lock'),
+    ...sourceDirs.flatMap(dir => fs.readdirSync(dir, { recursive: true }).map(file => path.join(dir, String(file)))),
+  ];
+  const newestSource = Math.max(0, ...sourceFiles
+    .filter(file => /\.(?:rs|toml|lock)$/.test(file))
+    .map(file => fs.statSync(file, { throwIfNoEntry: false })?.mtimeMs ?? 0));
+  if (newestSource <= binary.mtimeMs) return;
+
+  console.log('[page-narrow] Rust server sources changed; rebuilding out/web/server-rs/nfsu2-server');
+  await new Promise((resolve, reject) => {
+    const build = spawn('bash', [path.join(SERVER_ROOT, 'build.sh')], { stdio: 'inherit' });
+    build.once('error', reject);
+    build.once('exit', code => code === 0 ? resolve() : reject(new Error(`Rust server rebuild failed (exit ${code}); run bash server-rs/build.sh`)));
+  });
+}
+
 /** The page's source (what web/build.mjs reads) newer than the built page in web/dist, or '': the test measures the
  *  page as web/dist has it, so an older build would measure the old stylesheet and text, not this checkout's. */
 function newerSource() {
@@ -44,6 +71,7 @@ function newerSource() {
 }
 
 async function server() {
+  await ensureCurrentServer();
   const tmp = fs.mkdtempSync(path.join(process.env.TMPDIR || os.tmpdir(), 'nfsu2-page-test-'));
   let data = process.env.NFSU2_DATA || path.join(os.homedir(), 'projects/nsfu2/Need for Speed - Underground 2');
   if (!fs.existsSync(path.join(data, 'SPEED2.EXE'))) {
@@ -51,7 +79,7 @@ async function server() {
     fs.mkdirSync(data);
     fs.writeFileSync(path.join(data, 'SPEED2.EXE'), 'MZ');
   }
-  const srv = spawn(...serverCommand(['--data', data, '--http-port', String(PORT), '--state', path.join(tmp, 'state')]), { stdio: ['ignore', 'pipe', 'pipe'] });
+  const srv = spawn(...serverCommand(['--data', data, '--http-port', String(PORT), '--vault-gb', '50', '--state', path.join(tmp, 'state')]), { stdio: ['ignore', 'pipe', 'pipe'] });
   await new Promise((res, rej) => {
     let o = '';
     const t = setTimeout(() => rej(new Error('server did not start: ' + o)), 15000);
@@ -116,12 +144,33 @@ async function look(browser, kind, touch) {
     const errors = [], found = {};
     let looks = 0;
     page.on('pageerror', e => errors.push(String(e)));
-    await page.goto(`http://localhost:${PORT}/`);
+    // Separate origins also separate the OPFS save area and its Web Lock between the two viewports.
+    const host = touch ? 'localhost' : '127.0.0.1';
+    // Suppress the real first-run modal in the automated layout harness (platform.ts isAutomatedTest()).
+    await page.goto(`http://${host}:${PORT}/?test=page-narrow`);
     const phase = await page.waitForFunction(() => ['ready', 'error'].includes(window.__nfsu2?.phase) && window.__nfsu2.phase, null, { timeout: 120_000, polling: 250 }).then(h => h.jsonValue());
     // the language is a setting: the tab owns the saves and has read its settings
     await page.waitForFunction(() => !!document.querySelector('#settings .set') && !document.querySelector('#settings').hasAttribute('data-readonly'), null, { timeout: 30_000 });
+    // Require the current server API, not a stale out/web binary that only knows the legacy /vault route.
+    const cloudStatus = await page.evaluate(async () => {
+      try { return (await fetch('/cloud/v1/saves', { cache: 'no-store' })).status; }
+      catch { return 0; }
+    });
+    assert.equal(cloudStatus, 401,
+      `test server must expose TRPOLARIS Cloud v1 (HTTP 401 without a token); got HTTP ${cloudStatus}. Rebuild it with: bash server-rs/build.sh`);
+    // The redesigned UI keeps Saves and Controls on separate pages; visit Saves before testing its cloud controls.
+    await page.click('.quick-link[data-page="saves"]');
+    await page.waitForFunction(() => document.body.dataset.uiPage === 'saves', null, { timeout: 10_000 });
+    // VaultPanel.start() probes this endpoint asynchronously; settings readiness alone does not make #vault visible.
+    await page.waitForFunction(() => {
+      const vault = document.querySelector('#vault');
+      return !!vault && !vault.hidden && !!document.querySelector('#vault-make')?.getClientRects().length;
+    }, null, { timeout: 30_000 });
     await page.click('#vault-make');
     await page.waitForFunction(() => !document.querySelector('#vault-on').hidden, null, { timeout: 30_000 });
+    // The layout loop exercises Controls tabs; make that page active instead of clicking through a hidden panel.
+    await page.click('.quick-link[data-page="controls"]');
+    await page.waitForFunction(() => document.body.dataset.uiPage === 'controls', null, { timeout: 10_000 });
     const frames = () => page.evaluate(() => document.fonts.ready.then(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))));
     for (const lang of LANGUAGES) {
       if (await page.evaluate(() => document.querySelector('#lang-pick').value) !== lang) {

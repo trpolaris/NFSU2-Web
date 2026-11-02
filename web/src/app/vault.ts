@@ -35,14 +35,18 @@ import { isScreenshot, PROFILES_DIR } from './savefs';
 import { withoutDevice } from './settings';
 import { fill, N, type Vars } from './i18n';
 
-export const PREFIX = 'nfsu2-xyz';
+/** New keyphrases belong to TRPOLARIS Cloud. The old prefix remains readable for existing saves. */
+export const PREFIX = 'trpolaris-cloud';
+const LEGACY_PREFIX = 'nfsu2-xyz';
 export const PHRASE_WORDS = 8;
 export const KDF_ROUNDS = 100_000;
 /** what the server takes (crates/vault VaultOptions::sized) */
 export const MAX_BOX = 256 << 10;
 /** the most a keyphrase's zip inflates to: a backup's saves and settings (saves-ui.ts MAX_OTHER) */
 const MAX_PLAIN = 256 << 20;
-const SALT = 'nfsu2-xyz keyphrase saves v1', AAD = 'nfsu2-xyz keyphrase saves v1';
+/** Separate crypto domains: the legacy one keeps old keyphrases and ciphertext readable. */
+const LEGACY_CONTEXT = 'nfsu2-xyz keyphrase saves v1';
+const CLOUD_CONTEXT = 'trpolaris-cloud keyphrase saves v1';
 const WORD_SET = new Set(WORDS);
 const enc = new TextEncoder(), dec = new TextDecoder();
 
@@ -66,39 +70,43 @@ export function newPhrase(): string {
 export function readPhrase(text: string): { phrase: string } | { bad: string; why: { t: string; v?: Vars } } {
   const bad = (t: string, v?: Vars) => ({ bad: fill(t, v), why: { t, v } });
   let w = text.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+  // An unprefixed phrase was historically interpreted as nfsu2-xyz; keep that behaviour for old backups.
+  let prefix = LEGACY_PREFIX;
   if (w[0] === 'nfsu2' && w[1] === 'xyz') w = w.slice(2);
+  else if (w[0] === 'trpolaris' && w[1] === 'cloud') { prefix = PREFIX; w = w.slice(2); }
   if (!w.length) return bad(N('Type or paste your passphrase.'));
   const unknown = w.find(x => !WORD_SET.has(x));
   if (unknown) return bad(N('"{word}" is not a passphrase word. Passphrases are made for you by Enable cloud saving: check the spelling, or make one there.'), { word: unknown });
-  if (w.length !== PHRASE_WORDS) return bad(N('A passphrase has {n} words after {prefix}; this has {got}.'), { n: PHRASE_WORDS, prefix: PREFIX, got: w.length });
-  return { phrase: [PREFIX, ...w].join('-') };
+  if (w.length !== PHRASE_WORDS) return bad(N('A passphrase has {n} words after {prefix}; this has {got}.'), { n: PHRASE_WORDS, prefix, got: w.length });
+  return { phrase: [prefix, ...w].join('-') };
 }
 
-export interface Keys { key: CryptoKey; token: string }
+export interface Keys { key: CryptoKey; token: string; aad: string }
 
 const base64url = (b: Uint8Array) => btoa(String.fromCharCode(...b)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 const hex = (b: Uint8Array) => Array.from(b, x => x.toString(16).padStart(2, '0')).join('');
 
 /** The key that seals a keyphrase's saves and the token the server keeps them under. */
 export async function keysOf(phrase: string): Promise<Keys> {
+  const aad = phrase.startsWith(`${PREFIX}-`) ? CLOUD_CONTEXT : LEGACY_CONTEXT;
   const base = await crypto.subtle.importKey('raw', enc.encode(phrase), 'PBKDF2', false, ['deriveBits']);
-  const bits = new Uint8Array(await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt: enc.encode(SALT), iterations: KDF_ROUNDS }, base, 512));
+  const bits = new Uint8Array(await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt: enc.encode(aad), iterations: KDF_ROUNDS }, base, 512));
   const key = await crypto.subtle.importKey('raw', bits.slice(0, 32), 'AES-GCM', false, ['encrypt', 'decrypt']);
-  return { key, token: base64url(bits.subarray(32)) };
+  return { key, token: base64url(bits.subarray(32)), aad };
 }
 
-export async function seal(key: CryptoKey, plain: Uint8Array): Promise<Uint8Array> {
+export async function seal(key: CryptoKey, plain: Uint8Array, aad = LEGACY_CONTEXT): Promise<Uint8Array> {
   const iv = crypto.getRandomValues(new Uint8Array(12));
-  const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv, additionalData: enc.encode(AAD) }, key, plain as BufferSource));
+  const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv, additionalData: enc.encode(aad) }, key, plain as BufferSource));
   const out = new Uint8Array(13 + ct.length);
   out[0] = 1; out.set(iv, 1); out.set(ct, 13);
   return out;
 }
 
-export async function unseal(key: CryptoKey, box: Uint8Array): Promise<Uint8Array> {
+export async function unseal(key: CryptoKey, box: Uint8Array, aad = LEGACY_CONTEXT): Promise<Uint8Array> {
   if (box.length < 13 + 16 || box[0] !== 1) throw new VaultError(N('what the server holds for this passphrase is not a passphrase\'s saves'), 'VAULT-NOT-SAVES');
   try {
-    return new Uint8Array(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: box.slice(1, 13), additionalData: enc.encode(AAD) }, key, box.slice(13)));
+    return new Uint8Array(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: box.slice(1, 13), additionalData: enc.encode(aad) }, key, box.slice(13)));
   } catch { throw new VaultError(N('these saves do not open with this passphrase'), 'VAULT-WRONG-KEY'); }
 }
 
@@ -198,7 +206,7 @@ export interface Remote { rev: string; saved: number; earlier: number | null }
 export type Fetch = (url: string, init?: RequestInit) => Promise<Response>;
 
 function remoteOf(r: Response): Remote | null {
-  const rev = r.headers.get('etag'), saved = Number(r.headers.get('x-vault-saved')), e = r.headers.get('x-vault-earlier');
+  const rev = r.headers.get('etag'), saved = Number(r.headers.get('x-trpolaris-cloud-saved') ?? r.headers.get('x-vault-saved')), e = r.headers.get('x-trpolaris-cloud-earlier') ?? r.headers.get('x-vault-earlier');
   return rev && saved ? { rev, saved, earlier: e ? Number(e) : null } : null;
 }
 
@@ -212,13 +220,13 @@ function failure(r: Response): VaultError {
 
 const incomplete = () => new VaultError(N('the server\'s answer is incomplete'), 'VAULT-INCOMPLETE');
 
-/** /vault for one keyphrase's token. */
+/** TRPOLARIS Cloud v1: the passphrase-derived token never appears in the URL. */
 export class VaultApi {
   /** timeoutMs: each request's answer, at most */
   constructor(private token: string, private f: Fetch = (u, i) => fetch(u, i), private timeoutMs = 30_000) {}
 
   private req(method: string, headers: Record<string, string> = {}, body?: Uint8Array, query = '') {
-    return this.f(`/vault${query}`, {
+    return this.f(`/cloud/v1/saves${query}`, {
       method, headers: { authorization: `Bearer ${this.token}`, ...headers }, body: body as BodyInit | undefined, cache: 'no-store',
       signal: AbortSignal.timeout(this.timeoutMs),
     });
@@ -254,9 +262,9 @@ export class VaultApi {
   }
 }
 
-/** Whether this server keeps keyphrase saves: /vault without a token answers 401 there (404 on one without). */
+/** Whether this server has TRPOLARIS Cloud enabled: the versioned route answers 401 without a token (404 when disabled). */
 export async function vaultAvailable(f: Fetch = (u, i) => fetch(u, i)): Promise<boolean> {
-  try { return (await f('/vault', { cache: 'no-store' })).status === 401; } catch { return false; }
+  try { return (await f('/cloud/v1/saves', { cache: 'no-store' })).status === 401; } catch { return false; }
 }
 
 // ------------------------------------------------------------- syncing --
@@ -374,7 +382,7 @@ export class VaultSync {
   }
 
   private async boxOf(k: Keys, files: SaveFile[]): Promise<Uint8Array> {
-    const box = await seal(k.key, await pack(files));
+    const box = await seal(k.key, await pack(files), k.aad);
     if (box.length > MAX_BOX) {
       // what takes the room, for the log: each file packed on its own, the largest first
       const sized = await Promise.all(files.map(async f => ({ path: f.path, kb: (await pack([f])).length / 1024 })));
@@ -480,7 +488,7 @@ export class VaultSync {
     return this.run(N('Loading'), async () => {
       const k = await this.keysFor(phrase), r = await this.api(k).get(null, earlier);
       if (!r || 'same' in r) return null;
-      return { zip: await unpack(await unseal(k.key, r.box)), remote: r.remote };
+      return { zip: await unpack(await unseal(k.key, r.box, k.aad)), remote: r.remote };
     });
   }
 
@@ -495,12 +503,12 @@ export class VaultSync {
   /** a version's files as a keyphrase keeps them (one sent before 2026-10-25 may have covers, black ones as they were,
    *  the other browser's graphics options and its device's settings) */
   private async filesOf(k: Keys, box: Uint8Array): Promise<SaveFile[]> {
-    return kept((await unzip(await unpack(await unseal(k.key, box)))).map(e => ({ path: e.name, data: e.data, mtime: e.mtime })));
+    return kept((await unzip(await unpack(await unseal(k.key, box, k.aad)))).map(e => ({ path: e.name, data: e.data, mtime: e.mtime })));
   }
 
   /** a version in place of the saves here, and the link to it */
   private async take(phrase: string, k: Keys, box: Uint8Array, remote: Remote) {
-    await this.d.restore(await unpack(await unseal(k.key, box)));
+    await this.d.restore(await unpack(await unseal(k.key, box, k.aad)));
     const files = await this.d.files();
     this.linked(phrase, remote, await contentHash(files), files);
     this.onTaken(remote);

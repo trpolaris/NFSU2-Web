@@ -1,4 +1,4 @@
-//! /vault: keyphrase saves (nfsu2-vault), for this server's own pages only.
+//! TRPOLARIS Cloud v1 (`/cloud/v1/saves`) and its backward-compatible `/vault` route: encrypted passphrase saves.
 //!
 //! The page sends its token as `Authorization: Bearer <43 characters of base64url>` (never in the URL: no log or
 //! cache sees it); the keyphrase is kept under the token's SHA-256.  What it sends and gets back is the page's
@@ -89,7 +89,7 @@ fn if_match(v: &str) -> Option<u64> {
 }
 
 impl App {
-    /// /vault (keyphrase saves): see this module's doc
+    /// TRPOLARIS Cloud v1 and its backward-compatible /vault keyphrase-save route.
     pub(super) async fn vault(&self, q: &mut Request, s: &mut Response, u: &url::Url) -> Res {
         const CLOSE: &[(&str, &str)] = &[("connection", "close")];
         let Some(v) = &self.vault else { return self.not_found(q, s).await };
@@ -275,8 +275,12 @@ impl App {
 /// a version's ETag and time, and when the copy of an earlier day was saved
 fn vault_headers(h: &mut Hdrs, rev: u64, saved: i64, earlier: Option<i64>) {
     h.set("etag", etag(rev));
+    // The TRPOLARIS Cloud v1 names are the current contract. Keep the old headers while older pages
+    // still use /vault, so a client update never strands an already-linked passphrase.
+    h.set("x-trpolaris-cloud-saved", saved.to_string());
     h.set("x-vault-saved", saved.to_string());
     if let Some(e) = earlier {
+        h.set("x-trpolaris-cloud-earlier", e.to_string());
         h.set("x-vault-earlier", e.to_string());
     }
 }
@@ -335,6 +339,42 @@ mod tests {
         assert_eq!(kit.request("DELETE", "/vault", &[BEARER], b"").await.status, 404);
         assert_eq!(kit.request("GET", "/vault", &[BEARER], b"").await.status, 404);
         assert_eq!(kit.app.vault.as_ref().unwrap().store.usage().0, 0);
+    }
+
+    #[tokio::test]
+    async fn trpolaris_cloud_v1_shares_records_with_legacy_vault() {
+        let kit = Kit::start(&[], |_| {}).await;
+        // New and legacy paths address the same encrypted record; no save migration is needed.
+        assert_eq!(kit.request("GET", "/cloud/v1/saves", &[], b"").await.status, 401);
+
+        let made = kit.request(
+            "PUT",
+            "/cloud/v1/saves",
+            &[BEARER, ("If-None-Match", "*")],
+            b"cloud box",
+        ).await;
+        assert_eq!(made.status, 201);
+        assert_eq!(made.header("x-trpolaris-cloud-saved"), made.header("x-vault-saved"));
+        let tag = made.header("etag").unwrap().to_string();
+
+        let legacy_read = kit.request("GET", "/vault", &[BEARER], b"").await;
+        assert_eq!(legacy_read.body.as_slice(), &b"cloud box"[..]);
+
+        let legacy_update = kit.request(
+            "PUT",
+            "/vault",
+            &[BEARER, ("If-Match", &tag)],
+            b"legacy update",
+        ).await;
+        assert_eq!(legacy_update.status, 200);
+
+        let cloud_read = kit.request("GET", "/cloud/v1/saves", &[BEARER], b"").await;
+        assert_eq!(cloud_read.body.as_slice(), &b"legacy update"[..]);
+        assert_eq!(cloud_read.header("x-trpolaris-cloud-saved"), cloud_read.header("x-vault-saved"));
+
+        assert_eq!(kit.request("DELETE", "/cloud/v1/saves", &[BEARER], b"").await.status, 200);
+        assert_eq!(kit.request("GET", "/vault", &[BEARER], b"").await.status, 404);
+        assert!(super::super::ROBOTS_TXT.contains("Disallow: /cloud/\n"));
     }
 
     #[tokio::test]

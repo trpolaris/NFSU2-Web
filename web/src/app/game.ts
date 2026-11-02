@@ -33,6 +33,8 @@ export interface SessionOptions {
   lobby?(json: string): void;
   /** free roam: quick chat, a phrase said (by a friend or the player), as JSON from the game */
   say?(json: string): void;
+  /** typed FreeRoam room or Crew chat, relayed by the hub as JSON */
+  chat?(json: string): void;
   /** every frame drawn: quick chat's places over the cars in it (contract.ts RendererOptions.onMarks) */
   marks?(n: number, m: Float32Array, ids: Uint32Array): void;
   /** the server's LAN took the game back after the link was lost (a server restart, as for a deploy) */
@@ -133,7 +135,7 @@ export class GameSession {
     })).then(i => { s.input = i; });
     if (o.netName !== null)
       void attach('network', () => attachNet(s.proc, {
-        ...common, name: o.netName!, id: o.netId, claim: o.netClaim, block: o.netBlock, notice: o.notice, lobby: o.lobby, say: o.say, back: o.netBack, queue: o.netQueue, removed: o.netRemoved,
+        ...common, name: o.netName!, id: o.netId, claim: o.netClaim, block: o.netBlock, notice: o.notice, lobby: o.lobby, say: o.say, chat: o.chat, back: o.netBack, queue: o.netQueue, removed: o.netRemoved,
       })).then(n => { s.net = n; });
     return s;
   }

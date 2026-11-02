@@ -87,7 +87,9 @@ async function answer(e: FetchEvent, key: string): Promise<Response> {
       if (!res) e.waitUntil(net.then(r => keep(cache, key, r, kept)).catch(() => {}));
       return kept!;
     }
-    offlineUntil = 0;
+    // Only a successful navigation starts a new online version. A later asset succeeding
+    // must not mix server files into a start that already fell back to its cached script.
+    if (key === PAGE) offlineUntil = 0;
     e.waitUntil((async () => {
       await keep(cache, key, res.clone(), kept);
       if (key === PAGE) await refresh(cache, [...LATER, ...(await cache.keys()).map(r => new URL(r.url).pathname).filter(p => LANG.test(p))]);

@@ -746,7 +746,7 @@ async function startGame() {
     // longer than the game), and a closure from this function would keep its
     // scope, and with it this game, reachable
     session = await GameSession.start({
-      module: loaded!.module, info: loaded!.info, saveDir: SAVE, env: r.env, canvas, stage, audio, displayHz, netName, notice, lobby, say, marks,
+      module: loaded!.module, info: loaded!.info, saveDir: SAVE, env: r.env, canvas, stage, audio, displayHz, netName, notice, lobby, say, chat, marks,
       netBack, netQueue, onSaved,
       netId: net ? pageId() : undefined, netClaim: net ? await vault.token().catch(() => null) ?? undefined : undefined, netRemoved,
       netBlock: net && r.env.NFSU2_ROAM === '1' ? blockList(r.env.NFSU2_ROAM_BLOCK ?? '') : undefined,
@@ -777,7 +777,8 @@ async function startGame() {
   driftPanel.start(session);
   photo.start(session);
   quickChat.start(session, net && r.env.NFSU2_ROAM === '1' && r.env.NFSU2_ROAM_SAY !== '0',
-    phrasesOf(r.env.NFSU2_ROAM_SAY_PHRASES), groupsOf(r.env.NFSU2_ROAM_SAY_GROUPS));
+    phrasesOf(r.env.NFSU2_ROAM_SAY_PHRASES), groupsOf(r.env.NFSU2_ROAM_SAY_GROUPS),
+    (roamCrews ?? []).map(c => ({ name: c.name, id: roomHash(c.name) })), netName ?? '');
   fps.memory = session.proc.memory;
   const st = session;
   let tries = 0;
@@ -1056,6 +1057,10 @@ function say(json: string) {
   placeNotices();
   quickChat.said(json);
 }
+/** typed FreeRoam / race-lobby chat returned by the server */
+function chat(json: string) {
+  quickChat.chat(json);
+}
 function marks(n: number, m: Float32Array, ids: Uint32Array) { quickChat.marks(n, m, ids); }
 /** quick chat's line in the log: a speech balloon, the name, the phrase; in the notices' box, for 8 s */
 function chatLine(name: string, text: string, me: boolean) {
@@ -1192,6 +1197,7 @@ function openMenu() {
   crews.textContent = crewsLabel();
   m.querySelector<HTMLButtonElement>('[data-act="quit"]')!.textContent = quitLabel();
   showRadio(m);
+  syncChatMenuAppearance();
   const line = $('#menu-save');
   if (saved) line.textContent = t('Last saved at {when} ({name}).', { when: when(saved.at), name: saved.name });
   else {
@@ -1201,8 +1207,48 @@ function openMenu() {
     });
   }
   $('#stage').classList.add('cursor');
+  selectMenuTab(m.dataset.activeTab || 'chat');
   m.showModal();
 }
+/** Switch the F9 control deck between real, native game features. */
+function selectMenuTab(name: string) {
+  const m = $<HTMLDialogElement>('#menu');
+  const buttons = [...m.querySelectorAll<HTMLButtonElement>('[data-menu-tab]')];
+  if (!buttons.some(b => b.dataset.menuTab === name)) return;
+  m.dataset.activeTab = name;
+  for (const b of buttons) {
+    const active = b.dataset.menuTab === name;
+    b.classList.toggle('is-active', active);
+    b.setAttribute('aria-pressed', String(active));
+  }
+  for (const page of m.querySelectorAll<HTMLElement>('[data-menu-page]')) {
+    page.hidden = page.dataset.menuPage !== name;
+  }
+}
+
+/** The menu's chat sliders change only this browser's HUD presentation, not game/network settings. */
+function syncChatMenuAppearance() {
+  const a = quickChat.appearance();
+  const scale = Math.round(a.scale * 100), opacity = Math.round(a.opacity * 100);
+  $<HTMLInputElement>('#menu-chat-scale').value = String(scale);
+  $<HTMLInputElement>('#menu-chat-opacity').value = String(opacity);
+  $<HTMLSelectElement>('#menu-chat-position').value = a.position;
+  $<HTMLInputElement>('#menu-chat-width').value = String(a.width);
+  $('#menu-chat-scale-value').textContent = `${scale}%`;
+  $('#menu-chat-opacity-value').textContent = `${opacity}%`;
+  $('#menu-chat-width-value').textContent = `${a.width} px`;
+}
+function updateChatMenuAppearance() {
+  const scale = Number($<HTMLInputElement>('#menu-chat-scale').value) / 100;
+  const opacity = Number($<HTMLInputElement>('#menu-chat-opacity').value) / 100;
+  const position = $<HTMLSelectElement>('#menu-chat-position').value as 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
+  const width = Number($<HTMLInputElement>('#menu-chat-width').value);
+  quickChat.setAppearance(scale, opacity, position, width);
+  $('#menu-chat-scale-value').textContent = `${Math.round(scale * 100)}%`;
+  $('#menu-chat-opacity-value').textContent = `${Math.round(opacity * 100)}%`;
+  $('#menu-chat-width-value').textContent = `${width} px`;
+}
+
 /** the menu's frame-rate counter and Ghost mode buttons, with what they are at now */
 const fpsLabel = (mode: string) => t('Frame-rate counter: {mode}', { mode: t(mode === 'on' ? N('on') : mode === 'detailed' ? N('detailed') : N('off')) });
 const ghostLabel = () => solidCars ? t('Ghost mode: off') : t('Ghost mode: on');
@@ -1244,6 +1290,7 @@ function drawPopCrews(focus?: (root: HTMLElement) => Element | null | undefined)
 async function menuCrews(list: Crew[], focus: (root: HTMLElement) => Element | null | undefined) {
   if (roamCrews === null || !session?.net?.crews) return;
   roamCrews = list;
+  quickChat.setCrews(list.map(c => ({ name: c.name, id: roomHash(c.name) })));
   session.net.crews(list.map(c => roomHash(c.name)), rgbWords(list));
   drawPopCrews(focus);
   void askPopCounts(1500);
@@ -1256,9 +1303,10 @@ async function menuCrews(list: Crew[], focus: (root: HTMLElement) => Element | n
 }
 function showRadio(m: HTMLElement) {
   const button = m.querySelector<HTMLButtonElement>('[data-act="radio"]')!, on = radio?.on ?? false;
-  m.querySelector<HTMLElement>('.menu-radio')!.hidden = !radioPort() || !canPickMusic();    // a game without the radio's words (an older build) has no Radio row
+  m.querySelector<HTMLElement>('[data-menu-radio]')!.hidden = !radioPort() || !canPickMusic();    // a game without the radio's words (an older build) has no Radio row
   button.classList.toggle('selected', on);
   button.setAttribute('aria-pressed', String(on));
+  m.querySelector<HTMLElement>('.menu-radio-orb')?.classList.toggle('is-playing', on);
   $('#radio-label').textContent = t('Radio: {mode}', { mode: on ? t(N('on')) : t(N('off')) }) + (radio?.folder ? ` · ${radio.folder}` : '');
 }
 async function radioClick(act: 'radio' | 'radio-folder') {
@@ -1666,7 +1714,17 @@ export async function boot() {
   $<HTMLButtonElement>('#log-btn').onclick = downloadLog;
   $<HTMLButtonElement>('#diagnostics-refresh').onclick = () => void refreshDiagnostics();
   $<HTMLButtonElement>('#diagnostics-download').onclick = downloadDiagnostics;
-  $('#menu').addEventListener('click', e => { const a = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-act]'); if (a) void menuAction(a.dataset.act!); });
+  $('#menu').addEventListener('click', e => {
+    const target = e.target as HTMLElement;
+    const tab = target.closest<HTMLButtonElement>('[data-menu-tab]');
+    if (tab) { selectMenuTab(tab.dataset.menuTab!); return; }
+    const a = target.closest<HTMLButtonElement>('[data-act]');
+    if (a) void menuAction(a.dataset.act!);
+  });
+  $('#menu-chat-scale').addEventListener('input', updateChatMenuAppearance);
+  $('#menu-chat-opacity').addEventListener('input', updateChatMenuAppearance);
+  $('#menu-chat-width').addEventListener('input', updateChatMenuAppearance);
+  $('#menu-chat-position').addEventListener('change', updateChatMenuAppearance);
   $('#playlist-body').addEventListener('change', setTrackMode);
   $('#playlist-shuffle').addEventListener('change', setShuffle);
   $('#menu').addEventListener('close', () => {

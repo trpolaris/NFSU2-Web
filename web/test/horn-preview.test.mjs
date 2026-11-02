@@ -16,7 +16,8 @@ import * as esbuild from 'esbuild';
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const js = (await esbuild.build({ entryPoints: [path.join(REPO, 'web/src/app/horn-preview.ts')], bundle: true, format: 'esm', write: false, platform: 'neutral' })).outputFiles[0].text;
 const H = await import('data:text/javascript,' + encodeURIComponent(js));
-const WASI = fs.readdirSync(path.join(REPO, 'deps')).filter(d => d.startsWith('wasi-sdk-')).map(d => path.join(REPO, 'deps', d)).pop();
+const DEPS = path.join(REPO, 'deps');
+const WASI = fs.existsSync(DEPS) ? fs.readdirSync(DEPS).filter(d => d.startsWith('wasi-sdk-')).map(d => path.join(DEPS, d)).pop() : undefined;
 const CC = WASI && path.join(WASI, 'bin/clang');
 const OUT = path.join(REPO, 'out/web/test'); fs.mkdirSync(OUT, { recursive: true });
 // the game build's target and code generation (web/build.sh), as web/test/roam-wasm.test.mjs builds
