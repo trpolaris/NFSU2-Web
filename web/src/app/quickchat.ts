@@ -494,6 +494,8 @@ export class QuickChat {
     if (this.chatCloseTimer) { window.clearTimeout(this.chatCloseTimer); this.chatCloseTimer = 0; }
     this.chatHud.classList.remove('is-closing');
     this.close(); this.closeTextChat();
+    if (this.chatCloseTimer) { window.clearTimeout(this.chatCloseTimer); this.chatCloseTimer = 0; }
+    this.chatHud.classList.remove('is-closing');
     for (const l of this.lines.values()) l.el.remove();
     this.lines.clear();
     for (const timers of this.messageTimers.values()) {
