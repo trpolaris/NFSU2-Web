@@ -79,7 +79,7 @@ async function server() {
     fs.mkdirSync(data);
     fs.writeFileSync(path.join(data, 'SPEED2.EXE'), 'MZ');
   }
-  const srv = spawn(...serverCommand(['--data', data, '--http-port', String(PORT), '--vault-gb', '50', '--state', path.join(tmp, 'state')]), { stdio: ['ignore', 'pipe', 'pipe'] });
+  const srv = spawn(...serverCommand(['--data', data, '--http-port', String(PORT), '--vault-gb', '50', '--state', path.join(tmp, 'state'), '--dev']), { stdio: ['ignore', 'pipe', 'pipe'] });
   await new Promise((res, rej) => {
     let o = '';
     const t = setTimeout(() => rej(new Error('server did not start: ' + o)), 15000);
@@ -144,7 +144,10 @@ async function look(browser, kind, touch) {
     const errors = [], found = {};
     let looks = 0;
     page.on('pageerror', e => errors.push(String(e)));
-    await page.goto(`http://localhost:${PORT}/`);
+    // The settings owner is keyed by its save folder. Give each viewport a fresh, private folder so
+    // another look (or a concurrently running test) cannot hold this page's Web Lock.
+    const save = `page-narrow-${process.pid}-${Date.now()}-${touch ? 'phone' : 'mouse'}`;
+    await page.goto(`http://localhost:${PORT}/?save=${encodeURIComponent(save)}&fresh`);
     const phase = await page.waitForFunction(() => ['ready', 'error'].includes(window.__nfsu2?.phase) && window.__nfsu2.phase, null, { timeout: 120_000, polling: 250 }).then(h => h.jsonValue());
     // the language is a setting: the tab owns the saves and has read its settings
     await page.waitForFunction(() => !!document.querySelector('#settings .set') && !document.querySelector('#settings').hasAttribute('data-readonly'), null, { timeout: 30_000 });
