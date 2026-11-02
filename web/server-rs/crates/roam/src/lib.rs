@@ -102,6 +102,7 @@
 //!   the server shares used (nfsu2_util::cpu::QuotaBusy): the game's containers share nfsu2.slice's, and cloudflared
 //!   pays for every snapshot too, so a slice near its limit gets fewer links before its players get them late.
 
+mod chat_filter;
 mod hub;
 mod jumps;
 mod links;
