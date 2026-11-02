@@ -1214,3 +1214,26 @@
 @media (prefers-reduced-motion: reduce) {
   .experience-shell .hub-entry { transition: none; }
 }
+
+/* Keep the controls hero readable and inside its panel on narrow phones. */
+@media (max-width: 440px) {
+  .experience-shell #controls .controls-heading {
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: flex-start;
+    gap: 12px;
+  }
+  .experience-shell #controls .controls-heading-copy {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+  .experience-shell #controls .controls-heading h2 {
+    max-width: 100%;
+    font-size: clamp(1.6rem, 8vw, 2rem) !important;
+    overflow-wrap: anywhere;
+  }
+  .experience-shell #controls .controls-heading-stamp {
+    align-self: flex-start;
+  }
+}
