@@ -64,8 +64,8 @@
        const busyComposerOpened = busy.chatHud.classList.contains('active');
        for (let id = 1; id <= 205; id++) busy.chat(message(id));
        const whileOpen = busy.chatMessages.childElementCount;
-       const oldestWhileOpen = busy.chatMessages.firstElementChild?.textContent ?? '';
-       const newestWhileOpen = busy.chatMessages.lastElementChild?.textContent ?? '';
+       const oldestWhileOpen = Number(busy.chatMessages.firstElementChild?.dataset.messageId);
+       const newestWhileOpen = Number(busy.chatMessages.lastElementChild?.dataset.messageId);
        busy.toggle();
        await wait(60);
        const afterCloseFade = busy.chatMessages.childElementCount;
@@ -91,8 +91,8 @@
 
      assert.equal(result.busyComposerOpened, true);
      assert.equal(result.whileOpen, 200, 'the composer retains at most 200 message rows');
-     assert.match(result.oldestWhileOpen, /message-6$/, 'the oldest five of 205 messages are discarded first');
-     assert.match(result.newestWhileOpen, /message-205$/, 'the newest message remains in the history');
+     assert.equal(result.oldestWhileOpen, 6, 'the oldest five of 205 messages are discarded first');
+     assert.equal(result.newestWhileOpen, 205, 'the newest message remains in the history');
      assert.equal(result.afterCloseFade, 200, 'fading does not remove the bounded history from the DOM');
      assert.equal(result.fadedAfterClose, 200, 'retained rows fade while the composer is closed');
      assert.equal(result.clearedBusyAtStop, 0, 'ending the session clears all retained rows');
