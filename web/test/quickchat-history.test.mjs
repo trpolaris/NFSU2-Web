@@ -40,6 +40,7 @@
 
        const single = new QuickChat(document.querySelector('#single'), deps);
        single.start(session(), false, [], []);
+       single.driveAt = -Infinity;
        single.chat(message(1));
        const initially = single.chatMessages.childElementCount;
        await wait(35);
