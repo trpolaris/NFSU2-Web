@@ -222,12 +222,15 @@ pub fn crew_marks(f: &[u8]) -> Option<(Vec<u32>, Vec<u8>)> {
 }
 
 /// the PEERS lists out of the hub's frames to the browsers, by `vip:port`
+/// Whether a switch frame carries a hub PEERS datagram (not a PRESENCE/CHAT event).
+pub fn is_peers_frame(frame: &[u8]) -> bool {
+    frame.get(16 + 5) == Some(&2)
+}
+
+/// the PEERS lists out of the hub's frames to the browsers, by `vip:port`
 pub fn lists(sent: &[(u32, Bytes)]) -> HashMap<String, Vec<PeerEntry>> {
-    // The hub now sends both PEERS (type 2) and presence/chat frames. Only PEERS
-    // datagrams belong in this helper; parsing a presence event as a peer roster
-    // interprets its operation byte as a peer count and can read beyond the frame.
     sent.iter()
-        .filter(|(_, frame)| frame.get(16 + 5) == Some(&2))
+        .filter(|(_, frame)| is_peers_frame(frame))
         .map(|(vip, frame)| {
             (format!("{vip}:{}", u16::from_be_bytes([frame[14], frame[15]])), peers_of(frame))
         })
