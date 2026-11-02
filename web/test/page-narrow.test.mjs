@@ -120,7 +120,14 @@ async function look(browser, kind, touch) {
     const phase = await page.waitForFunction(() => ['ready', 'error'].includes(window.__nfsu2?.phase) && window.__nfsu2.phase, null, { timeout: 120_000, polling: 250 }).then(h => h.jsonValue());
     // the language is a setting: the tab owns the saves and has read its settings
     await page.waitForFunction(() => !!document.querySelector('#settings .set') && !document.querySelector('#settings').hasAttribute('data-readonly'), null, { timeout: 30_000 });
-    // VaultPanel.start() probes /cloud/v1/saves asynchronously; settings readiness alone does not make #vault visible.
+    // Require the current server API, not a stale out/web binary that only knows the legacy /vault route.
+    const cloudStatus = await page.evaluate(async () => {
+      try { return (await fetch('/cloud/v1/saves', { cache: 'no-store' })).status; }
+      catch { return 0; }
+    });
+    assert.equal(cloudStatus, 401,
+      `test server must expose TRPOLARIS Cloud v1 (HTTP 401 without a token); got HTTP ${cloudStatus}. Rebuild it with: bash server-rs/build.sh`);
+    // VaultPanel.start() probes this endpoint asynchronously; settings readiness alone does not make #vault visible.
     await page.waitForFunction(() => {
       const vault = document.querySelector('#vault');
       return !!vault && !vault.hidden && !!document.querySelector('#vault-make')?.getClientRects().length;
