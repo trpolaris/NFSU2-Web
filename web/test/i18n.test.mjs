@@ -21,8 +21,8 @@ const { keys, bad } = catalog();
 test('the texts in use are literals the extraction reads', () => {
   assert.deepEqual(bad, []);
   assert.ok(keys.size > 500, `${keys.size} texts`);
-  assert.ok(keys.has('Fan project. Not affiliated with or endorsed by Electronic Arts.'), 'index.html data-i18n');
-  assert.ok(keys.has('Help get it fixed: download the log and post it in <0>#bug-reports on our Discord</0>, with what you were doing when it happened.'), 'index.html data-i18n-html');
+  assert.ok(keys.has('TRPOLARIS is an independent fan project and is not affiliated with or endorsed by Electronic Arts.'), 'index.html data-i18n');
+  assert.ok(keys.has('The source code and project updates are available on <0>GitHub</0>.'), 'index.html data-i18n-html');
   assert.ok(keys.get('{n} laps')?.plural, 'tn()');
 });
 
@@ -69,7 +69,7 @@ test('visible HTML labels are translated in every language (except technical tok
   const html = fs.readFileSync(path.join(HERE, '../index.html'), 'utf8');
   const visible = [...new Set(htmlKeys(html).map(x => x.key).filter(Boolean))];
   // Native cognates and technical input tokens may legitimately look the same in these locales.
-  const unchanged = new Set(['Ctrl', 'https://…', 'Site', 'B / HORIZON', 'Pause', 'PROJECT / TRPOLARIS', 'Audio', 'Menu', 'Later']);
+  const unchanged = new Set(['Ctrl', 'https://…', 'Site', 'B / HORIZON', 'Pause', 'PROJECT / TRPOLARIS', 'Audio', 'Menu', 'Later', 'Controller02', 'Site03']);
   for (const lang of LANGUAGE_FILES) {
     const dict = JSON.parse(fs.readFileSync(langFile(lang), 'utf8'));
     const untranslated = visible.filter(key => dict[key] === key && !unchanged.has(key));
@@ -80,7 +80,7 @@ test('visible HTML labels are translated in every language (except technical tok
 
 test('Turkish never falls back to the English source text for app messages', () => {
   const dict = JSON.parse(fs.readFileSync(langFile('turkish'), 'utf8'));
-  const unchanged = new Set(['Street X', 'La Cucaracha', 'Ctrl', 'https://…', 'Sedan']);
+  const unchanged = new Set(['Street X', 'La Cucaracha', 'Ctrl', 'https://…', 'Sedan', 'Controller02', 'Site03']);
   const untranslated = [...keys.keys()].filter(key => dict[key] === key && !unchanged.has(key));
   assert.deepEqual(untranslated, [], 'Turkish UI has an untranslated English fallback');
 });
@@ -106,7 +106,8 @@ test('every locale translates app messages except native terms and technical ide
   };
   for (const lang of LANGUAGE_FILES) {
     const dict = JSON.parse(fs.readFileSync(langFile(lang), 'utf8'));
-    const allowed = new Set(nativeOrTechnical[lang] ?? []);
+    // These are source asset identifiers, not translatable UI copy.
+    const allowed = new Set([...(nativeOrTechnical[lang] ?? []), 'Controller02', 'Site03']);
     const untranslated = [...keys.keys()].filter(key => typeof dict[key] === 'string' && dict[key] === key && !allowed.has(key));
     assert.deepEqual(untranslated, [], `${lang}: an app message still falls back to English`);
   }

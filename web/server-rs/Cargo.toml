@@ -74,6 +74,7 @@ name = "nfsu2-server"
 path = "src/main.rs"
 
 [dependencies]
+serde.workspace = true
 nfsu2-util.workspace = true
 nfsu2-names.workspace = true
 nfsu2-headers.workspace = true

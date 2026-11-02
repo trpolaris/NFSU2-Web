@@ -1,0 +1,18 @@
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+
+@source "../../index.html";
+@source "./ui-enhancements.js";
+
+@theme {
+  --color-trp-night: #050708;
+  --color-trp-cyan: #00ffcc;
+  --color-trp-emerald: #10b981;
+  --color-trp-zinc-950: #09090b;
+  --color-trp-zinc-900: #18181b;
+  --font-display: "Orbitron", sans-serif;
+  --font-body: "Rajdhani", sans-serif;
+}
+
+@source "../hub/**/*.{js,jsx}";

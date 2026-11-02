@@ -70,6 +70,10 @@ async fn the_line_lets_them_in_first_come_first_served() {
     assert_eq!((i["queued"].as_u64(), i["lineIn"].as_u64(), i["waiting"].as_u64()), (Some(2), Some(2), Some(0)));
     // the line is empty: a newcomer gets a place at once again (once one is free)
     c.close_with(1000, "idle");
+    // close_with queues the close frame on the client; wait until the switch has processed it before
+    // asserting that a newcomer skips the now-empty line (otherwise the test races the close reader).
+    wait_for(2000, || sw.peer_named("Carol").is_none()).await;
+    assert_eq!(sw.lan.waiting(), 0);
     let mut f = waiter(sw.port, "Fay", None).await;
     f.welcome().await;
     assert_eq!(f.got().count("queue"), 0);

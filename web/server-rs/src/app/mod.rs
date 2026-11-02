@@ -19,6 +19,7 @@ mod lan;
 mod manifest;
 mod names;
 mod pool;
+mod player_hub;
 #[cfg(test)]
 mod route_tests;
 mod run;
@@ -230,6 +231,8 @@ pub struct App {
     pub names: Option<names::NamesRoute>,
     /// the operator's bans (the control socket: control.rs), checked at /lan
     pub bans: Arc<nfsu2_bans::Bans>,
+    /// browser-private profiles and player-entered garage records, kept in the existing state volume
+    hub: player_hub::HubStore,
     /// SO_SNDBUF for /lan connections (NFSU2_LAN_SNDBUF, a measurement knob; 0: the kernel's own, which Linux grows
     /// to megabytes, ahead of the switch's own queue rules)
     lan_sndbuf: usize,
@@ -318,6 +321,7 @@ impl App {
             raw.insert(code, s.into_bytes());
         }
         let max_conns = limits::max_connections(o.max_peers);
+        let hub = player_hub::HubStore::open(&real_state);
         App {
             host_check,
             real_state,
@@ -347,6 +351,7 @@ impl App {
             vault: vault.map(vault::VaultRoute::new),
             names,
             bans,
+            hub,
             lan_sndbuf,
             o,
         }
@@ -533,6 +538,10 @@ impl App {
         let Some(p) = url::decode_uri_component(&u.pathname) else { return self.bad_request(q, s).await };
         if p.chars().any(|c| c <= '\u{1f}' || c == '\u{7f}' || c == '\\') || p.contains("//") {
             return self.bad_request(q, s).await;
+        }
+        // The React player hub API (same origin, browser-private session; its own methods and body limits).
+        if p.starts_with("/api/v1/") {
+            return self.player_hub_api(q, s, &p, &u).await;
         }
         if q.method == "PUT" && self.o.dev && !self.o.artifacts.is_empty() && p.starts_with("/artifacts/") {
             return self.put_artifact(q, s, &p[11..]).await;

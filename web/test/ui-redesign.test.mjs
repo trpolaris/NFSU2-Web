@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
 const css = fs.readFileSync(path.join(ROOT, 'src/app/experience.css'), 'utf8');
 const theme = fs.readFileSync(path.join(ROOT, 'src/app/modern-theme.css'), 'utf8');
@@ -17,6 +17,82 @@ const platform = fs.readFileSync(path.join(ROOT, 'src/app/platform.ts'), 'utf8')
 const i18n = fs.readFileSync(path.join(ROOT, 'src/app/i18n.ts'), 'utf8');
 const sw = fs.readFileSync(path.join(ROOT, 'src/sw.ts'), 'utf8');
 const version = JSON.parse(fs.readFileSync(path.join(ROOT, 'src/static/app-version.json'), 'utf8'));
+
+test('TRPOLARIS neon design system integrates Tailwind v4 without resetting game controls', () => {
+  const design = fs.readFileSync(path.join(ROOT, 'src/app/design-system.css'), 'utf8');
+  const tailwind = fs.readFileSync(path.join(ROOT, 'src/app/tailwind.css'), 'utf8');
+  const enhancements = fs.readFileSync(path.join(ROOT, 'src/app/ui-enhancements.js'), 'utf8');
+  assert.match(main, /import ['"]\.\/app\/design-system\.css['"]/);
+  assert.match(html, /href="\/tailwind\.css"/);
+  assert.match(tailwind, /@import "tailwindcss\/theme\.css" layer\(theme\)/);
+  assert.match(tailwind, /@import "tailwindcss\/utilities\.css" layer\(utilities\)/);
+  assert.doesNotMatch(tailwind, /preflight\.css/);
+  for (const token of ['#050708', '#00ffcc', '#10b981', '#09090b', '#18181b']) assert.ok(design.includes(token), token);
+  assert.match(design, /backdrop-filter:\s*blur\(16px\)/);
+  assert.match(design, /prefers-reduced-motion:\s*reduce/);
+  assert.match(enhancements, /function setupMotionTransitions\(/);
+  assert.match(enhancements, /function setupLucideIcons\(/);
+  assert.match(enhancements, /function setupHeroParticles\(/);
+});
+
+
+
+test('Midnight Run is a full layout redesign with a responsive rail, vehicle stage and launch dock', () => {
+  const redesign = fs.readFileSync(path.join(ROOT, 'src/app/full-redesign.css'), 'utf8');
+  const enhancements = fs.readFileSync(path.join(ROOT, 'src/app/ui-enhancements.js'), 'utf8');
+  assert.match(main, /import ['"]\.\/app\/full-redesign\.css['"]/);
+  assert.match(html, /class="hero-visual"/);
+  assert.match(html, /class="hero-vehicle-art"/);
+  assert.match(html, /id="play-panel"/);
+  assert.match(redesign, /grid-template-areas: "header header" "nav view"/);
+  assert.match(redesign, /@media \(max-width: 820px\)[\s\S]*?grid-template-areas: "header" "view" "nav"/);
+  assert.match(redesign, /--bg: #080b12/);
+  assert.match(redesign, /--lime: #ff6945/);
+  assert.match(redesign, /--cyan: #a69aff/);
+  assert.match(redesign, /@keyframes trpCarFloat/);
+  assert.match(redesign, /@keyframes trpAura/);
+  assert.match(enhancements, /target\.animate\(frames/);
+  assert.match(enhancements, /new IntersectionObserver/);
+  assert.match(enhancements, /createElement\('canvas'\)/);
+  assert.doesNotMatch(enhancements, /cdn\.jsdelivr\.net|fonts\.googleapis\.com/);
+});
+
+
+test('inner pages use polished modern controls without replacing their existing DOM behavior', () => {
+  const polish = fs.readFileSync(path.join(ROOT, 'src/app/component-polish.css'), 'utf8');
+  assert.match(main, /import ['"]\.\/app\/component-polish\.css['"]/);
+  assert.match(polish, /input\.switch::after/);
+  assert.match(polish, /\.seg \.opt:has\(input:checked\)/);
+  assert.match(polish, /#online \.group-status:not\(\[hidden\]\)/);
+  assert.match(polish, /#saves \.profiles > li/);
+  assert.match(polish, /#mods \.custom-mod-list > li/);
+  assert.match(polish, /#controls \.controls-tabs \.tab\[aria-selected="true"\]/);
+  assert.match(polish, /#accessibility \.accessibility-option/);
+  assert.match(polish, /#updates \.update-row > div/);
+  assert.match(polish, /\.bar-fill::after/);
+  assert.match(polish, /prefers-reduced-motion:\s*reduce/);
+  assert.match(html, /id="online-body"/);
+  assert.match(html, /id="settings-body"/);
+  assert.match(html, /id="config-profile-save"/);
+  assert.match(html, /id="custom-mod-add"/);
+  assert.match(html, /id="diagnostic-list"/);
+  assert.match(fs.readFileSync(path.join(ROOT, 'src/app/settings-ui.ts'), 'utf8'), /b\.onchange = \(\) => void this\.put\(it\.key/);
+});
+
+test('online controls display only the live player and room counts supplied by /players', () => {
+  const design = fs.readFileSync(path.join(ROOT, 'src/app/design-system.css'), 'utf8');
+  const playerSource = fs.readFileSync(path.join(ROOT, 'src/app/players.ts'), 'utf8');
+  const renderer = fs.readFileSync(path.join(ROOT, 'src/app/settings-ui.ts'), 'utf8');
+  assert.match(html, /id="online-body"/);
+  assert.ok(renderer.includes("this.online.querySelector('#online-body')!.replaceChildren"));
+  assert.match(renderer, /id = 'group-status'/);
+  assert.match(playerSource, /export function playersText\(/);
+  assert.match(playerSource, /On this server now:/);
+  assert.match(design, /#online \.group-status:not\(\[hidden\]\)/);
+  assert.match(design, /#online \.set-control/);
+  assert.match(design, /@media \(max-width: 720px\)[\s\S]*?#online \.set/);
+});
+
 
 test('Nightshift shell keeps the runtime anchors used by the game modules', () => {
   for (const id of [
@@ -67,8 +143,8 @@ test('first-run, language default, accessibility and version metadata stay align
   assert.match(css, /html\[data-large-text\]/);
   assert.match(css, /html\[data-reduce-motion\]/);
   assert.match(css, /html\[data-high-contrast\]/);
-  assert.match(platform, /APP_BUILD_VERSION = '2026\.10\.30\.02'/);
-  assert.equal(version.version, '2026.10.30.04');
+  assert.ok(platform.includes(`APP_BUILD_VERSION = '${version.version}'`));
+  assert.ok(html.includes(`id="build-current">${version.version}`));
   assert.match(platform, /lastLanguage\(\)/, 'first-run language falls back to the saved language');
   assert.match(platform, /: lastLanguage\(\)/, 'an empty top picker does not blank the first-run language');
   assert.match(i18n, /return isLanguage\(v\) \? v : 'turkish'/, 'new visitors default to Turkish');
@@ -88,7 +164,7 @@ test('mod workshop, cloud keyphrase, team join and about cards have bounded resp
 test('missing core NFSU2 data is diagnosed before the game process starts', () => {
   assert.match(shell, /async function checkGameData\(\)/);
   for (const required of ['SPEED2\\.EXE','SDATA\\/sdat\\.viv']) assert.match(shell, new RegExp(required));
-  assert.doesNotMatch(shell, /NFSUNDER\\/ZDIR/);
+  assert.ok(!shell.includes('NFSUNDER\\ZDIR'));
   assert.match(shell, /GAME-DATA-MISSING/);
   assert.match(shell, /const ORDER = \['browser', 'isolation', 'gpu', 'storage', 'game-data', 'module'\]/);
   const playStart = shell.indexOf('async function startGame()');

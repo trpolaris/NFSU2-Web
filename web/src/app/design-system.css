@@ -1,0 +1,828 @@
+/* TRPOLARIS WEB UI — shadcn-inspired tokens and glass surfaces.
+   Scoped to the player-facing page; the in-game HUD and renderer are untouched. */
+:root {
+  --trp-night: #050708;
+  --trp-cyan: #00ffcc;
+  --trp-emerald: #10b981;
+  --trp-zinc-950: #09090b;
+  --trp-zinc-900: #18181b;
+  --trp-glass: rgba(9, 9, 11, .68);
+  --trp-glass-raised: rgba(24, 24, 27, .78);
+  --trp-border: rgba(0, 255, 204, .18);
+  --trp-border-strong: rgba(0, 255, 204, .34);
+  --trp-muted: #a1a1aa;
+  --trp-radius: 16px;
+
+  /* Keep the existing NIGHTSHIFT component vocabulary on the new palette. */
+  --bg: #050708;
+  --frame: #09090b;
+  --panel: #18181b;
+  --field: #09090b;
+  --line: rgba(0, 255, 204, .16);
+  --edge: rgba(0, 255, 204, .34);
+  --text: #f4f4f5;
+  --muted: #a1a1aa;
+  --lime: #00ffcc;
+  --lime-fill: rgba(0, 255, 204, .12);
+  --lime-glow: rgba(0, 255, 204, .18);
+  --cyan: #00ffcc;
+  --blue: #10b981;
+  --violet: #a78bfa;
+  --bad: #fb7185;
+  --warn: #fbbf24;
+  --font: "Rajdhani", "Segoe UI", system-ui, sans-serif;
+  --surface: rgba(9, 9, 11, .68);
+  --surface-raised: rgba(24, 24, 27, .82);
+  --stroke: rgba(0, 255, 204, .16);
+  --stroke-strong: rgba(0, 255, 204, .28);
+
+  /* shadcn/ui semantic token names, kept framework-neutral for this DOM app. */
+  --background: 0 0% 2%;
+  --foreground: 0 0% 96%;
+  --card: 240 5% 10%;
+  --card-foreground: 0 0% 96%;
+  --popover: 240 5% 8%;
+  --popover-foreground: 0 0% 96%;
+  --primary: 166 100% 50%;
+  --primary-foreground: 180 100% 3%;
+  --secondary: 160 84% 39%;
+  --secondary-foreground: 0 0% 98%;
+  --muted: 240 4% 16%;
+  --muted-foreground: 240 5% 65%;
+  --accent: 166 100% 50%;
+  --accent-foreground: 180 100% 3%;
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 166 100% 50% / 0.18;
+  --input: 240 4% 16%;
+  --ring: 166 100% 50%;
+}
+
+.experience-shell {
+  color: #f4f4f5;
+}
+
+.experience-shell > .top,
+.experience-shell > .quick-nav,
+.experience-shell .panel,
+.experience-shell .home-action-card,
+.experience-shell .hero-garage-link {
+  border-color: var(--trp-border);
+  background-color: var(--trp-glass);
+  -webkit-backdrop-filter: blur(16px) saturate(135%);
+  backdrop-filter: blur(16px) saturate(135%);
+}
+
+.experience-shell > .top {
+  background:
+    radial-gradient(ellipse at 10% 0%, rgba(0, 255, 204, .09), transparent 42%),
+    linear-gradient(110deg, rgba(9, 9, 11, .94), rgba(24, 24, 27, .82));
+  box-shadow: 0 16px 46px rgba(0, 0, 0, .28), inset 0 1px rgba(255,255,255,.04);
+}
+
+.experience-shell > .quick-nav {
+  border-color: rgba(0, 255, 204, .16);
+  background: rgba(9, 9, 11, .76);
+}
+
+.experience-shell .quick-link {
+  color: #a1a1aa;
+  transition: color .18s ease, background-color .18s ease, border-color .18s ease, transform .18s ease;
+}
+
+.experience-shell .quick-link:hover {
+  color: #f4f4f5;
+  border-color: rgba(0, 255, 204, .2);
+  background: rgba(0, 255, 204, .07);
+}
+
+.experience-shell .quick-link.active {
+  color: #03110e;
+  border-color: var(--trp-cyan);
+  background: linear-gradient(115deg, var(--trp-cyan), #10b981);
+  box-shadow: 0 0 22px rgba(0, 255, 204, .19);
+}
+
+.experience-shell .quick-link.active svg {
+  stroke: #03110e;
+}
+
+.experience-shell .landing-hero {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border: 1px solid rgba(0, 255, 204, .2);
+  border-radius: 22px;
+  background:
+    radial-gradient(ellipse at 76% 8%, rgba(0, 255, 204, .13), transparent 35%),
+    radial-gradient(ellipse at 10% 95%, rgba(16, 185, 129, .1), transparent 38%),
+    linear-gradient(140deg, rgba(9, 9, 11, .97), rgba(24, 24, 27, .84));
+  box-shadow: 0 24px 70px rgba(0,0,0,.32), inset 0 1px rgba(255,255,255,.045);
+}
+
+.experience-shell .landing-hero::after {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  pointer-events: none;
+  opacity: .16;
+  background-image:
+    linear-gradient(rgba(0,255,204,.09) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,255,204,.09) 1px, transparent 1px);
+  background-size: 42px 42px;
+  mask-image: linear-gradient(90deg, transparent, #000 42%, #000 90%, transparent);
+}
+
+.experience-shell .landing-copy,
+.experience-shell .play-console {
+  position: relative;
+  z-index: 2;
+}
+
+.experience-shell .landing-title em {
+  color: var(--trp-cyan);
+  text-shadow: 0 0 28px rgba(0, 255, 204, .16);
+}
+
+.experience-shell .hero-kicker,
+.experience-shell .play-console-eyebrow,
+.experience-shell .home-status-eyebrow {
+  color: var(--trp-cyan);
+}
+
+.experience-shell .hero-capabilities span {
+  color: #d4d4d8;
+}
+
+.experience-shell .panel {
+  border-color: rgba(0, 255, 204, .14);
+  background:
+    linear-gradient(145deg, rgba(24, 24, 27, .82), rgba(9, 9, 11, .88));
+  box-shadow: 0 14px 36px rgba(0,0,0,.2), inset 0 1px rgba(255,255,255,.035);
+}
+
+.experience-shell .panel h2,
+.experience-shell .panel h3 {
+  color: #fafafa;
+}
+
+.experience-shell .panel .hint,
+.experience-shell .home-action-copy small {
+  color: #a1a1aa;
+}
+
+.experience-shell .play {
+  border-color: var(--trp-cyan);
+  background: linear-gradient(110deg, var(--trp-cyan), #10b981);
+  color: #03110e;
+  box-shadow: 0 0 26px rgba(0, 255, 204, .16);
+  transition: transform .18s ease, box-shadow .18s ease, filter .18s ease;
+}
+
+.experience-shell .play:hover:not(:disabled) {
+  transform: translateY(-2px);
+  filter: brightness(1.07);
+  box-shadow: 0 0 34px rgba(0, 255, 204, .25);
+}
+
+.experience-shell .play:disabled {
+  filter: saturate(.35);
+  box-shadow: none;
+}
+
+.experience-shell .btn.selected,
+.experience-shell .btn.primary {
+  border-color: var(--trp-cyan);
+  background: var(--trp-cyan);
+  color: #03110e;
+}
+
+.experience-shell .home-action-card {
+  border: 1px solid rgba(0, 255, 204, .14);
+  background: linear-gradient(135deg, rgba(24,24,27,.8), rgba(9,9,11,.72));
+  transition: transform .2s ease, border-color .2s ease, background-color .2s ease, box-shadow .2s ease;
+}
+
+.experience-shell .home-action-card:hover {
+  transform: translateY(-3px);
+  border-color: rgba(0,255,204,.42);
+  background: linear-gradient(135deg, rgba(0,255,204,.09), rgba(24,24,27,.88));
+  box-shadow: 0 14px 32px rgba(0,0,0,.22), 0 0 24px rgba(0,255,204,.06);
+}
+
+.experience-shell .home-action-icon {
+  border: 1px solid rgba(0,255,204,.2);
+  background: rgba(0,255,204,.07);
+  color: var(--trp-cyan);
+}
+
+.experience-shell .home-action-arrow,
+.experience-shell .hero-link-arrow {
+  color: var(--trp-cyan);
+}
+
+.experience-shell .form-select,
+.experience-shell input:not([type="checkbox"]):not([type="radio"]),
+.experience-shell textarea,
+.experience-shell select {
+  border-color: rgba(161,161,170,.26);
+  background-color: rgba(9,9,11,.78);
+  color: #f4f4f5;
+}
+
+.experience-shell :focus-visible {
+  outline: 2px solid var(--trp-cyan);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 4px rgba(0,255,204,.13);
+}
+
+.experience-shell .signal-dot {
+  background-color: var(--trp-cyan);
+  box-shadow: 0 0 12px rgba(0,255,204,.55);
+}
+
+#hero-particles {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  opacity: .58;
+  pointer-events: none;
+  mask-image: linear-gradient(90deg, transparent 0%, #000 35%, #000 88%, transparent 100%);
+}
+
+#hero-particles canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+  pointer-events: none !important;
+}
+
+.ui-lucide {
+  display: inline-block;
+  width: 17px;
+  height: 17px;
+  flex: 0 0 auto;
+  stroke-width: 1.7;
+}
+
+@media (max-width: 720px) {
+  .experience-shell .landing-hero {
+    border-radius: 17px;
+  }
+
+  #hero-particles {
+    opacity: .28;
+  }
+
+  .experience-shell .home-action-card:hover {
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .experience-shell *,
+  .experience-shell *::before,
+  .experience-shell *::after {
+    scroll-behavior: auto !important;
+    transition-duration: .01ms !important;
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+
+  #hero-particles {
+    display: none !important;
+  }
+}
+
+
+/* Main landing page — a focused street-racing launch surface. */
+.experience-shell .landing-hero {
+  min-height: clamp(410px, 54vw, 570px);
+  grid-template-columns: minmax(0, 1.08fr) minmax(340px, .82fr);
+  gap: clamp(18px, 3vw, 42px);
+  padding: clamp(20px, 3.1vw, 42px);
+  border-radius: 22px;
+  background:
+    radial-gradient(ellipse at 73% 46%, rgba(0,255,204,.14), transparent 31rem),
+    radial-gradient(ellipse at 9% 100%, rgba(16,185,129,.11), transparent 25rem),
+    linear-gradient(135deg, rgba(5,7,8,.98), rgba(24,24,27,.91) 62%, rgba(9,9,11,.96));
+}
+
+.experience-shell .landing-hero::before {
+  opacity: .2;
+  background-size: 54px 54px;
+  mask-image: linear-gradient(90deg, transparent 0%, #000 42%, #000 100%);
+}
+
+.experience-shell .landing-copy {
+  padding: clamp(18px, 2.2vw, 30px);
+}
+
+.experience-shell .hero-overline {
+  margin-top: clamp(20px, 3vw, 34px);
+  color: var(--trp-emerald);
+  text-shadow: 0 0 20px rgba(16,185,129,.2);
+}
+
+.experience-shell .landing-title {
+  max-width: 760px;
+  font-family: var(--font-hud, "Orbitron", sans-serif);
+  font-size: clamp(2.6rem, 5vw, 5.1rem);
+  line-height: .98;
+  letter-spacing: -.065em;
+}
+
+.experience-shell .landing-description {
+  max-width: 48ch;
+  color: #d4d4d8;
+  font-size: clamp(.98rem, 1.3vw, 1.1rem);
+}
+
+.experience-shell .hero-capabilities {
+  gap: 10px 18px;
+  margin-top: 4px;
+  color: #d4d4d8;
+  font-size: .7rem;
+}
+
+.experience-shell .hero-garage-link {
+  min-height: 40px;
+  padding: 7px 11px;
+  border-radius: 10px;
+  background: rgba(9,9,11,.58);
+}
+
+.experience-shell .play-console {
+  align-self: center;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: clamp(18px, 2.2vw, 27px);
+  border-color: rgba(0,255,204,.28);
+  border-radius: 18px;
+  background:
+    radial-gradient(ellipse at 12% 0%, rgba(0,255,204,.12), transparent 52%),
+    linear-gradient(145deg, rgba(24,24,27,.82), rgba(9,9,11,.94));
+  box-shadow: 0 22px 52px rgba(0,0,0,.34), inset 0 1px rgba(255,255,255,.05);
+}
+
+.experience-shell .play-console-eyebrow {
+  color: var(--trp-cyan);
+}
+
+.experience-shell .play-console-mark {
+  border-color: rgba(0,255,204,.2);
+  color: #d4d4d8;
+}
+
+.experience-shell .play-console-mark::before {
+  background: var(--trp-cyan);
+  box-shadow: 0 0 12px rgba(0,255,204,.5);
+}
+
+.experience-shell .launch-progress-row {
+  color: #d4d4d8;
+}
+
+.experience-shell .launch-progress-note {
+  color: #a1a1aa;
+}
+
+.experience-shell .launch-progress {
+  background: rgba(161,161,170,.18);
+}
+
+.experience-shell .launch-progress .bar-fill {
+  background: linear-gradient(90deg, var(--trp-emerald), var(--trp-cyan));
+  box-shadow: 0 0 13px rgba(0,255,204,.24);
+}
+
+.experience-shell .module-download-meta {
+  color: #a1a1aa;
+}
+
+.experience-shell .home-overview-grid {
+  grid-template-columns: minmax(0, .92fr) minmax(0, 1.08fr);
+  gap: 16px;
+}
+
+.experience-shell .home-status-panel,
+.experience-shell .home-quick-section {
+  border: 1px solid rgba(0,255,204,.15);
+  border-radius: 17px;
+  background: linear-gradient(145deg, rgba(24,24,27,.83), rgba(9,9,11,.86));
+  -webkit-backdrop-filter: blur(16px) saturate(130%);
+  backdrop-filter: blur(16px) saturate(130%);
+  box-shadow: 0 14px 36px rgba(0,0,0,.22), inset 0 1px rgba(255,255,255,.035);
+}
+
+.experience-shell .home-status-panel .status {
+  color: var(--trp-cyan);
+  font-weight: 850;
+}
+
+.experience-shell .home-quick-mark {
+  color: rgba(0,255,204,.58);
+}
+
+.experience-shell .home-action-grid {
+  gap: 10px;
+}
+
+.experience-shell .home-action-card {
+  min-height: 68px;
+  border-radius: 12px;
+}
+
+.experience-shell .btn,
+.experience-shell .text-btn,
+.experience-shell .icon-btn,
+.experience-shell .preset-button {
+  border-color: rgba(161,161,170,.26);
+  background: rgba(24,24,27,.84);
+  color: #e4e4e7;
+}
+
+.experience-shell .btn:hover:not(:disabled),
+.experience-shell .text-btn:hover,
+.experience-shell .icon-btn:hover,
+.experience-shell .preset-button:hover {
+  border-color: rgba(0,255,204,.42);
+  background: rgba(0,255,204,.08);
+  color: var(--trp-cyan);
+}
+
+.experience-shell .btn.selected,
+.experience-shell .btn.primary {
+  border-color: var(--trp-cyan);
+  background: var(--trp-cyan);
+  color: #03110e;
+}
+
+@media (max-width: 980px) {
+  .experience-shell .landing-hero {
+    grid-template-columns: minmax(0, 1fr) minmax(300px, .82fr);
+    gap: 12px;
+    padding: 18px;
+  }
+
+  .experience-shell .landing-copy {
+    padding: 12px;
+  }
+
+  .experience-shell .landing-title {
+    font-size: clamp(2.25rem, 5.4vw, 3.8rem);
+  }
+
+  .experience-shell .home-overview-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 720px) {
+  .experience-shell .landing-hero {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 14px;
+    padding: 15px;
+  }
+
+  .experience-shell .landing-copy {
+    padding: 12px 9px 4px;
+  }
+
+  .experience-shell .landing-title {
+    font-size: clamp(2.2rem, 10vw, 3.5rem);
+  }
+
+  .experience-shell .play-console {
+    margin: 0;
+    padding: 17px;
+  }
+
+  .experience-shell .home-overview-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 420px) {
+  .experience-shell .landing-hero {
+    padding: 11px;
+    border-radius: 15px;
+  }
+
+  .experience-shell .landing-copy {
+    padding-inline: 7px;
+  }
+
+  .experience-shell .hero-capabilities {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 7px;
+  }
+
+  .experience-shell .hero-shortcuts {
+    gap: 8px;
+  }
+
+  .experience-shell .play-console {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto auto auto auto;
+    grid-template-areas: "head" "play" "progress-label" "progress-bar" "progress-meta";
+    gap: 8px;
+  }
+
+  .experience-shell .play {
+    grid-row: auto;
+    min-height: 58px;
+    flex-direction: row;
+  }
+
+  .experience-shell .home-action-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+
+/* Online settings: live server summary first, then clear player/crew controls. */
+.experience-shell #online {
+  overflow: hidden;
+  border-color: rgba(0,255,204,.2);
+  background:
+    radial-gradient(ellipse at 100% 0%, rgba(0,255,204,.07), transparent 38%),
+    linear-gradient(145deg, rgba(24,24,27,.9), rgba(9,9,11,.94));
+}
+
+.experience-shell #online > h2 {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(0,255,204,.16);
+  font-family: var(--font-hud, "Orbitron", sans-serif);
+  font-size: clamp(1.15rem, 2vw, 1.55rem);
+  letter-spacing: .02em;
+}
+
+.experience-shell #online > h2::before {
+  content: "";
+  width: 9px;
+  height: 9px;
+  flex: 0 0 9px;
+  border-radius: 50%;
+  background: var(--trp-cyan);
+  box-shadow: 0 0 14px rgba(0,255,204,.6);
+}
+
+.experience-shell #online .group-status:not([hidden]) {
+  margin: 0 0 15px;
+  padding: 14px 16px 14px 42px;
+  border: 1px solid rgba(0,255,204,.2);
+  border-radius: 12px;
+  background: linear-gradient(105deg, rgba(0,255,204,.08), rgba(16,185,129,.045));
+  color: #e4e4e7;
+  font-size: .9rem;
+  line-height: 1.6;
+  position: relative;
+}
+
+.experience-shell #online .group-status:not([hidden])::before {
+  content: "";
+  position: absolute;
+  left: 17px;
+  top: 19px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--trp-emerald);
+  box-shadow: 0 0 12px rgba(16,185,129,.5);
+}
+
+.experience-shell #online .group {
+  display: grid;
+  gap: 9px;
+}
+
+.experience-shell #online .set {
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 20px;
+  padding: 15px 16px;
+  border: 1px solid rgba(161,161,170,.14);
+  border-radius: 12px;
+  background: rgba(24,24,27,.54);
+  box-shadow: none;
+  transition: border-color .18s ease, background-color .18s ease;
+}
+
+.experience-shell #online .set:focus-within {
+  border-color: rgba(0,255,204,.38);
+  background: rgba(0,255,204,.045);
+}
+
+.experience-shell #online .set-label {
+  color: #f4f4f5;
+  font-weight: 780;
+  font-size: .98rem;
+}
+
+.experience-shell #online .set-help {
+  max-width: 68ch;
+  margin-top: 3px;
+  color: #a1a1aa;
+  font-size: .82rem;
+  line-height: 1.55;
+}
+
+.experience-shell #online .set-control {
+  min-width: 150px;
+  justify-content: flex-end;
+}
+
+.experience-shell #online .more {
+  margin-top: 3px;
+  padding: 12px 15px;
+  border: 1px solid rgba(0,255,204,.16);
+  border-radius: 12px;
+  background: rgba(9,9,11,.52);
+  box-shadow: none;
+}
+
+.experience-shell #online .more > summary {
+  color: var(--trp-cyan);
+  font-weight: 800;
+  cursor: pointer;
+  list-style-position: inside;
+}
+
+.experience-shell #online .more[open] {
+  display: grid;
+  gap: 8px;
+}
+
+.experience-shell #online .more[open] > summary {
+  margin-bottom: 5px;
+}
+
+@media (max-width: 720px) {
+  .experience-shell #online .set {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .experience-shell #online .set-control {
+    justify-content: flex-start;
+    min-width: 0;
+  }
+}
+
+
+/* First-run and settings surfaces — same accessible shadcn-inspired primitives. */
+.dlg {
+  border: 1px solid rgba(0,255,204,.24);
+  border-radius: 19px;
+  background:
+    radial-gradient(ellipse at 100% 0%, rgba(0,255,204,.085), transparent 42%),
+    linear-gradient(145deg, rgba(24,24,27,.97), rgba(9,9,11,.985));
+  color: #f4f4f5;
+  box-shadow: 0 28px 90px rgba(0,0,0,.6), inset 0 1px rgba(255,255,255,.05);
+  -webkit-backdrop-filter: blur(22px) saturate(135%);
+  backdrop-filter: blur(22px) saturate(135%);
+}
+
+.dlg::backdrop {
+  background: rgba(0,0,0,.7);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+
+.dlg-head {
+  padding-bottom: 13px;
+  border-bottom: 1px solid rgba(0,255,204,.14);
+}
+
+.dlg-head h2 {
+  color: #fafafa;
+  font-family: var(--font-hud, "Orbitron", sans-serif);
+  font-size: 1.15rem;
+  letter-spacing: .015em;
+}
+
+.dlg p,
+.dlg .hint {
+  color: #a1a1aa;
+  line-height: 1.6;
+}
+
+.first-run-controls {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 18px 0;
+}
+
+.first-run-controls > label,
+.first-run-controls label {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+  color: #e4e4e7;
+  font-size: .86rem;
+  font-weight: 750;
+}
+
+.first-run-controls select {
+  width: 100%;
+  min-height: 44px;
+  padding: 9px 12px;
+  border: 1px solid rgba(161,161,170,.25);
+  border-radius: 10px;
+  background: rgba(9,9,11,.86);
+  color: #f4f4f5;
+}
+
+.first-run-skip {
+  margin: 13px 0 18px;
+  border: 1px solid rgba(161,161,170,.14);
+  border-radius: 10px;
+  background: rgba(24,24,27,.52);
+}
+
+.experience-shell #settings .group {
+  padding: 17px;
+  margin: 0 0 14px;
+  border: 1px solid rgba(0,255,204,.13);
+  border-radius: 14px;
+  background: linear-gradient(145deg, rgba(24,24,27,.72), rgba(9,9,11,.68));
+}
+
+.experience-shell #settings .group h3 {
+  margin: 0 0 12px;
+  color: var(--trp-cyan);
+  font-family: var(--font-hud, "Orbitron", sans-serif);
+  font-size: .9rem;
+  letter-spacing: .015em;
+}
+
+.experience-shell #settings .set {
+  border-radius: 10px;
+  padding: 12px 10px;
+}
+
+.experience-shell #settings .set + .set {
+  border-top: 1px solid rgba(161,161,170,.12);
+  box-shadow: none;
+}
+
+.experience-shell #settings .set:focus-within {
+  background: rgba(0,255,204,.035);
+}
+
+.experience-shell #settings .more {
+  padding-top: 13px;
+  border-top: 1px solid rgba(161,161,170,.12);
+  box-shadow: none;
+}
+
+.experience-shell #settings .more > summary {
+  color: var(--trp-cyan);
+  font-weight: 800;
+}
+
+.experience-shell #settings .accessibility-option {
+  border-color: rgba(0,255,204,.14);
+  border-radius: 11px;
+  background: rgba(24,24,27,.64);
+}
+
+.experience-shell #settings .update-row > div,
+.experience-shell #settings .diagnostic-list > li {
+  border-color: rgba(0,255,204,.14);
+  border-radius: 11px;
+  background: rgba(24,24,27,.66);
+}
+
+.experience-shell #settings .update-row strong {
+  color: var(--trp-cyan);
+}
+
+@media (max-width: 560px) {
+  .first-run-controls {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .experience-shell #settings .group {
+    padding: 13px;
+  }
+
+  .experience-shell #settings .set {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 9px;
+  }
+
+  .experience-shell #settings .set-control {
+    justify-content: flex-start;
+  }
+}

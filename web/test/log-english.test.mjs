@@ -157,7 +157,12 @@ const TURKISH = new Set(`kare kareler diger doku kose cizim cagri hedef dosya ko
 function lintFiles() {
   const list = [];
   for (const d of ['runtime', 'runtime/web']) {
-    for (const f of fs.readdirSync(path.join(ROOT, d))) if (/\.(c|m|h|inc)$/.test(f)) list.push(`${d}/${f}`);
+    for (const f of fs.readdirSync(path.join(ROOT, d))) {
+      if (!/\.(c|m|h|inc)$/.test(f)) continue;
+      // sms.c holds intentional player-facing translations, not diagnostic log strings.
+      if (d === 'runtime' && f === 'sms.c') continue;
+      list.push(`${d}/${f}`);
+    }
   }
   return list.concat(['tests/boot.c', 'tests/main_all.c']);
 }
