@@ -40,8 +40,13 @@ test('React owns the main navigation, route state and motion transitions', () =>
   assert.match(app, /createRoot\(rootNode\)/);
   assert.match(app, /NAV\.map/);
   assert.match(app, /layoutId="trp-nav-active"/);
-  assert.match(app, /LegacyAppHost app=\{legacyApp\}/);
+  assert.doesNotMatch(app, /LegacyAppHost/);
+  assert.match(app, /const legacyApp = document\.getElementById\('app'\)/);
+  assert.match(app, /legacyApp\?\.inert/);
+  assert.match(shellCss, /#app\.experience-shell \{ display:none!important; \}/);
   assert.match(app, /pageFromHash/);
+  assert.ok(html.indexOf('</main>') < html.indexOf('id="stage"'));
+  assert.ok(html.indexOf('</main>') < html.indexOf('id="menu"'));
   assert.match(app, /inert=\{phase === 'playing' \|\| phase === 'starting'\}/);
   assert.match(app, /useReducedMotion/);
 });
