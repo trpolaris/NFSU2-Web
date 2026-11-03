@@ -2922,6 +2922,7 @@ static int64_t render_delay(int i, const rc_peer *p, int64_t frame_dt){
 #define FN_ENGAGE_DONE  0x005010e0u   /* thiscall G_ENGAGE: what Engage does after starting one */
 #define DU_NEAR_M       25.f          /* the game's own reach for a challenge is 30 m (0x40C030): less in a crowd */
 #define DU_NEAR_US      4000000
+#define DU_CROWD        4             /* this many other players within DU_NEAR_M: a car meet, no outrun offered */
 #define DU_PROMPT_M     35.f          /* the offer stays while the two are this near */
 #define DU_KEEP_M       60.f          /* a challenge stands while the two are this near */
 #define DU_RANK_MPS     2.f           /* the order changes when the other gets away this much faster (m/s) */
@@ -2949,6 +2950,7 @@ static struct {
     uint32_t icon, hud;                       /* the car the HUD's outrun icon is on (0 off), in this HUD */
     int      engage;                          /* Engage held last frame */
     int      busy;                            /* we take no outrun now (du_free): the snapshots say so (RC_BIT_BUSY) */
+    int      crowd, crowd_logs;               /* other players' cars within DU_NEAR_M; log threshold changes */
     char     note[TAG_DUEL_MAX]; int64_t note_until;
     uint32_t offers, races, wins, losses;     /* statistics */
 } g_du;
@@ -2993,6 +2995,16 @@ static float du_dist(uint32_t car){
     uint32_t me = player_car();
     float dx = MRF32(car + 0x60u) - MRF32(me + 0x60u), dy = MRF32(car + 0x64u) - MRF32(me + 0x64u);
     return rc_sqrtf(dx * dx + dy * dy);
+}
+/* Count other players close to our car regardless of whether they are moving
+ * or paused. In a car meet this prevents interrupting the gathering with
+ * automatic 1v1 outrun prompts. */
+static int du_crowd(void){
+    int n = 0;
+    if (player_car())
+        for (int k = 0; k < NSLOT; k++)
+            if (g_sl[k].st == SL_ACTIVE && !g_sl[k].hidden && ok(g_sl[k].car, 0x9e0) && du_dist(g_sl[k].car) < DU_NEAR_M) n++;
+    return n;
 }
 static void du_icon(CPU *c, uint32_t car){
     uint32_t pl = world() ? rd32(G_PLAYER1) : 0, hud = pl ? rd32(pl + PL_HUD) : 0;
@@ -3149,7 +3161,12 @@ static void du_frame(CPU *c, int64_t host, int in_roam, int world_runs, const ui
     int press = eng && !g_du.engage;
     g_du.engage = eng;
     int free = du_free(in_roam, world_runs);
-    g_du.busy = !free;
+    int crowd = free ? du_crowd() : 0;
+    if ((crowd >= DU_CROWD) != (g_du.crowd >= DU_CROWD) && g_du.crowd_logs++ < 20)
+        rlog("[roam] f=%ld outruns between players: %s (%d other players within %.0f m)\\n", rh_frame(),
+             crowd >= DU_CROWD ? "none offered in a crowd" : "offered again", crowd, (double)DU_NEAR_M);
+    g_du.crowd = crowd;
+    g_du.busy = !free || crowd >= DU_CROWD;
     /* who has been near for the time it takes */
     for (int k = 0; k < NSLOT; k++){
         Slot *s = &g_sl[k];
@@ -3162,6 +3179,7 @@ static void du_frame(CPU *c, int64_t host, int in_roam, int world_runs, const ui
     switch (g_du.st){
     case DU_IDLE: {
         int best = -1; float bd = 0;
+        if (crowd >= DU_CROWD) break;
         for (int j = 0; j < NSLOT; j++){
             if (!g_sl[j].near_since || host - g_sl[j].near_since < DU_NEAR_US) continue;
             float d = du_dist(g_sl[j].car);
