@@ -460,8 +460,8 @@ export async function importModList(file: File): Promise<string> {
       merged.push({ ...incoming, id: `m-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`, createdAt: Date.now() });
     }
     if (!saveCustomMods(merged)) throw new Error('storage');
-    status.textContent = t('Mod list imported.'); renderGarage(); return status.textContent;
-  } catch { status.textContent = t('Invalid mod list file.'); return status.textContent; }
+    status.textContent = t('Mod list imported.'); renderGarage(); return status.textContent ?? '';
+  } catch { status.textContent = t('Invalid mod list file.'); return status.textContent ?? ''; }
   finally { input.value = ''; }
 }
 async function checkPacks() {

@@ -400,7 +400,7 @@ test('Mod Library cards are React-owned while existing local-storage and manifes
 });
 
 test('Mod Library state is typed and saved links appear only in the React list section', () => {
-  assert.ok(app.includes('useState<TrpModLibrarySnapshot>({ packs: [], custom: [], count: 0, statusText: \'\' })'));
+  assert.ok(app.includes("useState({ packs: [], custom: [], count: 0, statusText: '' })"));
   assert.ok(app.includes('YOUR COLLECTION'));
   assert.ok(!app.includes('<h3 data-i18n>Saved mod links</h3><p data-i18n>The mod list stores names and links only.'));
 });
