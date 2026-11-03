@@ -8,6 +8,8 @@ import './app/component-polish.css';
 import './app/hub-integration.css';
 import { setupUIEnhancements } from './app/ui-enhancements.js';
 import { boot } from './app/shell';
+import { translatePage } from './app/i18n';
 
+window.__trpTranslateReact = translatePage;
 setupUIEnhancements();
 void boot();

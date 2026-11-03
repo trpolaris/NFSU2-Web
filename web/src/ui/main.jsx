@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { flushSync } from 'react-dom';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
@@ -8,24 +8,24 @@ import {
 } from 'lucide-react';
 
 const NAV = [
-  { id: 'home', label: 'Oyna', detail: 'Başlangıç ekranı', icon: LayoutDashboard },
-  { id: 'online', label: 'Çevrimiçi', detail: 'Free Roam ve Online', icon: Users },
-  { id: 'mods', label: 'Mod kitaplığı', detail: 'Topluluk paketleri', icon: LibraryBig },
-  { id: 'saves', label: 'Kayıtlar', detail: 'Yerel ve bulut kayıtları', icon: Save },
-  { id: 'controls', label: 'Kontroller', detail: 'Klavye ve gamepad', icon: Gamepad2 },
-  { id: 'settings', label: 'Ayarlar', detail: 'Oyun ve arayüz ayarları', icon: Settings },
-  { id: 'system', label: 'Tanılama', detail: 'Tarayıcı ve sistem kontrolü', icon: Gauge },
-  { id: 'about', label: 'Proje', detail: 'TRPOLARIS hakkında', icon: Info },
+  { id: 'home', label: 'Play', detail: 'Start page', icon: LayoutDashboard },
+  { id: 'online', label: 'Online', detail: 'Free roam and online play', icon: Users },
+  { id: 'mods', label: 'Mod library', detail: 'Community vehicle packages', icon: LibraryBig },
+  { id: 'saves', label: 'Saves', detail: 'Local and cloud saves', icon: Save },
+  { id: 'controls', label: 'Controls', detail: 'Keyboard and gamepad', icon: Gamepad2 },
+  { id: 'settings', label: 'Settings', detail: 'Game and interface', icon: Settings },
+  { id: 'system', label: 'System diagnostics', detail: 'Browser and system health', icon: Gauge },
+  { id: 'about', label: 'About this project', detail: 'About TRPOLARIS', icon: Info },
 ];
 
 const PHASE_LABELS = {
-  boot: 'SİSTEM KONTROLÜ',
-  ready: 'OYUN HAZIR',
-  waiting: 'SEKME BEKLİYOR',
-  error: 'KONTROL GEREKİYOR',
-  starting: 'BAŞLATILIYOR',
-  playing: 'OYUN AÇIK',
-  exited: 'OTURUM TAMAMLANDI',
+  boot: 'Checking system',
+  ready: 'Game ready',
+  waiting: 'Waiting for tab',
+  error: 'Action required',
+  starting: 'Starting',
+  playing: 'Playing',
+  exited: 'Session ended',
 };
 
 function LegacyNode({ selector, className = '' }) {
@@ -160,6 +160,7 @@ function App({ legacyApp }) {
   const [statusText, setStatusText] = useState('');
   const [runtimeLocked, setRuntimeLocked] = useState(() => Boolean(legacyApp?.inert));
   const [transitioning, setTransitioning] = useState(false);
+  const rootRef = useRef(null);
   const activeItem = useMemo(() => NAV.find(item => item.id === active) || NAV[0], [active]);
 
   const syncStatus = useCallback(() => {
@@ -206,6 +207,12 @@ function App({ legacyApp }) {
     };
   }, [legacyApp, syncStatus]);
 
+  useLayoutEffect(() => {
+    if (rootRef.current && typeof window.__trpTranslateReact === 'function') {
+      window.__trpTranslateReact(rootRef.current);
+    }
+  }, [active, phase, statusText, runtimeLocked]);
+
   useEffect(() => {
     if (reduceMotion) return undefined;
     setTransitioning(true);
@@ -218,7 +225,7 @@ function App({ legacyApp }) {
   const gameActive = runtimeLocked || Boolean(legacyApp?.inert) || phase === 'playing' || phase === 'starting';
 
   return (
-    <div className={'trp-react-shell' + (active === 'home' ? ' is-home' : '')}>
+    <div ref={rootRef} className={'trp-react-shell' + (active === 'home' ? ' is-home' : '')}>
       <div className="trp-shell-atmosphere" aria-hidden="true">
         <span className="trp-atmosphere-orb trp-orb-coral" />
         <span className="trp-atmosphere-orb trp-orb-violet" />
@@ -230,7 +237,7 @@ function App({ legacyApp }) {
           <span className="trp-brand-mark"><b>T</b><i /></span>
           <span className="trp-brand-copy"><strong>TRPOLARIS</strong><small>NFSU2 / WEB EDITION</small></span>
         </a>
-        <div className="trp-sidebar-label">UNDERGROUND NETWORK</div>
+        <div className="trp-sidebar-label" data-i18n>UNDERGROUND NETWORK</div>
         <nav className="trp-navigation">
           {NAV.map(item => {
             const Icon = item.icon;
@@ -240,7 +247,7 @@ function App({ legacyApp }) {
                 type="button" key={item.id} onClick={() => navigate(item.id)}
                 aria-current={selected ? 'page' : undefined} title={item.detail}>
                 <Icon size={18} strokeWidth={1.8} />
-                <span className="trp-nav-copy"><strong>{item.label}</strong><small>{item.detail}</small></span>
+                <span className="trp-nav-copy"><strong data-i18n>{item.label}</strong><small data-i18n>{item.detail}</small></span>
                 {selected && <motion.span className="trp-nav-active" layoutId="trp-nav-active"
                   transition={{ type: 'spring', stiffness: 430, damping: 36 }} />}
               </button>
@@ -249,8 +256,8 @@ function App({ legacyApp }) {
         </nav>
         <div className="trp-sidebar-spacer" />
         <section className="trp-sidebar-status" aria-live="polite">
-          <div className="trp-status-heading"><span className={'trp-live-indicator' + (connectedTone ? ' is-live' : '')} /> SİSTEM DURUMU</div>
-          <strong>{phaseLabel}</strong>
+          <div className="trp-status-heading"><span className={'trp-live-indicator' + (connectedTone ? ' is-live' : '')} /> <span data-i18n>SYSTEM STATUS</span></div>
+          <strong key={phase} data-i18n>{phaseLabel}</strong>
           <p>{statusText || 'Tarayıcı, grafik ve oyun verileri denetleniyor.'}</p>
         </section>
         <a className="trp-sidebar-hub" href="/hub/"><Users size={17} /> Player Hub <ArrowUpRight size={15} /></a>
@@ -261,7 +268,7 @@ function App({ legacyApp }) {
         <header className="trp-topbar" inert={gameActive}>
           <div className="trp-breadcrumb">
             <span className="trp-breadcrumb-mark"><Activity size={14} /></span>
-            <span>TRPOLARIS</span><ChevronRight size={14} /><strong>{activeItem.label.toUpperCase()}</strong>
+            <span>TRPOLARIS</span><ChevronRight size={14} /><strong key={activeItem.id} data-i18n>{activeItem.label}</strong>
           </div>
           <div className="trp-topbar-actions">
             <div className="trp-build-label"><span className={'trp-live-indicator' + (connectedTone ? ' is-live' : '')} /> {phaseLabel}</div>
@@ -274,9 +281,9 @@ function App({ legacyApp }) {
         <div className="trp-content">
           <div className="trp-content-heading">
             <div>
-              <div className="trp-eyebrow">BAYVIEW / NIGHT DRIVER SYSTEM</div>
-              <h1>{activeItem.label}<span>.</span></h1>
-              <p>{activeItem.detail} <span>·</span> TRPOLARIS NFSU2 Web</p>
+              <div className="trp-eyebrow" data-i18n>BAYVIEW / NIGHT DRIVER SYSTEM</div>
+              <h1 key={activeItem.id}><span data-i18n>{activeItem.label}</span><span>.</span></h1>
+              <p key={activeItem.id}><span data-i18n>{activeItem.detail}</span> <span>·</span> TRPOLARIS NFSU2 Web</p>
             </div>
             <div className="trp-heading-index" aria-hidden="true"><span>EXPERIENCE</span><strong>02</strong></div>
           </div>
@@ -290,7 +297,7 @@ function App({ legacyApp }) {
 
           <footer className="trp-shell-footer">
             <span>TRPOLARIS / NEED FOR SPEED UNDERGROUND 2</span>
-            <span>WEB EXPERIENCE <i /> SAME-ORIGIN SERVICES</span>
+            <span><span data-i18n>WEB EXPERIENCE</span> <i /> <span data-i18n>SAME-ORIGIN SERVICES</span></span>
           </footer>
         </div>
       </div>

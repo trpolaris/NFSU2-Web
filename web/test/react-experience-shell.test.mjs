@@ -14,6 +14,7 @@ const shellCss = read('src/static/react-shell.css');
 const hub = read('src/hub/main.jsx');
 const hubCss = read('src/hub/hub.css');
 const runtime = read('src/app/shell.ts');
+const gameEntry = read('src/main.ts');
 
 test('the main page loads its React shell before the legacy runtime boot sequence', () => {
   assert.match(html, /id="trp-react-root"/);
@@ -83,4 +84,14 @@ test('the game stage is never placed inside an inert React root while page chrom
   assert.ok(runtime.includes("$('#app').inert = true"), 'legacy app retains its existing game-session focus rule');
   assert.match(app, /runtimeObserver\.observe\(legacyApp, \{ attributes: true, attributeFilter: \['inert'\] \}\)/);
   assert.match(app, /setRuntimeLocked\(Boolean\(legacyApp\?\.inert\)\)/);
+});
+
+
+test('React-owned UI text uses the existing game language dictionaries and is translated again after remounts', () => {
+  assert.match(gameEntry, /window\.__trpTranslateReact = translatePage/);
+  assert.match(gameEntry, /import \{ translatePage \} from '\.\/app\/i18n'/);
+  assert.match(app, /window\.__trpTranslateReact\(rootRef\.current\)/);
+  assert.match(app, /data-i18n>\{item\.label\}/);
+  assert.match(app, /data-i18n>\{item\.detail\}/);
+  assert.match(app, /key=\{phase\} data-i18n>\{phaseLabel\}/);
 });

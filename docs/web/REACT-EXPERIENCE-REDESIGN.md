@@ -94,3 +94,8 @@ A migration step is complete only when its old DOM hooks are either intentionall
 ## Home dashboard migration note
 
 The React home page uses the existing car artwork/particle canvas and keeps the original live Play dock and status console mounted via placeholder-backed DOM islands. The hidden legacy home container remains in the compatibility host to preserve runtime references. When the game enters its starting/playing phase, the React dashboard unmounts and restores those live nodes to the original app container; the legacy runtime then applies its own app inert state while the separate game stage remains interactive. Navigation chrome becomes inert during the active game session, but the React root itself is never inert because the game stage is outside it.
+
+
+## React localization bridge
+
+The existing language dictionaries remain the source of truth. The game entry exposes the already-loaded translatePage function to the React shell, and the shell reapplies it after route/phase remounts. React UI labels use the same English source keys as the original dictionaries, so the existing language selector and all shipped language files continue to drive the visible shell and home dashboard.
