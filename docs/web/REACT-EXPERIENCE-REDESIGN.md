@@ -99,3 +99,10 @@ The React home page uses the existing car artwork/particle canvas and keeps the 
 ## React localization bridge
 
 The existing language dictionaries remain the source of truth. The game entry exposes the already-loaded translatePage function to the React shell, and the shell reapplies it after route/phase remounts. React UI labels use the same English source keys as the original dictionaries, so the existing language selector and all shipped language files continue to drive the visible shell and home dashboard.
+
+
+## Online / Free Roam migration slice
+
+The Online route now has a React + Motion page composition with a live-multiplayer hero and feature cards for Free Roam, the game's Online mode, and rooms/crews. The existing #online section is mounted into the React route using a placeholder-backed compatibility island. Its SettingsController still owns validated settings writes, room/crew controls, horn preview and the live status line from /players; this avoids duplicating or bypassing the existing settings model while the visual route migrates.
+
+Next, the controls inside #online-body should move from the imperative SettingsController.group()/row() renderer into typed React field components backed by a narrow settings adapter. Keep watchPlayers, playersText, crewCounts, roomHash and the same /players query contract as the source of live counts. Do not invent player totals or room/crew availability when the server does not report them.

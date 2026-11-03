@@ -152,6 +152,63 @@ function HomeDashboard({ onNavigate }) {
   );
 }
 
+
+const ONLINE_FEATURES = [
+  { title: 'Free Roam', detail: 'Meet other drivers in the city and see their names above their cars.', icon: CarFront, tone: 'coral' },
+  { title: 'Online mode', detail: 'Enter the game’s Online menu for lobbies, chat and races on this server.', icon: Gamepad2, tone: 'violet' },
+  { title: 'Rooms and crews', detail: 'Use room names and crews to organize who appears together in Free Roam.', icon: Users, tone: 'green' },
+];
+
+function OnlineDashboard() {
+  const reduceMotion = useReducedMotion();
+  const enter = reduceMotion ? false : { opacity: 0, y: 12 };
+  const shown = { opacity: 1, y: 0 };
+  const transition = { duration: reduceMotion ? 0 : .28, ease: [.2, .75, .25, 1] };
+
+  return (
+    <motion.div className="trp-route-page trp-online-dashboard" initial={enter} animate={shown} transition={transition}>
+      <motion.section className="trp-online-hero" initial={enter} animate={shown} transition={transition}>
+        <div className="trp-online-hero-copy">
+          <div className="trp-eyebrow"><Activity size={13} /> LIVE MULTIPLAYER / BAYVIEW</div>
+          <h2 data-i18n>Meet the city on the server.</h2>
+          <p data-i18n>Find other drivers, choose how you connect, and shape your Free Roam experience.</p>
+        </div>
+        <div className="trp-online-live-mark"><span className="trp-live-indicator is-live" /><span data-i18n>SERVER FEATURES</span><strong>NFSU2 / ONLINE</strong></div>
+        <div className="trp-online-orbit trp-online-orbit-a" aria-hidden="true" />
+        <div className="trp-online-orbit trp-online-orbit-b" aria-hidden="true" />
+      </motion.section>
+
+      <div className="trp-online-feature-grid">
+        {ONLINE_FEATURES.map((feature, index) => {
+          const Icon = feature.icon;
+          return (
+            <motion.article key={feature.title} className={'trp-online-feature trp-online-feature-' + feature.tone}
+              initial={reduceMotion ? false : { opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: reduceMotion ? 0 : .24, delay: reduceMotion ? 0 : .06 + index * .055 }}>
+              <span className="trp-online-feature-icon"><Icon size={20} strokeWidth={1.8} /></span>
+              <div><h3 data-i18n>{feature.title}</h3><p data-i18n>{feature.detail}</p></div>
+              <span className="trp-online-feature-index">0{index + 1}</span>
+            </motion.article>
+          );
+        })}
+      </div>
+
+      <motion.section className="trp-online-settings-panel" initial={enter} animate={shown} transition={{ ...transition, delay: reduceMotion ? 0 : .1 }}>
+        <div className="trp-online-settings-heading">
+          <div>
+            <div className="trp-eyebrow" data-i18n>DRIVER NETWORK / CONFIGURATION</div>
+            <h2 data-i18n>Online and Free Roam settings</h2>
+            <p data-i18n>Player counts, rooms, crews and connection options are provided by the existing game settings and server.</p>
+          </div>
+          <span className="trp-online-settings-icon"><Settings size={20} /></span>
+        </div>
+        <LegacyNode selector="#online" className="trp-online-legacy-slot" />
+      </motion.section>
+    </motion.div>
+  );
+}
+
 function App({ legacyApp }) {
   const reduceMotion = useReducedMotion();
   const initialHash = pageFromHash(location.hash);
@@ -292,6 +349,7 @@ function App({ legacyApp }) {
             animate={transitioning ? { opacity: .78, y: 7, filter: 'blur(1.5px)' } : { opacity: 1, y: 0, filter: 'blur(0px)' }}
             transition={{ duration: reduceMotion ? 0 : .19, ease: [0.2, 0.75, 0.25, 1] }}>
             {active === 'home' && !gameActive && <HomeDashboard onNavigate={navigate} />}
+            {active === 'online' && !gameActive && <OnlineDashboard />}
             <LegacyAppHost app={legacyApp} />
           </motion.div>
 

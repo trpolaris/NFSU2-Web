@@ -15,6 +15,8 @@ const hub = read('src/hub/main.jsx');
 const hubCss = read('src/hub/hub.css');
 const runtime = read('src/app/shell.ts');
 const gameEntry = read('src/main.ts');
+const settingsUi = read('src/app/settings-ui.ts');
+const navigation = read('src/app/ui-enhancements.js');
 
 test('the main page loads its React shell before the legacy runtime boot sequence', () => {
   assert.match(html, /id="trp-react-root"/);
@@ -95,4 +97,29 @@ test('React-owned UI text uses the existing game language dictionaries and is tr
   assert.match(app, /data-i18n>\{item\.label\}/);
   assert.match(app, /data-i18n>\{item\.detail\}/);
   assert.match(app, /key=\{phase\} data-i18n>\{phaseLabel\}/);
+});
+
+
+test('Online / Free Roam is composed by React while the validated settings controller and live player source remain intact', () => {
+  assert.match(app, /function OnlineDashboard/);
+  assert.match(app, /active === 'online' && !gameActive && <OnlineDashboard/);
+  assert.match(app, /LegacyNode selector="#online" className="trp-online-legacy-slot"/);
+  assert.match(app, /ONLINE_FEATURES\.map/);
+  assert.match(app, /Meet the city on the server/);
+  assert.match(shellCss, /\.trp-online-legacy-slot > #online/);
+  assert.match(shellCss, /\.trp-online-feature-grid/);
+  assert.match(shellCss, /@media \(max-width:700px\)[\s\S]*?trp-online-legacy-slot/);
+  assert.match(settingsUi, /this\.online\.querySelector\('#online-body'\)!\.replaceChildren/);
+  assert.match(settingsUi, /this\.online\.querySelector<HTMLElement>\('#online-note'\)/);
+  assert.match(settingsUi, /setCrewCounts\(counts: Map<number, number>\)/);
+  assert.match(navigation, /online: \['online'\]/);
+  assert.match(navigation, /pageForHash = \{[\s\S]*online: 'online'/);
+});
+
+test('Online dashboard labels describe existing Free Roam, Online and Crew settings without inventing player counts', () => {
+  assert.match(settingsUi, /N\('Free roam with others'\)/);
+  assert.match(settingsUi, /N\('Online mode'\)/);
+  assert.match(settingsUi, /N\('Crews'\)/);
+  assert.match(settingsUi, /N\('Room'\)/);
+  assert.doesNotMatch(app, /activePlayers\s*[:=]|onlineCount\s*[:=]\s*\d/);
 });
