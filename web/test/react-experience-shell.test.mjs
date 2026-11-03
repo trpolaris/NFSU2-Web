@@ -313,7 +313,7 @@ test('Saves route keeps the complete SavesPanel root intact inside one React com
   assert.ok(!app.includes('LegacyNode selector="#vault"'));
   assert.ok(shellCss.includes('#app #saves { display:none!important; }'));
   assert.ok(shellCss.includes('.trp-saves-hero'));
-  assert.ok(shellCss.includes('.trp-saves-vault-slot'));
+  assert.ok(shellCss.includes('.trp-saves-legacy-slot > #saves #vault'));
 });
 
 
@@ -355,9 +355,9 @@ test('Settings route is composed in React while game settings and accessibility 
   assert.ok(app.includes("active === 'settings' && !gameActive && <SettingsDashboard />"));
   assert.ok(!app.includes("selectors: ['#settings', '#accessibility']"));
   assert.ok(app.includes('LegacyNode selector="#settings" className="trp-settings-game-slot"'));
-  assert.ok(app.includes('LegacyNode selector="#accessibility" className="trp-settings-accessibility-slot"'));
+  assert.ok(app.includes('LegacyNode selector="#accessibility" className="trp-settings-accessibility-legacy"'));
   assert.ok(shellCss.includes('.trp-settings-game-slot > #settings'));
-  assert.ok(shellCss.includes('.trp-settings-accessibility-slot > #accessibility'));
+  assert.ok(shellCss.includes('.trp-settings-accessibility-legacy { display:none!important; }'));
   assert.ok(runtime.includes("new SettingsPanel($('#settings')"));
   assert.ok(html.includes('id="accessibility"'));
 });
