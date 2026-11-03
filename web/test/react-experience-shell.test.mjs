@@ -446,17 +446,19 @@ test('System update, diagnostics and game-data panels are React-owned through ty
   assert.ok(shellCss.includes('.trp-game-data-progress'));
 });
 
-test('Settings route is composed in React while game settings and accessibility roots stay intact', () => {
+test('Settings route is composed in React while game settings remain in the service root and accessibility is fully React-owned', () => {
   assert.ok(app.includes('function SettingsDashboard'));
   assert.ok(app.includes("active === 'settings' && !gameActive && <SettingsDashboard />"));
   assert.ok(!app.includes("selectors: ['#settings', '#accessibility']"));
   assert.ok(html.includes('id="settings"'));
   assert.ok(html.includes('<div class="app-grid" id="app-pages" hidden>'));
-  assert.ok(app.includes('LegacyNode selector="#accessibility" className="trp-settings-accessibility-legacy"'));
+  assert.ok(app.includes('<AccessibilityReactControls />'));
+  assert.ok(!app.includes('LegacyNode selector="#accessibility"'));
   assert.ok(html.includes('id="online"'));
-  assert.ok(shellCss.includes('.trp-settings-accessibility-legacy { display:none!important; }'));
+  assert.ok(shellCss.includes('.trp-a11y-react-options'));
+  assert.ok(!shellCss.includes('.trp-settings-accessibility-legacy'));
   assert.ok(runtime.includes("new SettingsPanel($('#settings')"));
-  assert.ok(html.includes('id="accessibility"'));
+  assert.ok(!html.includes('id="accessibility"'));
 });
 
 
@@ -473,7 +475,9 @@ test('Accessibility switches are React-controlled through the existing browser p
   assert.ok(app.includes('function AccessibilityReactControls'));
   assert.ok(app.includes('bridge.current()'));
   assert.ok(app.includes('bridge.set(key, value)'));
-  assert.ok(app.includes('LegacyNode selector="#accessibility" className="trp-settings-accessibility-legacy"'));
+  assert.ok(!app.includes('LegacyNode selector="#accessibility"'));
+  assert.ok(!html.includes('a11y-large-text'));
+  assert.ok(!platform.includes("'#a11y-large-text'"));
   assert.ok(gameEntry.includes('interface TrpAccessibilityBridge'));
   assert.ok(gameEntry.includes('__trpAccessibilityBridge?: TrpAccessibilityBridge'));
   assert.ok(platform.includes('currentAccessibilityPrefs'));

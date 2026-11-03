@@ -126,14 +126,9 @@ export function currentAccessibilityPrefs(): AccessibilityPrefs {
     key in DEFAULT_A11Y && typeof v === 'boolean')) } as AccessibilityPrefs;
 }
 
-/** Write one accessibility preference and synchronize the legacy input and document attributes. */
+/** Persist one React-controlled browser accessibility preference and apply its document attributes. */
 export function setAccessibilityPreference(key: keyof AccessibilityPrefs, value: boolean): AccessibilityPrefs {
   const prefs = { ...currentAccessibilityPrefs(), [key]: value };
-  const ids: Record<keyof AccessibilityPrefs, string> = {
-    largeText: '#a11y-large-text', reduceMotion: '#a11y-reduce-motion', highContrast: '#a11y-high-contrast',
-  };
-  const input = document.querySelector<HTMLInputElement>(ids[key]);
-  if (input) input.checked = value;
   applyAccessibility(prefs);
   window.dispatchEvent(new Event('trp-accessibility-changed'));
   return prefs;
@@ -572,11 +567,7 @@ async function importProfileFile(file: File) {
 }
 
 function loadAccessibility() {
-  const prefs = currentAccessibilityPrefs();
-  ($('#a11y-large-text') as HTMLInputElement).checked = prefs.largeText;
-  ($('#a11y-reduce-motion') as HTMLInputElement).checked = prefs.reduceMotion;
-  ($('#a11y-high-contrast') as HTMLInputElement).checked = prefs.highContrast;
-  applyAccessibility(prefs, false);
+  applyAccessibility(currentAccessibilityPrefs(), false);
   window.dispatchEvent(new Event('trp-accessibility-changed'));
 }
 function applyAccessibility(prefs: AccessibilityPrefs, persist = true) {
@@ -585,15 +576,6 @@ function applyAccessibility(prefs: AccessibilityPrefs, persist = true) {
   document.documentElement.toggleAttribute('data-high-contrast', prefs.highContrast);
   if (persist) safeWrite(STORE.accessibility, prefs);
 }
-function wireAccessibility() {
-  const sync = () => applyAccessibility({
-    largeText: $<HTMLInputElement>('#a11y-large-text').checked,
-    reduceMotion: $<HTMLInputElement>('#a11y-reduce-motion').checked,
-    highContrast: $<HTMLInputElement>('#a11y-high-contrast').checked,
-  });
-  for (const id of ['a11y-large-text', 'a11y-reduce-motion', 'a11y-high-contrast']) $<HTMLInputElement>(`#${id}`).addEventListener('change', sync);
-}
-
 async function checkUpdates() {
   const button = $<HTMLButtonElement>('#updates-check'), reload = $<HTMLButtonElement>('#updates-reload');
   button.disabled = true; reload.hidden = true; button.setAttribute('aria-busy', 'true');
@@ -847,7 +829,7 @@ export function setupPlatformFeatures(settings: SettingsPanel, confirm: (title: 
   };
   window.dispatchEvent(new Event('trp-settings-profiles-ready'));
   renderProfilePicker();
-  loadAccessibility(); wireAccessibility();
+  loadAccessibility();
   window.__trpAccessibilityBridge = {
     current: () => currentAccessibilityPrefs(),
     set: (key, value) => setAccessibilityPreference(key, value),
@@ -866,7 +848,7 @@ export function setupPlatformFeatures(settings: SettingsPanel, confirm: (title: 
   };
   $('#clear-app-preferences').addEventListener('click', () => { void clearPreferences(); });
   wireFirstRun(settings, log);
-  onLanguage(() => { void populateVehicleFilters(); renderGarage(); renderProfilePicker(); syncA11yLabels(); });
+  onLanguage(() => { void populateVehicleFilters(); renderGarage(); renderProfilePicker(); });
   window.__trpModLibraryBridge = {
     snapshot: () => getModLibrarySnapshot(),
     toggleFavorite: id => toggleModLibraryFavorite(id),
@@ -896,9 +878,4 @@ export function setupPlatformFeatures(settings: SettingsPanel, confirm: (title: 
   window.dispatchEvent(new Event('trp-platform-ready'));
   void checkUpdates().then(() => window.dispatchEvent(new Event('trp-platform-changed')));
 }
-function syncA11yLabels() {
-  for (const [id, key] of [['a11y-large-text', 'Larger text'], ['a11y-reduce-motion', 'Reduce animations'], ['a11y-high-contrast', 'High contrast']]) {
-    const input = document.getElementById(id) as HTMLInputElement | null; const label = input?.closest('label');
-    if (label) label.querySelector('span')!.textContent = t(key);
-  }
-}
+

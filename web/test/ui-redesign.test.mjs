@@ -67,7 +67,7 @@ test('inner pages use polished modern controls without replacing their existing 
   assert.match(polish, /#saves \.profiles > li/);
   assert.match(polish, /#mods \.custom-mod-list > li/);
   assert.doesNotMatch(polish, /#controls/);
-  assert.match(polish, /#accessibility \.accessibility-option/);
+  assert.doesNotMatch(polish, /#accessibility/);
   assert.match(polish, /#updates \.update-row > div/);
   assert.match(polish, /\.bar-fill::after/);
   assert.match(polish, /prefers-reduced-motion:\s*reduce/);

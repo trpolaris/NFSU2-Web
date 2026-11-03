@@ -835,40 +835,6 @@
 .experience-shell #mods .mod-form-grid label { display: grid; gap: 6px; color: #aab7cb; font-size: .7rem; font-weight: 650; }
 .experience-shell #mods .mod-form-grid input { width: 100%; }
 .experience-shell #mods .mod-form-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 15px; }
-
-/* Accessibility, update metadata and diagnostics. */
-.experience-shell #accessibility .accessibility-options {
-  display: grid;
-  grid-template-columns: repeat(3,minmax(0,1fr));
-  gap: 10px;
-  margin: 18px 0;
-}
-.experience-shell #accessibility .accessibility-option {
-  display: flex;
-  align-items: center;
-  gap: 11px;
-  min-height: 58px;
-  padding: 13px 15px;
-  border: 1px solid rgba(164,180,204,.13);
-  border-radius: 13px;
-  background: rgba(5,10,19,.46);
-  color: #d9e2f0;
-  font-size: .75rem;
-  font-weight: 640;
-  cursor: pointer;
-  transition: border-color .18s ease, background .18s ease, transform .18s ease;
-}
-.experience-shell #accessibility .accessibility-option:hover {
-  transform: translateY(-1px);
-  border-color: rgba(166,154,255,.28);
-  background: rgba(166,154,255,.045);
-}
-.experience-shell #accessibility .accessibility-option input {
-  width: 17px;
-  height: 17px;
-  margin: 0;
-  flex: 0 0 17px;
-}
 .experience-shell #updates .update-row {
   display: grid;
   grid-template-columns: repeat(2,minmax(0,1fr));
@@ -1041,8 +1007,6 @@
   .experience-shell .seg .opt { min-height: 36px; }
   .experience-shell .crew-line { grid-template-columns: minmax(0,1fr); }
   .experience-shell .crew-line .crew-add { max-width: 430px; }
-  .experience-shell #accessibility .accessibility-options,
-  .experience-shell #updates .update-row { grid-template-columns: minmax(0,1fr); }
   .experience-shell #mods .mod-form-grid { grid-template-columns: minmax(0,1fr); }
   .experience-shell #mods .mods-hero { align-items: flex-start; flex-direction: column; }
   .experience-shell #mods .mod-filter-label,

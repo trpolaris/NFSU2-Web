@@ -2029,6 +2029,64 @@ function SettingsRawReactControls() {
   );
 }
 
+const ACCESSIBILITY_OPTIONS = [
+  { key: 'largeText', label: 'Larger text', detail: 'Increase interface text size across the page.' },
+  { key: 'reduceMotion', label: 'Reduce animations', detail: 'Limit non-essential interface movement and transitions.' },
+  { key: 'highContrast', label: 'High contrast', detail: 'Increase contrast between text, controls and backgrounds.' },
+];
+
+function AccessibilityReactControls() {
+  const [preferences, setPreferences] = useState({ largeText: false, reduceMotion: false, highContrast: false });
+  const [ready, setReady] = useState(false);
+  const rootRef = useRef(null);
+
+  useEffect(() => {
+    const update = () => {
+      const bridge = window.__trpAccessibilityBridge;
+      if (!bridge) return;
+      setPreferences(bridge.current());
+      setReady(true);
+    };
+    window.addEventListener('trp-accessibility-ready', update);
+    window.addEventListener('trp-accessibility-changed', update);
+    update();
+    return () => {
+      window.removeEventListener('trp-accessibility-ready', update);
+      window.removeEventListener('trp-accessibility-changed', update);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (rootRef.current) window.__trpTranslateReact?.(rootRef.current);
+  }, [preferences, ready]);
+
+  const change = (key, value) => {
+    const bridge = window.__trpAccessibilityBridge;
+    if (!bridge) return;
+    try {
+      setPreferences(bridge.set(key, value));
+      setReady(true);
+    } catch {
+      setPreferences(bridge.current());
+    }
+  };
+
+  return (
+    <div className="trp-a11y-react-options" ref={rootRef}>
+      {ACCESSIBILITY_OPTIONS.map(option => (
+        <label className="trp-a11y-option-card" key={option.key}>
+          <span className="trp-a11y-option-copy">
+            <strong data-i18n>{option.label}</strong>
+            <small data-i18n>{option.detail}</small>
+          </span>
+          <input type="checkbox" role="switch" checked={!!preferences[option.key]}
+            disabled={!ready} onChange={event => change(option.key, event.target.checked)} />
+        </label>
+      ))}
+    </div>
+  );
+}
+
 function SettingsDashboard() {
   const reduceMotion = useReducedMotion();
   const enter = reduceMotion ? false : { opacity: 0, y: 12 };

@@ -692,14 +692,7 @@
 .trp-settings-panel-head h3 { margin:5px 0 0;color:#eff3fa;font-size:1rem;font-weight:870; }
 .trp-settings-panel-head p { margin:5px 0 0;color:#91a1b7;font-size:.64rem;line-height:1.55; }
 .trp-settings-index { color:rgba(166,154,255,.68);font:800 .62rem ui-monospace,monospace;letter-spacing:.12em; }
-.trp-settings-game-slot,.trp-settings-accessibility-slot { min-width:0; }
-.trp-settings-game-slot > #settings,
-.trp-settings-accessibility-slot > #accessibility {
-  display:block!important;width:100%!important;max-width:none!important;min-width:0!important;margin:0!important;padding:0!important;
-  border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;
-}
-.trp-settings-game-slot > #settings > #settings-title,
-.trp-settings-accessibility-slot > #accessibility > #accessibility-title { display:none!important; }
+.trp-settings-game-slot { min-width:0; }
 .trp-settings-game-slot > #settings > #settings-note { margin:0 0 14px;color:#92a2b8;font-size:.65rem; }
 .trp-settings-game-slot > #settings .profile-manager,
 .trp-settings-game-slot > #settings .preset-panel {
@@ -721,10 +714,7 @@
 .trp-settings-game-slot > #settings #settings-body .set { border-radius:9px; }
 .trp-settings-game-slot > #settings .raw { margin-top:14px;padding-top:12px;border-top:1px solid rgba(167,185,214,.1); }
 .trp-settings-game-slot > #settings .raw details { margin-top:10px; }
-.trp-settings-accessibility-slot > #accessibility .accessibility-options { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px; }
-.trp-settings-accessibility-slot > #accessibility .accessibility-option { min-height:50px;padding:10px;border:1px solid rgba(167,185,214,.11);border-radius:10px;background:rgba(255,255,255,.02); }
-.trp-settings-accessibility-slot > #accessibility > .hint:last-child { margin:10px 0 0;color:#8596ad;font-size:.61rem; }
-@media(max-width:850px) { .trp-settings-accessibility-slot > #accessibility .accessibility-options { grid-template-columns:1fr; } }
+@media(max-width:850px) { }
 @media(max-width:700px) {
   .trp-settings-dashboard { gap:10px; }
   .trp-settings-hero { min-height:0;align-items:flex-start;padding:18px 15px;border-radius:16px; }
@@ -752,7 +742,6 @@
 .trp-a11y-option-card input[type="checkbox"]:checked::after { transform:translateX(17px);background:#fff; }
 .trp-a11y-option-card input[type="checkbox"]:disabled { opacity:.5;cursor:not-allowed; }
 .trp-a11y-option-card input[type="checkbox"]:focus-visible { outline:2px solid var(--trp-shell-coral);outline-offset:3px; }
-.trp-settings-accessibility-legacy { display:none!important; }
 @media(max-width:850px) { .trp-a11y-react-options { grid-template-columns:1fr; } }
 @media(prefers-reduced-motion:reduce) { .trp-a11y-option-card input[type="checkbox"],.trp-a11y-option-card input[type="checkbox"]::after { transition:none; } }
 

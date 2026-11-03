@@ -229,3 +229,8 @@ The duplicate static About/Changes sections and old app header have been removed
 ## React Controls route and in-game help separation
 
 The routed Controls page is rendered entirely by React and no longer keeps a hidden `#controls` / `#keys` page subtree. The selected tab and Xbox/PlayStation naming preference are held by a small DOM-independent controls state adapter; live gamepad changes notify the React view through the typed bridge. The F9 in-game Controls help dialog keeps its existing sheet behavior, but its source markup is stored in an inert `controls-help-template` and instantiated only when the dialog opens. The gamepad/touch input services and their persisted settings are unchanged.
+
+
+## React accessibility controls and browser preference state
+
+The accessibility controls now live entirely in the React Settings dashboard. The preference service reads and writes the existing browser-local store and applies document-level accessibility attributes; it no longer queries or synchronizes hidden checkbox elements. The static `#accessibility` section and its route-only CSS have been removed. Game settings, saves, and runtime behavior are unaffected.
