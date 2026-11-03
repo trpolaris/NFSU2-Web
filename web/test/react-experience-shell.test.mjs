@@ -16,7 +16,9 @@ const hubCss = read('src/hub/hub.css');
 
 test('the main page loads its React shell before the legacy runtime boot sequence', () => {
   assert.match(html, /id="trp-react-root"/);
-  assert.ok(html.indexOf('/ui/main.js') >= 0 && html.indexOf('/ui/main.js') < html.indexOf('/main.js'));
+  const reactEntry = html.indexOf('src="/ui/main.js"');
+  const runtimeEntry = html.indexOf('src="/main.js"');
+  assert.ok(reactEntry >= 0 && runtimeEntry > reactEntry);
   assert.match(html, /href="\/react-shell\.css"/);
   assert.match(builder, /'ui\/main': 'src\/ui\/main\.jsx'/);
 });
