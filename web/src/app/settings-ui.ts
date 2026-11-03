@@ -720,6 +720,8 @@ export class SettingsPanel {
     if (p) { live(p, this.status); p.hidden = !p.textContent; }
   }
 
+  onlineStatus() { return this.status(); }
+
   /** How many are in free roam in each crew now, by its hash (players.ts crewCounts; a crew it lacks: not known),
    *  on the Crews row's lines; kept across re-renders. */
   setCrewCounts(counts: Map<number, number>) {

@@ -1758,6 +1758,7 @@ export async function boot() {
     quickChat: () => ({ phrases: phrasesOf(settings.current('quick_chat_phrases')), groups: groupsOf(settings.current('quick_chat_groups')) }),
     saveQuickChat: async (phrases, groups) => { await settings.saveQuickChatFromReact(phrases, groups); window.dispatchEvent(new Event('trp-settings-changed')); },
     readOnly: () => !instance.owner,
+    onlineStatus: () => settings.onlineStatus(),
     refresh: async () => { await settings.refresh(); window.dispatchEvent(new Event('trp-settings-changed')); },
   };
   window.dispatchEvent(new Event('trp-settings-ready'));
@@ -1805,7 +1806,15 @@ export async function boot() {
     profileName: async () => (await newestProfile())?.name ?? null,
     save: n => settings.putName(n), writable: () => instance.owner,
     kept: n => vault?.showClaim(n), say: pageToast, log: logLine,
+    onReactUpdate: () => window.dispatchEvent(new Event('trp-name-row-changed')),
   });
+  window.__trpNameRowBridge = {
+    snapshot: () => nameRow.reactSnapshot(),
+    claim: () => nameRow.claimFromReact(),
+    useAlternative: () => nameRow.useAlternativeFromReact(),
+    mountChallenge: host => nameRow.mountChallenge(host),
+  };
+  window.dispatchEvent(new Event('trp-name-row-ready'));
   vault = new VaultPanel($('#vault'), {
     saveDir: SAVE, owner: () => instance.owner, playing: () => !!session, busy: () => !!session || starting || !instance.owner,
     confirm: confirmBox, choose: (title, body, ok, cancel) => choiceBox(title, body, ok, cancel),

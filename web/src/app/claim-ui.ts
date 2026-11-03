@@ -60,6 +60,7 @@ export interface NameRowDeps {
   kept(name: string | null): void;
   say(msg: string): void;
   log(s: string): void;
+  onReactUpdate?(): void;
 }
 
 /** The line under Your name, with its button; kept across the settings panel's re-renders (`attach` each time). */
@@ -77,6 +78,33 @@ export class NameRow {
   /** Cloudflare's widget's box: one for every drawing of the row (the panel draws its rows again as settings change,
    *  turning cloud saves on among them, and a widget drawn into a box gone from the page never answers) */
   private readonly check = Object.assign(document.createElement('div'), { className: 'claim-check', hidden: true });
+
+  /** Current claim line and actions, serialized for the React route. */
+  reactSnapshot() {
+    const line = this.els?.line;
+    const copy = line?.cloneNode(true) as HTMLElement | undefined;
+    copy?.querySelector('button')?.remove();
+    return {
+      ready: !!this.els,
+      line: copy?.textContent ?? '',
+      tone: line?.className.replace('set-state', '').trim() ?? 'free',
+      lineVisible: !!line && !line.hidden,
+      claimVisible: !!this.els?.btn.hidden,
+      claimLabel: this.els?.btn.textContent ?? '',
+      claimDisabled: this.els?.btn.disabled ?? true,
+      alternativeVisible: !!this.els?.use && !this.els.use.hidden,
+      alternativeLabel: this.els?.use.textContent ?? '',
+      checking: this.claiming,
+    };
+  }
+
+  claimFromReact() { return this.claim(); }
+  useAlternativeFromReact() { this.els?.use.click(); }
+
+  /** The challenge is still managed by NameRow, but its host is placed in the React tree. */
+  mountChallenge(host: HTMLElement | null) {
+    if (host) host.append(this.check);
+  }
 
   constructor(private d: NameRowDeps) {}
 
@@ -131,6 +159,7 @@ export class NameRow {
       btn.disabled = this.claiming || !this.d.writable();
       use.hidden = !offer;
       if (offer) { use.textContent = t('Use {name}', { name: offer }); line.append(' ', use); }
+      this.d.onReactUpdate?.();
     };
     check.hidden = !this.claiming;
     if (this.claiming) return show(t('One check that you are a person, so no one can claim names by the thousand. Once per name.'), 'free', t('Claiming'));

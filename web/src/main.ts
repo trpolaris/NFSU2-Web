@@ -54,6 +54,16 @@ declare global {
     import(file: File): Promise<TrpSettingsProfilesResult>;
     preset(id: 'performance' | 'balanced' | 'quality'): Promise<{ applied: boolean; message: string }>;
   }
+  interface TrpNameRowSnapshot {
+    ready: boolean; line: string; tone: string; lineVisible: boolean; claimVisible: boolean;
+    claimLabel: string; claimDisabled: boolean; alternativeVisible: boolean; alternativeLabel: string; checking: boolean;
+  }
+  interface TrpNameRowBridge {
+    snapshot(): TrpNameRowSnapshot;
+    claim(): Promise<void>;
+    useAlternative(): void;
+    mountChallenge(host: HTMLElement | null): void;
+  }
   interface TrpControlOption { value: string; label: string; }
   interface TrpControlsSnapshot {
     tab: 'keys' | 'pad' | 'site'; family: 'xb' | 'ps'; steering: string;
@@ -184,12 +194,14 @@ declare global {
     quickChat(): { phrases: number[]; groups: string[] };
     saveQuickChat(phrases: number[], groups: string[]): Promise<void>;
     readOnly(): boolean;
+    onlineStatus(): string;
     refresh(): Promise<void>;
   }
   interface Window {
     __trpTranslateReact?: (root: ParentNode) => void;
     __trpSettingsBridge?: TrpSettingsBridge;
     __trpSettingsProfilesBridge?: TrpSettingsProfilesBridge;
+    __trpNameRowBridge?: TrpNameRowBridge;
     __trpAccessibilityBridge?: TrpAccessibilityBridge;
     __trpSavesBridge?: TrpSavesBridge;
     __trpVaultBridge?: TrpVaultBridge;
