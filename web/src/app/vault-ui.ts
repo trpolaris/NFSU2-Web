@@ -166,7 +166,7 @@ export class VaultPanel {
 
   private $<T extends HTMLElement = HTMLElement>(sel: string) { return this.root.querySelector<T>(sel)!; }
   /** the line under the buttons, drawn again when the page's language changes (a Msg); code: a failure's name */
-  private changed() { this.d.onReactUpdate?.(); }
+  private notifyReact() { this.d.onReactUpdate?.(); }
 
   /** React-safe view model; passphrase is exposed only in its dedicated field. */
   reactSnapshot() {
@@ -218,7 +218,7 @@ export class VaultPanel {
   private msg(s: string | Msg, warn = false, code?: string) {
     const m = this.$('#vault-msg');
     live(m, typeof s === 'string' ? () => s : s, code); m.classList.toggle('warn', warn);
-    this.changed();
+    this.notifyReact();
   }
 
   /** the box's dots (or not), and its eye */
@@ -229,7 +229,7 @@ export class VaultPanel {
     m.scrollLeft = this.input.scrollLeft;
     eye.setAttribute('aria-pressed', String(!this.hidden));
     eye.setAttribute('aria-label', this.hidden ? t('Show passphrase') : t('Hide passphrase'));
-    this.changed();
+    this.notifyReact();
   }
 
   private load(): Link | null {
@@ -253,25 +253,25 @@ export class VaultPanel {
 
   /** Shows the section when this server keeps keyphrase saves. */
   async start() {
-    if (!await vaultAvailable().finally(() => setTimeout(() => this.readyNow(), 0))) { this.changed(); return; }
+    if (!await vaultAvailable().finally(() => setTimeout(() => this.readyNow(), 0))) { this.notifyReact(); return; }
     this.makeSync();
     this.readyNow();
     this.root.hidden = false;
     await this.loadReplaced();
     this.show();
     if (this.owned) this.check();
-    this.changed();
+    this.notifyReact();
   }
 
   /** This tab owns the saves now and has loaded its settings: it syncs from here on. */
   async ownerNow() {
     this.owned = true;
-    if (!this.sync) { this.changed(); return; }
+    if (!this.sync) { this.notifyReact(); return; }
     this.makeSync();
     await this.loadReplaced();
     this.show();
     this.check();
-    this.changed();
+    this.notifyReact();
   }
 
   /** newer saves from another browser in, then these out when they changed */
@@ -437,7 +437,7 @@ export class VaultPanel {
     const p = this.$<HTMLElement>('#vault-claim');
     p.hidden = !name || !this.sync?.link;
     p.textContent = name ? t('This passphrase also holds your claim on {name}.', { name }) : '';
-    this.changed();
+    this.notifyReact();
   }
   /** the linked keyphrase as a file */
   download() { if (this.sync?.link) downloadBlob(`${this.sync.link.phrase}\n`, 'nfsu2-passphrase.txt', 'text/plain'); }
@@ -634,7 +634,7 @@ export class VaultPanel {
       : conflict && l ? `${this.conflictText()} ${t('Cloud saves are paused until you pick.')}`
       : '';
     if (st.s === 'error' && st.code && (owner || !l)) status.append(codeOf(st.code));
-    this.changed();
+    this.notifyReact();
   }
 
   /** a conflict in a line (the section's, Play's question) */
