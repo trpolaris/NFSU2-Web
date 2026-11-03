@@ -60,8 +60,9 @@ declare global {
   }
   interface TrpNameRowBridge {
     snapshot(): TrpNameRowSnapshot;
+    updateName(name: string): TrpNameRowSnapshot;
     claim(): Promise<void>;
-    useAlternative(): void;
+    useAlternative(): string;
     mountChallenge(host: HTMLElement | null): void;
   }
   interface TrpInstallSnapshot { installed: boolean; ready: boolean; disabled: boolean; label: string; notice: string; state: string; }

@@ -42,7 +42,8 @@ import type { NetQueue, NetRemoved } from '../net';
 import { blockList, checkSetting, HOST_FIXED, pageOnly, resolveEnv, settingsUpgrade, TEMPLATE, type Resolved } from './settings';
 import { exists, filesOf, listProfiles, PROFILES_DIR, readText, removeSaveDir, writeFile } from './savefs';
 import { turnOnAutosave } from './profile';
-import { crewControl, putKey, SettingsPanel, showCrewCounts } from './settings-ui';
+import { crewControl, showCrewCounts } from './crew-control';
+import { putKey, SettingsService } from './settings-service';
 import { askCrews, queueText, roomHash, serverAnswers, watchPlayers, type PlayerCounts } from './players';
 import { crewList, crewsOf, crewsValue, rgbsValue, rgbWords, type Crew } from './crews';
 import { privacy, SCRUB_NOTE } from './privacy';
@@ -169,7 +170,7 @@ let radio: Radio | null = null;          // made at the first click on Radio: a 
 const theRadio = () => radio ??= new Radio(radioPort, l => log.add(`[radio] ${l}`));
 let lobbyPanel: LobbyPanel;
 let quickChat: QuickChat;                // free roam's fixed phrases (quickchat.ts)
-let settings: SettingsPanel;
+let settings: SettingsService;
 let players: { now(): void; last(): PlayerCounts | null; fresh(ms: number): Promise<PlayerCounts | null> } | null = null;
 let saves: SavesPanel;
 let vault: VaultPanel;
@@ -1719,7 +1720,7 @@ export async function boot() {
   fps.extra = () => session?.stats() ?? {};
   // the language this browser showed last, at once (settings.ini says which it is: applyLanguage, once it is read)
   void setLanguage(lastLanguage(), logLine);
-  settings = new SettingsPanel($('#settings'), {
+  settings = new SettingsService({
     // another language or texture pack counts other files as the game data (its pack); a keyphrase sends the file
     saveDir: SAVE, environment: ENVIRONMENT, defaults: DEVICE, onSaved: text => {
       const was = language() + '/' + texpack(); settingsText = text;
@@ -1731,8 +1732,7 @@ export async function boot() {
     onLoaded: () => { applyLanguage(); window.dispatchEvent(new Event('trp-settings-changed')); },
     // the tab that owns the saves is the one whose Play reads the file: another tab only looks
     readOnly: () => !instance.owner, say: pageToast, confirm: confirmBox,
-    nameRow: (row, input, ctl) => nameRow.attach(row, input, ctl),
-  }, $('#online'));
+  });
   window.__trpSettingsBridge = {
     current: key => settings.current(key),
     snapshot: () => settings.reactSnapshot(),
@@ -1800,6 +1800,7 @@ export async function boot() {
   });
   window.__trpNameRowBridge = {
     snapshot: () => nameRow.reactSnapshot(),
+    updateName: name => nameRow.updateName(name),
     claim: () => nameRow.claimFromReact(),
     useAlternative: () => nameRow.useAlternativeFromReact(),
     mountChallenge: host => nameRow.mountChallenge(host),
@@ -1926,7 +1927,7 @@ export async function boot() {
   window.dispatchEvent(new Event('trp-controls-ready'));
   // what the page drew itself, again in the language picked (the markup and the live texts redraw themselves)
   onLanguage(() => {
-    renderProblems(); evaluate(); settings.render(); void saves.refresh(); vault.refresh(); controlsChanged(); lobbyPanel.redraw(); touch.relabel();
+    renderProblems(); evaluate(); window.dispatchEvent(new Event('trp-settings-changed')); nameRow.refresh(); void saves.refresh(); vault.refresh(); controlsChanged(); lobbyPanel.redraw(); touch.relabel();
     helpSheet = null; $('#help-body').replaceChildren();
     runtimeChanged();
   });

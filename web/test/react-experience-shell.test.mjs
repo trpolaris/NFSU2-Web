@@ -15,7 +15,8 @@ const hub = read('src/hub/main.jsx');
 const hubCss = read('src/hub/hub.css');
 const runtime = read('src/app/shell.ts');
 const gameEntry = read('src/main.ts');
-const settingsUi = read('src/app/settings-ui.ts');
+const settingsUi = read('src/app/settings-service.ts');
+const crewUi = read('src/app/crew-control.ts');
 const controlsUi = read('src/app/controls.ts');
 const savesUi = read('src/app/saves-ui.ts');
 const shotsUi = read('src/app/shots.ts');
@@ -46,16 +47,17 @@ test('React owns the main navigation, route state and motion transitions', () =>
   assert.match(runtime, /statusText: read\('status'\)/);
   assert.match(runtime, /locked: document\.getElementById\('app'\)\?\.inert/);
   assert.match(gameEntry, /statusText: string; locked: boolean/);
+  assert.doesNotMatch(html, /id="settings"|id="online"|id="controls"/);
   assert.match(shellCss, /#app\.experience-shell \{ display:none!important; \}/);
   assert.match(app, /pageFromHash/);
   assert.ok(html.indexOf('</main>') < html.indexOf('id="stage"'));
   assert.ok(html.indexOf('</main>') < html.indexOf('id="menu"'));
-  assert.match(app, /inert=\{phase === 'playing' \|\| phase === 'starting'\}/);
+  assert.match(app, /inert=\{gameActive\}/);
   assert.match(app, /useReducedMotion/);
 });
 
 test('the legacy runtime anchors remain present while React provides the page shell', () => {
-  for (const id of ['app', 'home-page', 'play', 'progress', 'status', 'settings', 'online', 'saves', 'controls', 'diagnostics', 'game-data', 'stage']) {
+  for (const id of ['app', 'home-page', 'play', 'progress', 'status', 'saves', 'diagnostics', 'game-data', 'stage']) {
     assert.match(html, new RegExp('id="' + id + '"'), id);
   }
   assert.doesNotMatch(html, /id="lang-pick"|id="install-app"|id="install-security-notice"/);
@@ -63,7 +65,8 @@ test('the legacy runtime anchors remain present while React provides the page sh
   assert.match(app, /function InstallAppReact\(\)/);
   assert.doesNotMatch(app, /LegacyNode selector="\.lang-pick"/);
   assert.doesNotMatch(app, /LegacyNode selector="#install-app"/);
-  assert.match(app, /window\.__trpInstallBridge\?\.install\(\)/);
+  assert.match(app, /const bridge = window\.__trpInstallBridge/);
+  assert.match(app, /await bridge\.install\(\)/);
   assert.match(gameEntry, /interface TrpInstallBridge/);
   assert.match(navigation, /window\.__trpInstallBridge = \{ snapshot, install \}/);
   assert.match(shellCss, /#app\.experience-shell/);
@@ -127,12 +130,13 @@ test('the game stage is never placed inside an inert React root while page chrom
   assert.match(app, /<header className="trp-topbar" inert=\{gameActive\}/);
   assert.ok(runtime.includes("$('#app').inert = true"), 'legacy app retains its existing game-session focus rule');
   assert.match(app, /window\.addEventListener\('trp-runtime-changed', syncStatus\)/);
-  assert.match(app, /setRuntimeLocked\(Boolean\(legacyApp\?\.inert\)\)/);
+  assert.match(app, /setRuntimeLocked\(Boolean\(current\.locked\)\)/);
 });
 
 
 test('React-owned UI text uses the existing game language dictionaries and is translated again after remounts', () => {
-  assert.match(gameEntry, /interface Window \{ __trpTranslateReact\?: \(root: ParentNode\) => void; \}/);
+  assert.match(gameEntry, /interface Window \{/);
+  assert.match(gameEntry, /__trpTranslateReact\?: \(root: ParentNode\) => void;/);
   assert.match(gameEntry, /window\.__trpTranslateReact = translatePage/);
   assert.match(gameEntry, /import \{ translatePage \} from '\.\/app\/i18n'/);
   assert.match(app, /window\.__trpTranslateReact\(rootRef\.current\)/);
@@ -177,7 +181,7 @@ test('remaining React routes render without obsolete About/Changes DOM sections'
   assert.match(app, /active === 'mods' && !gameActive && <ModLibraryDashboard \/>/);
   assert.match(app, /active === 'about' && !gameActive && <AboutDashboard \/>/);
   assert.doesNotMatch(app, /LegacyRoutePage|trp-legacy-route/);
-  for (const id of ['mods','saves','controls','settings','accessibility','updates','diagnostics','game-data']) {
+  for (const id of ['mods','saves','updates','diagnostics','game-data']) {
     assert.match(html, new RegExp('id="' + id + '"'));
   }
   assert.doesNotMatch(html, /id="changes"|id="about"|class="top app-topbar"/);
@@ -185,7 +189,7 @@ test('remaining React routes render without obsolete About/Changes DOM sections'
 });
 
 
-test('Free Roam and Online toggles are React-controlled through the existing SettingsPanel bridge', () => {
+test('Free Roam and Online toggles are React-controlled through the DOM-free SettingsService bridge', () => {
   assert.match(app, /function OnlineReactControls/);
   assert.match(app, /window\.__trpSettingsBridge/);
   assert.match(app, /bridge\.current\('roam'\)/);
@@ -216,12 +220,12 @@ test('React Online toggle status follows the existing UI language and does not l
 });
 
 
-test('React Online name and room editors reuse SettingsPanel normalization and validation', () => {
+test('React Online name and room editors reuse SettingsService normalization and validation', () => {
   assert.match(app, /bridge\.setValidated\(key, textValues\[key\]\)/);
   assert.match(app, /textValues\.roam_name/);
   assert.match(app, /textValues\.roam_room/);
   assert.match(gameEntry, /setValidated\(key: string, value: string \| null\): Promise<void>/);
-  assert.match(shell, /setValidated: async \(key, value\) => \{ await settings\.setValidated\(key, value\)/);
+  assert.match(runtime, /setValidated: async \(key, value\) => \{ await settings\.setValidated\(key, value\)/);
   assert.match(settingsUi, /async setValidated\(key: string, value: string \| null\)/);
   assert.match(settingsUi, /onlineName\(next\)/);
   assert.match(settingsUi, /checkSetting\(key, next\)/);
@@ -232,21 +236,21 @@ test('React Online name and room editors reuse SettingsPanel normalization and v
 
 test('React Online room field matches the settings schema text limit', () => {
   assert.match(app, /maxLength=\{63\} autoComplete="off" value=\{textValues\.roam_room\}/);
-  assert.match(settings, /text: N\('text of 1 to 63 bytes without control characters'\)/);
+  assert.match(settingsUi, /key: 'roam_room'/);
+  assert.match(read('src/app/settings.ts'), /text: N\('text of 1 to 63 bytes without control characters'\)/);
 });
 
 
 test('React Online owns ghost mode, quick chat, blocked players and the visible car limit', () => {
   for (const token of ['roam_collide', 'quick_chat', 'roam_max_cars', 'roam_block']) {
     assert.ok(app.includes(token), token + ' is exposed in the React Online route');
-    assert.ok(shellCss.includes('data-key="' + token + '"'), token + ' legacy row is hidden');
+    assert.ok(settingsUi.includes("key: '" + token + "'"), token + ' is part of the SettingsService catalogue');
   }
   assert.match(app, /values\.roam_collide !== 'on'/);
   assert.match(app, /update\('roam_collide', !event\.target\.checked\)/);
   assert.match(app, /saveValidated\('roam_max_cars', event\.target\.value\)/);
   assert.match(app, /saveText\('roam_block'\)/);
-  assert.match(settingsUi, /key !== 'roam_block'/);
-  assert.match(settingsUi, /key !== 'roam_max_cars'/);
+  assert.match(settingsUi, /'roam_name', 'roam_room', 'roam_block', 'roam_max_cars'/);
 });
 
 
@@ -258,8 +262,8 @@ test('React Crew editor keeps crew order, palette colours, limits and atomic set
   assert.match(app, /CREW_PALETTE\.map/);
   assert.match(app, /CREW_MAX/);
   assert.match(gameEntry, /setCrews\(list: TrpCrew\[\]\): Promise<void>/);
-  assert.match(shell, /crews: \(\) => crewsOf\(settings\.current\('roam_crew'\), settings\.current\('roam_crew_colours'\)\)/);
-  assert.match(shell, /setCrews: async list => \{ await settings\.saveCrewsFromReact\(list\)/);
+  assert.match(runtime, /crews: \(\) => crewsOf\(settings\.current\('roam_crew'\), settings\.current\('roam_crew_colours'\)\)/);
+  assert.match(runtime, /setCrews: async list => \{ await settings\.saveCrewsFromReact\(list\)/);
   assert.match(settingsUi, /async saveCrewsFromReact\(list: readonly Crew\[\]\)/);
   assert.match(settingsUi, /rgbsValue\(list\)/);
   assert.match(settingsUi, /this\.put\([\s\S]*'roam_crew_colours'/);
@@ -273,8 +277,8 @@ test('React Quick Chat phrase editor keeps four groups of four and saves phrase/
   assert.match(app, /CATS\.map/);
   assert.match(app, /PHRASES\.map/);
   assert.match(main, /saveQuickChat\(phrases: number\[\], groups: string\[\]\): Promise<void>/);
-  assert.match(shell, /quickChat: \(\) => \(\{ phrases: phrasesOf\(settings\.current\('quick_chat_phrases'\)\), groups: groupsOf\(settings\.current\('quick_chat_groups'\)\) \}\)/);
-  assert.match(shell, /saveQuickChat: async \(phrases, groups\) => \{ await settings\.saveQuickChatFromReact/);
+  assert.match(runtime, /quickChat: \(\) => \(\{ phrases: phrasesOf\(settings\.current\('quick_chat_phrases'\)\), groups: groupsOf\(settings\.current\('quick_chat_groups'\)\) \}\)/);
+  assert.match(runtime, /saveQuickChat: async \(phrases, groups\) => \{ await settings\.saveQuickChatFromReact/);
   assert.match(settingsUi, /async saveQuickChatFromReact\(phrases: readonly number\[\], groups: readonly string\[\]\)/);
   assert.match(settingsUi, /checkSetting\('quick_chat_phrases', phraseValue\)/);
   assert.match(settingsUi, /checkSetting\('quick_chat_groups', groupValue\)/);
@@ -285,7 +289,7 @@ test('React Quick Chat phrase editor keeps four groups of four and saves phrase/
 
 
 test('React Crew and Quick Chat dynamic controls are retranslated whenever their draft state changes', () => {
-  assert.ok(app.includes('[values, textValues, crewList, crewDraft, quickChatDraft, message, ready, readOnly, busy, statusText]'));
+  assert.match(app, /\[values, textValues, crewList, crewDraft, quickChatDraft, message, ready, readOnly, busy, statusText, onlineStatus, nameClaim\]/);
   assert.ok(app.includes('data-i18n>{category.name}'));
   assert.ok(app.includes('data-i18n>{phrase.text}'));
 });
@@ -294,8 +298,8 @@ test('React Crew and Quick Chat dynamic controls are retranslated whenever their
 test('React Crew rows show only live /players counts and the existing large-crew warning', () => {
   assert.match(gameEntry, /crewCount\(name: string\): number \| undefined/);
   assert.match(settingsUi, /crewCount\(hash: number\): number \| undefined/);
-  assert.match(shell, /crewCount: name => settings\.crewCount\(roomHash\(name\)\)/);
-  assert.match(shell, /settings\.setCrewCounts\(crews\); window\.dispatchEvent\(new Event\('trp-settings-changed'\)\)/);
+  assert.match(runtime, /crewCount: name => settings\.crewCount\(roomHash\(name\)\)/);
+  assert.match(runtime, /settings\.setCrewCounts\(crews\); window\.dispatchEvent\(new Event\('trp-settings-changed'\)\)/);
   assert.match(app, /crewCount\(crew\.name\)/);
   assert.match(app, /count !== undefined && count > CREW_BIG/);
 });
@@ -333,7 +337,7 @@ test('Mod Library is rendered in React while its hidden platform data root remai
   assert.ok(platform.includes('addCustomModLink'));
   assert.ok(platform.includes('importModList'));
   assert.ok(platform.includes('exportModList'));
-  assert.ok(shellCss.includes('#app #mods { display:none!important; }'));
+  assert.ok(shellCss.includes('#app.experience-shell { display:none!important; }'));
   assert.ok(shellCss.includes('.trp-mod-panel'));
   assert.ok(shellCss.includes('.trp-mod-react-form-grid'));
 });
@@ -345,7 +349,7 @@ test('Saves route keeps the complete SavesPanel root intact inside one React com
   assert.ok(!app.includes("selectors: ['#saves']"));
   assert.ok(html.includes('<div class="app-grid" id="app-pages" hidden>'));
   assert.ok(html.includes('id="saves"'));
-  assert.ok(shellCss.includes('#app #saves { display:none!important; }'));
+  assert.ok(shellCss.includes('#app.experience-shell { display:none!important; }'));
   for (const selector of ['#export','#import','#saves-msg','#profiles','#storage-note','#shots-info','#shots','#vault']) {
     assert.ok(html.includes('id="' + selector.slice(1) + '"'), selector + ' remains inside the single Saves root');
   }
@@ -409,14 +413,14 @@ test('Cloud Vault controls are React-rendered while keyphrase sync and conflict 
   assert.match(gameEntry, /__trpVaultBridge\?: TrpVaultBridge/);
   assert.match(shellCss, /\.trp-vault-react-key-form/);
   assert.match(shellCss, /\.trp-vault-react-conflict/);
-  assert.match(shellCss, /#app #saves \{ display:none!important; \}/);
+  assert.match(shellCss, /#app\.experience-shell \{ display:none!important; \}/);
 });
 
 test('SavesPanel still owns all descendant profile, screenshot and message controls under #saves', () => {
   assert.match(runtime, /new SavesPanel\(\$\('#saves'\)/);
-  assert.match(runtime, /root\.querySelector\('#saves-msg'\)/);
-  assert.match(runtime, /root\.querySelector\('#profiles'\)/);
-  assert.match(runtime, /root\.querySelector\('#shots'\)/);
+  assert.match(savesUi, /this\.root\.querySelector\('#saves-msg'\)/);
+  assert.match(savesUi, /this\.root\.querySelector\('#profiles'\)/);
+  assert.match(savesUi, /new ScreenshotsPart\(root/);
   assert.match(html, /id="saves"/);
   assert.match(html, /id="app-pages" hidden/);
 });
@@ -446,7 +450,7 @@ test('System update, diagnostics and game-data panels are React-owned through ty
   assert.ok(shellCss.includes('.trp-game-data-progress'));
 });
 
-test('Settings route is composed in React while game settings remain in the service root and accessibility is fully React-owned', () => {
+test('Settings and accessibility routes are fully React-owned while game configuration persists through SettingsService', () => {
   assert.ok(app.includes('function SettingsDashboard'));
   assert.ok(app.includes("active === 'settings' && !gameActive && <SettingsDashboard />"));
   assert.ok(!app.includes("selectors: ['#settings', '#accessibility']"));
@@ -493,9 +497,11 @@ test('Mod Library cards are React-owned while existing local-storage and manifes
   assert.ok(app.includes('function ModLibraryLists'));
   assert.ok(app.includes('bridge.snapshot()'));
   assert.ok(app.includes('bridge.toggleFavorite(id)'));
-  assert.ok(app.includes('bridge.removeCustom(item.id)'));
+  assert.match(app, /const removeCustom = id => \{/);
+  assert.match(app, /bridge\.removeCustom\(id\)/);
   assert.ok(app.includes('bridge.checkPacks()'));
-  assert.ok(app.includes('LegacyNode selector="#mod-link-form"'));
+  assert.ok(html.includes('id="mod-link-form"'), 'the existing validated mod-link form remains mounted for the platform service');
+  assert.doesNotMatch(app, /LegacyNode selector="#mod-link-form"/);
   assert.ok(!app.includes('LegacyNode selector="#pack-list"'));
   assert.ok(!app.includes('LegacyNode selector="#custom-mod-list"'));
   assert.ok(gameEntry.includes('interface TrpModLibraryBridge'));
@@ -568,9 +574,9 @@ test('screenshots and encrypted Cloud keep their existing mounts while profiles 
 });
 
 
-test('Settings groups are React-rendered through the validated SettingsPanel adapter', () => {
+test('Settings groups are React-rendered through the DOM-free SettingsService', () => {
   assert.match(app, /function SettingsReactControls\(\)/);
-  assert.match(app, /bridge\.setOption\(item\.key, value\)/);
+  assert.match(app, /await bridge\.setOption\(key, value\)/);
   assert.match(app, /bridge\.resetOption\(item\.key\)/);
   assert.match(runtime, /snapshot: \(\) => settings\.reactSnapshot\(\)/);
   assert.match(runtime, /setOption: async \(key, value\) => \{ await settings\.setFromReact/);
@@ -578,7 +584,8 @@ test('Settings groups are React-rendered through the validated SettingsPanel ada
   assert.match(settingsUi, /reactSnapshot\(\)/);
   assert.match(settingsUi, /setFromReact\(key: string, rawValue: string\)/);
   assert.match(settingsUi, /resetFromReact\(key: string\)/);
-  assert.match(settingsUi, /this\.put\(key, checked && checked\.ok \? checked\.value : value\)/);
+  assert.match(settingsUi, /await this\.put\(key, checked && checked\.ok \? checked\.value : value\)/);
+  assert.doesNotMatch(settingsUi, /document\.|querySelector|HTMLElement|this\.root|render\(/);
   assert.match(shellCss, /\.trp-settings-react-group/);
   assert.match(shellCss, /\.trp-settings-react-item/);
 });

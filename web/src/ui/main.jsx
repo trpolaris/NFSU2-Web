@@ -282,10 +282,13 @@ function OnlineReactControls() {
         roam_collide: bridge.current('roam_collide'), quick_chat: bridge.current('quick_chat'),
         roam_max_cars: bridge.current('roam_max_cars'),
       });
-      setTextValues({
+      const nextTextValues = {
         roam_name: bridge.current('roam_name'), roam_room: bridge.current('roam_room'),
         roam_block: bridge.current('roam_block'),
-      });
+      };
+      setTextValues(nextTextValues);
+      const nameBridge = window.__trpNameRowBridge;
+      if (nameBridge) setNameClaim(nameBridge.updateName(nextTextValues.roam_name));
       setCrewListState(bridge.crews());
       setQuickChatDraft(bridge.quickChat());
       setOnlineStatus(bridge.onlineStatus());
@@ -549,14 +552,22 @@ function OnlineReactControls() {
           <span className="trp-online-text-entry">
             <input type="text" maxLength={15} autoComplete="off" value={textValues.roam_name}
               disabled={!ready || readOnly || !!busy}
-              onChange={event => setTextValues(current => ({ ...current, roam_name: event.target.value }))}
+              onChange={event => {
+                const value = event.target.value;
+                setTextValues(current => ({ ...current, roam_name: value }));
+                const next = window.__trpNameRowBridge?.updateName(value);
+                if (next) setNameClaim(next);
+              }}
               onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); void saveText('roam_name'); } }} />
             <button type="button" disabled={!ready || readOnly || !!busy} onClick={() => void saveText('roam_name')} data-i18n>Save</button>
           </span>
         </label>
         <div className="trp-online-name-claim">
           {nameClaim.lineVisible && <p className={'trp-online-name-claim-line is-' + nameClaim.tone} role="status" aria-live="polite">{nameClaim.line}</p>}
-          {nameClaim.alternativeVisible && <button type="button" className="trp-online-name-alternative" onClick={() => window.__trpNameRowBridge?.useAlternative()}>{nameClaim.alternativeLabel}</button>}
+          {nameClaim.alternativeVisible && <button type="button" className="trp-online-name-alternative" onClick={() => {
+            const alternative = window.__trpNameRowBridge?.useAlternative();
+            if (alternative !== undefined) setTextValues(current => ({ ...current, roam_name: alternative }));
+          }}>{nameClaim.alternativeLabel}</button>}
           {nameClaim.claimVisible && <button type="button" className="trp-online-name-claim-button" disabled={nameClaim.claimDisabled || busy !== ''} onClick={() => void window.__trpNameRowBridge?.claim()}>{nameClaim.claimLabel}</button>}
           <div className="trp-online-name-claim-widget" ref={claimHostRef} />
         </div>
@@ -1827,10 +1838,12 @@ function SettingsProfilesReactControls() {
   useEffect(() => {
     const update = () => refresh();
     window.addEventListener('trp-settings-profiles-ready', update);
+    window.addEventListener('trp-settings-profiles-changed', update);
     window.addEventListener('trp-settings-changed', update);
     refresh();
     return () => {
       window.removeEventListener('trp-settings-profiles-ready', update);
+      window.removeEventListener('trp-settings-profiles-changed', update);
       window.removeEventListener('trp-settings-changed', update);
     };
   }, [refresh]);

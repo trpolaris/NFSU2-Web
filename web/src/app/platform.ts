@@ -2,7 +2,7 @@
 // validated settings profiles, accessibility preferences, update checks and translation audits.
 // This module never writes to the server's game folder; the browser is a client, not an installer.
 import { LANGUAGES, LOCALE, NATIVE, N, lastLanguage, onLanguage, setLanguage, t } from './i18n';
-import { PROFILE_SETTING_KEYS, type SettingsPanel } from './settings-ui';
+import { PROFILE_SETTING_KEYS, type SettingsService } from './settings-service';
 import { checkSetting } from './settings';
 
 
@@ -491,15 +491,6 @@ async function checkPacks() {
   } finally { button.disabled = false; button.removeAttribute('aria-busy'); }
 }
 
-function renderProfilePicker() {
-  const select = $<HTMLSelectElement>('#config-profile-pick');
-  const profiles = getProfiles(); const prior = select.value;
-  const options = [new Option(t('No saved profiles yet.'), '')];
-  for (const profile of profiles) options.push(new Option(profile.name, profile.id));
-  select.replaceChildren(...options); select.value = profiles.some(p => p.id === prior) ? prior : profiles[0]?.id ?? '';
-  const disabled = !select.value;
-  for (const id of ['config-profile-apply', 'config-profile-export', 'config-profile-delete']) $<HTMLButtonElement>(`#${id}`).disabled = disabled;
-}
 function getProfiles(): ConfigProfile[] {
   const raw = safeRead<unknown>(STORE.profiles, []);
   if (!Array.isArray(raw)) return [];
@@ -509,8 +500,6 @@ function getProfiles(): ConfigProfile[] {
     !!(p as ConfigProfile).values && typeof (p as ConfigProfile).values === 'object' && !Array.isArray((p as ConfigProfile).values)).slice(0, 30);
 }
 function saveProfiles(profiles: ConfigProfile[]) { return safeWrite(STORE.profiles, profiles.slice(0, 30)); }
-function selectedProfile(): ConfigProfile | undefined { return getProfiles().find(p => p.id === ($('#config-profile-pick') as HTMLSelectElement).value); }
-function profileStatus(message: string) { $('#config-profile-status').textContent = t(message); }
 function downloadJSON(data: unknown, filename: string) {
   const blob = new Blob([JSON.stringify(data, null, 2) + '\n'], { type: 'application/json' });
   const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = filename; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
@@ -527,20 +516,7 @@ export function exportModList(): string {
   return message;
 }
 
-async function saveCurrentProfile(settings: SettingsPanel) {
-  const input = $<HTMLInputElement>('#config-profile-name'), name = input.value.trim();
-  if (!name || name.length > 40 || /[\u0000-\u001f\u007f]/.test(name)) { input.setCustomValidity(t('The profile name must be 1 to 40 printable characters.')); input.reportValidity(); return; }
-  input.setCustomValidity('');
-  const profiles = getProfiles();
-  const existing = profiles.find(p => p.name.toLocaleLowerCase() === name.toLocaleLowerCase());
-  const id = existing?.id ?? `p-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
-  const record: ConfigProfile = { schema: 1, id, name, createdAt: Date.now(), values: settings.profileValues() };
-  const next = [...profiles.filter(p => p.id !== id), record];
-  if (!saveProfiles(next)) { profileStatus('Could not save the profile.'); return; }
-  input.value = ''; renderProfilePicker(); ($('#config-profile-pick') as HTMLSelectElement).value = id; profileStatus('Profile saved.');
-}
-async function importProfileFile(file: File) {
-  const out = $<HTMLInputElement>('#config-profile-import');
+async function importProfileFile(file: File): Promise<string> {
   try {
     if (file.size > 64 * 1024) throw new Error('too large');
     const value = JSON.parse(await file.text()) as Partial<ConfigProfile>;
@@ -561,9 +537,10 @@ async function importProfileFile(file: File) {
     const id = `p-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
     const imported: ConfigProfile = { schema: 1, id, name, createdAt: Date.now(), values };
     if (!saveProfiles([...profiles.filter(p => p.name.toLowerCase() !== name.toLowerCase()), imported])) throw new Error('storage');
-    renderProfilePicker(); ($('#config-profile-pick') as HTMLSelectElement).value = id; profileStatus('Profile imported.');
-  } catch { profileStatus('Invalid profile file.'); }
-  finally { out.value = ''; }
+    return t('Profile imported.');
+  } catch {
+    return t('Invalid profile file.');
+  }
 }
 
 function loadAccessibility() {
@@ -634,7 +611,7 @@ async function checkTranslations() {
   } finally { button.disabled = false; button.removeAttribute('aria-busy'); }
 }
 
-function wireFirstRun(settings: SettingsPanel, log: (line: string) => void) {
+function wireFirstRun(settings: SettingsService, log: (line: string) => void) {
   const dialog = $<HTMLDialogElement>('#first-run-dialog');
   const languageSelect = $<HTMLSelectElement>('#first-run-language');
   const populate = () => {
@@ -677,7 +654,7 @@ function wireFirstRun(settings: SettingsPanel, log: (line: string) => void) {
     };
     try {
       await settings.applyPreset(presetName === 'quality' ? 'High quality' : presetName === 'performance' ? 'Performance' : 'Balanced', values[presetName]);
-    } catch { /* SettingsPanel logs/announces failures; onboarding stays usable. */ }
+    } catch { /* SettingsService logs/announces failures; onboarding stays usable. */ }
     if ($<HTMLInputElement>('#first-run-skip').checked) { try { localStorage.setItem(STORE.onboarding, '1'); } catch { /* optional */ } }
     dialog.close('continue');
   };
@@ -715,7 +692,7 @@ const SETTINGS_PRESETS = {
   quality: { name: 'High quality', values: [['render', 'scale:1.5'], ['fps', 'auto'], ['audio_latency', 'interactive']] as const },
 };
 
-export function setupPlatformFeatures(settings: SettingsPanel, confirm: (title: string, body: string, ok: string, danger?: boolean) => Promise<boolean>, log: (line: string) => void) {
+export function setupPlatformFeatures(settings: SettingsService, confirm: (title: string, body: string, ok: string, danger?: boolean) => Promise<boolean>, log: (line: string) => void) {
   $('#build-current').textContent = APP_BUILD_VERSION;
   $('#garage-search').addEventListener('input', renderGarage);
   $('#garage-favorites-only').addEventListener('change', renderGarage);
@@ -749,34 +726,13 @@ export function setupPlatformFeatures(settings: SettingsPanel, confirm: (title: 
     const file = (event.currentTarget as HTMLInputElement).files?.[0]; if (file) void importModList(file);
   });
 
-  $('#config-profile-save').addEventListener('click', () => void saveCurrentProfile(settings));
-  $('#config-profile-apply').addEventListener('click', async () => {
-    const profile = selectedProfile(); if (!profile) return;
-    try {
-      const applied = await settings.applyProfileValues(profile.name, profile.values);
-      $('#config-profile-status').textContent = applied
-        ? t('Settings profile applied: {name}. Changes apply the next time you press Play.', { name: profile.name })
-        : t('The profile could not be applied in this tab.');
-    } catch (e) { log(`[app] rejected configuration profile: ${String(e)}`); profileStatus('Invalid profile file.'); }
-  });
-  $('#config-profile-delete').addEventListener('click', async () => {
-    const profile = selectedProfile(); if (!profile) return;
-    if (!await confirm(t('Delete profile'), `${t('Delete profile')} “${profile.name}”?`, t('Delete profile'), true)) return;
-    saveProfiles(getProfiles().filter(p => p.id !== profile.id)); const fav = getFavorites(); fav.delete(`profile:${profile.id}`); saveFavorites(fav); renderProfilePicker(); profileStatus('Profile deleted.');
-  });
-  $('#config-profile-export').addEventListener('click', () => {
-    const profile = selectedProfile(); if (profile) downloadJSON(profile, `trpolaris-profile-${profile.name.replace(/[^A-Za-z0-9_-]/g, '_')}.json`);
-  });
-  $('#config-profile-import').addEventListener('change', event => {
-    const file = (event.currentTarget as HTMLInputElement).files?.[0]; if (file) void importProfileFile(file).then(renderProfilePicker);
-  });
   window.__trpSettingsProfilesBridge = {
     snapshot: () => getProfiles().map(({ id, name, createdAt }) => ({ id, name, createdAt })),
     readOnly: () => settings.readOnly(),
     save: async (rawName: string) => {
       const name = rawName.trim();
       const projectProfiles = () => getProfiles().map(({ id, name, createdAt }) => ({ id, name, createdAt }));
-      if (!name || name.length > 40 || /[\\u0000-\\u001f\\u007f]/.test(name)) {
+      if (!name || name.length > 40 || /[\u0000-\u001f\u007f]/.test(name)) {
         return { profiles: projectProfiles(), message: t('The profile name must be 1 to 40 printable characters.') };
       }
       const profiles = getProfiles();
@@ -786,7 +742,7 @@ export function setupPlatformFeatures(settings: SettingsPanel, confirm: (title: 
       if (!saveProfiles([...profiles.filter(profile => profile.id !== id), record])) {
         return { profiles: projectProfiles(), message: t('Could not save the profile.') };
       }
-      renderProfilePicker();
+      
       return { profiles: projectProfiles(), message: t('Profile saved.') };
     },
     apply: async (id: string) => {
@@ -806,7 +762,7 @@ export function setupPlatformFeatures(settings: SettingsPanel, confirm: (title: 
       }
       saveProfiles(getProfiles().filter(item => item.id !== profile.id));
       const fav = getFavorites(); fav.delete(`profile:${profile.id}`); saveFavorites(fav);
-      renderProfilePicker();
+      
       return { removed: true, profiles: getProfiles().map(({ id, name, createdAt }) => ({ id, name, createdAt })), message: t('Profile deleted.') };
     },
     export: (id: string) => {
@@ -815,9 +771,8 @@ export function setupPlatformFeatures(settings: SettingsPanel, confirm: (title: 
       downloadJSON(profile, `trpolaris-profile-${profile.name.replace(/[^A-Za-z0-9_-]/g, '_')}.json`);
     },
     import: async (file: File) => {
-      await importProfileFile(file);
-      renderProfilePicker();
-      return { profiles: getProfiles().map(({ id, name, createdAt }) => ({ id, name, createdAt })), message: $('#config-profile-status').textContent ?? '' };
+      const message = await importProfileFile(file);
+      return { profiles: getProfiles().map(({ id, name, createdAt }) => ({ id, name, createdAt })), message };
     },
     preset: async (id: string) => {
       const preset = SETTINGS_PRESETS[id as keyof typeof SETTINGS_PRESETS];
@@ -828,7 +783,7 @@ export function setupPlatformFeatures(settings: SettingsPanel, confirm: (title: 
     },
   };
   window.dispatchEvent(new Event('trp-settings-profiles-ready'));
-  renderProfilePicker();
+  
   loadAccessibility();
   window.__trpAccessibilityBridge = {
     current: () => currentAccessibilityPrefs(),
@@ -842,13 +797,13 @@ export function setupPlatformFeatures(settings: SettingsPanel, confirm: (title: 
   const clearPreferences = async () => {
     if (!await confirm(t('Clear app preferences'), t('This clears favorites, mod links, saved profiles, preferred vehicle, accessibility and onboarding preferences; game saves and settings are not deleted.'), t('Clear app preferences'), true)) return false;
     for (const key of [STORE.favorites, STORE.customMods, STORE.accessibility, STORE.onboarding, STORE.profiles, STORE.preferredVehicle]) { try { localStorage.removeItem(key); } catch { /* optional */ } }
-    loadAccessibility(); renderGarage(); renderProfilePicker(); $('#privacy-status').textContent = t('App preferences cleared.');
+    loadAccessibility(); renderGarage();  $('#privacy-status').textContent = t('App preferences cleared.');
     window.dispatchEvent(new Event('trp-platform-changed'));
     return true;
   };
   $('#clear-app-preferences').addEventListener('click', () => { void clearPreferences(); });
   wireFirstRun(settings, log);
-  onLanguage(() => { void populateVehicleFilters(); renderGarage(); renderProfilePicker(); });
+  onLanguage(() => { void populateVehicleFilters(); renderGarage();  });
   window.__trpModLibraryBridge = {
     snapshot: () => getModLibrarySnapshot(),
     toggleFavorite: id => toggleModLibraryFavorite(id),
@@ -859,7 +814,7 @@ export function setupPlatformFeatures(settings: SettingsPanel, confirm: (title: 
     checkPacks: async () => await checkModLibraryPacks(),
   };
   window.dispatchEvent(new Event('trp-mod-library-ready'));
-  renderGarage(); renderProfilePicker();
+  renderGarage(); 
   window.__trpPlatformBridge = {
     snapshot: () => ({
       currentVersion: $('#build-current').textContent ?? APP_BUILD_VERSION,

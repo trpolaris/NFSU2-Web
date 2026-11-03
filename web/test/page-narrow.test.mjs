@@ -147,10 +147,10 @@ async function look(browser, kind, touch) {
     // Separate origins also separate the OPFS save area and its Web Lock between the two viewports.
     const host = touch ? 'localhost' : '127.0.0.1';
     // Suppress the real first-run modal in the automated layout harness (platform.ts isAutomatedTest()).
-    await page.goto(`http://${host}:${PORT}/?test=page-narrow`);
+    await page.goto(`http://${host}:${PORT}/?test=page-narrow#settings`);
     const phase = await page.waitForFunction(() => ['ready', 'error'].includes(window.__nfsu2?.phase) && window.__nfsu2.phase, null, { timeout: 120_000, polling: 250 }).then(h => h.jsonValue());
     // the language is a setting: the tab owns the saves and has read its settings
-    await page.waitForFunction(() => !!document.querySelector('#settings .set') && !document.querySelector('#settings').hasAttribute('data-readonly'), null, { timeout: 30_000 });
+    await page.waitForFunction(() => !!document.querySelector('.trp-settings-dashboard .trp-settings-react-group') && window.__trpSettingsBridge?.readOnly() === false && !document.querySelector('#settings'), null, { timeout: 30_000 });
     // Require the current server API, not a stale out/web binary that only knows the legacy /vault route.
     const cloudStatus = await page.evaluate(async () => {
       try { return (await fetch('/cloud/v1/saves', { cache: 'no-store' })).status; }

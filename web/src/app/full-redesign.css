@@ -580,52 +580,6 @@ code { border-color: var(--line); background: #0a111d; color: #ff9d82; }
 .experience-shell .app-grid section.panel > h2:first-child {
   margin-bottom: 20px; padding-bottom: 17px; border-bottom: 1px solid var(--line);
 }
-.experience-shell #online {
-  border-color: rgba(113,137,247,.22);
-  background: radial-gradient(ellipse at 100% 0%, rgba(113,137,247,.12), transparent 33rem),
-    linear-gradient(145deg, rgba(20,29,44,.97), rgba(10,17,29,.98));
-}
-.experience-shell #online > h2 { display: flex; align-items: center; gap: 11px; }
-.experience-shell #online > h2::before {
-  content: ""; width: 9px; height: 9px; flex: 0 0 9px; border-radius: 50%;
-  background: var(--lime); box-shadow: 0 0 14px rgba(255,105,69,.7);
-}
-.experience-shell #online .group-status:not([hidden]) {
-  position: relative; margin: 0 0 16px; padding: 15px 17px 15px 42px;
-  border: 1px solid rgba(113,137,247,.24); border-radius: 13px;
-  background: rgba(113,137,247,.08); color: #e4e9f4; font-size: .86rem; line-height: 1.6;
-}
-.experience-shell #online .group-status:not([hidden])::before {
-  content: ""; position: absolute; left: 17px; top: 21px;
-  width: 8px; height: 8px; border-radius: 50%; background: var(--cyan);
-  box-shadow: 0 0 12px rgba(166,154,255,.65);
-}
-.experience-shell #online .group { display: grid; gap: 9px; }
-.experience-shell #online .set {
-  grid-template-columns: minmax(0,1fr) auto; column-gap: 20px;
-  padding: 15px 16px; border: 1px solid rgba(164,180,204,.13);
-  border-radius: 13px; background: rgba(8,14,24,.45); box-shadow: none;
-}
-.experience-shell #online .set:focus-within {
-  border-color: rgba(255,105,69,.4); background: rgba(255,105,69,.045);
-}
-.experience-shell #online .set-label { color: #f1f4fa; font-size: .95rem; font-weight: 800; }
-.experience-shell #online .set-help { color: #93a1b7; font-size: .8rem; line-height: 1.55; }
-.experience-shell #online .set-control { min-width: 150px; justify-content: flex-end; }
-.experience-shell #online .more {
-  margin-top: 4px; padding: 13px 15px; border: 1px solid var(--line);
-  border-radius: 13px; background: rgba(8,14,24,.46); box-shadow: none;
-}
-.experience-shell #online .more > summary { color: #c5baff; font-weight: 800; }
-.experience-shell #settings .group {
-  margin: 0 0 14px; padding: 17px;
-  border: 1px solid rgba(164,180,204,.14); border-radius: 15px;
-  background: linear-gradient(145deg, rgba(23,32,48,.76), rgba(11,17,29,.7));
-}
-.experience-shell #settings .group h3 { margin: 0 0 12px; color: #ff987e; font-size: .9rem; }
-.experience-shell #settings .set { border-radius: 11px; padding: 12px 10px; }
-.experience-shell #settings .set + .set { border-top: 1px solid var(--line); box-shadow: none; }
-.experience-shell #settings .more { border-top: 1px solid var(--line); box-shadow: none; }
 .experience-shell #mods .mod-tool-card,
 .experience-shell #mods .saved-mods-section,
 .experience-shell #mods .mod-add-content,

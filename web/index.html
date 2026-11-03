@@ -223,11 +223,7 @@
       <p class="msg warn" id="storage-note" hidden></p>
     </section>
 
-    <section class="panel card shadow-sm" id="online" aria-labelledby="online-title">
-      <h2 id="online-title" data-i18n>Online</h2>
-      <p class="hint" id="online-note" hidden></p>
-      <div id="online-body"></div>
-    </section>
+    
 
     <section class="panel mods-page" id="mods" aria-labelledby="mods-title">
       <div class="mods-hero">
@@ -320,49 +316,7 @@
       <ul class="diagnostic-list" id="diagnostic-list" data-i18n-attr="aria-label" aria-label="System diagnostics"></ul>
     </section>
 
-    <section class="panel card shadow-sm" id="settings" aria-labelledby="settings-title">
-      <h2 id="settings-title" data-i18n>Settings</h2>
-      <p class="hint" id="settings-note" data-i18n>Saved in this browser. Changes apply the next time you press Play.</p>
-      <div class="profile-manager" id="config-profiles" aria-labelledby="config-profiles-title">
-        <div class="panel-head sub"><h3 id="config-profiles-title" data-i18n>Configuration profiles</h3></div>
-        <p class="hint" data-i18n>This profile contains only validated, supported settings.</p>
-        <div class="profile-controls">
-          <label class="profile-name"><span data-i18n>Profile name</span><input id="config-profile-name" class="form-control" type="text" maxlength="40" autocomplete="off" data-i18n-attr="placeholder" placeholder="Profile name"></label>
-          <button type="button" class="btn" id="config-profile-save" data-i18n>Save current profile</button>
-        </div>
-        <div class="profile-controls">
-          <label class="profile-name"><span data-i18n>Saved profiles in this browser</span><select id="config-profile-pick" class="form-select"><option value="" data-i18n>No saved profiles yet.</option></select></label>
-          <button type="button" class="btn" id="config-profile-apply" data-i18n>Apply profile</button>
-          <button type="button" class="btn" id="config-profile-export" data-i18n>Export profile</button>
-          <button type="button" class="btn danger" id="config-profile-delete" data-i18n>Delete profile</button>
-          <label class="btn file-btn" data-i18n-html>Import profile<input type="file" id="config-profile-import" accept="application/json,.json"></label>
-        </div>
-        <p class="msg" id="config-profile-status" role="status" aria-live="polite"></p>
-      </div>
-      <div class="preset-panel" aria-labelledby="preset-title">
-        <div class="preset-heading">
-          <h3 id="preset-title" data-i18n>Quick presets</h3>
-          <p class="hint" data-i18n>Choose a starting point; all options remain editable below.</p>
-        </div>
-        <div class="preset-actions">
-          <button type="button" class="preset-button" data-preset="performance"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m13 2-9 12h7l-1 8 10-13h-7z"/></svg><span data-i18n>Performance</span></button>
-          <button type="button" class="preset-button" data-preset="balanced"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5v17M3.5 12h17"/></svg><span data-i18n>Balanced</span></button>
-          <button type="button" class="preset-button" data-preset="quality"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 2 2.3 6.7L21 11l-6.7 2.3L12 20l-2.3-6.7L3 11l6.7-2.3zM19 16l1.1 2.9L23 20l-2.9 1.1L19 24l-1.1-2.9L15 20l2.9-1.1z"/></svg><span data-i18n>High quality</span></button>
-        </div>
-      </div>
-      <div id="settings-body"></div>
-      <div class="raw">
-        <button type="button" class="text-btn" id="settings-reset-all" data-i18n>Reset all settings</button>
-        <details id="settings-raw">
-          <summary data-i18n>Edit settings.ini as text</summary>
-          <textarea id="settings-text" spellcheck="false" rows="20" wrap="off" aria-label="settings.ini"></textarea>
-          <div class="row">
-            <button type="button" class="btn" id="settings-text-save" data-i18n>Save file</button>
-            <span class="hint" id="settings-text-msg" role="status"></span>
-          </div>
-        </details>
-      </div>
-    </section>
+    
 
     <section class="panel card shadow-sm" id="game-data" aria-labelledby="game-data-title">
       <h2 id="game-data-title" data-i18n>Game data on this PC</h2>
