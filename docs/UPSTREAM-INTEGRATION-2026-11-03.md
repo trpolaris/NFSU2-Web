@@ -74,9 +74,9 @@ This branch selectively ports compatible changes from `th0mk/nfsu2-web` while ke
 
 ## Deferred — conflicts or integration dependencies
 
-- Multiplayer career credits (`0bc01cedb1768e26330e48caaaa77d67f4f08395`): spans race, save, FreeRoam, lobby protocol, server and UI. Core files such as `mprace.c` and `roam_game.c` have substantial TRPOLARIS-specific differences. Not partially applied.
+- Multiplayer career credits (`0bc01cedb1768e26330e48caaaa77d67f4f08395`), including the latest crew-mate win extension (`80272268ebab29c5a63dc58b99a557272fc87260`): spans race, save, FreeRoam, lobby protocol, server and UI. It changes eligibility, friend/crew credit masks, race result accounting and career prize flow. Core files such as `mprace.c` and `roam_game.c` have substantial TRPOLARIS-specific differences. Not partially applied.
 - Worker-hosted network link (`181a6ab73dc5818b8392816087fa95a255783aeb`): the worker protocol and telemetry expect a different network interface. Needs a coordinated port across the network link, clock handling, React service adapter, build entries and offline cache.
-- Trunk/hood/door show-off and trunk audio (`68128859237c2084afdac3a5cdab588b8ca493b7`): depends on upstream show-off and FreeRoam hooks not present in the same form locally.
+- Trunk/hood/door show-off and trunk audio (`68128859237c2084afdac3a5cdab588b8ca493b7`): depends on upstream show-off and FreeRoam hooks not present in the same form locally. The latest stale-part animation crash fix (`bf4fe9f6e38cf69d768eb42e0066faf54147fb51`) targets `runtime/showoff.c`, which does not exist locally, so there is no matching safe hunk to port.
 - Quick Chat countdown at car meets (`833d2274995a27cd20ed007b8898f975f38fbedc`): FreeRoam runtime, status transport, quick-chat UI and tests must move together; only part of the runtime patch matched.
 - Lobby grouping/focus improvements (`85c39ac14279f64204745d31f6ff20bac53001f5`): local `roam_game.c` and lobby UI differ; not partially applied.
 - Cloud-save re-prompt (`1e3ab1c1a1b03a6c296cd57e1645dcdfc435961a`): the upstream shell/playtime/vault UI was substantially rewritten by the React migration.
