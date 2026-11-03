@@ -147,3 +147,8 @@ The Mod Library route now has a React-owned composition for community picks, sav
 ## Saves route migration
 
 The Saves route now uses a React dashboard for local profiles, export/restore, screenshots and TRPOLARIS Cloud. Existing profile lists, screenshot lists, status messages, backup/restore controls and the full Cloud vault form remain mounted as compatibility islands, preserving the current OPFS and encrypted vault workflows without changing data formats or server APIs.
+
+
+## Controls route migration
+
+The Controls route now has a React-owned responsive dashboard and layout for keyboard, gamepad and touch control sections. The complete existing #controls section is mounted as one compatibility island so the original controlsSheet can still find #keys and retain its tab keyboard navigation, Xbox/PlayStation labels, live controller-follow behavior, wheel drawing, touch steering, level-horizon, control-size and menu-size settings. The game input mappings and runtime input pipeline are unchanged.

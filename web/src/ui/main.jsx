@@ -686,14 +686,37 @@ function SavesDashboard() {
   );
 }
 
+
+function ControlsDashboard() {
+  const reduceMotion = useReducedMotion();
+  const enter = reduceMotion ? false : { opacity: 0, y: 12 };
+  const transition = { duration: reduceMotion ? 0 : .27, ease: [.2, .75, .25, 1] };
+  return (
+    <motion.div className="trp-route-page trp-controls-dashboard" initial={enter} animate={{ opacity: 1, y: 0 }} transition={transition}>
+      <motion.section className="trp-controls-hero" initial={enter} animate={{ opacity: 1, y: 0 }} transition={transition}>
+        <div className="trp-controls-hero-copy">
+          <div className="trp-eyebrow"><Gamepad2 size={13} /> <span data-i18n>DRIVER INPUT / CONFIGURATION</span></div>
+          <h2 data-i18n>Make every input count.</h2>
+          <p data-i18n>Keyboard, controller and touch controls in one place. The live game mapping below follows the connected controller and current device.</p>
+        </div>
+        <div className="trp-controls-hero-badges">
+          <span><kbd>01</kbd><b data-i18n>Keyboard</b></span>
+          <span><kbd>02</kbd><b data-i18n>Controller</b></span>
+          <span><kbd>03</kbd><b data-i18n>Touch</b></span>
+        </div>
+      </motion.section>
+      <motion.section className="trp-controls-workspace-panel" initial={enter} animate={{ opacity: 1, y: 0 }} transition={{ ...transition, delay: reduceMotion ? 0 : .06 }}>
+        <div className="trp-controls-panel-heading">
+          <div><div className="trp-eyebrow" data-i18n>INPUT MAP / LIVE</div><h3 data-i18n>Control layout</h3></div>
+          <span className="trp-controls-status"><i /> <span data-i18n>Settings stay on this device</span></span>
+        </div>
+        <LegacyNode selector="#controls" className="trp-controls-legacy-slot" />
+      </motion.section>
+    </motion.div>
+  );
+}
+
 const LEGACY_PAGES = {
-  controls: {
-    eyebrow: 'DRIVER INPUT / 06',
-    headline: 'Make every input count.',
-    description: 'Configure keyboard, controller and touch controls for the way you drive.',
-    icon: Gamepad2,
-    selectors: ['#controls'],
-  },
   settings: {
     eyebrow: 'CONFIGURATION / 07',
     headline: 'Tune your experience.',
@@ -881,7 +904,8 @@ function App({ legacyApp }) {
             transition={{ duration: reduceMotion ? 0 : .19, ease: [0.2, 0.75, 0.25, 1] }}>
             {active === 'home' && !gameActive && <HomeDashboard onNavigate={navigate} />}
             {active === 'online' && !gameActive && <OnlineDashboard />}
-            {['controls', 'settings', 'system'].includes(active) && !gameActive && <LegacyRoutePage page={active} />}
+            {['settings', 'system'].includes(active) && !gameActive && <LegacyRoutePage page={active} />}
+            {active === 'controls' && !gameActive && <ControlsDashboard />}
             {active === 'saves' && !gameActive && <SavesDashboard />}
             {active === 'mods' && !gameActive && <ModLibraryDashboard />}
             {active === 'about' && !gameActive && <AboutDashboard />}
