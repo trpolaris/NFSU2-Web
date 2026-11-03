@@ -20,7 +20,7 @@ const LEET: Record<string, string> = {
 };
 
 function normalizeToken(value: string): string {
-  const text = [...value.normalize('NFKD').replace(/\\p{M}/gu, '').toLowerCase()]
+  const text = [...value.normalize('NFKD').replace(/\p{M}/gu, '').toLowerCase().replace(/ı/g, 'i')]
     .map(char => LEET[char] ?? char).join('');
   return text.replace(/[^a-z]/g, '');
 }
@@ -30,7 +30,7 @@ function blockedToken(token: string): boolean {
 
 export function hasChatProfanity(message: string): boolean {
   if (typeof message !== 'string' || !message.trim()) return false;
-  const words = message.match(/[\\p{L}\\p{N}@!$+|]+/gu) ?? [];
+  const words = message.match(/[\p{L}\p{N}@!$+|]+/gu) ?? [];
   const normalized = words.map(normalizeToken).filter(Boolean);
   if (normalized.some(blockedToken)) return true;
   let run = '';

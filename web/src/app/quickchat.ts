@@ -640,7 +640,7 @@ export class QuickChat {
   private mentionAtCaret(): { start: number; end: number; query: string } | null {
     const caret = this.chatInput.selectionStart ?? this.chatInput.value.length;
     const before = this.chatInput.value.slice(0, caret);
-    const match = /(?:^|\\s)@([^\\s@]*)$/u.exec(before);
+    const match = /(?:^|\s)@([^\s@]*)$/u.exec(before);
     if (!match) return null;
     return {
       start: caret - match[0].length + match[0].lastIndexOf('@'),
@@ -713,7 +713,7 @@ export class QuickChat {
     if (!player || !range) { this.hideMentionSuggestions(); return false; }
     const before = this.chatInput.value.slice(0, range.start);
     const after = this.chatInput.value.slice(range.end);
-    const suffix = after.startsWith(' ') || after.startsWith('\\n') ? '' : ' ';
+    const suffix = after.startsWith(' ') || after.startsWith('\n') ? '' : ' ';
     const insertion = `@${player.name}${suffix}`;
     this.chatInput.value = before + insertion + after;
     const caret = before.length + insertion.length;
