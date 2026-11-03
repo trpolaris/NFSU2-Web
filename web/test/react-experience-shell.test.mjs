@@ -279,16 +279,25 @@ test('About and project credits are rendered directly in the React route, not le
 });
 
 
-test('Mod Library page layout is React-owned while existing local mod handlers remain mounted', () => {
-  assert.match(app, /function ModLibraryDashboard/);
-  assert.match(app, /active === 'mods' && !gameActive && <ModLibraryDashboard \/>/);
-  assert.doesNotMatch(app, /selectors: \['#mods'\]/);
-  for (const selector of ['#custom-mod-count','#packs-check','#pack-list','#custom-mod-filter','#custom-mod-list','#mod-link-form']) {
-    assert.ok(app.includes('selector="' + selector + '"'), selector + ' remains connected');
+test('Mod Library is rendered in React while its hidden platform data root remains available to the legacy storage helpers', () => {
+  assert.ok(app.includes('function ModLibraryDashboard'));
+  assert.ok(app.includes('function ModLibraryLists'));
+  assert.ok(app.includes('function ModLibraryForm'));
+  assert.ok(app.includes("active === 'mods' && !gameActive && <ModLibraryDashboard />"));
+  assert.ok(app.includes('<ModLibraryLists />'));
+  assert.ok(app.includes('<ModLibraryForm />'));
+  assert.ok(!app.includes("selectors: ['#mods']"));
+  for (const selector of ['#pack-list','#custom-mod-list','#custom-mod-filter','#mod-link-form']) {
+    assert.ok(html.includes('id="' + selector.slice(1) + '"'), selector + ' remains in the hidden platform root');
+    assert.ok(!app.includes('LegacyNode selector="' + selector + '"'), selector + ' is not a React DOM island');
   }
-  assert.match(shellCss, /#app #mods \{ display:none!important; \}/);
-  assert.match(shellCss, /\.trp-mod-panel/);
-  assert.match(shellCss, /\.trp-mod-add-panel \.mod-form-grid/);
+  assert.ok(platform.includes('window.__trpModLibraryBridge = {'));
+  assert.ok(platform.includes('addCustomModLink'));
+  assert.ok(platform.includes('importModList'));
+  assert.ok(platform.includes('exportModList'));
+  assert.ok(shellCss.includes('#app #mods { display:none!important; }'));
+  assert.ok(shellCss.includes('.trp-mod-panel'));
+  assert.ok(shellCss.includes('.trp-mod-react-form-grid'));
 });
 
 
