@@ -273,7 +273,7 @@ function OnlineReactControls() {
           <span className="trp-online-text-label" data-i18n>Room</span>
           <span className="trp-online-text-help" data-i18n>Leave empty to drive with everyone. A room name shows only matching Free Roam players.</span>
           <span className="trp-online-text-entry">
-            <input type="text" maxLength={32} autoComplete="off" value={textValues.roam_room}
+            <input type="text" maxLength={63} autoComplete="off" value={textValues.roam_room}
               disabled={!ready || readOnly || !!busy}
               onChange={event => setTextValues(current => ({ ...current, roam_room: event.target.value }))}
               onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); void saveText('roam_room'); } }} />

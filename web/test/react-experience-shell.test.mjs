@@ -189,3 +189,9 @@ test('React Online name and room editors reuse SettingsPanel normalization and v
   assert.match(shellCss, /data-key="roam_name"/);
   assert.match(shellCss, /data-key="roam_room"/);
 });
+
+
+test('React Online room field matches the settings schema text limit', () => {
+  assert.match(app, /maxLength=\{63\} autoComplete="off" value=\{textValues\.roam_room\}/);
+  assert.match(settings, /text: N\('text of 1 to 63 bytes without control characters'\)/);
+});
