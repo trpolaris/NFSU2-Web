@@ -50,10 +50,6 @@
 .trp-topbar-actions { display:flex; align-items:center; justify-content:flex-end; gap:9px; min-width:0; }
 .trp-build-label { display:flex; align-items:center; gap:8px; margin-right:7px; color:#8495ab; font:800 .53rem ui-monospace,monospace; letter-spacing:.09em; white-space:nowrap; }
 .trp-legacy-control { display:flex; align-items:center; }
-.trp-language-slot .lang-pick { display:flex; align-items:center; gap:7px; }
-.trp-language-slot .lang-pick select { min-width:96px; min-height:37px; border:1px solid var(--trp-shell-border); border-radius:10px; padding:6px 26px 6px 10px; background:rgba(255,255,255,.035); color:#dfe6f0; font-size:.7rem; }
-.trp-install-slot .install-app { display:inline-flex; align-items:center; gap:7px; min-height:37px; padding:7px 11px; border:1px solid var(--trp-shell-border); border-radius:10px; background:rgba(255,255,255,.035); color:#dce5f2; font-size:.69rem; }
-.trp-install-slot .install-app:hover { border-color:rgba(255,105,69,.4); background:var(--trp-shell-coral-soft); color:#fff; }
 .trp-top-hub { display:flex; align-items:center; gap:7px; min-height:37px; padding:0 11px; border:1px solid rgba(166,154,255,.2); border-radius:10px; background:rgba(166,154,255,.07); color:#d7d1ff; font-size:.69rem; font-weight:760; text-decoration:none; }
 .trp-top-hub:hover { background:rgba(166,154,255,.12); border-color:rgba(166,154,255,.37); }
 .trp-content { width:min(100%,1600px); margin:0 auto; padding:27px clamp(18px,3.2vw,52px) 32px; }
@@ -107,9 +103,6 @@
   .trp-main-column { min-height:100vh; } .trp-topbar { min-height:62px; padding:0 12px; gap:8px; }
   .trp-breadcrumb { gap:6px; font-size:.49rem; } .trp-breadcrumb-mark { width:25px; height:25px; }
   .trp-topbar-actions { gap:5px; }
-  .trp-language-slot .lang-pick select { min-width:74px; max-width:94px; min-height:34px; padding:5px 19px 5px 7px; font-size:.61rem; }
-  .trp-install-slot .install-app { width:35px; min-width:35px; height:34px; min-height:34px; justify-content:center; padding:0; overflow:hidden; font-size:0; }
-  .trp-install-slot .install-app svg { width:16px; height:16px; }
   .trp-top-hub { width:35px; min-width:35px; height:34px; min-height:34px; justify-content:center; padding:0; }
   .trp-top-hub span,.trp-top-hub svg:last-child { display:none; }
   .trp-content { padding:20px 12px 24px; } .trp-content-heading { margin-bottom:15px; }
@@ -1184,3 +1177,25 @@
 .trp-online-name-alternative { border-color:rgba(166,154,255,.25);background:rgba(166,154,255,.07);color:#c5bbff; }
 .trp-online-name-claim-button:disabled { opacity:.45;cursor:not-allowed; }
 .trp-online-name-claim-widget:empty { display:none; }
+
+
+/* Language and install actions are rendered by the React top bar. */
+.trp-language-react { display:flex;align-items:center;gap:7px;min-width:0;padding:0 9px;border:1px solid var(--trp-shell-border);border-radius:10px;background:rgba(255,255,255,.035);color:#dfe6f0; }
+.trp-language-react svg { width:17px;height:17px;flex:none;fill:none;stroke:#a69aff;stroke-width:1.45;stroke-linecap:round; }
+.trp-language-react select { min-width:88px;min-height:35px;border:0;background:transparent;color:#dfe6f0;font-family:inherit;font-size:.67rem;outline:none; }
+.trp-language-react select:disabled { opacity:.55; }
+.trp-language-react option { color:#101827; }
+.trp-install-react { display:inline-flex;align-items:center;gap:7px;min-height:37px;padding:7px 11px;border:1px solid var(--trp-shell-border);border-radius:10px;background:rgba(255,255,255,.035);color:#dce5f2;font-family:inherit;font-size:.67rem;cursor:pointer; }
+.trp-install-react:hover { border-color:rgba(255,105,69,.4);background:var(--trp-shell-coral-soft);color:#fff; }
+.trp-install-react svg { width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round; }
+.trp-install-react.is-ready { border-color:rgba(102,215,176,.34);color:#b9efdc; }
+.trp-install-react.is-installed { opacity:.62;cursor:default; }
+.trp-install-react:disabled { cursor:default; }
+.trp-install-react-notice { position:absolute;z-index:20;top:calc(100% + 8px);right:0;width:min(370px,85vw);margin:0;padding:10px 12px;border:1px solid rgba(255,193,112,.24);border-radius:9px;background:#111b2a;color:#f0d4a0;font-size:.6rem;line-height:1.5;box-shadow:0 12px 36px rgba(0,0,0,.3); }
+.trp-topbar-actions { position:relative; }
+@media(max-width:620px) {
+  .trp-language-react { min-height:34px;padding:0 6px; }
+  .trp-language-react select { min-width:72px;max-width:82px;min-height:32px;font-size:.59rem; }
+  .trp-install-react { width:35px;min-width:35px;height:34px;min-height:34px;justify-content:center;padding:0;overflow:hidden;font-size:0; }
+  .trp-install-react svg { width:16px;height:16px; }
+}

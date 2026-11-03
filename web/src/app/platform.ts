@@ -847,9 +847,6 @@ export function setupPlatformFeatures(settings: SettingsPanel, confirm: (title: 
   };
   window.dispatchEvent(new Event('trp-settings-profiles-ready'));
   renderProfilePicker();
-
-  loadAccessibility(); wireAccessibility();  renderProfilePicker();
-
   loadAccessibility(); wireAccessibility();
   window.__trpAccessibilityBridge = {
     current: () => currentAccessibilityPrefs(),

@@ -197,3 +197,8 @@ Saved configuration profiles, import/export/delete, the three quick presets and 
 ## Online / Free Roam migration
 
 The visible Online and Free Roam controls are now entirely rendered in React: multiplayer toggles, room/name/blocked-player settings, crews and colours, live crew counts, quick-chat phrases, player limit and the live status line. Name claim status, Claim/Change name and alternative-name actions are React controls backed by the existing NameRow and NameClaims services. The Cloudflare Turnstile mount is placed in a React-owned host while the claim service retains its validation and passphrase flow. The previous #online node remains in the hidden application service subtree only as a SettingsPanel controller anchor.
+
+
+## Language picker and PWA install migration
+
+The language picker and install-app action in the top bar now render in React. Language changes still persist through the SettingsPanel language key and existing i18n loader; the picker follows changes from Settings and is disabled when the current tab is read-only. The PWA button uses the existing `beforeinstallprompt` event through a typed bridge, and secure-context/certificate guidance is rendered by React. The old language selector, install button and static security notice have been removed from `web/index.html`.

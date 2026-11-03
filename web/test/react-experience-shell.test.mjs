@@ -47,11 +47,17 @@ test('React owns the main navigation, route state and motion transitions', () =>
 });
 
 test('the legacy runtime anchors remain present while React provides the page shell', () => {
-  for (const id of ['app', 'lang-pick', 'install-app', 'home-page', 'play', 'progress', 'status', 'settings', 'online', 'saves', 'controls', 'diagnostics', 'game-data', 'stage']) {
+  for (const id of ['app', 'home-page', 'play', 'progress', 'status', 'settings', 'online', 'saves', 'controls', 'diagnostics', 'game-data', 'stage']) {
     assert.match(html, new RegExp('id="' + id + '"'), id);
   }
-  assert.match(app, /LegacyNode selector="\.lang-pick"/);
-  assert.match(app, /LegacyNode selector="#install-app"/);
+  assert.doesNotMatch(html, /id="lang-pick"|id="install-app"|id="install-security-notice"/);
+  assert.match(app, /function LanguagePickerReact\(\)/);
+  assert.match(app, /function InstallAppReact\(\)/);
+  assert.doesNotMatch(app, /LegacyNode selector="\.lang-pick"/);
+  assert.doesNotMatch(app, /LegacyNode selector="#install-app"/);
+  assert.match(app, /window\.__trpInstallBridge\?\.install\(\)/);
+  assert.match(gameEntry, /interface TrpInstallBridge/);
+  assert.match(navigation, /window\.__trpInstallBridge = \{ snapshot, install \}/);
   assert.match(shellCss, /#app\.experience-shell/);
   assert.match(shellCss, /quick-nav \{ display:none/);
 });
