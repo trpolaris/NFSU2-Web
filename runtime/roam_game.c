@@ -3170,7 +3170,7 @@ static void du_frame(CPU *c, int64_t host, int in_roam, int world_runs, const ui
     /* who has been near for the time it takes */
     for (int k = 0; k < NSLOT; k++){
         Slot *s = &g_sl[k];
-        int near = free && me && s->st == SL_ACTIVE && !s->hidden && ok(s->car, 0x9e0) && du_able(k) && !(s->soft & SOFT_DOOR) &&
+        int near = free && crowd < DU_CROWD && me && s->st == SL_ACTIVE && !s->hidden && ok(s->car, 0x9e0) && du_able(k) && !(s->soft & SOFT_DOOR) &&
                    !du_busy(k) && du_dist(s->car) < (g_du.st == DU_IDLE && g_du.icon == s->car ? DU_PROMPT_M : DU_NEAR_M);
         if (!near) s->near_since = 0;
         else if (!s->near_since) s->near_since = host;
@@ -3179,7 +3179,6 @@ static void du_frame(CPU *c, int64_t host, int in_roam, int world_runs, const ui
     switch (g_du.st){
     case DU_IDLE: {
         int best = -1; float bd = 0;
-        if (crowd >= DU_CROWD) break;
         for (int j = 0; j < NSLOT; j++){
             if (!g_sl[j].near_since || host - g_sl[j].near_since < DU_NEAR_US) continue;
             float d = du_dist(g_sl[j].car);
