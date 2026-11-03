@@ -508,12 +508,16 @@ static void view_roll(uint32_t m, float a){
     }
 }
 #endif
+#ifdef __wasm__
+void look_view(uint32_t id, uint32_t cam);
+#endif
 void sub_005c7ec0_orig(CPU *c);
 void sub_005c7ec0(CPU *c){
     uint32_t plat = c->ecx, view = MR32(c->esp + 4u);
 #ifdef __wasm__
     uint32_t cam = 0, fcam = 0; uint8_t keep[0x40]; uint16_t fov = 0, fkeep = 0;
     if (view && mem_is_committed(view + 0x43u) && (MR32(view + 4u) == 1u || MR32(view + 4u) == 4u)){
+        look_view(MR32(view + 4u), MR32(view + 0x40u));
         float a = input_view_roll(), pr = 0.f;
         if (photo_view(&fov, &pr)){
             a += pr;
