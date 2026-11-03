@@ -244,7 +244,7 @@ export class NameRow {
       await this.ask();
       return result.mine.name;
     }
-    this.d.log(\`[app] claim: your name not claimed (\${result.error})\`);
+    this.d.log(`[app] claim: your name not claimed (${result.error})`);
     this.note = claimError(result, name);
     this.draw();
     return null;
