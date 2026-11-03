@@ -16,6 +16,7 @@ const hubCss = read('src/hub/hub.css');
 const runtime = read('src/app/shell.ts');
 const gameEntry = read('src/main.ts');
 const settingsUi = read('src/app/settings-ui.ts');
+const platform = read('src/app/platform.ts');
 const navigation = read('src/app/ui-enhancements.js');
 const settingsRuntime = read('src/app/shell.ts');
 
@@ -360,4 +361,19 @@ test('all main navigation routes use dedicated React dashboards instead of the e
   for (const page of ['home','online','controls','saves','mods','settings','system','about']) {
     assert.ok(app.includes("active === '" + page + "'"), page + ' has a dedicated route condition');
   }
+});
+
+test('Accessibility switches are React-controlled through the existing browser preference store', () => {
+  assert.ok(app.includes('function AccessibilityReactControls'));
+  assert.ok(app.includes('bridge.current()'));
+  assert.ok(app.includes('bridge.set(key, value)'));
+  assert.ok(app.includes('LegacyNode selector="#accessibility" className="trp-settings-accessibility-legacy"'));
+  assert.ok(gameEntry.includes('interface TrpAccessibilityBridge'));
+  assert.ok(gameEntry.includes('__trpAccessibilityBridge?: TrpAccessibilityBridge'));
+  assert.ok(platform.includes('currentAccessibilityPrefs'));
+  assert.ok(platform.includes('setAccessibilityPreference'));
+  assert.ok(platform.includes('trp-accessibility-ready'));
+  assert.ok(platform.includes('trp-accessibility-changed'));
+  assert.ok(shellCss.includes('.trp-a11y-react-options'));
+  assert.ok(shellCss.includes('.trp-settings-accessibility-legacy'));
 });

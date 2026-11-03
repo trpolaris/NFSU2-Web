@@ -758,3 +758,21 @@
   .trp-settings-game-slot > #settings .profile-controls > * { width:100%; }
   .trp-settings-game-slot > #settings #settings-body .set { grid-template-columns:minmax(0,1fr); }
 }
+
+.trp-a11y-react-options { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;min-width:0; }
+.trp-a11y-option-card {
+  display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:12px;min-width:0;min-height:80px;padding:13px;
+  border:1px solid rgba(167,185,214,.12);border-radius:12px;background:linear-gradient(145deg,rgba(19,30,48,.86),rgba(10,17,29,.94));
+}
+.trp-a11y-option-copy { display:grid;gap:5px;min-width:0; }
+.trp-a11y-option-copy strong { color:#edf2f8;font-size:.7rem;font-weight:830; }
+.trp-a11y-option-copy small { color:#8f9fb5;font-size:.6rem;line-height:1.5; }
+.trp-a11y-option-card input[type="checkbox"] { appearance:none;position:relative;width:40px;height:23px;margin:0;border:1px solid rgba(167,185,214,.24);border-radius:999px;background:#28364a;cursor:pointer;transition:background .18s ease,border-color .18s ease; }
+.trp-a11y-option-card input[type="checkbox"]::after { content:"";position:absolute;left:3px;top:3px;width:15px;height:15px;border-radius:50%;background:#a9b6c8;transition:transform .18s ease,background .18s ease; }
+.trp-a11y-option-card input[type="checkbox"]:checked { border-color:rgba(102,215,176,.55);background:rgba(102,215,176,.32); }
+.trp-a11y-option-card input[type="checkbox"]:checked::after { transform:translateX(17px);background:#fff; }
+.trp-a11y-option-card input[type="checkbox"]:disabled { opacity:.5;cursor:not-allowed; }
+.trp-a11y-option-card input[type="checkbox"]:focus-visible { outline:2px solid var(--trp-shell-coral);outline-offset:3px; }
+.trp-settings-accessibility-legacy { display:none!important; }
+@media(max-width:850px) { .trp-a11y-react-options { grid-template-columns:1fr; } }
+@media(prefers-reduced-motion:reduce) { .trp-a11y-option-card input[type="checkbox"],.trp-a11y-option-card input[type="checkbox"]::after { transition:none; } }

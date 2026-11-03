@@ -738,6 +738,58 @@ function SystemDashboard() {
 }
 
 
+
+function AccessibilityReactControls() {
+  const statusRoot = useRef(null);
+  const [prefs, setPrefs] = useState({ largeText: false, reduceMotion: false, highContrast: false });
+  const [ready, setReady] = useState(false);
+  const sync = useCallback(() => {
+    const bridge = window.__trpAccessibilityBridge;
+    if (!bridge) return;
+    try { setPrefs(bridge.current()); setReady(true); } catch { setReady(false); }
+  }, []);
+  useEffect(() => {
+    const onChange = () => sync();
+    window.addEventListener('trp-accessibility-ready', onChange);
+    window.addEventListener('trp-accessibility-changed', onChange);
+    sync();
+    return () => {
+      window.removeEventListener('trp-accessibility-ready', onChange);
+      window.removeEventListener('trp-accessibility-changed', onChange);
+    };
+  }, [sync]);
+  useLayoutEffect(() => {
+    if (statusRoot.current && typeof window.__trpTranslateReact === 'function') {
+      window.__trpTranslateReact(statusRoot.current);
+    }
+  }, [prefs, ready]);
+  const update = (key, value) => {
+    const bridge = window.__trpAccessibilityBridge;
+    if (!bridge) return;
+    try { setPrefs(bridge.set(key, value)); } catch { sync(); }
+  };
+  return (
+    <div ref={statusRoot} className="trp-a11y-react-options">
+      <label className="trp-a11y-option-card">
+        <span className="trp-a11y-option-copy"><strong data-i18n>Larger text</strong><small data-i18n>Increase interface text size for easier reading.</small></span>
+        <input type="checkbox" role="switch" checked={prefs.largeText} disabled={!ready}
+          onChange={event => update('largeText', event.target.checked)} />
+      </label>
+      <label className="trp-a11y-option-card">
+        <span className="trp-a11y-option-copy"><strong data-i18n>Reduce animations</strong><small data-i18n>Use less movement in the page interface.</small></span>
+        <input type="checkbox" role="switch" checked={prefs.reduceMotion} disabled={!ready}
+          onChange={event => update('reduceMotion', event.target.checked)} />
+      </label>
+      <label className="trp-a11y-option-card">
+        <span className="trp-a11y-option-copy"><strong data-i18n>High contrast</strong><small data-i18n>Increase contrast between interface elements.</small></span>
+        <input type="checkbox" role="switch" checked={prefs.highContrast} disabled={!ready}
+          onChange={event => update('highContrast', event.target.checked)} />
+      </label>
+      <LegacyNode selector="#accessibility" className="trp-settings-accessibility-legacy" />
+    </div>
+  );
+}
+
 function SettingsDashboard() {
   const reduceMotion = useReducedMotion();
   const enter = reduceMotion ? false : { opacity: 0, y: 12 };
@@ -766,7 +818,7 @@ function SettingsDashboard() {
           <div><div className="trp-eyebrow" data-i18n>DISPLAY / ACCESSIBILITY / 02</div><h3 data-i18n>Accessibility</h3><p data-i18n>Browser display preferences; these do not change the game's settings.ini.</p></div>
           <span className="trp-settings-index">02</span>
         </div>
-        <LegacyNode selector="#accessibility" className="trp-settings-accessibility-slot" />
+        <AccessibilityReactControls />
       </motion.section>
     </motion.div>
   );

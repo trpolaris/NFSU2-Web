@@ -160,3 +160,8 @@ The System page is now composed in React with three sections: Updates & Security
 ## Settings route migration
 
 The Settings route now has a React dashboard for validated game options, configuration profiles, quick presets and Accessibility. The complete #settings root remains a single mounted unit for SettingsPanel; the #accessibility section is kept intact for the browser preference controller. This preserves settings.ini validation, read-only ownership checks, profile import/export, presets, raw-file editing and the device accessibility preferences.
+
+
+## Accessibility controls migration
+
+The three browser accessibility preferences — Larger text, Reduce animations and High contrast — now render as React-controlled switches. A narrow adapter reads and writes the existing browser preference store and keeps the original checkbox elements and document-level data attributes synchronized. The localStorage key and preference names remain unchanged.

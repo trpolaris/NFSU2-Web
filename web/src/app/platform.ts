@@ -118,6 +118,26 @@ interface CustomMod { id: string; name: string; url: string; createdAt: number; 
 interface ConfigProfile { schema: 1; id: string; name: string; createdAt: number; values: Record<string, string> }
 interface AccessibilityPrefs { largeText: boolean; reduceMotion: boolean; highContrast: boolean }
 const DEFAULT_A11Y: AccessibilityPrefs = { largeText: false, reduceMotion: false, highContrast: false };
+
+/** Read current browser-local accessibility preferences without changing their storage format. */
+export function currentAccessibilityPrefs(): AccessibilityPrefs {
+  const value = safeRead<Partial<AccessibilityPrefs>>(STORE.accessibility, {});
+  return { ...DEFAULT_A11Y, ...Object.fromEntries(Object.entries(value).filter(([key, v]) =>
+    key in DEFAULT_A11Y && typeof v === 'boolean')) } as AccessibilityPrefs;
+}
+
+/** Write one accessibility preference and synchronize the legacy input and document attributes. */
+export function setAccessibilityPreference(key: keyof AccessibilityPrefs, value: boolean): AccessibilityPrefs {
+  const prefs = { ...currentAccessibilityPrefs(), [key]: value };
+  const ids: Record<keyof AccessibilityPrefs, string> = {
+    largeText: '#a11y-large-text', reduceMotion: '#a11y-reduce-motion', highContrast: '#a11y-high-contrast',
+  };
+  const input = document.querySelector<HTMLInputElement>(ids[key]);
+  if (input) input.checked = value;
+  applyAccessibility(prefs);
+  window.dispatchEvent(new Event('trp-accessibility-changed'));
+  return prefs;
+}
 const KNOWN_PACKS = [
   {
     id: 'mod:turkish', name: 'Turkish translation pack',
@@ -461,12 +481,12 @@ async function importProfileFile(file: File) {
 }
 
 function loadAccessibility() {
-  const value = safeRead<Partial<AccessibilityPrefs>>(STORE.accessibility, {});
-  const prefs = { ...DEFAULT_A11Y, ...Object.fromEntries(Object.entries(value).filter(([k, v]) => k in DEFAULT_A11Y && typeof v === 'boolean')) } as AccessibilityPrefs;
-  ($<HTMLInputElement>('#a11y-large-text')).checked = prefs.largeText;
-  ($<HTMLInputElement>('#a11y-reduce-motion')).checked = prefs.reduceMotion;
-  ($<HTMLInputElement>('#a11y-high-contrast')).checked = prefs.highContrast;
+  const prefs = currentAccessibilityPrefs();
+  ($('#a11y-large-text') as HTMLInputElement).checked = prefs.largeText;
+  ($('#a11y-reduce-motion') as HTMLInputElement).checked = prefs.reduceMotion;
+  ($('#a11y-high-contrast') as HTMLInputElement).checked = prefs.highContrast;
   applyAccessibility(prefs, false);
+  window.dispatchEvent(new Event('trp-accessibility-changed'));
 }
 function applyAccessibility(prefs: AccessibilityPrefs, persist = true) {
   document.documentElement.toggleAttribute('data-large-text', prefs.largeText);
@@ -674,6 +694,7 @@ export function setupPlatformFeatures(settings: SettingsPanel, confirm: (title: 
   renderProfilePicker();
 
   loadAccessibility(); wireAccessibility();
+  window.dispatchEvent(new Event('trp-accessibility-ready'));
   void populateVehicleFilters();
   $<HTMLButtonElement>('#updates-check').onclick = () => void checkUpdates();
   $<HTMLButtonElement>('#updates-reload').onclick = () => location.reload();

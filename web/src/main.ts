@@ -11,6 +11,11 @@ import { boot } from './app/shell';
 import { translatePage } from './app/i18n';
 
 declare global {
+  interface TrpAccessibilityPrefs { largeText: boolean; reduceMotion: boolean; highContrast: boolean; }
+  interface TrpAccessibilityBridge {
+    current(): TrpAccessibilityPrefs;
+    set(key: 'largeText' | 'reduceMotion' | 'highContrast', value: boolean): TrpAccessibilityPrefs;
+  }
   interface TrpCrew { name: string; rgb: string; }
   interface TrpSettingsBridge {
     current(key: string): string;
@@ -27,6 +32,7 @@ declare global {
   interface Window {
     __trpTranslateReact?: (root: ParentNode) => void;
     __trpSettingsBridge?: TrpSettingsBridge;
+    __trpAccessibilityBridge?: TrpAccessibilityBridge;
   }
 }
 
