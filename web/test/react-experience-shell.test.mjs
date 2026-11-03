@@ -40,9 +40,11 @@ test('React owns the main navigation, route state and motion transitions', () =>
   assert.match(app, /createRoot\(rootNode\)/);
   assert.match(app, /NAV\.map/);
   assert.match(app, /layoutId="trp-nav-active"/);
-  assert.doesNotMatch(app, /LegacyAppHost/);
-  assert.match(app, /const legacyApp = document\.getElementById\('app'\)/);
-  assert.match(app, /legacyApp\?\.inert/);
+  assert.doesNotMatch(app, /LegacyAppHost|legacyApp/);
+  assert.match(app, /window\.__trpRuntimeBridge\?\.snapshot\(\)/);
+  assert.match(runtime, /statusText: read\('status'\)/);
+  assert.match(runtime, /locked: document\.getElementById\('app'\)\?\.inert/);
+  assert.match(gameEntry, /statusText: string; locked: boolean/);
   assert.match(shellCss, /#app\.experience-shell \{ display:none!important; \}/);
   assert.match(app, /pageFromHash/);
   assert.ok(html.indexOf('</main>') < html.indexOf('id="stage"'));
@@ -123,7 +125,7 @@ test('the game stage is never placed inside an inert React root while page chrom
   assert.match(app, /<aside className="trp-sidebar" aria-label="Ana gezinme" inert=\{gameActive\}/);
   assert.match(app, /<header className="trp-topbar" inert=\{gameActive\}/);
   assert.ok(runtime.includes("$('#app').inert = true"), 'legacy app retains its existing game-session focus rule');
-  assert.match(app, /runtimeObserver\.observe\(legacyApp, \{ attributes: true, attributeFilter: \['inert'\] \}\)/);
+  assert.match(app, /window\.addEventListener\('trp-runtime-changed', syncStatus\)/);
   assert.match(app, /setRuntimeLocked\(Boolean\(legacyApp\?\.inert\)\)/);
 });
 

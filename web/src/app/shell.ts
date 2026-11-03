@@ -120,6 +120,8 @@ function runtimeSnapshot() {
     phase,
     headline: runtimeHeadline(),
     detail: runtimeDetail(),
+    statusText: read('status'),
+    locked: document.getElementById('app')?.inert ?? false,
     progress: moduleProgress,
     canPlay: !!loaded && !!instance?.owner && !blocking() && !starting && (phase === 'ready' || phase === 'exited'),
     retryAvailable: checks.get('module')?.state === 'fail',
@@ -689,6 +691,7 @@ async function startGame() {
   const stage = $('#stage');
   stage.hidden = false;
   $('#app').inert = true;             // the start page is behind the game: out of the focus order and screen readers
+  runtimeChanged();
   const canvas = stageCanvas();
   untrack = trackCanvasSize(canvas);
   awake = keepScreenOn(logLine);
@@ -992,6 +995,7 @@ function endStage() {
   $('#stage').hidden = true;
   $('#stage').querySelector('canvas')?.remove();
   $('#app').inert = false;
+  runtimeChanged();
 }
 
 function onExit(s: GameSession, code: number) {

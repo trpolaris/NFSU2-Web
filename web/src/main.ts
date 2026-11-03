@@ -110,7 +110,8 @@ declare global {
   }
   interface TrpRuntimeProblem { id: string; state: string; label: string; detail: string; code: string; }
   interface TrpRuntimeSnapshot {
-    phase: string; headline: string; detail: string; progress: number; canPlay: boolean;
+    phase: string; headline: string; detail: string; statusText: string; locked: boolean;
+    progress: number; canPlay: boolean;
     retryAvailable: boolean; reloadAvailable: boolean; logAvailable: boolean;
     lastGameMessage: string; reportMessage: string; updateMessage: string; overrideMessage: string;
     problems: TrpRuntimeProblem[]; storageWarning: string;

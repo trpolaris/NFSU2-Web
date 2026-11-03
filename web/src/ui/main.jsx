@@ -2131,22 +2131,25 @@ function InstallAppReact() {
   );
 }
 
-function App({ legacyApp }) {
+function App() {
   const reduceMotion = useReducedMotion();
   const initialHash = pageFromHash(location.hash);
+  const initialRuntime = window.__trpRuntimeBridge?.snapshot();
   const [active, setActive] = useState(() => NAV.some(item => item.id === initialHash) ? initialHash : 'home');
-  const [phase, setPhase] = useState(document.body.dataset.phase || 'boot');
-  const [statusText, setStatusText] = useState('');
-  const [runtimeLocked, setRuntimeLocked] = useState(() => Boolean(legacyApp?.inert));
+  const [phase, setPhase] = useState(initialRuntime?.phase || document.body.dataset.phase || 'boot');
+  const [statusText, setStatusText] = useState(initialRuntime?.statusText || '');
+  const [runtimeLocked, setRuntimeLocked] = useState(() => Boolean(initialRuntime?.locked));
   const [transitioning, setTransitioning] = useState(false);
   const rootRef = useRef(null);
   const activeItem = useMemo(() => NAV.find(item => item.id === active) || NAV[0], [active]);
 
   const syncStatus = useCallback(() => {
-    setPhase(document.body.dataset.phase || 'boot');
-    setStatusText(document.getElementById('status')?.textContent?.trim() || '');
-    setRuntimeLocked(Boolean(legacyApp?.inert));
-  }, [legacyApp]);
+    const current = window.__trpRuntimeBridge?.snapshot();
+    if (!current) return;
+    setPhase(current.phase || 'boot');
+    setStatusText(current.statusText || '');
+    setRuntimeLocked(Boolean(current.locked));
+  }, []);
 
   const navigate = useCallback((id) => {
     if (!NAV.some(item => item.id === id)) return;
@@ -2164,22 +2167,16 @@ function App({ legacyApp }) {
     const onHashChange = () => setActive(pageFromHash(location.hash));
     window.addEventListener('hashchange', onHashChange);
     window.addEventListener('popstate', onHashChange);
-    const bodyObserver = new MutationObserver(syncStatus);
-    bodyObserver.observe(document.body, { attributes: true, attributeFilter: ['data-phase'] });
-    const statusNode = document.getElementById('status');
-    const statusObserver = statusNode ? new MutationObserver(syncStatus) : null;
-    if (statusNode && statusObserver) statusObserver.observe(statusNode, { childList: true, subtree: true, characterData: true });
-    const runtimeObserver = legacyApp ? new MutationObserver(syncStatus) : null;
-    if (legacyApp && runtimeObserver) runtimeObserver.observe(legacyApp, { attributes: true, attributeFilter: ['inert'] });
+    window.addEventListener('trp-runtime-ready', syncStatus);
+    window.addEventListener('trp-runtime-changed', syncStatus);
     syncStatus();
     return () => {
       window.removeEventListener('hashchange', onHashChange);
       window.removeEventListener('popstate', onHashChange);
-      bodyObserver.disconnect();
-      statusObserver?.disconnect();
-      runtimeObserver?.disconnect();
+      window.removeEventListener('trp-runtime-ready', syncStatus);
+      window.removeEventListener('trp-runtime-changed', syncStatus);
     };
-  }, [legacyApp, syncStatus]);
+  }, [syncStatus]);
 
   useLayoutEffect(() => {
     if (rootRef.current && typeof window.__trpTranslateReact === 'function') {
@@ -2196,7 +2193,7 @@ function App({ legacyApp }) {
 
   const phaseLabel = PHASE_LABELS[phase] || 'TRPOLARIS';
   const connectedTone = phase === 'ready' || phase === 'playing';
-  const gameActive = runtimeLocked || Boolean(legacyApp?.inert) || phase === 'playing' || phase === 'starting';
+  const gameActive = runtimeLocked || phase === 'playing' || phase === 'starting';
 
   return (
     <div ref={rootRef} className={'trp-react-shell' + (active === 'home' ? ' is-home' : '')}>
@@ -2287,8 +2284,7 @@ function App({ legacyApp }) {
 }
 
 const rootNode = document.getElementById('trp-react-root');
-const legacyApp = document.getElementById('app');
-if (rootNode && legacyApp) {
+if (rootNode) {
   const root = createRoot(rootNode);
-  flushSync(() => root.render(<App legacyApp={legacyApp} />));
+  flushSync(() => root.render(<App />));
 }
