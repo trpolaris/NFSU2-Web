@@ -60,7 +60,6 @@ declare global {
     __trpSettingsBridge?: TrpSettingsBridge;
     __trpAccessibilityBridge?: TrpAccessibilityBridge;
     __trpModLibraryBridge?: TrpModLibraryBridge;
-    __trpModLibraryBridge?: TrpModLibraryBridge;
   }
 }
 
