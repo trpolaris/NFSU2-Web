@@ -1679,7 +1679,9 @@ export async function boot() {
     set: async (key, value) => { await settings.set(key, value); window.dispatchEvent(new Event('trp-settings-changed')); },
     setValidated: async (key, value) => { await settings.setValidated(key, value); window.dispatchEvent(new Event('trp-settings-changed')); },
     crews: () => crewsOf(settings.current('roam_crew'), settings.current('roam_crew_colours')),
-    setCrews: async list => { await settings.setCrews(list); window.dispatchEvent(new Event('trp-settings-changed')); },
+    setCrews: async list => { await settings.saveCrewsFromReact(list); window.dispatchEvent(new Event('trp-settings-changed')); },
+    quickChat: () => ({ phrases: phrasesOf(settings.current('quick_chat_phrases')), groups: groupsOf(settings.current('quick_chat_groups')) }),
+    saveQuickChat: async (phrases, groups) => { await settings.saveQuickChatFromReact(phrases, groups); window.dispatchEvent(new Event('trp-settings-changed')); },
     readOnly: () => !instance.owner,
     refresh: async () => { await settings.refresh(); window.dispatchEvent(new Event('trp-settings-changed')); },
   };

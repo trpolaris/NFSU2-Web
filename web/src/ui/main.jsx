@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { createRoot } from 'react-dom/client';
 import { checkCrew, CREW_COLOUR_NAMES, CREW_MAX, CREW_PALETTE, freeColour } from '../app/crews';
 import { t } from '../app/i18n';
+import { CATS, DEFAULT_GROUPS, DEFAULT_PHRASES, PHRASES } from '../app/phrases';
 import { flushSync } from 'react-dom';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import {
@@ -168,6 +169,7 @@ function OnlineReactControls() {
   const [textValues, setTextValues] = useState({ roam_name: '', roam_room: '', roam_block: '' });
   const [crewList, setCrewListState] = useState([]);
   const [crewDraft, setCrewDraft] = useState('');
+  const [quickChatDraft, setQuickChatDraft] = useState({ phrases: [...DEFAULT_PHRASES], groups: [...DEFAULT_GROUPS] });
   const [ready, setReady] = useState(false);
   const [readOnly, setReadOnly] = useState(true);
   const [busy, setBusy] = useState('');
@@ -195,6 +197,7 @@ function OnlineReactControls() {
         roam_block: bridge.current('roam_block'),
       });
       setCrewListState(bridge.crews());
+      setQuickChatDraft(bridge.quickChat());
       setReadOnly(bridge.readOnly());
       setReady(true);
     } catch { setReady(false); }
@@ -257,6 +260,38 @@ function OnlineReactControls() {
 
   const leaveCrew = index => void saveCrewList(crewList.filter((_, i) => i !== index));
   const setCrewColour = (index, rgb) => void saveCrewList(crewList.map((crew, i) => i === index ? { ...crew, rgb } : crew));
+
+  const saveQuickChat = async () => {
+    const bridge = window.__trpSettingsBridge;
+    if (!bridge || readOnly || busy) return;
+    setBusy('phrases');
+    setMessage('');
+    try {
+      await bridge.saveQuickChat(quickChatDraft.phrases, quickChatDraft.groups);
+      sync();
+      setMessage(t('Saved.'));
+    } catch (error) {
+      setMessage(String(error));
+    } finally {
+      setBusy('');
+    }
+  };
+
+  const chooseQuickChatGroup = (groupIndex, category) => {
+    setQuickChatDraft(current => {
+      const phrases = [...current.phrases];
+      const available = PHRASES.map((phrase, index) => phrase.cat === category ? index : -1).filter(index => index >= 0);
+      for (let slot = 0; slot < 4; slot++) {
+        const at = groupIndex * 4 + slot;
+        if (PHRASES[phrases[at]]?.cat !== category) phrases[at] = available[slot] ?? available[0] ?? 0;
+      }
+      return { groups: current.groups.map((value, index) => index === groupIndex ? category : value), phrases };
+    });
+  };
+
+  const chooseQuickChatPhrase = (slot, phrase) => {
+    setQuickChatDraft(current => ({ ...current, phrases: current.phrases.map((value, index) => index === slot ? Number(phrase) : value) }));
+  };
 
   const update = async (key, enabled) => {
     const bridge = window.__trpSettingsBridge;
@@ -361,6 +396,42 @@ function OnlineReactControls() {
             onClick={joinCrew} data-i18n>Join crew</button>
         </div>
         <p className="trp-online-crews-note" data-i18n>Players who use the same crew name are grouped together and share the crew colour. Crews are not private.</p>
+      </section>
+      <section className="trp-online-phrases-panel" aria-labelledby="trp-online-phrases-title">
+        <div className="trp-online-phrases-heading">
+          <div><span className="trp-eyebrow" data-i18n>QUICK CHAT / 16 PHRASES</span><h3 id="trp-online-phrases-title" data-i18n>Your phrases</h3></div>
+          <button type="button" className="trp-online-phrases-save" disabled={!ready || readOnly || !!busy}
+            onClick={() => void saveQuickChat()} data-i18n>Save phrases</button>
+        </div>
+        <div className="trp-online-phrases-grid">
+          {quickChatDraft.groups.map((group, groupIndex) => (
+            <div className="trp-online-phrase-group" key={groupIndex}>
+              <div className="trp-online-phrase-group-head">
+                <kbd>{groupIndex + 1}</kbd>
+                <select value={group} disabled={!ready || readOnly || !!busy}
+                  aria-label={t('Group {n}: its name', { n: groupIndex + 1 })}
+                  onChange={event => chooseQuickChatGroup(groupIndex, event.target.value)}>
+                  {CATS.map(category => <option key={category.id} value={category.id} data-i18n>{category.name}</option>)}
+                </select>
+              </div>
+              {Array.from({ length: 4 }, (_, phraseIndex) => {
+                const slot = groupIndex * 4 + phraseIndex;
+                return (
+                  <label className="trp-online-phrase-slot" key={slot}>
+                    <span>{phraseIndex + 1}</span>
+                    <select value={String(quickChatDraft.phrases[slot])} disabled={!ready || readOnly || !!busy}
+                      aria-label={t('Group {n}, phrase {i}', { n: groupIndex + 1, i: phraseIndex + 1 })}
+                      onChange={event => chooseQuickChatPhrase(slot, event.target.value)}>
+                      {PHRASES.map((phrase, phraseNumber) => phrase.cat === group
+                        ? <option key={phraseNumber} value={String(phraseNumber)} data-i18n>{phrase.text}</option>
+                        : null)}
+                    </select>
+                  </label>
+                );
+              })}
+            </div>
+          ))}
+        </div>
       </section>
       <div className="trp-online-text-grid">
         <label className="trp-online-text-card">

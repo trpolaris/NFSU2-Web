@@ -18,6 +18,8 @@ declare global {
     setValidated(key: string, value: string | null): Promise<void>;
     crews(): TrpCrew[];
     setCrews(list: TrpCrew[]): Promise<void>;
+    quickChat(): { phrases: number[]; groups: string[] };
+    saveQuickChat(phrases: number[], groups: string[]): Promise<void>;
     readOnly(): boolean;
     refresh(): Promise<void>;
   }

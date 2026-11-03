@@ -226,3 +226,20 @@ test('React Crew editor keeps crew order, palette colours, limits and atomic set
   assert.match(settingsUi, /this\.put\([\s\S]*'roam_crew_colours'/);
   assert.match(shellCss, /trp-online-crew-palette/);
 });
+
+
+test('React Quick Chat phrase editor keeps four groups of four and saves phrase/group ids atomically', () => {
+  assert.match(app, /bridge\.quickChat\(\)/);
+  assert.match(app, /bridge\.saveQuickChat\(quickChatDraft\.phrases, quickChatDraft\.groups\)/);
+  assert.match(app, /CATS\.map/);
+  assert.match(app, /PHRASES\.map/);
+  assert.match(main, /saveQuickChat\(phrases: number\[\], groups: string\[\]\): Promise<void>/);
+  assert.match(shell, /quickChat: \(\) => \(\{ phrases: phrasesOf\(settings\.current\('quick_chat_phrases'\)\), groups: groupsOf\(settings\.current\('quick_chat_groups'\)\) \}\)/);
+  assert.match(shell, /saveQuickChat: async \(phrases, groups\) => \{ await settings\.saveQuickChatFromReact/);
+  assert.match(settingsUi, /async saveQuickChatFromReact\(phrases: readonly number\[\], groups: readonly string\[\]\)/);
+  assert.match(settingsUi, /checkSetting\('quick_chat_phrases', phraseValue\)/);
+  assert.match(settingsUi, /checkSetting\('quick_chat_groups', groupValue\)/);
+  assert.match(settingsUi, /DEFAULT_PHRASES/);
+  assert.match(settingsUi, /DEFAULT_GROUPS/);
+  assert.match(shellCss, /trp-online-phrases-grid/);
+});

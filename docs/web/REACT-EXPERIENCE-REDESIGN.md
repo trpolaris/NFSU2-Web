@@ -127,3 +127,8 @@ Additional simple Free Roam preferences are now React-managed too: Ghost Mode (i
 ## Crew editor migration
 
 The Free Roam Crew editor is now React-owned. It uses the existing pure crew rules (checkCrew, CREW_MAX, CREW_PALETTE, freeColour and crewsOf) and keeps each crew's selected colour with its name. A dedicated SettingsPanel method validates and writes roam_crew and roam_crew_colours together in one settings update, so leaving a crew or changing its colour does not desynchronize the two lists. The legacy crew editor is hidden only inside the React route; the existing /players crew counts and server visibility logic are unchanged.
+
+
+## Quick Chat phrase editor migration
+
+The 16-slot Quick Chat editor is now a React interface backed by the existing phrase catalogue and category definitions. Each of the four groups can select a category, and each of its four slots only offers phrases from that category. The phrase ids and category ids are validated with the same settings validators and written together in one save. Defaults are restored as commented template values when the default set is chosen. The in-game phrase picker and typed chat pipeline are unchanged.

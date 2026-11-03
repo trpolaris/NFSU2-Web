@@ -410,7 +410,7 @@ export class SettingsPanel {
 
 
   /** Save crew names and colours together to preserve their shared order. */
-  async setCrews(list: readonly Crew[]) {
+  async saveCrewsFromReact(list: readonly Crew[]) {
     if (this.ro()) { this.deps.say?.(t(READ_ONLY)); return; }
     if (list.length > CREW_MAX) throw new Error(t('Up to 4 crews: leave one to join another.'));
     const names = crewsValue(list.map(crew => crew.name));
@@ -430,6 +430,31 @@ export class SettingsPanel {
     );
   }
 
+
+
+
+  /** Save the sixteen phrase ids and four group ids together through the original settings validators. */
+  async saveQuickChatFromReact(phrases: readonly number[], groups: readonly string[]) {
+    if (this.ro()) { this.deps.say?.(t(READ_ONLY)); return; }
+    if (phrases.length !== SLOTS || groups.length !== 4) throw new Error(t('Choose four groups of four phrases.'));
+    const phraseValue = phrases.join(',');
+    const groupValue = groups.join(',');
+    const checkedPhrases = checkSetting('quick_chat_phrases', phraseValue);
+    const checkedGroups = checkSetting('quick_chat_groups', groupValue);
+    if (checkedPhrases && !checkedPhrases.ok) {
+      throw new Error(t('Not saved: {key} = {why}.', { key: 'quick_chat_phrases', why: tvars(checkedPhrases.why, checkedPhrases.v) }));
+    }
+    if (checkedGroups && !checkedGroups.ok) {
+      throw new Error(t('Not saved: {key} = {why}.', { key: 'quick_chat_groups', why: tvars(checkedGroups.why, checkedGroups.v) }));
+    }
+    const isDefault = phrases.every((value, index) => value === DEFAULT_PHRASES[index]) &&
+      groups.every((value, index) => value === DEFAULT_GROUPS[index]);
+    await this.put(
+      'quick_chat_phrases',
+      isDefault ? null : (checkedPhrases && checkedPhrases.ok ? checkedPhrases.value : phraseValue),
+      [['quick_chat_groups', isDefault ? null : (checkedGroups && checkedGroups.ok ? checkedGroups.value : groupValue)]],
+    );
+  }
 
   /** A named launcher's safe snapshot: only explicitly allow-listed, validated settings. */
   profileValues(): Record<string, string> {
