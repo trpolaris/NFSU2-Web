@@ -452,8 +452,9 @@ export class SavesPanel {
     const items: string[] = [];
     const here = new Map(this.profiles.map(x => [x.name.toLowerCase(), x.name]));
     const replaced = r.profiles.map(n => here.get(n.toLowerCase())).filter((x): x is string => !!x);
+    let description = '';
     if (r.kind === 'profiles') {
-      let description = tn(r.profiles.length, 'Adds the profile in {file} to this browser. The other profiles here, the game\'s options and settings.ini stay as they are.',
+      description = tn(r.profiles.length, 'Adds the profile in {file} to this browser. The other profiles here, the game\'s options and settings.ini stay as they are.',
         'Adds the profiles in {file} to this browser. The other profiles here, the game\'s options and settings.ini stay as they are.', { file: file.name });
       items.push(t('Profiles: {names}', { names: r.profiles.map(n => {
         const covers = r.entries.filter(e => coverOf(e.path.split('/')[1])?.profile === n).length;
@@ -463,7 +464,7 @@ export class SavesPanel {
         'Replaces the profiles {names} in this browser, their careers and cover shoots too', { names: list(replaced) }));
       items.push(...restoreNotes(r));
     } else {
-      p.textContent = tn(r.entries.length, 'Restoring replaces every profile, the game\'s options and settings.ini in this browser with the {n} file in {file}.',
+      description = tn(r.entries.length, 'Restoring replaces every profile, the game\'s options and settings.ini in this browser with the {n} file in {file}.',
         'Restoring replaces every profile, the game\'s options and settings.ini in this browser with the {n} files in {file}.', { file: file.name });
       items.push(...backupItems(r));
     }
