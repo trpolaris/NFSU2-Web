@@ -106,3 +106,8 @@ The existing language dictionaries remain the source of truth. The game entry ex
 The Online route now has a React + Motion page composition with a live-multiplayer hero and feature cards for Free Roam, the game's Online mode, and rooms/crews. The existing #online section is mounted into the React route using a placeholder-backed compatibility island. Its SettingsController still owns validated settings writes, room/crew controls, horn preview and the live status line from /players; this avoids duplicating or bypassing the existing settings model while the visual route migrates.
 
 Next, the controls inside #online-body should move from the imperative SettingsController.group()/row() renderer into typed React field components backed by a narrow settings adapter. Keep watchPlayers, playersText, crewCounts, roomHash and the same /players query contract as the source of live counts. Do not invent player totals or room/crew availability when the server does not report them.
+
+
+## Remaining route composition
+
+Mod Library, Saves, Controls, Settings/Accessibility, System (updates, diagnostics and game data), and About are now mounted under React route compositions. Each route gets a shared animated intro and responsive feature container. Existing section nodes are temporarily moved into those routes with placeholder-backed islands so the existing platform, settings, saves, input and diagnostics controllers retain their event handlers and DOM IDs. The compatibility host remains until those inner controls are converted to typed React components.

@@ -123,3 +123,23 @@ test('Online dashboard labels describe existing Free Roam, Online and Crew setti
   assert.match(settingsUi, /N\('Room'\)/);
   assert.doesNotMatch(app, /activePlayers\s*[:=]|onlineCount\s*[:=]\s*\d/);
 });
+
+
+test('the remaining main-page sections are presented through React route compositions', () => {
+  assert.match(app, /function LegacyRoutePage/);
+  assert.match(app, /active === 'online' && !gameActive && <OnlineDashboard \/>/);
+  assert.match(app, /<LegacyRoutePage page=\{active\} \/>/);
+  for (const selector of ['#mods','#saves','#controls','#settings','#accessibility','#updates','#diagnostics','#game-data','#changes','#about']) {
+    assert.ok(app.includes(selector), 'route retains selector ' + selector);
+  }
+  assert.match(app, /selectors: \['#settings', '#accessibility'\]/);
+  assert.match(app, /selectors: \['#updates', '#diagnostics', '#game-data'\]/);
+  assert.match(app, /selectors: \['#changes', '#about'\]/);
+  assert.match(app, /trp-legacy-route experience-shell/);
+  assert.match(shellCss, /\.trp-route-intro/);
+  assert.match(shellCss, /\.trp-route-section-slot > \.panel/);
+  assert.match(shellCss, /@media \(max-width:700px\)[\s\S]*?\.trp-route-intro/);
+  for (const id of ['mods','saves','controls','settings','accessibility','updates','diagnostics','game-data','changes','about']) {
+    assert.match(html, new RegExp('id="' + id + '"'));
+  }
+});

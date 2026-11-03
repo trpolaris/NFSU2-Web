@@ -209,6 +209,82 @@ function OnlineDashboard() {
   );
 }
 
+
+const LEGACY_PAGES = {
+  mods: {
+    eyebrow: 'COMMUNITY WORKSHOP / 04',
+    headline: 'Shape your next build.',
+    description: 'Keep mod links, check supported vehicle packages and organize your collection in this browser.',
+    icon: CarFront,
+    selectors: ['#mods'],
+  },
+  saves: {
+    eyebrow: 'GARAGE DATA / 05',
+    headline: 'Your progress, in your hands.',
+    description: 'Manage local profiles, screenshots and encrypted cloud-save synchronization.',
+    icon: Save,
+    selectors: ['#saves'],
+  },
+  controls: {
+    eyebrow: 'DRIVER INPUT / 06',
+    headline: 'Make every input count.',
+    description: 'Configure keyboard, controller and touch controls for the way you drive.',
+    icon: Gamepad2,
+    selectors: ['#controls'],
+  },
+  settings: {
+    eyebrow: 'CONFIGURATION / 07',
+    headline: 'Tune your experience.',
+    description: 'Adjust validated game options and browser display preferences.',
+    icon: Settings,
+    selectors: ['#settings', '#accessibility'],
+  },
+  system: {
+    eyebrow: 'SYSTEM STATUS / 08',
+    headline: 'Know what is ready.',
+    description: 'Review browser compatibility, graphics, storage, game data and update status.',
+    icon: Gauge,
+    selectors: ['#updates', '#diagnostics', '#game-data'],
+  },
+  about: {
+    eyebrow: 'PROJECT / 09',
+    headline: 'Underground, reimagined for the web.',
+    description: 'Explore the project features, architecture and changes from the original PC experience.',
+    icon: Info,
+    selectors: ['#changes', '#about'],
+  },
+};
+
+function LegacyRoutePage({ page }) {
+  const reduceMotion = useReducedMotion();
+  const config = LEGACY_PAGES[page];
+  if (!config) return null;
+  const Icon = config.icon;
+  const enter = reduceMotion ? false : { opacity: 0, y: 12 };
+
+  return (
+    <motion.div className={'trp-route-page trp-legacy-route experience-shell trp-route-' + page}
+      initial={enter} animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: reduceMotion ? 0 : .27, ease: [.2, .75, .25, 1] }}>
+      <motion.section className="trp-route-intro" initial={enter} animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: reduceMotion ? 0 : .25 }}>
+        <div className="trp-route-intro-icon"><Icon size={21} strokeWidth={1.8} /></div>
+        <div className="trp-route-intro-copy">
+          <div className="trp-eyebrow" data-i18n>{config.eyebrow}</div>
+          <h2 data-i18n>{config.headline}</h2>
+          <p data-i18n>{config.description}</p>
+        </div>
+        <span className="trp-route-intro-index" aria-hidden="true">TRP / {page.toUpperCase()}</span>
+      </motion.section>
+      <div className="trp-route-section-list">
+        {config.selectors.map(selector => (
+          <LegacyNode key={selector} selector={selector} className="trp-route-section-slot" />
+        ))}
+      </div>
+    </motion.div>
+  );
+}
+
 function App({ legacyApp }) {
   const reduceMotion = useReducedMotion();
   const initialHash = pageFromHash(location.hash);
@@ -350,6 +426,7 @@ function App({ legacyApp }) {
             transition={{ duration: reduceMotion ? 0 : .19, ease: [0.2, 0.75, 0.25, 1] }}>
             {active === 'home' && !gameActive && <HomeDashboard onNavigate={navigate} />}
             {active === 'online' && !gameActive && <OnlineDashboard />}
+            {['mods', 'saves', 'controls', 'settings', 'system', 'about'].includes(active) && !gameActive && <LegacyRoutePage page={active} />}
             <LegacyAppHost app={legacyApp} />
           </motion.div>
 
