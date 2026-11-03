@@ -64,6 +64,11 @@ declare global {
     useAlternative(): void;
     mountChallenge(host: HTMLElement | null): void;
   }
+  interface TrpInstallSnapshot { installed: boolean; ready: boolean; disabled: boolean; label: string; notice: string; state: string; }
+  interface TrpInstallBridge {
+    snapshot(): TrpInstallSnapshot;
+    install(): Promise<{ message: string }>;
+  }
   interface TrpControlOption { value: string; label: string; }
   interface TrpControlsSnapshot {
     tab: 'keys' | 'pad' | 'site'; family: 'xb' | 'ps'; steering: string;
@@ -202,6 +207,7 @@ declare global {
     __trpSettingsBridge?: TrpSettingsBridge;
     __trpSettingsProfilesBridge?: TrpSettingsProfilesBridge;
     __trpNameRowBridge?: TrpNameRowBridge;
+    __trpInstallBridge?: TrpInstallBridge;
     __trpAccessibilityBridge?: TrpAccessibilityBridge;
     __trpSavesBridge?: TrpSavesBridge;
     __trpVaultBridge?: TrpVaultBridge;

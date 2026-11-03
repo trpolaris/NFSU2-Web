@@ -98,84 +98,41 @@ function setupNavigation() {
 }
 
 function setupInstallExperience() {
-  const button = $('#install-app');
-  if (!button) return;
-  const label = button.querySelector('[data-i18n]') ?? button;
   let deferred = null;
   let registrationProblem = null;
-  let promptBound = false;
   const tr = () => document.documentElement.lang.toLowerCase().startsWith('tr');
   const installed = () => {
-    try {
-      return matchMedia('(display-mode: standalone)').matches ||
-        matchMedia('(display-mode: fullscreen)').matches ||
-        navigator.standalone === true;
-    } catch { return false; }
+    try { return matchMedia('(display-mode: standalone)').matches || matchMedia('(display-mode: fullscreen)').matches || navigator.standalone === true; }
+    catch { return false; }
   };
-  let notice = $('#install-security-notice');
-  if (!notice) {
-    notice = document.createElement('div');
-    notice.id = 'install-security-notice';
-    notice.className = 'install-security-notice';
-    notice.setAttribute('role', 'status');
-    notice.setAttribute('aria-live', 'polite');
-    notice.hidden = true;
-    const home = $('#home-page');
-    if (home) home.prepend(notice);
-  }
   const secureMessage = () => {
-    const message = registrationProblem || '';
-    const cert = /certificate|ssl|securityerror|failed to register a serviceworker/i.test(message);
-    if (!isSecureContext) {
-      return tr()
-        ? 'Uygulama yüklenemiyor: Bu adres güvenli bağlam değil. Aynı bilgisayarda http://localhost:9093 adresini veya güvenilir HTTPS sertifikası olan bir alan adını kullan.'
-        : 'Installation is unavailable because this address is not a secure context. Use http://localhost on this computer or a hostname with a trusted HTTPS certificate.';
-    }
-    if (cert) {
-      return tr()
-        ? 'Uygulama yüklenemiyor: HTTPS sertifikası tarayıcı tarafından güvenilir bulunmuyor. Aynı bilgisayarda localhost adresini deneyebilir veya bu ağ adresi için güvenilir bir sertifika kurabilirsin.'
-        : 'Installation is unavailable because the HTTPS certificate is not trusted. Try localhost on this computer or install a trusted certificate for this network address.';
-    }
+    const cert = /certificate|ssl|securityerror|failed to register a serviceworker/i.test(registrationProblem || '');
+    if (!isSecureContext) return tr()
+      ? 'Uygulama yüklenemiyor: Bu adres güvenli bağlam değil. Aynı bilgisayarda http://localhost:9093 adresini veya güvenilir HTTPS sertifikası olan bir alan adını kullan.'
+      : 'Installation is unavailable because this address is not a secure context. Use http://localhost on this computer or a hostname with a trusted HTTPS certificate.';
+    if (cert) return tr()
+      ? 'Uygulama yüklenemiyor: HTTPS sertifikası tarayıcı tarafından güvenilir bulunmuyor. Aynı bilgisayarda localhost adresini deneyebilir veya bu ağ adresi için güvenilir bir sertifika kurabilirsin.'
+      : 'Installation is unavailable because the HTTPS certificate is not trusted. Try localhost on this computer or install a trusted certificate for this network address.';
     return tr()
       ? 'Tarayıcı şu anda otomatik yükleme penceresi sunmuyor. Tarayıcı menüsündeki “Uygulamayı yükle” seçeneğini kullan. iPhone/iPad’de Paylaş > Ana Ekrana Ekle yolunu izle.'
       : 'The browser has not offered its native install prompt. Use “Install app” in the browser menu. On iPhone or iPad, use Share > Add to Home Screen.';
   };
-  const sync = () => {
-    const yes = installed();
-    const ready = !!deferred && !yes;
-    label.textContent = yes ? (tr() ? 'Uygulama yüklü' : 'App installed') : (tr() ? 'Uygulamayı yükle' : 'Install app');
-    button.disabled = yes;
-    button.dataset.installState = yes ? 'installed' : ready ? 'ready' : 'manual';
-    button.classList.toggle('is-installed', yes);
-    button.classList.toggle('install-ready', ready);
-    button.setAttribute('aria-label', label.textContent);
+  const snapshot = () => {
+    const yes = installed(), ready = !!deferred && !yes;
     const blocked = !isSecureContext || /certificate|ssl|securityerror|failed to register a serviceworker/i.test(registrationProblem || '');
-    notice.hidden = !blocked;
-    notice.textContent = blocked ? secureMessage() : '';
-    if (blocked) button.setAttribute('aria-describedby', notice.id);
-    else button.removeAttribute('aria-describedby');
-    button.title = ready ? label.textContent : (yes ? label.textContent : secureMessage());
+    return { installed: yes, ready, disabled: yes,
+      label: yes ? (tr() ? 'Uygulama yüklü' : 'App installed') : (tr() ? 'Uygulamayı yükle' : 'Install app'),
+      notice: blocked ? secureMessage() : '', state: yes ? 'installed' : ready ? 'ready' : 'manual' };
   };
-  window.addEventListener('beforeinstallprompt', event => {
-    event.preventDefault();
-    deferred = event;
-    sync();
-  });
-  window.addEventListener('appinstalled', () => { deferred = null; sync(); });
-  window.addEventListener('pageshow', sync);
-  button.addEventListener('click', async () => {
-    if (installed()) return;
+  const sync = () => window.dispatchEvent(new Event('trp-install-changed'));
+  const install = async () => {
+    if (installed()) return { message: '' };
     if (deferred) {
-      const event = deferred;
-      deferred = null;
-      try {
-        await event.prompt();
-        await event.userChoice;
-      } catch (error) {
-        registrationProblem = String(error);
-      }
+      const event = deferred; deferred = null;
+      try { await event.prompt(); await event.userChoice; }
+      catch (error) { registrationProblem = String(error); }
       sync();
-      return;
+      return { message: registrationProblem ? secureMessage() : '' };
     }
     if ('serviceWorker' in navigator) {
       try {
@@ -183,14 +140,16 @@ function setupInstallExperience() {
         if (!reg) registrationProblem = 'Service Worker is not registered. Check secure origin and certificate.';
       } catch (error) { registrationProblem = String(error); }
     }
-    notice.hidden = false;
-    notice.textContent = secureMessage();
-    notice.focus?.();
-    if (typeof window.showToast === 'function') window.showToast(notice.textContent);
+    sync();
+    return { message: secureMessage() };
+  };
+  window.__trpInstallBridge = { snapshot, install };
+  window.addEventListener('beforeinstallprompt', event => { event.preventDefault(); deferred = event; sync(); });
+  window.addEventListener('appinstalled', () => { deferred = null; sync(); });
+  window.addEventListener('pageshow', sync);
+  if ('serviceWorker' in navigator) navigator.serviceWorker.addEventListener('error', event => {
+    registrationProblem = String(event.message || 'Service Worker registration failed'); sync();
   });
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.addEventListener('error', event => { registrationProblem = String(event.message || 'Service Worker registration failed'); sync(); });
-  }
   sync();
 }
 

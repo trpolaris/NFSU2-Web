@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { checkCrew, CREW_BIG, CREW_COLOUR_NAMES, CREW_MAX, CREW_PALETTE, freeColour } from '../app/crews';
-import { dateLocale, t } from '../app/i18n';
+import { dateLocale, language, LANGUAGES, NATIVE, onLanguage, t } from '../app/i18n';
 import { fmtBytes } from '../app/checks';
 import { CATS, DEFAULT_GROUPS, DEFAULT_PHRASES, PHRASES } from '../app/phrases';
 import { flushSync } from 'react-dom';
@@ -2093,6 +2093,70 @@ function SettingsDashboard() {
   );
 }
 
+function LanguagePickerReact() {
+  const [value, setValue] = useState(language());
+  const [readOnly, setReadOnly] = useState(true);
+  useEffect(() => {
+    const sync = () => { setValue(language()); setReadOnly(window.__trpSettingsBridge?.readOnly() ?? true); };
+    onLanguage(sync);
+    window.addEventListener('trp-settings-ready', sync);
+    window.addEventListener('trp-settings-changed', sync);
+    sync();
+    return () => {
+      window.removeEventListener('trp-settings-ready', sync);
+      window.removeEventListener('trp-settings-changed', sync);
+    };
+  }, []);
+  const change = async next => {
+    const bridge = window.__trpSettingsBridge;
+    if (!bridge || bridge.readOnly()) return;
+    try { await bridge.set('language', next); }
+    catch (error) { window.showToast?.(error instanceof Error ? error.message : String(error)); }
+  };
+  return (
+    <label className="trp-language-react">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9M12 3C9.5 5.6 8.2 8.6 8.2 12s1.3 6.4 3.8 9"/></svg>
+      <select aria-label={t('Language')} value={value} disabled={readOnly} onChange={event => void change(event.target.value)}>
+        {LANGUAGES.map(code => <option key={code} value={code} lang={code}>{NATIVE[code]}</option>)}
+      </select>
+    </label>
+  );
+}
+
+function InstallAppReact() {
+  const [state, setState] = useState({ installed: false, ready: false, disabled: false, label: 'Install app', notice: '', state: 'manual' });
+  useEffect(() => {
+    const update = () => {
+      const next = window.__trpInstallBridge?.snapshot();
+      if (next) setState(current => ({ ...next, notice: current.notice && !next.notice ? current.notice : next.notice }));
+    };
+    window.addEventListener('trp-install-changed', update);
+    onLanguage(update);
+    update();
+    return () => window.removeEventListener('trp-install-changed', update);
+  }, []);
+  const install = async () => {
+    const bridge = window.__trpInstallBridge;
+    if (!bridge) return;
+    try {
+      const result = await bridge.install(), next = bridge.snapshot();
+      setState({ ...next, notice: result.message || next.notice });
+    } catch (error) {
+      setState(current => ({ ...current, notice: error instanceof Error ? error.message : String(error) }));
+    }
+  };
+  return (
+    <>
+      <button type="button" className={'trp-install-react' + (state.ready ? ' is-ready' : '') + (state.installed ? ' is-installed' : '')}
+        disabled={state.disabled} aria-label={state.label} title={state.notice || state.label} onClick={() => void install()}>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v11m-5-5 5 5 5-5M4 16v4h16v-4" /></svg>
+        <span>{state.label}</span>
+      </button>
+      {state.notice && <p className="trp-install-react-notice" role="status" aria-live="polite">{state.notice}</p>}
+    </>
+  );
+}
+
 function App({ legacyApp }) {
   const reduceMotion = useReducedMotion();
   const initialHash = pageFromHash(location.hash);
@@ -2213,8 +2277,8 @@ function App({ legacyApp }) {
           </div>
           <div className="trp-topbar-actions">
             <div className="trp-build-label"><span className={'trp-live-indicator' + (connectedTone ? ' is-live' : '')} /> {phaseLabel}</div>
-            <LegacyNode selector=".lang-pick" className="trp-language-slot" />
-            <LegacyNode selector="#install-app" className="trp-install-slot" />
+            <LanguagePickerReact />
+            <InstallAppReact />
             <a className="trp-top-hub" href="/hub/"><Users size={16} /><span>Player Hub</span><ArrowUpRight size={14} /></a>
           </div>
         </header>
