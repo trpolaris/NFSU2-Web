@@ -305,13 +305,13 @@ test('Saves route is React-composed while local profile, screenshot and Cloud ha
 
 
 test('Controls route is React-composed while the existing controlsSheet, gamepad and touch settings stay wired', () => {
-  assert.match(app, /function ControlsDashboard/);
-  assert.match(app, /active === 'controls' && !gameActive && <ControlsDashboard \\/>/);
-  assert.doesNotMatch(app, /selectors: \\['#controls'\\]/);
-  assert.match(app, /LegacyNode selector=\"#controls\" className=\"trp-controls-legacy-slot\"/);
-  assert.match(gameEntry, /controlsSheet\\(\\$\\('#keys'\\), 'keys', \\{ follow: true \\}\\)/);
-  assert.match(settingsUi, /data-pad-mount|data-pad-mount/);
-  assert.match(shellCss, /\\.trp-controls-hero/);
-  assert.match(shellCss, /\\.trp-controls-legacy-slot > #controls \\.controls-tabs/);
-  assert.match(shellCss, /\\.trp-controls-legacy-slot > #controls \\.controller-visual/);
+  assert.ok(app.includes('function ControlsDashboard'));
+  assert.ok(app.includes("active === 'controls' && !gameActive && <ControlsDashboard />"));
+  assert.ok(!app.includes("selectors: ['#controls']"));
+  assert.ok(app.includes('LegacyNode selector="#controls" className="trp-controls-legacy-slot"'));
+  assert.ok(runtime.includes("keySheet = controlsSheet($('#keys'), 'keys', { follow: true });"));
+  assert.ok(html.includes('data-pad-mount'));
+  assert.ok(shellCss.includes('.trp-controls-hero'));
+  assert.ok(shellCss.includes('.trp-controls-legacy-slot > #controls .controls-tabs'));
+  assert.ok(shellCss.includes('.trp-controls-legacy-slot > #controls .controller-visual'));
 });
