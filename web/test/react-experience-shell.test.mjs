@@ -65,6 +65,15 @@ test('the legacy runtime anchors remain present while React provides the page sh
   assert.match(app, /window\.addEventListener\('popstate', onHashChange\)/);
 });
 
+test('React owns visible motion, icons and lazy previews; browser helpers keep only PWA and viewport behavior', () => {
+  assert.doesNotMatch(navigation, /function setupNavigation/);
+  assert.doesNotMatch(navigation, /function setupMotionTransitions/);
+  assert.doesNotMatch(navigation, /setupHeroParticles|setupLazyPreviews|setupLucideIcons/);
+  assert.match(navigation, /function setupInstallExperience/);
+  assert.match(navigation, /function setupViewportStability/);
+  assert.doesNotMatch(html, /id="hero-particles"/);
+});
+
 test('the React shell remains responsive and follows reduced-motion preferences', () => {
   assert.match(shellCss, /@media \(max-width:620px\)/);
   assert.match(shellCss, /@media \(max-width:860px\)/);

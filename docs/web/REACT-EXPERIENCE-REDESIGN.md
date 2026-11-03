@@ -207,3 +207,8 @@ The language picker and install-app action in the top bar now render in React. L
 ## Main navigation migration
 
 The static quick-navigation bar and the legacy click-to-navigate handler have been removed. React now owns route changes and writes canonical page hashes directly with the History API; browser back/forward and direct links are handled by the React route state. The legacy `#app-pages` node remains hidden in its original service subtree so game/service selectors and dialogs are not rewritten as part of this navigation change.
+
+
+## Legacy visual enhancement cleanup
+
+The old DOM-only motion entrance, Lucide class decoration, hero particle canvas and attribute-based lazy-preview observer have been removed. React already owns visible transitions, icons, and image loading on the current screens. The browser enhancement entry now retains only the PWA install bridge and viewport/orientation stability events used by the runtime.
