@@ -119,3 +119,6 @@ Two primary Online toggles — Free Roam with others and Online mode — are now
 
 
 The Online route also now has React text editors for the driver's display name and room name. Their save action calls a dedicated SettingsPanel method that uses the same name normalization and per-key validation as the original controls. Crews, horn preview, blocked-player lists and quick-chat phrase editing remain on the legacy controller for this stage.
+
+
+Additional simple Free Roam preferences are now React-managed too: Ghost Mode (including its inverted settings-file meaning), Quick Chat enablement, the nearby-player car limit, and the blocked-player name list. The room/name/blocked-name controls use the same SettingsPanel validation path. The crew list with per-crew colour editing, horn preview and 16-phrase editor remain on the original specialized renderer while those interactions are ported deliberately.

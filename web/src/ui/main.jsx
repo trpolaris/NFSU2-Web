@@ -4,7 +4,7 @@ import { flushSync } from 'react-dom';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import {
   Activity, ArrowUpRight, CarFront, ChevronRight, Gamepad2, Gauge,
-  Info, LayoutDashboard, LibraryBig, Save, Settings, Users,
+  Info, LayoutDashboard, LibraryBig, MessageCircle, Save, Settings, ShieldCheck, Users,
 } from 'lucide-react';
 
 const NAV = [
@@ -162,8 +162,8 @@ const ONLINE_FEATURES = [
 
 function OnlineReactControls() {
   const statusRoot = useRef(null);
-  const [values, setValues] = useState({ roam: 'off', online: 'off' });
-  const [textValues, setTextValues] = useState({ roam_name: '', roam_room: '' });
+  const [values, setValues] = useState({ roam: 'off', online: 'off', roam_collide: 'off', quick_chat: 'off', roam_max_cars: '32' });
+  const [textValues, setTextValues] = useState({ roam_name: '', roam_room: '', roam_block: '' });
   const [ready, setReady] = useState(false);
   const [readOnly, setReadOnly] = useState(true);
   const [busy, setBusy] = useState('');
@@ -181,8 +181,15 @@ function OnlineReactControls() {
     const bridge = window.__trpSettingsBridge;
     if (!bridge) return;
     try {
-      setValues({ roam: bridge.current('roam'), online: bridge.current('online') });
-      setTextValues({ roam_name: bridge.current('roam_name'), roam_room: bridge.current('roam_room') });
+      setValues({
+        roam: bridge.current('roam'), online: bridge.current('online'),
+        roam_collide: bridge.current('roam_collide'), quick_chat: bridge.current('quick_chat'),
+        roam_max_cars: bridge.current('roam_max_cars'),
+      });
+      setTextValues({
+        roam_name: bridge.current('roam_name'), roam_room: bridge.current('roam_room'),
+        roam_block: bridge.current('roam_block'),
+      });
       setReadOnly(bridge.readOnly());
       setReady(true);
     } catch { setReady(false); }
@@ -201,13 +208,13 @@ function OnlineReactControls() {
     };
   }, [sync]);
 
-  const saveText = async key => {
+  const saveValidated = async (key, value) => {
     const bridge = window.__trpSettingsBridge;
     if (!bridge || readOnly || busy) return;
     setBusy(key);
     setMessage('');
     try {
-      await bridge.setValidated(key, textValues[key]);
+      await bridge.setValidated(key, value);
       sync();
     } catch (error) {
       setMessage(String(error));
@@ -215,6 +222,8 @@ function OnlineReactControls() {
       setBusy('');
     }
   };
+
+  const saveText = async key => saveValidated(key, textValues[key]);
 
   const update = async (key, enabled) => {
     const bridge = window.__trpSettingsBridge;
@@ -257,6 +266,35 @@ function OnlineReactControls() {
         <input type="checkbox" role="switch" checked={values.online === 'on'} disabled={!ready || readOnly || !!busy}
           aria-label="Online mode" onChange={event => void update('online', event.target.checked)} />
       </label>
+      <div className="trp-online-secondary-controls">
+        <label className="trp-online-toggle-card">
+          <span className="trp-online-toggle-icon"><ShieldCheck size={19} /></span>
+          <span className="trp-online-toggle-copy">
+            <strong data-i18n>Ghost mode</strong>
+            <small data-i18n>Drive through other players' cars instead of colliding with them.</small>
+            <em data-i18n data-i18n-src={!ready ? 'Loading' : readOnly ? 'Read only' : values.roam_collide !== 'on' ? 'On' : 'Off'}>{!ready ? 'Loading' : readOnly ? 'Read only' : values.roam_collide !== 'on' ? 'On' : 'Off'}</em>
+          </span>
+          <input type="checkbox" role="switch" checked={values.roam_collide !== 'on'} disabled={!ready || readOnly || !!busy}
+            aria-label="Ghost mode" onChange={event => void update('roam_collide', !event.target.checked)} />
+        </label>
+        <label className="trp-online-toggle-card trp-online-toggle-violet">
+          <span className="trp-online-toggle-icon"><MessageCircle size={19} /></span>
+          <span className="trp-online-toggle-copy">
+            <strong data-i18n>Quick chat</strong>
+            <small data-i18n>Use your sixteen preset phrases with nearby players in Free Roam.</small>
+            <em data-i18n data-i18n-src={!ready ? 'Loading' : readOnly ? 'Read only' : values.quick_chat === 'on' ? 'On' : 'Off'}>{!ready ? 'Loading' : readOnly ? 'Read only' : values.quick_chat === 'on' ? 'On' : 'Off'}</em>
+          </span>
+          <input type="checkbox" role="switch" checked={values.quick_chat === 'on'} disabled={!ready || readOnly || !!busy}
+            aria-label="Quick chat" onChange={event => void update('quick_chat', event.target.checked)} />
+        </label>
+        <label className="trp-online-max-cars-card">
+          <span><strong data-i18n>Players’ cars shown</strong><small data-i18n>Limit how many nearby cars are loaded at once.</small></span>
+          <select value={values.roam_max_cars} disabled={!ready || readOnly || !!busy}
+            onChange={event => void saveValidated('roam_max_cars', event.target.value)}>
+            {['16', '20', '24', '28', '32'].map(value => <option key={value} value={value}>{value}</option>)}
+          </select>
+        </label>
+      </div>
       <div className="trp-online-text-grid">
         <label className="trp-online-text-card">
           <span className="trp-online-text-label" data-i18n>Your name</span>
@@ -278,6 +316,17 @@ function OnlineReactControls() {
               onChange={event => setTextValues(current => ({ ...current, roam_room: event.target.value }))}
               onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); void saveText('roam_room'); } }} />
             <button type="button" disabled={!ready || readOnly || !!busy} onClick={() => void saveText('roam_room')} data-i18n>Save</button>
+          </span>
+        </label>
+        <label className="trp-online-text-card trp-online-block-card">
+          <span className="trp-online-text-label" data-i18n>Blocked players</span>
+          <span className="trp-online-text-help" data-i18n>Separate names with commas. You and these players will not see each other in Free Roam.</span>
+          <span className="trp-online-text-entry">
+            <input type="text" maxLength={1023} autoComplete="off" value={textValues.roam_block}
+              disabled={!ready || readOnly || !!busy}
+              onChange={event => setTextValues(current => ({ ...current, roam_block: event.target.value }))}
+              onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); void saveText('roam_block'); } }} />
+            <button type="button" disabled={!ready || readOnly || !!busy} onClick={() => void saveText('roam_block')} data-i18n>Save</button>
           </span>
         </label>
       </div>

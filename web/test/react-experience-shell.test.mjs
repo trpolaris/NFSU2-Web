@@ -195,3 +195,17 @@ test('React Online room field matches the settings schema text limit', () => {
   assert.match(app, /maxLength=\{63\} autoComplete="off" value=\{textValues\.roam_room\}/);
   assert.match(settings, /text: N\('text of 1 to 63 bytes without control characters'\)/);
 });
+
+
+test('React Online owns ghost mode, quick chat, blocked players and the visible car limit', () => {
+  for (const token of ['roam_collide', 'quick_chat', 'roam_max_cars', 'roam_block']) {
+    assert.ok(app.includes(token), token + ' is exposed in the React Online route');
+    assert.ok(shellCss.includes('data-key="' + token + '"'), token + ' legacy row is hidden');
+  }
+  assert.match(app, /values\.roam_collide !== 'on'/);
+  assert.match(app, /update\('roam_collide', !event\.target\.checked\)/);
+  assert.match(app, /saveValidated\('roam_max_cars', event\.target\.value\)/);
+  assert.match(app, /saveText\('roam_block'\)/);
+  assert.match(settingsUi, /key !== 'roam_block'/);
+  assert.match(settingsUi, /key !== 'roam_max_cars'/);
+});
