@@ -114,7 +114,7 @@ function runtimeSnapshot() {
   const read = (id: string) => document.getElementById(id)?.textContent?.trim() ?? '';
   const items = ORDER.map(id => checks.get(id)).filter((item): item is Check => !!item)
     .filter(item => item.state === 'fail' || (item.state === 'warn' && (item.id === 'browser' || item.id === 'gpu')))
-    .map(item => ({ id: item.id, state: item.state, label: label(item), detail: detail(item), code: item.code ? codeOf(item.code) : '' }));
+    .map(item => ({ id: item.id, state: item.state, label: label(item), detail: detail(item), code: item.code ?? '' }));
   const storage = checks.get('storage');
   return {
     phase,
@@ -322,7 +322,7 @@ function renderDiagnostics() {
 function diagnosticsSnapshot() {
   return ORDER.map(id => checks.get(id)).filter((item): item is Check => !!item).map(item => ({
     id: item.id, state: item.state, label: label(item), detail: detail(item),
-    code: item.code ? codeOf(item.code) : '',
+    code: item.code ?? '',
   }));
 }
 async function refreshDiagnostics() {
