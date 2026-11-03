@@ -15,7 +15,7 @@
   <a href="https://github.com/trpolaris/NFSU2-Web/releases"><img src="https://img.shields.io/github/v/release/trpolaris/NFSU2-Web?display_name=tag&label=Releases" alt="GitHub Release"></a>
 </p>
 
-[🎮 Özellikler](#-nfsu2-web) · [🖥️ Kontrol Merkezi](#️-trpolaris-control-center) · [🧭 Player Hub](#-trpolaris-player-hub) · [🏗️ Mimari](#️-sistem-mimarisi) · [⚙️ Kurulum](#-kurulum) · [🧪 Testler](#-geliştirme-ve-testler)
+[🎮 Özellikler](#-nfsu2-web) · [🖥️ Kontrol Merkezi](#️-trpolaris-control-center) · [🧭 Player Hub](#-trpolaris-player-hub) · [🏗️ Mimari](#️-sistem-mimarisi) · [⚙️ Kurulum](#-kurulum) · [🧪 Testler](#-geliştirme-ve-testler) · [🗺️ Geliştirme Durumu](#-geliştirme-durumu-ve-teknik-yol-haritasi)
 
 **Ana dal:** `main` · **Sunucu:** Rust · **Oyun çalışma zamanı:** WebAssembly
 
@@ -31,7 +31,7 @@ Proje yalnızca oyunu tarayıcıya taşımakla kalmaz. Oyun deneyimini tamamlaya
 
 | Bileşen | Teknoloji / Platform | Sorumluluk |
 |---|---|---|
-| **NFSU2 Web** | WebAssembly · TypeScript · WebGPU · Web Audio | Tarayıcıda oyun, giriş aygıtları, yerel kayıtlar, çevrimiçi oyun ve Free Roam. |
+| **NFSU2 Web** | React · TypeScript · WebAssembly · WebGPU · Web Audio | React tarafından yönetilen ana web sayfaları; TypeScript servis/host katmanı; WebAssembly oyun runtime'ı; yerel kayıtlar, çevrimiçi oyun ve Free Roam. |
 | **TRPOLARIS Player Hub** | React · Rust API | Oyuncu profili, canlı oyuncular, kişisel garaj ve oyuncu merkezi. |
 | **TRPOLARIS Control Center** | Windows · WPF · .NET 10 · WSL2 · Docker | Sunucu kurulumu, yönetimi, erişim profilleri, dosyalar ve tanılama. |
 
@@ -347,7 +347,7 @@ flowchart TB
 | WebAssembly | WASI SDK 34 · Clang · wasm-ld | `wasm32-wasip1-threads` hedefinde çok iş parçacıklı WASM derlemesi. |
 | Ana web istemcisi | TypeScript · JavaScript · esbuild | Oyun host'u, arayüz, ayarlar, giriş aygıtları ve ağ istemcisi. |
 | Grafik ve ses | WebGPU · Web Audio | Tarayıcı GPU ve ses çıkışı. |
-| Player Hub | React · Motion · Lucide · Tailwind | Oyuncu merkezinin arayüzü ve bileşenleri. |
+| React UI | React · Motion · Lucide · Tailwind | Ana web deneyiminin sayfa kabuğu ve `/hub/` Player Hub arayüzü. Oyun host/runtime servisleri React dışındadır. |
 | Backend | Rust 2024 · Tokio · rustls | HTTP/TLS, WebSocket, LAN, Online, Free Roam, Cloud ve Hub API. |
 | Paketleme | Docker · Docker Compose · Caddy | Sunucu imajı, servis yaşam döngüsü ve HTTPS reverse proxy. |
 | Masaüstü yönetim | C# · WPF · .NET 10 | Windows Control Center. |
@@ -605,6 +605,350 @@ CI ayrıca Rust sunucusunu derler, sentetik Online protokol yük/kötüye kullan
 | [Rust Sunucu Rehberi](web/server-rs/README.md) | Backend bileşenleri, build, test ve performans ölçümleri. |
 | [Control Center Rehberi](control-center/README.md) | Windows uygulaması ve kaynak kodundan derleme. |
 | [Multiplayer Doğrulama](docs/MULTIPLAYER-VALIDATION.md) | Online, LAN, Free Roam ve yük doğrulama senaryoları. |
+
+
+---
+
+<a id="development-status"></a>
+
+## 🗺️ Geliştirme durumu ve teknik yol haritası
+
+> **Durum kaydı: 3 Kasım 2026.** Bu bölüm aktif React geçiş dalını, son commit'i, CI durumunu, eski DOM servis sınırlarını ve sıradaki geliştirme sırasını açıklar. Buradaki bütün geliştirmeler `main` dalına alınmış veya canlı sunucuya dağıtılmış değildir.
+
+### 📍 Şu anda hangi aşamadayız?
+
+**Aktif aşama: ana web deneyimini React'e taşıma ve eski DOM servis sınırlarını ayrıştırma.**
+
+React; ana web deneyiminin sayfa, navigasyon ve UI katmanının sahibi oluyor. Oyun runtime'ı React'e taşınmıyor. WASM, WebGPU, Web Audio, worker'lar, input sistemi, OPFS, Rust backend ve WebSocket çok oyunculu servisleri kendi sorumluluklarında kalıyor.
+
+| Alan | Bugünkü durum | Açıklama |
+|---|---|---|
+| Tarayıcı oyun runtime'ı | **Mevcut altyapı korunuyor** | WASM, WebGPU, Web Audio, worker ve input servisleri React dışındadır. |
+| Rust backend / multiplayer | **Mevcut altyapı korunuyor** | HTTP/TLS, WebSocket, LAN, Free Roam, Online, chat, Cloud ve Hub API servisleri Rust tarafındadır. |
+| Ana web navigasyonu | **React'e taşındı** | React sayfa durumunu, URL hash'ini ve geri/ileri gezinmeyi yönetir. |
+| Home / Play | **React arayüzü mevcut** | Oyun başlatma ve runtime durumu servis köprüsünden alınır. |
+| Online | **React arayüzü mevcut** | Oyuncu/oda görünümü ve isim sahipliği mevcut servis köprülerini kullanır. |
+| Mod Library | **React arayüzü mevcut** | Kartlar, arama/filtreler ve form React'tedir; platform depolama/manifest yardımcılarının DOM bağımlılıkları temizlenecektir. |
+| Saves / Cloud | **React arayüzü mevcut** | Kayıt, ekran görüntüsü ve Vault kullanıcı arayüzleri React'tedir; OPFS, şifreleme ve senkronizasyon servisleri korunur. |
+| Controls | **React sayfası ayrıştırıldı** | Eski `#controls` / `#keys` sayfa ağacı kaldırıldı; F9 yardım içeriği template üzerinden açılır. |
+| Settings | **React arayüzü mevcut** | Profil, önayar, ayar grupları ve ham `settings.ini` düzenleyicisi React ekranlarındadır; SettingsPanel servisinin DOM bağımlılıkları sıradaki temizlik konusudur. |
+| Accessibility | **React'e taşındı** | Eski gizli checkbox kökü kaldırıldı; tarayıcı tercih deposu ve document-level özellikler korunur. |
+| System | **React arayüzü mevcut** | Güncelleme, çeviri kontrolü, tanılama ve oyun verisi işlemleri mevcut servislerden çağrılır. |
+| Player Hub | **Ayrı React uygulaması mevcut** | `/hub/` altında çalışır; ana web sayfasının oyun runtime'ından ayrıdır. |
+| Legacy DOM temizliği | **Devam ediyor** | Görünür sayfaların çoğu React'tir; gizli `#app-pages` servis kökü ve bazı DOM tabanlı servisler hâlâ bulunmaktadır. |
+
+**Önemli ayrım:** “Sayfa React oldu” demek, o sayfanın tüm iş kurallarının eski DOM'dan ayrıldığı anlamına gelmez. Hedef; eski sayfa HTML'ine ihtiyaç duymayan servis arayüzleri oluşturarak gizli uyumluluk kökünü güvenle kaldırmaktır.
+
+### 🌿 Aktif GitHub dalı ve son durum
+
+| Öğe | Güncel kayıt |
+|---|---|
+| Repository | [trpolaris/NFSU2-Web](https://github.com/trpolaris/NFSU2-Web) |
+| Varsayılan dal | `main` |
+| `main` HEAD | [`f1452ce`](https://github.com/trpolaris/NFSU2-Web/commit/f1452ce76f4f344f560ddc10b60e51ba862d531c) |
+| React çalışma dalı | [`feature/react-web-experience`](https://github.com/trpolaris/NFSU2-Web/tree/feature/react-web-experience) |
+| React dalı HEAD | [`70952b9`](https://github.com/trpolaris/NFSU2-Web/commit/70952b99d04142fc2f6823b8e7e2633c9a8e49a4) |
+| İlgili Pull Request | [PR #15 — Main experience React migration](https://github.com/trpolaris/NFSU2-Web/pull/15) |
+| PR durumu | Açık, taslak; hedef dal `main` |
+
+PR #15 henüz birleştirilmemiştir. React geçiş dalındaki kodu `main` veya canlı sunucu koduyla aynı kabul etmeyin.
+
+**Son commit için GitHub Actions kaydı:**
+
+| İş akışı | 3 Kasım 2026 tarihli son görünen durum | Bağlantı |
+|---|---|---|
+| `image-rs` | **Başarılı** | [Container image run](https://github.com/trpolaris/NFSU2-Web/actions/runs/41596182691) |
+| Multiplayer and Regression CI — PR | **Çalışıyor** | [PR CI run](https://github.com/trpolaris/NFSU2-Web/actions/runs/41596182724) |
+| Multiplayer and Regression CI — push | **Çalışıyor** | [Push CI run](https://github.com/trpolaris/NFSU2-Web/actions/runs/41596174778) |
+
+Bu, kontrol anındaki GitHub durumudur. `image-rs` başarısı Rust/web/multiplayer regresyon paketinin tamamının geçtiği anlamına gelmez. CI tamamlandığında yeniden kontrol edilmelidir.
+
+### ✅ React geçişinde yapılanlar
+
+#### React kabuğu, navigasyon ve header
+
+- Ana web uygulaması için ayrı React root ve sayfa kabuğu kullanılır.
+- Görünür navigasyon React tarafından yönetilir.
+- Sayfa geçişleri URL hash'iyle eşleştirilir; doğrudan bağlantı ve tarayıcı geri/ileri davranışı korunur.
+- React geçiş/animasyon sistemi ve ikonlar sayfa katmanında kullanılır.
+- Eski DOM hızlı navigasyonu, tıklama köprüsü ve eski sayfa yöneticisi kaldırılmıştır.
+- Eski header/About kopyaları ve artık kullanılmayan CSS/visual enhancement katmanları temizlenmiştir.
+- Dil seçici ve PWA yükleme/kurulum arayüzü React tarafına taşınmıştır; dil kaynağı ve Service Worker davranışları korunur.
+
+#### React'e taşınan sayfalar
+
+| Sayfa | React kapsamı |
+|---|---|
+| **Home / Play** | Ana dashboard, oyun başlatma alanı, sistem durumu ve hızlı navigasyon. |
+| **Online** | Oyuncu/oda durumları ve isim sahipliği akışlarının React görünümü. |
+| **Mod Library** | Önerilen paket kartları, kişisel mod bağlantıları, arama, kategori/favori filtreleri, ekleme ve içe/dışa aktarma. |
+| **Saves** | Yerel kayıt listesi, yedekleme/geri yükleme ve kayıt eylemleri için React kontrolleri. |
+| **Screenshots** | Ekran görüntüsü galerisi, önizleme/lightbox ve dosya işlemleri için React kontrolleri. |
+| **Cloud / Vault** | Keyphrase, bağlama, eşitleme ve çakışma eylemlerinin React görünümü. Şifreleme ve Vault servisleri korunur. |
+| **Controls** | Klavye, gamepad, Xbox/PlayStation tuş adları, direksiyon ve dokunmatik tercihlerin React görünümü. |
+| **Settings** | Ayar grupları, profil kaydetme/uygulama/silme, hızlı önayarlar ve ham `settings.ini` düzenleyicisi. |
+| **Accessibility** | Büyük metin, animasyon azaltma ve yüksek kontrast anahtarları React state üzerinden çalışır. |
+| **System** | Güncelleme, çeviri kontrolü, tanılama listesi, oyun verisi ön yükleme ve yerel oyun verisi silme ekranları. |
+| **About** | Proje hakkında ve değişikliklerin React görünümü. |
+
+Bu geçişte görünür UI taşınırken servis davranışı korunmuştur; bütün servisler eş zamanlı yeniden yazılmamıştır.
+
+#### Controls ve F9 yardım penceresi
+
+- Eski statik `#controls` sayfa bölümü ve `#keys` kontrol çalışma alanı kaldırılmıştır.
+- React Controls sayfası sekme ve Xbox/PlayStation aile state'ini yönetir.
+- Gamepad bağlantısı değiştiğinde React ekranı mevcut gamepad servisinin olayını dinler.
+- F9 oyun içi yardım penceresi korunmuştur; içerik `controls-help-template` isimli pasif template üzerinden yalnızca pencere açıldığında oluşturulur.
+- Dokunmatik boyut, direksiyon, seviye ufuk ve gamepad ayar servisleri değiştirilmemiştir.
+- Controls sayfasına özel eski `#controls` CSS seçicileri temizlenmiştir.
+
+#### Accessibility ve tarayıcı tercihleri
+
+- React bileşeni büyük metin, animasyonları azaltma ve yüksek kontrast tercihlerini yönetir.
+- Tercihler mevcut tarayıcı yerel deposunda kalır.
+- Servis eski checkbox elemanlarını aramak yerine document-level özellikleri uygular.
+- Eski `#accessibility` statik HTML bölümü ve ona bağlı CSS/DOM senkronizasyonu kaldırılmıştır.
+- Bu geçiş oyun `settings.ini` dosyasını değiştirmez.
+
+#### React geçişinin önemli commitleri
+
+| Commit | Yapılan değişiklik |
+|---|---|
+| [`5d58ef0`](https://github.com/trpolaris/NFSU2-Web/commit/5d58ef0) | React sayfa navigasyonunun sahibi oldu. |
+| [`a3dbab4`](https://github.com/trpolaris/NFSU2-Web/commit/a3dbab4) | LegacyNode DOM taşıma katmanı kaldırıldı. |
+| [`0c98702`](https://github.com/trpolaris/NFSU2-Web/commit/0c98702) | LegacyAppHost kaldırıldı. |
+| [`b3cb079`](https://github.com/trpolaris/NFSU2-Web/commit/b3cb079) | Runtime gözlemcileri yerine snapshot/event köprüsü kullanıldı. |
+| [`187af2f`](https://github.com/trpolaris/NFSU2-Web/commit/187af2f) | Settings profil ve ham düzenleyici React'e taşındı. |
+| [`6ad2b79`](https://github.com/trpolaris/NFSU2-Web/commit/6ad2b79) | Online görünümü ve isim sahipliği React'e bağlandı. |
+| [`671919a`](https://github.com/trpolaris/NFSU2-Web/commit/671919a) | Kullanılmayan statik About/header markup'ı kaldırıldı. |
+| [`dcfcbcc`](https://github.com/trpolaris/NFSU2-Web/commit/dcfcbcc1ece2e47cab3953ddac9b59611ddb979c) | Controls sayfası eski DOM'dan ayrıldı; F9 template'i korundu. |
+| [`70952b9`](https://github.com/trpolaris/NFSU2-Web/commit/70952b99d04142fc2f6823b8e7e2633c9a8e49a4) | Accessibility tercihleri tamamen React bileşenine taşındı. |
+
+### 🧱 Eski arayüzden geriye kalanlar
+
+1. **Gizli servis kökü:** `#app-pages` ve altındaki bazı DOM düğümleri gizli uyumluluk/servis kökü olarak tutulur. Bunlar görünür React sayfaları değildir.
+2. **Settings:** `SettingsPanel` ve ayar dosyası işlemleri henüz tamamen DOM bağımsız bir servis API'sine dönüştürülmemiştir.
+3. **Saves / Vault:** `SavesPanel` ve `VaultPanel`, OPFS, dosya, şifreleme, senkronizasyon ve çakışma davranışlarını korur. React bunlara bridge/adaptör üzerinden erişir; servislerin tamamı bağımsız state/command modülleri olarak ayrılmamıştır.
+4. **Platform / Mod Library:** Bazı mod listesi, filtre, profil ve durum yardımcıları eski DOM elemanlarına referans verebilir. İş kuralları DOM'dan ayrılmadan ilgili HTML kökü silinmemelidir.
+5. **System servisleri:** Güncelleme, çeviri, ilk kurulum ve tanılama servislerinin bazıları DOM status/operation köklerini kullanır.
+6. **Oyun içi overlay'ler:** F9, Game HUD, Chat HUD, toast, stage/canvas ve FPS/ağ overlay'i oyun oturumunun ayrı yaşam döngüsündedir; web navigasyonunun parçası değildir.
+
+**React'e taşınmayacak altyapı:** WASM oyun host'u, WebGPU, Web Audio/AudioWorklet, worker'lar, SharedArrayBuffer/Atomics, klavye/gamepad/dokunmatik input, OPFS, Service Worker, Rust HTTP/TLS, WebSocket, LAN switch, Free Roam ve Online servisleri. Bunlar eski UI değildir; runtime/servis katmanlarıdır.
+
+### 🧭 Nereden devam edilmeli?
+
+#### P0 — React dalını doğrula ve sabitle
+
+1. PR #15'in Multiplayer and Regression CI sonucunu bekleyip kaydet.
+2. `npm run check`, `npm run build`, web test paketi ve ilgili Rust testlerini son commit'te doğrula.
+3. Controls değişikliklerinin F9 yardım penceresini, input ayarlarını, gamepad bağlantısını ve hash navigasyonunu bozmadığını kontrol et.
+4. Zorunlu kontroller yeşil olduğunda PR taslak durumunu kaldır; sonra merge kararı ver.
+5. Canlı WSL sunucusuna dağıtmadan önce branch/commit SHA ile Docker image kimliğini kaydet.
+
+#### P1 — Settings servisinin DOM'dan ayrılması
+
+**Önerilen bir sonraki geliştirme budur.**
+
+1. `SettingsPanel` içinden UI DOM sorgularını ayrıştır.
+2. Ayar okuma, doğrulama, yazma, profil uygulama ve varsayılana dönme işlemlerini snapshot + command API olarak sun.
+3. React bileşenlerine yalnızca typed snapshot ve komut köprüsü bırak.
+4. Ham `settings.ini` editörünün yorumları, desteklenmeyen satırlar, sıfırlama ve profil koruma davranışlarını test et.
+5. Servislerin artık kullanmadığı doğrulanınca gizli Settings HTML kökünü kaldır.
+
+#### P1 — Saves / Cloud / Vault servis ayrıştırması
+
+1. React ekranını değiştirmeden `SavesPanel` ve `VaultPanel` işlemlerini UI DOM'undan ayır.
+2. OPFS kayıtları, ekran görüntüleri, dosya indirme/yükleme, isimlendirme ve geri yükleme akışlarını koru.
+3. AES-GCM / PBKDF2, keyphrase, eski `/vault` uyumluluğu ve `/cloud/v1/saves` protokolünü değiştirmeden taşı.
+4. ETag, iki tarayıcı eşitlemesi, conflict (mine/theirs), önceki sürüme dönüş ve 30 günlük geri alma davranışlarını test et.
+5. Eski HTML köküne ihtiyaç kalmadığında Saves/Vault markup'ını kaldır.
+
+#### P1 — Mod Library ve System servis temizliği
+
+1. Mod listesi, favoriler, filtreler ve import/export iş kurallarını bağımsız modüle taşı.
+2. `localStorage` veri formatını, mevcut kayıtları ve manifest kontrolünü koru.
+3. Güncelleme, çeviri kontrolü, ilk kurulum, diagnostics ve game-data işlemlerini state/command arayüzlerine ayır.
+4. Servisler bağımsız API'ye geçtikten sonra kullanılmayan gizli form/status elemanlarını kaldır.
+
+#### P1 — Player Hub bütünleştirmesi ve gerçek veri
+
+1. `/hub/` uygulamasını ana web deneyimiyle dil, tasarım, erişilebilirlik ve hata durumları açısından tutarlı hâle getir.
+2. `/api/v1/session`, `/api/v1/live/players`, `/api/v1/me` ve `/api/v1/garage` uçlarını gerçek sunucuda doğrula.
+3. Profil ve garajın anonim tarayıcı oturumuna bağlı olduğunu açıkça göster.
+4. Kariyer istatistiklerini ancak doğrulanmış oyun telemetrisi geldikten sonra gerçek veriyle doldur.
+
+#### P1 — Test client / WebSocket trafik incelemesi
+
+Bağımsız test client'ın sunucuya bağlanması sırasında oyun FPS'inde belirgin düşüş gözlendi; sunucu yeniden başlatılınca FPS normale döndü. Test client bağlantısı önemli bir tetikleyicidir, ancak kök neden henüz kod/ölçüm ile kanıtlanmamıştır.
+
+İncelenecek noktalar:
+
+- Test client'ın WebSocket paket türleri ve gönderim sıklığı.
+- Oyuncu konumu, presence ve snapshot güncellemelerinin gereksiz tekrarı.
+- LAN paketlerinin yanlış hedeflere tekrar broadcast edilmesi veya echo döngüleri.
+- Bir oyuncu mesajının diğer oyunculara çoğalırken ortaya çıkan iş yükü.
+- Yavaş client nedeniyle yazma kuyruğu/backpressure birikmesi.
+- Bağlantı kapanması, reconnect, timeout ve oyuncu oturumu temizliği.
+
+**Kısıt:** FPS benchmark, FPS stres testi veya grafik/render kodu değişikliği yapılmayacaktır. Önce test client kaynak kodu ve Rust backend akışı incelenecek; sohbet, filtre, Free Roam ve Player Hub korunacaktır.
+
+#### P2 — Tam sistem doğrulaması
+
+- İki ayrı gerçek tarayıcıyla LAN/Free Roam bağlantısı.
+- Room/Crew chat, Quick Chat ve yazılı mesaj filtreleme.
+- Oyuncu adı claim, reconnect ve bağlantı kapatma.
+- Cloud kayıt yükleme/eşitleme/çakışma/geri yükleme.
+- Player Hub canlı oyuncu listesi ve profil/garaj CRUD.
+- Chrome/Firefox/Safari destek kapsamı ve 320 px mobil regresyonu.
+- WebSocket upgrade, TLS, erişim politikası, rate limit ve yedekleme/rollback.
+
+#### P2 — Dağıtım ve Control Center
+
+1. React dalı doğrulanmadan çalışan sunucuya aktarılmamalıdır.
+2. Deployment kaydında Git branch, commit SHA, Docker image tag/digest, Compose servis ve health sonucu bulunmalıdır.
+3. `game-data`, `module-data`, `certs` ve `state` volume'ları için yedek/geri yükleme doğrulanmalıdır.
+4. Genel internet/WAN adresi, DNS ve public tünel mevcut kayıtlarda doğrulanmadı.
+5. Windows Control Center ayrı bir bileşendir. 1.5.6 kaynak ve yapısal kontrolleri raporlanmış olsa da tam Windows Release build, PowerShell parse ve sıfırdan temiz kurulum ayrıca doğrulanmalıdır.
+
+### 🧪 Test ve dağıtım kayıtlarının doğru okunması
+
+#### React geçişinden önceki son doğrulanmış yerel deployment
+
+3 Kasım 2026 tarihli WSL terminal çıktısında:
+
+| Kontrol | Sonuç |
+|---|---|
+| Rust `nfsu2-roam` testleri (offline) | 98 geçti, 0 başarısız |
+| Rust `nfsu2-roam` testleri (locked) | 98 geçti, 0 başarısız |
+| `npm run check` | Başarılı |
+| `npm run build` | Başarılı |
+| Docker image `nfsu2-web-rs:local` | Oluşturuldu |
+| Compose `server` container | `healthy` |
+| `https://127.0.0.1:8444/game.json` | HTTP 200 |
+
+Bu doğrulama daha sonra gönderilen React commitlerini kapsayan yeni bir WSL build/deploy değildir. Son çalışan yerel sunucunun `70952b9` commit'ini içerdiği varsayılmamalıdır.
+
+Rust filtre testleri; 28 locale dosyası, Türkçe/İngilizce kelimeler, çok kelimeli ifadeler, noktalama, kelime sınırı, obfuscation ve CJK metinlerini kapsar. Filtre Rust Free Roam yazılı chat iletilirken uygulanır; sabit Quick Chat cümleleri ayrı akıştır.
+
+#### Önceki web regresyon sonucu
+
+2 Kasım 2026 tarihli test snapshot'ında 381 testten 342'si başarılı, 0'ı başarısız ve 39'u atlanmıştı. 320 px responsive testte 16 dil için 192 ölçümde yatay taşma raporlanmamıştı. Bu sonuç önceki snapshot'a aittir; son React commitlerinin sonucu olarak kullanılmamalıdır.
+
+### 🖥️ Yerel sunucu ve dağıtım altyapısı
+
+Geliştirme/doğrulama ortamı Windows 11 + WSL 2 / Ubuntu + Docker Compose'tur. Yerel compose düzeni `compose.local.yml`, yerel ortam dosyası `.env.local`, servis adı `server`, image etiketi `nfsu2-web-rs:local` olarak kullanılmıştır.
+
+| Öğe | Kayıt |
+|---|---|
+| Ana host ortamı | Windows 11 |
+| Linux katmanı | WSL 2 / Ubuntu |
+| Paketleme/orkestrasyon | Docker / Docker Compose |
+| Compose yapılandırması | `compose.local.yml` |
+| Makineye özel ortam | `.env.local` — repoya gönderilmez |
+| Compose servis adı | `server` |
+| Yerel image etiketi | `nfsu2-web-rs:local` |
+| Önceki container adı | `nfsu2-web-local-server-1` |
+| Host portu | `8444` |
+| Container portu | `8443/tcp` |
+| Ana web uygulaması | `/` |
+| Player Hub | `/hub/` |
+
+Yerel ağdaki gerçek IP, WSL kullanıcı yolu, sertifika private key'leri ve `.env.local` içeriği makineye özeldir; bu README'de sabitlenmez. Yerel erişim biçimi `https://<LAN-IP>:8444/` şeklindedir. WSL içinde loopback sağlık kontrolü:
+
+```bash
+curl --noproxy '*' -kfsS -o /dev/null \
+  -w 'HTTP %{http_code}\\n' \
+  https://127.0.0.1:8444/game.json
+```
+
+Container yeniden oluşturma, önceden doğru image hazırlandıktan sonra yapılır:
+
+```bash
+docker compose --env-file .env.local \
+  -f compose.local.yml \
+  up -d --no-build --force-recreate server
+```
+
+Bu işlem `/state` ve diğer kalıcı volume'ları silmemelidir. Yedek ve açık operasyon planı olmadan `docker compose down -v` kullanılmamalıdır. Yerel 8444 portu genel internet URL'si veya WAN IP'si anlamına gelmez.
+
+### 🔗 Önemli bağlantılar ve endpoint envanteri
+
+#### GitHub ve geliştirme
+
+- [Repository](https://github.com/trpolaris/NFSU2-Web)
+- [Main](https://github.com/trpolaris/NFSU2-Web/tree/main)
+- [React çalışma dalı](https://github.com/trpolaris/NFSU2-Web/tree/feature/react-web-experience)
+- [PR #15 — React web experience](https://github.com/trpolaris/NFSU2-Web/pull/15)
+- [GitHub Actions](https://github.com/trpolaris/NFSU2-Web/actions)
+- [Container image package](https://github.com/trpolaris/NFSU2-Web/pkgs/container/need-for-speed-underground-2-web-rs)
+- [Releases](https://github.com/trpolaris/NFSU2-Web/releases)
+
+#### Ana web ve oyun dosyaları
+
+| Yol | Kullanım |
+|---|---|
+| `/` | Ana NFSU2 Web React deneyimi ve oyun host sayfası. |
+| `/hub/` | React Player Hub. |
+| `/game.json` | WebAssembly modül metadata/versiyon bilgisi. |
+| `/game.wasm` | Derlenmiş oyun WebAssembly modülü. |
+| `/data-blocks/` | Oyun veri blokları. |
+| `/data-manifest` | İzin verilen oyun verisi/paket dosyalarının manifest'i. |
+| `/app-version.json` | Uygulama güncelleme sürüm kontrolü. |
+
+#### Multiplayer, Cloud ve Player Hub API
+
+| Endpoint | Protokol / metot | Amaç |
+|---|---|---|
+| `/players` | HTTP GET | Oyuncu/oda durum özeti. |
+| `/lan` | WebSocket | Sanal LAN bağlantısı ve oyun paket yönlendirme. |
+| `/cloud/v1/saves` | HTTP GET / PUT / DELETE | Şifreli Cloud kayıt nesnesi ve koşullu güncelleme. |
+| `/vault` | Eski API uyumluluğu | Eski Cloud/Vault istemcileri için geçiş uyumluluğu. |
+| `/api/v1/session` | HTTP GET | Player Hub anonim oturum/CSRF başlangıcı. |
+| `/api/v1/live/players` | HTTP GET | Canlı oyuncu listesi. |
+| `/api/v1/me` | HTTP GET / PUT | Oturum sahibinin profil okuma/güncelleme işlemi. |
+| `/api/v1/garage` | HTTP GET / POST | Oturum sahibinin garaj listesi ve kayıt ekleme. |
+| `/api/v1/garage/:id` | HTTP DELETE | Oturum sahibinin garaj kaydını silme. |
+
+`/lan` WebSocket uç noktasıdır; reverse proxy kullanılıyorsa Upgrade/Connection header geçişi korunmalıdır. Yukarıdaki yollar aynı origin altında sunulur; ayrı bir Player Hub backend portu tanımlı değildir.
+
+#### İlgili teknik rehberler
+
+- [Oynama Rehberi](docs/web/PLAYING.md)
+- [VPS / Docker Kurulumu](docs/web/VPS.md)
+- [Free Roam Sohbet Rehberi](docs/web/FREEROAM-CHAT.md)
+- [TRPOLARIS Cloud Rehberi](docs/web/TRPOLARIS-CLOUD.md)
+- [Ağ Tanılama Rehberi](docs/web/NETWORK-DIAGNOSTICS.md)
+- [Rust sunucu README](web/server-rs/README.md)
+- [React geçiş ve servis sınırı notları](docs/web/REACT-EXPERIENCE-REDESIGN.md)
+- [Control Center rehberi](control-center/README.md)
+
+### 🧰 Kullanılan teknoloji ve araç zinciri — kısa özet
+
+| Katman | Teknoloji |
+|---|---|
+| Oyun kaynak analizi | Python 3, Capstone, pefile, C kaynak üretim araçları |
+| Oyun derleme | C, WASI SDK 34, Clang, wasm-ld, `wasm32-wasip1-threads` |
+| Web uygulaması | TypeScript, JavaScript, React, Motion, Lucide, esbuild |
+| Grafik | WebGPU |
+| Ses | Web Audio, AudioWorklet |
+| Paralellik | Web Workers, I/O Worker, SharedArrayBuffer, Atomics |
+| Yerel depolama | OPFS, browser storage, Service Worker |
+| Backend | Rust 2024, Tokio, rustls |
+| Ağ | HTTP/TLS, WebSocket, sanal LAN switch |
+| Player Hub | React, aynı-origin Rust API, HttpOnly session cookie, CSRF |
+| Build/test | Node.js 24, npm, Playwright/Chromium, Rust stable, Cargo |
+| Deployment | Docker, Docker Compose, Caddy/reverse proxy seçenekleri |
+| Windows yönetim aracı | C#, WPF, .NET 10 (NFSU2 Web'den ayrı bileşen) |
+
+### 🔐 Güvenlik ve veri koruma kuralları
+
+- `.env.local`, API secret'ları, private TLS key/sertifikalar ve erişim token'ları repoya eklenmez.
+- Kullanıcının orijinal `SPEED2.EXE`, oyun DLL/asset dosyaları ve oyun kayıtları depoya veya image'e kopyalanmaz.
+- `/game` ve `/module` salt okunur; `/state` kalıcı veri alanıdır.
+- `game-data`, `module-data`, `certs` ve `state` volume'ları güncelleme öncesi tanımlanır ve yedeklenir.
+- Player Hub oturumu HttpOnly/Secure/SameSite=Strict çerez, CSRF ve same-origin kontrolleriyle korunur.
+- Public tunnel kendi başına kullanıcı kimlik doğrulaması değildir. Public erişim için Access/authentication, firewall, rate limit ve WebSocket politikası gerekir.
+- Public README'ye yerel LAN IP, kişisel WSL kullanıcı yolu veya gizli yapılandırma eklenmez.
 
 ---
 
