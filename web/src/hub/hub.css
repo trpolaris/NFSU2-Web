@@ -354,7 +354,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
   background:linear-gradient(100deg,rgba(255,105,69,.15),rgba(255,105,69,.035));
   box-shadow:inset 3px 0 var(--hub-coral),0 8px 22px rgba(0,0,0,.12); pointer-events:none;
 }
-.hub-nav-link > svg,.hub-nav-link > span,.hub-nav-link > i { position:relative; z-index:1; }
+.hub-nav-link > svg,.hub-nav-link > span:not(.hub-nav-indicator),.hub-nav-link > i { position:relative; z-index:1; }
 .hub-nav-link.is-active svg { color:var(--hub-coral); }
 .hub-connection.is-disconnected { color:#d6a7ac; }
 .hub-connection.is-disconnected .hub-live-dot { background:#d17b83; box-shadow:0 0 9px rgba(209,123,131,.45); }
