@@ -6,7 +6,7 @@
 // gamepad.ts), and a line says so while one is connected too.  For a wheel with a shifter, what the shifter does
 // (wheel.ts Shifter), kept in this browser for that model too.
 
-import { drivingPad, familyOf, mayDrive, PAD_DRIVER_EVENT } from '../input/gamepad';
+import { deadTwin, drivingPad, familyOf, mayDrive, PAD_DRIVER_EVENT } from '../input/gamepad';
 import {
   guessMap, loadMap, loadShifter, saveMap, saveShifter, SHIFTER_MODES, shifterOf, WheelLearn, wheelOf, type LearnStep,
   type ShifterMode,
@@ -32,18 +32,21 @@ const STEPS: Record<LearnStep, string> = {
 /** the wheel the sheet is about, one the browser has no standard mapping for: the one driving the game's controller
  *  while a game runs, else the first connected one; or null */
 function connectedWheel(): Gamepad | null {
-  const wheel = (g: Gamepad | null) => !!g?.connected && g.mapping !== 'standard' && !!wheelOf(g.id);
   try {
+    const pads = navigator.getGamepads?.() ?? [];
+    const wheel = (g: Gamepad | null) => !!g?.connected && g.mapping !== 'standard' && !!wheelOf(g.id) && !deadTwin(g, pads);
     const d = drivingPad();
     if (d) return wheel(d) ? d : null;
-    return navigator.getGamepads?.().find(wheel) ?? null;
+    return pads.find(wheel) ?? null;
   } catch { return null; }
 }
 
 /** whether a controller besides the wheel at index is connected that could drive instead (gamepad.ts) */
 function otherPad(index: number): boolean {
-  try { return navigator.getGamepads?.().some(g => !!g?.connected && g.index !== index && mayDrive(g)) ?? false; }
-  catch { return false; }
+  try {
+    const pads = navigator.getGamepads?.() ?? [];
+    return pads.some(g => !!g?.connected && g.index !== index && mayDrive(g, pads));
+  } catch { return false; }
 }
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -107,13 +110,14 @@ export function wheelSection(pad: HTMLElement, cap: (xb: string, ps: string) => 
     guessBtn.onclick = () => { saveMap(id, null); stateText = ''; refresh(); };
   }
 
-  let id = '', learn: WheelLearn | null = null, raf = 0;
+  let id = '', index = -1, learn: WheelLearn | null = null, raf = 0;
 
   /** show the wheel connected now (or none), unless a set-up is going on */
   function refresh() {
     if (learn) return;
     const g = connectedWheel();
     id = g?.id ?? '';
+    index = g?.index ?? -1;
     box.hidden = !g;
     for (const el of mount.children) if (el !== box) (el as HTMLElement | SVGElement).style.display = g ? 'none' : '';
     if (!g) return;
@@ -141,7 +145,7 @@ export function wheelSection(pad: HTMLElement, cap: (xb: string, ps: string) => 
   function tick() {
     // the tab or the dialog closed: no set-up behind the player's back
     if (!learn || !(box.checkVisibility?.() ?? box.offsetParent !== null)) { stop(); return; }
-    const g = navigator.getGamepads?.().find(p => !!p?.connected && p.id === id);
+    const g = navigator.getGamepads?.().find(p => !!p?.connected && p.id === id && p.index === index);
     if (!g) { stop(N('The wheel went away before its set-up was done.')); return; }
     if (learn.feed(Array.from(g.axes), performance.now())) { stepText = STEPS[learn.step]; step.textContent = t(stepText); }
     fill.style.width = `${Math.round(learn.progress * 100)}%`;
@@ -157,6 +161,7 @@ export function wheelSection(pad: HTMLElement, cap: (xb: string, ps: string) => 
     const g = connectedWheel();
     if (!g) { refresh(); return; }
     id = g.id;
+    index = g.index;
     const info = wheelOf(g.id)!;
     learn = new WheelLearn(loadMap(g.id) ?? guessMap(info, Array.from(g.axes), g.buttons.length));
     stateText = '';
