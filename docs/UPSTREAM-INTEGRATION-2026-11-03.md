@@ -4,6 +4,14 @@ This branch selectively ports compatible changes from `th0mk/nfsu2-web` while ke
 
 ## Integrated
 
+### React route heading accumulation on menu navigation
+- Fixed the page-header issue where changing the left navigation caused previous section labels to remain stacked above the active page.
+- The dynamic breadcrumb, page title and page description now use React's `t()` output instead of being mutated by the legacy `data-i18n` DOM translation pass.
+- Added a language-change subscription so those React-owned labels refresh when the selected locale changes.
+- Keyed the route-heading content wrapper to replace the previous route's heading subtree on navigation.
+- Browser interaction testing has not been run in this integration session; visual confirmation remains pending.
+
+
 ### Car-meet crowd guard for player outruns
 - Upstream commit: `8ef3fa96181c4be08882eaa3203bd46381058055`
 - Added `DU_CROWD = 4` and a nearby-player count using all active, visible peer cars within `DU_NEAR_M` (25 m), including parked/paused cars.
