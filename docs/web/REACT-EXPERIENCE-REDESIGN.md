@@ -187,3 +187,8 @@ The Home route now renders its car artwork, Play dock, module progress and live 
 ## Saves screenshots and Cloud Vault migration
 
 The Screenshots gallery, lazy thumbnail grid, image lightbox, navigation, download and delete actions now render in React. Existing screenshot decoding (including TGA), thumbnail object-URL cache and OPFS files remain in ScreenshotsPart. The Cloud Vault keyphrase field, enable/load, sync, conflict choice, earlier-version restore, stop/delete and Put back controls now render in React through a typed VaultPanel adapter. Encryption, passphrase format, local link storage, sync timing, server routes, conflict rules and the 30-day replaced-save copy are unchanged. The complete #saves subtree remains mounted but hidden as a service anchor while remaining save selectors are removed.
+
+
+## Settings profiles, presets and raw editor migration
+
+Saved configuration profiles, import/export/delete, the three quick presets and the advanced settings.ini editor now render in React. Profile records keep the existing localStorage schema and only carry the existing allow-listed, validated settings. Applying profiles and presets goes through SettingsPanel validation and the existing settings.ini write path. The raw editor and unlisted key resets use the same settings parser, read-only ownership checks, reset confirmation and writer. The previous #settings DOM subtree is now hidden as a service/controller anchor; its profile, preset and raw editor controls are no longer visible.

@@ -542,10 +542,26 @@ test('Settings groups are React-rendered through the validated SettingsPanel ada
   assert.match(shellCss, /\.trp-settings-react-item/);
 });
 
-test('React Settings keeps validated profiles, quick presets, and the raw settings editor in the existing compatibility area', () => {
-  assert.match(app, /LegacyNode selector="#settings" className="trp-settings-game-slot"/);
-  assert.match(html, /id="config-profiles"/);
-  assert.match(html, /class="preset-panel"/);
-  assert.match(html, /id="settings-raw"/);
-  assert.match(shellCss, /\.trp-settings-game-slot > #settings \.profile-manager/);
+test('Settings profiles, quick presets and the raw settings editor are React-owned through validated services', () => {
+  assert.match(app, /function SettingsProfilesReactControls\(\)/);
+  assert.match(app, /function SettingsPresetsReactControls\(\)/);
+  assert.match(app, /function SettingsRawReactControls\(\)/);
+  assert.match(app, /<SettingsProfilesReactControls \/>/);
+  assert.match(app, /<SettingsPresetsReactControls \/>/);
+  assert.match(app, /<SettingsRawReactControls \/>/);
+  assert.match(platform, /window\.__trpSettingsProfilesBridge = \{/);
+  assert.match(platform, /settings\.applyProfileValues\(profile\.name, profile\.values\)/);
+  assert.match(platform, /settings\.applyPreset\(preset\.name, preset\.values\)/);
+  assert.match(runtime, /rawSnapshot: \(\) => settings\.rawSnapshot\(\)/);
+  assert.match(runtime, /saveRaw: async text => \{ const message = await settings\.saveRawFromReact/);
+  assert.match(settingsUi, /rawSnapshot\(\)/);
+  assert.match(settingsUi, /saveRawFromReact\(raw: string\)/);
+  assert.match(settingsUi, /resetAllFromReact\(\)/);
+  assert.match(settingsUi, /resetOtherFromReact\(line: number, key: string\)/);
+  assert.match(gameEntry, /interface TrpSettingsProfilesBridge/);
+  assert.match(gameEntry, /rawSnapshot\(\): TrpSettingsRawSnapshot/);
+  assert.match(shellCss, /\.trp-settings-profiles-react/);
+  assert.match(shellCss, /\.trp-settings-presets-grid/);
+  assert.match(shellCss, /\.trp-settings-raw-react textarea/);
+  assert.match(shellCss, /\.trp-settings-game-slot \{ display:none!important; \}/);
 });

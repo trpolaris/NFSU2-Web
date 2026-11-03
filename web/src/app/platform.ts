@@ -791,18 +791,27 @@ export function setupPlatformFeatures(settings: SettingsPanel, confirm: (title: 
   window.__trpSettingsProfilesBridge = {
     snapshot: () => getProfiles().map(({ id, name, createdAt }) => ({ id, name, createdAt })),
     readOnly: () => settings.readOnly(),
-    save: async (name: string) => {
-      const input = $<HTMLInputElement>('#config-profile-name');
-      input.value = name;
-      await saveCurrentProfile(settings);
-      const message = $('#config-profile-status').textContent ?? '';
+    save: async (rawName: string) => {
+      const name = rawName.trim();
+      const projectProfiles = () => getProfiles().map(({ id, name, createdAt }) => ({ id, name, createdAt }));
+      if (!name || name.length > 40 || /[\\u0000-\\u001f\\u007f]/.test(name)) {
+        return { profiles: projectProfiles(), message: t('The profile name must be 1 to 40 printable characters.') };
+      }
+      const profiles = getProfiles();
+      const existing = profiles.find(profile => profile.name.toLocaleLowerCase() === name.toLocaleLowerCase());
+      const id = existing?.id ?? `p-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+      const record: ConfigProfile = { schema: 1, id, name, createdAt: Date.now(), values: settings.profileValues() };
+      if (!saveProfiles([...profiles.filter(profile => profile.id !== id), record])) {
+        return { profiles: projectProfiles(), message: t('Could not save the profile.') };
+      }
       renderProfilePicker();
-      return { profiles: getProfiles().map(({ id, name, createdAt }) => ({ id, name, createdAt })), message };
+      return { profiles: projectProfiles(), message: t('Profile saved.') };
     },
     apply: async (id: string) => {
       const profile = getProfiles().find(item => item.id === id);
       if (!profile) throw new Error('Profile not found');
       const applied = await settings.applyProfileValues(profile.name, profile.values);
+      window.dispatchEvent(new Event('trp-settings-changed'));
       return { applied, message: applied
         ? t('Settings profile applied: {name}. Changes apply the next time you press Play.', { name: profile.name })
         : t('The profile could not be applied in this tab.') };

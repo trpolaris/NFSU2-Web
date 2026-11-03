@@ -1812,6 +1812,228 @@ function SettingsReactControls() {
   );
 }
 
+function SettingsProfilesReactControls() {
+  const [profiles, setProfiles] = useState([]);
+  const [selected, setSelected] = useState('');
+  const [name, setName] = useState('');
+  const [message, setMessage] = useState('');
+  const [busy, setBusy] = useState('');
+  const [readOnly, setReadOnly] = useState(true);
+  const rootRef = useRef(null);
+  const refresh = useCallback(() => {
+    const bridge = window.__trpSettingsProfilesBridge;
+    if (!bridge) return;
+    const next = bridge.snapshot();
+    setProfiles(next);
+    setReadOnly(bridge.readOnly());
+    setSelected(current => next.some(profile => profile.id === current) ? current : (next[0]?.id ?? ''));
+  }, []);
+
+  useEffect(() => {
+    const update = () => refresh();
+    window.addEventListener('trp-settings-profiles-ready', update);
+    window.addEventListener('trp-settings-changed', update);
+    refresh();
+    return () => {
+      window.removeEventListener('trp-settings-profiles-ready', update);
+      window.removeEventListener('trp-settings-changed', update);
+    };
+  }, [refresh]);
+  useEffect(() => { if (rootRef.current) window.__trpTranslateReact?.(rootRef.current); }, [profiles, selected, message, readOnly]);
+
+  const run = async (key, action) => {
+    const bridge = window.__trpSettingsProfilesBridge;
+    if (!bridge || busy || readOnly) return null;
+    setBusy(key);
+    setMessage('');
+    try {
+      const result = await action(bridge);
+      if (result?.profiles) setProfiles(result.profiles);
+      if (result?.message) setMessage(result.message);
+      refresh();
+      return result;
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : String(error));
+      return null;
+    } finally { setBusy(''); }
+  };
+
+  const save = async () => {
+    const wanted = name.trim();
+    const result = await run('save', bridge => bridge.save(wanted));
+    if (result?.message === t('Profile saved.')) {
+      const found = result.profiles?.find(profile => profile.name.toLowerCase() === wanted.toLowerCase());
+      if (found) setSelected(found.id);
+      setName('');
+    }
+  };
+  const importFile = event => {
+    const file = event.currentTarget.files?.[0];
+    event.currentTarget.value = '';
+    if (file) void run('import', bridge => bridge.import(file));
+  };
+
+  return (
+    <section className="trp-settings-profiles-react" ref={rootRef} aria-labelledby="trp-settings-profiles-title">
+      <div className="trp-settings-profiles-heading">
+        <div><span className="trp-eyebrow" data-i18n>LOCAL CONFIGURATION / PROFILES</span><h3 id="trp-settings-profiles-title" data-i18n>Configuration profiles</h3></div>
+        <span className="trp-settings-profile-count">{profiles.length} / 30</span>
+      </div>
+      <p className="trp-settings-react-note" data-i18n>Profiles contain only supported settings. Save a setup for later or move it to another browser with a JSON file.</p>
+      <div className="trp-settings-profile-save">
+        <label><span data-i18n>Profile name</span><input type="text" value={name} maxLength={40} disabled={readOnly || busy !== ''} placeholder={t('Profile name')}
+          onChange={event => setName(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); void save(); } }} /></label>
+        <button type="button" disabled={readOnly || busy !== '' || !name.trim()} onClick={() => void save()}><span data-i18n>{busy === 'save' ? 'Saving…' : 'Save current profile'}</span></button>
+      </div>
+      <div className="trp-settings-profile-actions">
+        <label><span data-i18n>Saved profiles in this browser</span>
+          <select value={selected} disabled={!profiles.length || busy !== ''} onChange={event => setSelected(event.target.value)}>
+            {profiles.map(profile => <option key={profile.id} value={profile.id}>{profile.name}</option>)}
+          </select>
+        </label>
+        <button type="button" disabled={readOnly || !selected || busy !== ''} onClick={() => void run('apply', bridge => bridge.apply(selected))}><span data-i18n>{busy === 'apply' ? 'Applying…' : 'Apply profile'}</span></button>
+        <button type="button" disabled={!selected || busy !== ''} onClick={() => window.__trpSettingsProfilesBridge?.export(selected)}><span data-i18n>Export profile</span></button>
+        <button type="button" className="is-danger" disabled={readOnly || !selected || busy !== ''} onClick={() => void run('delete', bridge => bridge.remove(selected))}><span data-i18n>Delete profile</span></button>
+        <label className={'trp-settings-file-action' + (readOnly || busy !== '' ? ' is-disabled' : '')}>
+          <span data-i18n>Import profile</span><input type="file" accept="application/json,.json" disabled={readOnly || busy !== ''} onChange={importFile} />
+        </label>
+      </div>
+      {message && <p className="trp-settings-react-note" role="status" aria-live="polite">{message}</p>}
+    </section>
+  );
+}
+
+function SettingsPresetsReactControls() {
+  const [busy, setBusy] = useState('');
+  const [message, setMessage] = useState('');
+  const options = [
+    { id: 'performance', name: 'Performance', detail: 'Prioritize frame rate and responsiveness.' },
+    { id: 'balanced', name: 'Balanced', detail: 'Use the default balance of image quality and speed.' },
+    { id: 'quality', name: 'High quality', detail: 'Prefer a larger render scale and richer audio response.' },
+  ];
+  const apply = async id => {
+    const bridge = window.__trpSettingsProfilesBridge;
+    if (!bridge || busy || bridge.readOnly()) return;
+    setBusy(id);
+    setMessage('');
+    try {
+      const result = await bridge.preset(id);
+      setMessage(result.message);
+    } catch (error) { setMessage(error instanceof Error ? error.message : String(error)); }
+    finally { setBusy(''); }
+  };
+  return (
+    <section className="trp-settings-presets-react" aria-labelledby="trp-settings-presets-title">
+      <div className="trp-settings-profiles-heading">
+        <div><span className="trp-eyebrow" data-i18n>QUICK CONFIGURATION / PRESETS</span><h3 id="trp-settings-presets-title" data-i18n>Quick presets</h3></div>
+      </div>
+      <p className="trp-settings-react-note" data-i18n>Choose a starting point; all options remain editable below.</p>
+      <div className="trp-settings-presets-grid">
+        {options.map(option => (
+          <button type="button" className="trp-settings-preset-card" key={option.id} disabled={busy !== '' || !!window.__trpSettingsProfilesBridge?.readOnly()} onClick={() => void apply(option.id)}>
+            <span className={'trp-settings-preset-symbol is-' + option.id}>{option.id === 'performance' ? '01' : option.id === 'balanced' ? '02' : '03'}</span>
+            <strong data-i18n>{option.name}</strong><small data-i18n>{option.detail}</small>
+            <em data-i18n>{busy === option.id ? 'Applying…' : 'Apply preset'}</em>
+          </button>
+        ))}
+      </div>
+      {message && <p className="trp-settings-react-note" role="status" aria-live="polite">{message}</p>}
+    </section>
+  );
+}
+
+function SettingsRawReactControls() {
+  const [snapshot, setSnapshot] = useState({ ready: false, readOnly: true, text: '', canResetAll: false, other: [] });
+  const [value, setValue] = useState('');
+  const [dirty, setDirty] = useState(false);
+  const [message, setMessage] = useState('');
+  const [busy, setBusy] = useState('');
+  const rootRef = useRef(null);
+
+  const refresh = useCallback((force = false) => {
+    const next = window.__trpSettingsBridge?.rawSnapshot();
+    if (!next) return;
+    setSnapshot(next);
+    if (force || !dirty) setValue(next.text);
+  }, [dirty]);
+
+  useEffect(() => {
+    const update = () => refresh();
+    window.addEventListener('trp-settings-ready', update);
+    window.addEventListener('trp-settings-changed', update);
+    refresh(true);
+    return () => {
+      window.removeEventListener('trp-settings-ready', update);
+      window.removeEventListener('trp-settings-changed', update);
+    };
+  }, [refresh]);
+  useEffect(() => { if (rootRef.current) window.__trpTranslateReact?.(rootRef.current); }, [snapshot, message]);
+
+  const save = async () => {
+    const bridge = window.__trpSettingsBridge;
+    if (!bridge || snapshot.readOnly || busy) return;
+    setBusy('save'); setMessage('');
+    try {
+      const note = await bridge.saveRaw(value);
+      setMessage(note); setDirty(false); refresh(true);
+    } catch (error) { setMessage(error instanceof Error ? error.message : String(error)); }
+    finally { setBusy(''); }
+  };
+  const resetAll = async () => {
+    const bridge = window.__trpSettingsBridge;
+    if (!bridge || snapshot.readOnly || busy) return;
+    setBusy('reset'); setMessage('');
+    try {
+      const reset = await bridge.resetAll();
+      if (reset) { setDirty(false); refresh(true); setMessage(t('Settings are back to their defaults.')); }
+    } catch (error) { setMessage(error instanceof Error ? error.message : String(error)); }
+    finally { setBusy(''); }
+  };
+  const resetOther = async item => {
+    const bridge = window.__trpSettingsBridge;
+    if (!bridge || snapshot.readOnly || busy) return;
+    setBusy('other:' + item.line); setMessage('');
+    try {
+      await bridge.resetOther(item.line, item.key);
+      setDirty(false); refresh(true);
+    } catch (error) { setMessage(error instanceof Error ? error.message : String(error)); }
+    finally { setBusy(''); }
+  };
+
+  return (
+    <section className="trp-settings-raw-react" ref={rootRef} aria-labelledby="trp-settings-raw-title">
+      <div className="trp-settings-profiles-heading">
+        <div><span className="trp-eyebrow" data-i18n>ADVANCED / SETTINGS.INI</span><h3 id="trp-settings-raw-title" data-i18n>Edit settings.ini as text</h3></div>
+        <span className="trp-settings-profile-count">{value.split('\\n').length} <span data-i18n>lines</span></span>
+      </div>
+      <p className="trp-settings-react-note" data-i18n>Advanced editor for the complete game configuration. Unsupported or ignored entries are still checked by the original settings parser.</p>
+      <textarea value={value} rows={18} spellCheck={false} wrap="off" readOnly={snapshot.readOnly || !snapshot.ready}
+        aria-label="settings.ini" onChange={event => { setValue(event.target.value); setDirty(true); }} />
+      <div className="trp-settings-raw-actions">
+        <button type="button" disabled={snapshot.readOnly || !dirty || busy !== ''} onClick={() => void save()}><span data-i18n>{busy === 'save' ? 'Saving…' : 'Save file'}</span></button>
+        <button type="button" className="is-danger" disabled={snapshot.readOnly || !snapshot.canResetAll || busy !== ''} onClick={() => void resetAll()}><span data-i18n>Reset all settings</span></button>
+      </div>
+      {message && <p className="trp-settings-react-note" role="status" aria-live="polite">{message}</p>}
+      {!!snapshot.other.length && (
+        <div className="trp-settings-other-react">
+          <h4 data-i18n>Other settings in this file</h4>
+          <p data-i18n>Entries not represented by a regular setting control. They remain effective where the game runtime supports them.</p>
+          <ul>
+            {snapshot.other.map(item => (
+              <li key={item.line + ':' + item.key}>
+                <code>{'line ' + item.line + ': ' + item.key + ' = ' + item.value}</code>
+                {item.refused && <small>{item.refused}</small>}
+                {item.env && <small>{'Sets ' + item.env}</small>}
+                <button type="button" disabled={snapshot.readOnly || busy !== ''} onClick={() => void resetOther(item)}><span data-i18n>Reset</span></button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </section>
+  );
+}
+
 function SettingsDashboard() {
   const reduceMotion = useReducedMotion();
   const enter = reduceMotion ? false : { opacity: 0, y: 12 };
@@ -1832,7 +2054,10 @@ function SettingsDashboard() {
           <div><div className="trp-eyebrow" data-i18n>GAME OPTIONS / 01</div><h3 data-i18n>Game configuration</h3><p data-i18n>Validated settings, configuration profiles and quick presets.</p></div>
           <span className="trp-settings-index">01</span>
         </div>
+        <SettingsProfilesReactControls />
+        <SettingsPresetsReactControls />
         <SettingsReactControls />
+        <SettingsRawReactControls />
         <LegacyNode selector="#settings" className="trp-settings-game-slot" />
       </motion.section>
 

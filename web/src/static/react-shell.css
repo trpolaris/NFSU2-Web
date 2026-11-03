@@ -1118,3 +1118,56 @@
   .trp-shot-lightbox-panel > footer span { grid-column:1/-1;margin:0; }
   .trp-vault-react-key-form { flex-basis:100%; }
 }
+
+
+/* Profile, preset and raw settings management are React-owned; this old subtree remains hidden for service wiring. */
+.trp-settings-game-slot { display:none!important; }
+.trp-settings-profiles-react,.trp-settings-presets-react,.trp-settings-raw-react {
+  display:grid;gap:11px;min-width:0;margin:10px 0 16px;padding:14px;border:1px solid rgba(167,185,214,.11);
+  border-radius:12px;background:rgba(4,10,18,.28);
+}
+.trp-settings-profiles-heading { display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap; }
+.trp-settings-profiles-heading h3 { margin:5px 0 0;color:#e6edf7;font-size:.82rem;font-weight:850; }
+.trp-settings-profile-count { color:#8495ac;font:700 .58rem ui-monospace,monospace; }
+.trp-settings-profile-save,.trp-settings-profile-actions { display:flex;align-items:flex-end;gap:8px;flex-wrap:wrap; }
+.trp-settings-profile-save label,.trp-settings-profile-actions label { display:grid;gap:5px;min-width:180px;flex:1 1 210px;color:#9aaac0;font-size:.6rem;font-weight:750; }
+.trp-settings-profile-save input,.trp-settings-profile-actions select {
+  width:100%;min-width:0;min-height:35px;padding:0 9px;border:1px solid rgba(167,185,214,.16);border-radius:7px;background:#081321;color:#e7eef7;
+  font-family:inherit;font-size:.63rem;
+}
+.trp-settings-profile-save button,.trp-settings-profile-actions button,.trp-settings-profile-actions .trp-settings-file-action,
+.trp-settings-raw-actions button,.trp-settings-other-react button {
+  min-height:34px;padding:0 10px;border:1px solid rgba(167,185,214,.16);border-radius:7px;background:rgba(255,255,255,.025);color:#c6d2e2;
+  font-family:inherit;font-size:.59rem;font-weight:800;cursor:pointer;
+}
+.trp-settings-profile-actions button.is-danger,.trp-settings-raw-actions button.is-danger { border-color:rgba(255,125,105,.3);color:#ffbbae; }
+.trp-settings-file-action { position:relative;display:flex;align-items:center;justify-content:center; }
+.trp-settings-file-action input { position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer; }
+.trp-settings-file-action.is-disabled { opacity:.45;pointer-events:none; }
+.trp-settings-presets-grid { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px; }
+.trp-settings-preset-card { display:grid;justify-items:start;gap:6px;min-width:0;padding:12px;border:1px solid rgba(167,185,214,.13);border-radius:9px;background:rgba(255,255,255,.02);text-align:left;cursor:pointer; }
+.trp-settings-preset-card:disabled { opacity:.45;cursor:not-allowed; }
+.trp-settings-preset-symbol { display:grid;place-items:center;width:29px;height:26px;border-radius:6px;background:rgba(166,154,255,.12);color:#c3baff;font:800 .58rem ui-monospace,monospace; }
+.trp-settings-preset-symbol.is-performance { background:rgba(255,130,100,.1);color:#ffb8a5; }
+.trp-settings-preset-symbol.is-quality { background:rgba(102,215,176,.1);color:#a6e9d0; }
+.trp-settings-preset-card strong { color:#e1eaf5;font-size:.64rem; }
+.trp-settings-preset-card small { color:#8c9db3;font-size:.56rem;line-height:1.45; }
+.trp-settings-preset-card em { margin-top:3px;color:#b9adff;font-size:.55rem;font-style:normal;font-weight:800; }
+.trp-settings-raw-react textarea {
+  width:100%;min-width:0;min-height:270px;padding:12px;border:1px solid rgba(167,185,214,.15);border-radius:8px;
+  background:#050c16;color:#d4e0ee;font:600 .62rem/1.6 ui-monospace,monospace;resize:vertical;tab-size:2;
+}
+.trp-settings-raw-actions { display:flex;gap:8px;flex-wrap:wrap; }
+.trp-settings-other-react { display:grid;gap:7px;padding-top:10px;border-top:1px solid rgba(167,185,214,.1); }
+.trp-settings-other-react h4 { margin:0;color:#dce6f2;font-size:.69rem; }
+.trp-settings-other-react > p { margin:0;color:#8f9fb5;font-size:.59rem;line-height:1.5; }
+.trp-settings-other-react ul { display:grid;gap:6px;list-style:none;margin:0;padding:0; }
+.trp-settings-other-react li { display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px;border:1px solid rgba(167,185,214,.09);border-radius:7px;background:rgba(0,0,0,.1); }
+.trp-settings-other-react code { color:#b9c9dc;font-size:.57rem;overflow-wrap:anywhere; }
+.trp-settings-other-react small { color:#ffbaab;font-size:.55rem; }
+.trp-settings-other-react button { margin-left:auto;min-height:28px; }
+@media(max-width:680px) {
+  .trp-settings-presets-grid { grid-template-columns:1fr; }
+  .trp-settings-preset-card { grid-template-columns:32px 1fr;align-items:center; }
+  .trp-settings-preset-card small,.trp-settings-preset-card em { grid-column:2; }
+}
