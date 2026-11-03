@@ -434,19 +434,8 @@
 .trp-mod-filter select { min-width:160px;min-height:36px;border:1px solid rgba(167,185,214,.16);border-radius:9px;padding:6px 10px;background:#0b1422;color:#e4ebf5;font-size:.65rem; }
 .trp-mod-add-heading { align-items:center; }
 .trp-mod-add-panel .trp-mod-form-slot { display:block; }
-.trp-mod-add-panel .mod-add-details { display:block;border:1px solid rgba(167,185,214,.12);border-radius:13px;background:rgba(255,255,255,.02); }
-.trp-mod-add-panel .mod-add-details summary { display:flex;align-items:center;gap:9px;min-height:47px;padding:0 14px;color:#edf2f8;font-size:.72rem;font-weight:820;cursor:pointer;list-style:none; }
-.trp-mod-add-panel .mod-add-details summary::-webkit-details-marker { display:none; }
-.trp-mod-add-panel .mod-add-details[open] summary { border-bottom:1px solid rgba(167,185,214,.11); }
-.trp-mod-add-panel .mod-add-content { padding:16px; }
-.trp-mod-add-panel .mod-form-grid { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px; }
-.trp-mod-add-panel .mod-form-grid label { display:grid;gap:6px;color:#9dacc0;font-size:.65rem;font-weight:730; }
-.trp-mod-add-panel .mod-form-grid input,.trp-mod-add-panel .mod-form-grid select { min-width:0;min-height:39px;border:1px solid rgba(167,185,214,.15);border-radius:9px;padding:8px 10px;background:#0a1321;color:#edf2f8;font-size:.68rem; }
-.trp-mod-add-panel .mod-form-actions { display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:13px; }
 .trp-mod-add-panel #custom-mod-status { flex-basis:100%;margin:2px 0 0;color:#9caec4;font-size:.66rem; }
 .trp-mod-add-panel .file-btn { cursor:pointer; }
-.trp-mod-add-panel .mod-form-actions .btn { min-height:36px;font-size:.65rem; }
-.trp-mod-add-panel .custom-mod-list { display:grid;gap:9px; }
 .trp-mod-add-panel .trp-route-section-slot { min-width:0; }
 @media(max-width:900px) {
   .trp-mod-hero { align-items:flex-start;flex-direction:column; }
@@ -459,8 +448,6 @@
   .trp-mod-panel,.trp-mod-add-panel { padding:14px;border-radius:15px; }
   .trp-mod-collection-head { flex-direction:column; }
   .trp-mod-filter,.trp-mod-filter select { width:100%;min-width:0; }
-  .trp-mod-add-panel .mod-add-content { padding:12px; }
-  .trp-mod-add-panel .mod-form-grid { grid-template-columns:1fr; }
 }
 
 /* Saves route: React composes the dashboard and keeps profile, screenshot and Cloud controls mounted. */
@@ -593,9 +580,6 @@
 .trp-system-panel-head h3 { margin:5px 0 0;color:#eff3fa;font-size:1rem;font-weight:870; }
 .trp-system-panel-head p { margin:5px 0 0;color:#91a1b7;font-size:.64rem;line-height:1.55; }
 .trp-system-index { color:rgba(166,154,255,.68);font:800 .62rem ui-monospace,monospace;letter-spacing:.12em; }
-.trp-system-updates-slot > #updates .panel-head.sub,
-.trp-system-diagnostics-slot > #diagnostics .diagnostic-actions { flex-wrap:wrap; }
-.trp-system-diagnostics-slot > #diagnostics #diagnostic-list { display:grid;gap:8px; }
 @media(max-width:700px) {
   .trp-system-dashboard { gap:10px; }
   .trp-system-hero { min-height:0;align-items:flex-start;padding:18px 15px;border-radius:16px; }

@@ -20,6 +20,9 @@ const entry = read('src/main.ts');
 const react = read('src/ui/main.jsx');
 
 const retiredIds = [
+  'app-pages', 'mods', 'mods-title', 'pack-list', 'custom-mod-count', 'packs-check', 'custom-mod-filter', 'custom-mod-list', 'mod-link-form', 'custom-mod-name', 'custom-mod-url', 'custom-mod-category', 'custom-mod-path', 'custom-mod-add', 'custom-mod-export', 'custom-mod-import', 'custom-mod-status', 'garage-search', 'garage-favorites-only', 'garage-make-filter', 'garage-class-filter', 'garage-count', 'preferred-vehicle-status', 'garage-cars', 'garage-empty-state',
+  'updates', 'updates-title', 'build-current', 'build-server', 'updates-check', 'updates-reload', 'updates-status', 'first-run-open', 'i18n-check', 'i18n-check-status', 'clear-app-preferences', 'privacy-status',
+  'diagnostics', 'diagnostics-title', 'diagnostics-refresh', 'diagnostics-download', 'diagnostic-list',
   'saves', 'saves-title', 'saves-msg', 'export', 'import', 'profiles', 'save-hint', 'shots-info', 'shots', 'storage-note',
   'game-data', 'game-data-title', 'cache-info', 'data-bar', 'fetch-all', 'clear-cache', 'data-msg', 'shot-view',
   'shot-title', 'shot-when', 'shot-img', 'shot-meta', 'vault-service-host', 'vault', 'vault-host', 'vault-make', 'vault-when', 'vault-form', 'vault-box', 'vault-input', 'vault-mask', 'vault-file', 'vault-eye', 'vault-load', 'vault-claim', 'vault-sides', 'vault-about', 'vault-status', 'vault-conflict', 'vault-mine', 'vault-theirs', 'vault-on', 'vault-sync', 'vault-earlier', 'vault-stop', 'vault-delete', 'vault-replaced', 'vault-replaced-text', 'vault-putback', 'vault-msg',
@@ -123,4 +126,24 @@ test('Saves and screenshot persistence are DOM-free services consumed by React',
   assert.doesNotMatch(vault, /document\.|HTMLElement|querySelector|createElement|this\.root|this\.input/);
   assert.match(vault, /reactSnapshot\(\)/);
   assert.match(vault, /askAtPlay\(\)/);
+});
+
+test('Mod Library, updates and diagnostics are React-owned over DOM-free service snapshots', () => {
+  for (const selector of ['#pack-list', '#custom-mod-status', '#custom-mod-add', '#custom-mod-import', '#updates-check', '#updates-status', '#i18n-check-status']) {
+    assert.ok(!platform.includes(selector), selector + ' is not a legacy platform DOM dependency');
+  }
+  assert.ok(!shell.includes('#storage-note'));
+  assert.ok(!shell.includes('#diagnostic-list'));
+  assert.ok(!shell.includes('#diagnostics-refresh'));
+  assert.match(platform, /window\.__trpModLibraryBridge = \{/);
+  assert.match(platform, /window\.__trpPlatformBridge = \{/);
+  assert.match(platform, /modStatusText/);
+  assert.match(platform, /currentVersion: APP_BUILD_VERSION/);
+  assert.match(platform, /const openFirstRun = wireFirstRun\(settings, log\)/);
+  assert.match(shell, /window\.__trpDiagnosticsBridge = \{/);
+  assert.match(shell, /diagnosticsSnapshot\(\)/);
+  assert.doesNotMatch(html, /id="(?:app-pages|mods|updates|diagnostics|diagnostic-list|build-current|custom-mod-add)"/);
+  assert.match(react, /function ModLibraryDashboard\(\)/);
+  assert.match(react, /function UpdatesReactPanel\(\)/);
+  assert.match(react, /function DiagnosticsReactPanel\(\)/);
 });

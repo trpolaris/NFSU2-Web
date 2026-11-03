@@ -106,7 +106,7 @@ declare global {
     download(): void;
   }
   interface TrpGameDataSnapshot {
-    info: string; message: string; state: string; busy: boolean; preloading: boolean;
+    info: string; message: string; messageWarn: boolean; state: string; busy: boolean; preloading: boolean;
     paused: boolean; progress: number; showPreload: boolean; preloadLabel: string; progressHidden: boolean;
   }
   interface TrpRuntimeProblem { id: string; state: string; label: string; detail: string; code: string; }
@@ -146,7 +146,7 @@ declare global {
     host: string; when: string; whenVisible: boolean; claim: string; claimVisible: boolean;
     about: string; aboutVisible: boolean; sides: string; status: string; message: string; messageWarn: boolean;
     makeVisible: boolean; showDownload: boolean; showLoad: boolean; showSync: boolean; showEarlier: boolean;
-    showConflict: boolean; showReplaced: boolean; makeDisabled: boolean; loadDisabled: boolean; syncDisabled: boolean;
+    showConflict: boolean; showReplaced: boolean; replacedText: string; makeDisabled: boolean; loadDisabled: boolean; syncDisabled: boolean;
     earlierDisabled: boolean; keepMineDisabled: boolean; takeTheirsDisabled: boolean; stopDisabled: boolean;
     deleteDisabled: boolean; putBackDisabled: boolean; conflictState: boolean;
   }

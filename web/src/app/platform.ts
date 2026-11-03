@@ -55,6 +55,16 @@ const STORE = {
   profiles: 'trpolaris-config-profiles-v1',
   preferredVehicle: 'trpolaris-preferred-vehicle-v1',
 };
+let modStatusText = '';
+let serverVersion = '—';
+let updateStatus = '';
+let updateReloadAvailable = false;
+let translationStatus = '';
+let privacyStatus = '';
+const notifyPlatform = () => window.dispatchEvent(new Event('trp-platform-changed'));
+const notifyModLibrary = () => window.dispatchEvent(new Event('trp-mod-library-changed'));
+const setModStatus = (message: string) => { modStatusText = message; notifyModLibrary(); };
+
 const $ = <T extends HTMLElement = HTMLElement>(selector: string) => document.querySelector<T>(selector)!;
 const safeRead = <T>(key: string, fallback: T): T => {
   try { const value = localStorage.getItem(key); return value === null ? fallback : JSON.parse(value) as T; }
@@ -170,11 +180,7 @@ function isModCategory(value: unknown): value is ModCategory { return typeof val
 export interface ModLinkActionResult { ok: boolean; message: string; }
 export function addCustomModLink(rawName: string, rawUrl: string, rawCategory: string, rawPath: string): ModLinkActionResult {
   const name = rawName.trim(), url = rawUrl.trim(), targetPath = rawPath.trim();
-  const status = document.getElementById('custom-mod-status');
-  const fail = (message: string): ModLinkActionResult => {
-    if (status) status.textContent = message;
-    return { ok: false, message };
-  };
+  const fail = (message: string): ModLinkActionResult => { setModStatus(message); return { ok: false, message }; };
   if (!name || name.length > 80 || /[\u0000-\u001f\u007f]/.test(name)) return fail(t('The mod name is required.'));
   if (!validHttpUrl(url)) return fail(t('A valid HTTP or HTTPS URL is required.'));
   if (targetPath && !validRelativeGamePath(targetPath)) return fail(t('Expected game-data path must be a safe relative path.'));
@@ -186,8 +192,7 @@ export function addCustomModLink(rawName: string, rawUrl: string, rawCategory: s
   mods.push({ id, name, url, category: rawCategory, targetPath: targetPath ? normalizeGamePath(targetPath) : '', createdAt: Date.now() });
   if (!saveCustomMods(mods)) return fail(t('Could not save the mod link.'));
   const message = t('Saved in this browser.');
-  if (status) status.textContent = message;
-  renderGarage();
+  setModStatus(message);
   return { ok: true, message };
 }
 
@@ -251,79 +256,8 @@ function setPreferredVehicle(id: string) {
   safeWrite(STORE.preferredVehicle, current === id ? '' : id);
   renderGarage();
 }
-async function populateVehicleFilters() {
-  const select = document.querySelector('#garage-make-filter');
-  if (!(select instanceof HTMLSelectElement)) return;
-  const selected = select.value;
-  const makes = [...new Set(CARS.map(car => car.make))].sort();
-  const options = [new Option(t('All manufacturers'), ''), ...makes.map(make => new Option(make, make))];
-  select.replaceChildren(...options);
-  select.value = options.some(option => option.value === selected) ? selected : '';
-}
-function renderGarage() {
-  const search = ($('#garage-search') as HTMLInputElement).value.trim().toLocaleLowerCase();
-  const onlyFav = ($('#garage-favorites-only') as HTMLInputElement).checked;
-  const makeFilter = $<HTMLSelectElement>('#garage-make-filter').value;
-  const classFilter = $<HTMLSelectElement>('#garage-class-filter').value;
-  const favorites = getFavorites();
-  const preferred = getPreferredVehicle();
-  const carsRoot = $('#garage-cars');
-  const cards: HTMLElement[] = [];
-  for (const car of CARS) {
-    if (onlyFav && !favorites.has(car.id)) continue;
-    if (search && !car.name.toLocaleLowerCase().includes(search)) continue;
-    if (makeFilter && car.make !== makeFilter) continue;
-    if (classFilter && car.className !== classFilter) continue;
-    const card = document.createElement('article'); card.className = `garage-card${preferred === car.id ? ' is-preferred' : ''}`;
-    const image = document.createElement('div'); image.className = 'car-glyph'; image.append(vehicleGlyph());
-    const header = document.createElement('div'); header.className = 'garage-card-head';
-    const name = document.createElement('h4'); name.textContent = car.name;
-    header.append(name, favoriteButton(car.id, () => { toggleFavorite(car.id); renderGarage(); }));
-    const kind = document.createElement('p'); kind.className = 'garage-kind';
-    const classLabel = car.className === 'Sport' ? 'Sports' : car.className;
-    kind.textContent = `${car.make} · ${t(classLabel)} · ${t(car.body)}`;
-    const footer = document.createElement('div'); footer.className = 'garage-card-footer';
-    const preferredButton = document.createElement('button'); preferredButton.type = 'button'; preferredButton.className = `preferred-button${preferred === car.id ? ' is-active' : ''}`;
-    preferredButton.textContent = t(preferred === car.id ? 'Clear preferred vehicle' : 'Set as preferred');
-    preferredButton.setAttribute('aria-pressed', String(preferred === car.id));
-    preferredButton.onclick = () => setPreferredVehicle(car.id);
-    footer.append(preferredButton);
-    card.append(image, header, kind, footer); cards.push(card);
-  }
-  carsRoot.replaceChildren(...cards);
-  $<HTMLElement>('#garage-empty-state').hidden = cards.length !== 0;
-  $('#garage-count').textContent = `${cards.length} / ${CARS.length}`;
-  const preferredCar = CARS.find(car => car.id === preferred);
-  $('#preferred-vehicle-status').textContent = preferredCar
-    ? t('Preferred vehicle: {name}', { name: preferredCar.name })
-    : t('No preferred vehicle selected.');
-
-  const modRoot = $('#pack-list');
-  const modCards: HTMLElement[] = [];
-  const addModCard = (mod: { id: string; name: string; detail: string; source: string }, status?: string) => {
-    if (onlyFav && !favorites.has(mod.id)) return;
-    if (search && !`${mod.name} ${mod.detail}`.toLocaleLowerCase().includes(search)) return;
-    const li = document.createElement('li'); li.className = 'pack-card';
-    const copy = document.createElement('div'); copy.className = 'pack-copy';
-    const title = document.createElement('h4'); title.textContent = mod.name;
-    const detail = document.createElement('p'); detail.className = 'hint'; detail.textContent = mod.detail;
-    copy.append(title, detail);
-    const actions = document.createElement('div'); actions.className = 'pack-actions';
-    if (status) {
-      const badge = document.createElement('span'); badge.className = 'pack-status';
-      badge.dataset.state = status === 'installed' ? 'installed' : status === 'missing' ? 'missing' : 'unknown';
-      badge.textContent = t(status === 'installed' ? 'Detected on server' : status === 'missing' ? 'Not found on server' : 'Manifest unavailable in this preview.'); actions.append(badge);
-    }
-    actions.append(favoriteButton(mod.id, () => { toggleFavorite(mod.id); renderGarage(); }));
-    if (mod.source && validHttpUrl(mod.source)) {
-      const link = document.createElement('a'); link.className = 'btn'; link.href = mod.source; link.target = '_blank'; link.rel = 'noopener noreferrer'; link.textContent = t('Open source page'); actions.append(link);
-    }
-    li.append(copy, actions); modCards.push(li);
-  };
-  for (const mod of KNOWN_PACKS) addModCard(mod, packStatus.get(mod.id) ?? 'unknown');
-  modRoot.replaceChildren(...modCards);
-  renderCustomModList();
-  window.dispatchEvent(new Event('trp-mod-library-changed'));
+async function renderGarage() {
+  notifyModLibrary();
 }
 
 let packStatus = new Map<string, string>();
@@ -353,7 +287,7 @@ export function getModLibrarySnapshot(): ModLibrarySnapshot {
     status: (packStatus.get('custom:' + mod.id) ?? 'unchecked') as ModLibraryCard['status'],
     favorite: favorites.has('custom:' + mod.id),
   }));
-  const statusText = document.getElementById('custom-mod-status')?.textContent?.trim() ?? '';
+  const statusText = modStatusText;
   return { packs, custom, count: custom.length, statusText };
 }
 export function toggleModLibraryFavorite(id: string): ModLibrarySnapshot {
@@ -379,51 +313,6 @@ export async function checkModLibraryPacks(): Promise<ModLibrarySnapshot> {
   return getModLibrarySnapshot();
 }
 
-function renderCustomModList() {
-  const root = $('#custom-mod-list');
-  const mods = getCustomMods();
-  const favorites = getFavorites();
-  const search = ($('#garage-search') as HTMLInputElement).value.trim().toLocaleLowerCase();
-  const onlyFav = ($('#garage-favorites-only') as HTMLInputElement).checked;
-  const categoryFilter = $<HTMLSelectElement>('#custom-mod-filter').value;
-  const status = $('#custom-mod-status');
-  const visible = mods.filter(mod => (!onlyFav || favorites.has(`custom:${mod.id}`)) &&
-    (!categoryFilter || (mod.category ?? 'other') === categoryFilter) &&
-    (!search || `${mod.name} ${mod.url} ${mod.category ?? 'other'} ${mod.targetPath ?? ''}`.toLocaleLowerCase().includes(search)));
-  root.replaceChildren();
-  $('#custom-mod-count').textContent = t('Mod links: {count}', { count: mods.length });
-  if (!visible.length) {
-    const empty = document.createElement('li'); empty.className = 'hint empty-state';
-    empty.textContent = mods.length ? t('No mod links match these filters.') : t('No custom mod links saved yet.'); root.append(empty);
-  }
-  for (const mod of visible) {
-    const li = document.createElement('li'); li.className = 'custom-mod-row';
-    const info = document.createElement('div'); info.className = 'custom-mod-info';
-    const link = document.createElement('a'); link.href = mod.url; link.target = '_blank'; link.rel = 'noopener noreferrer'; link.textContent = mod.name;
-    const meta = document.createElement('div'); meta.className = 'custom-mod-meta';
-    const category = document.createElement('span'); category.className = 'mod-category';
-    const categoryLabels: Record<ModCategory, string> = { vehicle: 'Vehicle', visual: 'Visuals', audio: 'Audio', translation: 'Translation', gameplay: 'Gameplay', other: 'Other' };
-    category.textContent = t(categoryLabels[mod.category ?? 'other']);
-    meta.append(category);
-    if (mod.targetPath) { const pathLabel = document.createElement('code'); pathLabel.className = 'mod-target-path'; pathLabel.textContent = mod.targetPath; meta.append(pathLabel); }
-    const currentStatus = packStatus.get(`custom:${mod.id}`) ?? 'unchecked';
-    const badge = document.createElement('span'); badge.className = 'pack-status';
-    badge.dataset.state = currentStatus === 'installed' ? 'installed' : currentStatus === 'missing' ? 'missing' : 'unknown';
-    badge.textContent = t(currentStatus === 'installed' ? 'Server file detected' : currentStatus === 'missing' ? 'File not found on server' : 'Not checked');
-    meta.append(badge);
-    info.append(link, meta);
-    const actions = document.createElement('div'); actions.className = 'custom-mod-actions';
-    const copy = document.createElement('button'); copy.type = 'button'; copy.className = 'text-btn'; copy.textContent = t('Copy link');
-    copy.onclick = async () => {
-      try { await navigator.clipboard.writeText(mod.url); status.textContent = t('Link copied.'); }
-      catch { status.textContent = mod.url; }
-    };
-    const fav = favoriteButton(`custom:${mod.id}`, () => { toggleFavorite(`custom:${mod.id}`); renderGarage(); });
-    const del = document.createElement('button'); del.type = 'button'; del.className = 'text-btn'; del.textContent = t('Delete mod link'); del.setAttribute('aria-label', `${t('Delete mod link')}: ${mod.name}`);
-    del.onclick = () => { saveCustomMods(getCustomMods().filter(x => x.id !== mod.id)); const f = getFavorites(); f.delete(`custom:${mod.id}`); saveFavorites(f); packStatus.delete(`custom:${mod.id}`); renderGarage(); };
-    actions.append(copy, fav, del); li.append(info, actions); root.append(li);
-  }
-}
 type GarageBuildPreference = { paintHex?: string; parts?: Record<string, string> };
 
 
@@ -433,8 +322,6 @@ type GarageBuildPreference = { paintHex?: string; parts?: Record<string, string>
 
 
 export async function importModList(file: File): Promise<string> {
-  const input = $<HTMLInputElement>('#custom-mod-import');
-  const status = $('#custom-mod-status');
   try {
     if (file.size > 256 * 1024) throw new Error('too large');
     const parsed = JSON.parse(await file.text()) as { schema?: unknown; mods?: unknown };
@@ -450,24 +337,27 @@ export async function importModList(file: File): Promise<string> {
     }
     const merged = getCustomMods();
     for (const incoming of accepted) {
-      if (merged.some(x => x.name.toLocaleLowerCase() === incoming.name.toLocaleLowerCase() && x.url === incoming.url)) continue;
+      if (merged.some(item => item.name.toLocaleLowerCase() === incoming.name.toLocaleLowerCase() && item.url === incoming.url)) continue;
       if (merged.length >= 100) break;
       merged.push({ ...incoming, id: `m-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`, createdAt: Date.now() });
     }
     if (!saveCustomMods(merged)) throw new Error('storage');
-    status.textContent = t('Mod list imported.'); renderGarage(); return status.textContent ?? '';
-  } catch { status.textContent = t('Invalid mod list file.'); return status.textContent ?? ''; }
-  finally { input.value = ''; }
+    setModStatus(t('Mod list imported.'));
+    renderGarage();
+    return modStatusText;
+  } catch {
+    setModStatus(t('Invalid mod list file.'));
+    return modStatusText;
+  }
 }
-async function checkPacks() {
-  const button = $<HTMLButtonElement>('#packs-check'), status = $('#custom-mod-status');
-  button.disabled = true; button.setAttribute('aria-busy', 'true');
+
+async function checkPacks(): Promise<void> {
   try {
     const response = await fetch(`/data-manifest?check=${Date.now()}`, { cache: 'no-store', signal: AbortSignal.timeout(7000) });
     if (!response.ok) throw new Error(`manifest HTTP ${response.status}`);
     const manifest = await response.json() as { files?: { p?: unknown }[] };
     if (!Array.isArray(manifest.files)) throw new Error('manifest files missing');
-    const paths = manifest.files.map(f => typeof f?.p === 'string' ? normalizeGamePath(f.p).toLowerCase() : '').filter(Boolean);
+    const paths = manifest.files.map(file => typeof file?.p === 'string' ? normalizeGamePath(file.p).toLowerCase() : '').filter(Boolean);
     const has = (wanted: string) => {
       const normalized = normalizeGamePath(wanted).toLowerCase();
       return paths.some(path => path === normalized || (normalized.endsWith('/') && path.startsWith(normalized)));
@@ -476,19 +366,17 @@ async function checkPacks() {
       const found = mod.id === 'mod:turkish' ? mod.paths.every(has) : mod.paths.some(has);
       packStatus.set(mod.id, found ? 'installed' : 'missing');
     }
-    for (const mod of getCustomMods()) {
+    for (const mod of getCustomMods())
       packStatus.set(`custom:${mod.id}`, mod.targetPath ? (has(mod.targetPath) ? 'installed' : 'missing') : 'unchecked');
-    }
     const languagePacks = LANGUAGE_PACKS.filter(lang => paths.some(path => path.startsWith(`langpacks/${lang}/`)));
     if (languagePacks.length) packStatus.set('mod:languages', 'installed');
-    status.textContent = `${t('Detected on server')}: ${[...packStatus.values()].filter(v => v === 'installed').length}`;
-    renderGarage();
+    setModStatus(`${t('Detected on server')}: ${[...packStatus.values()].filter(value => value === 'installed').length}`);
   } catch {
     for (const mod of KNOWN_PACKS) packStatus.set(mod.id, 'unknown');
     for (const mod of getCustomMods()) packStatus.set(`custom:${mod.id}`, mod.targetPath ? 'unknown' : 'unchecked');
-    status.textContent = t('No server pack manifest is available in this preview.');
-    renderGarage();
-  } finally { button.disabled = false; button.removeAttribute('aria-busy'); }
+    setModStatus(t('No server pack manifest is available in this preview.'));
+  }
+  renderGarage();
 }
 
 function getProfiles(): ConfigProfile[] {
@@ -511,8 +399,7 @@ export function exportModList(): string {
   }));
   downloadJSON({ schema: 1, mods }, 'trpolaris-mod-list.json');
   const message = t('Mod list exported.');
-  const status = document.getElementById('custom-mod-status');
-  if (status) status.textContent = message;
+  setModStatus(message);
   return message;
 }
 
@@ -553,10 +440,11 @@ function applyAccessibility(prefs: AccessibilityPrefs, persist = true) {
   document.documentElement.toggleAttribute('data-high-contrast', prefs.highContrast);
   if (persist) safeWrite(STORE.accessibility, prefs);
 }
-async function checkUpdates() {
-  const button = $<HTMLButtonElement>('#updates-check'), reload = $<HTMLButtonElement>('#updates-reload');
-  button.disabled = true; reload.hidden = true; button.setAttribute('aria-busy', 'true');
-  $('#updates-status').textContent = '';
+async function checkUpdates(): Promise<void> {
+  updateStatus = '';
+  serverVersion = '—';
+  updateReloadAvailable = false;
+  notifyPlatform();
   try {
     const registration = 'serviceWorker' in navigator ? await navigator.serviceWorker.getRegistration().catch(() => undefined) : undefined;
     if (registration) await registration.update().catch(() => {});
@@ -564,54 +452,54 @@ async function checkUpdates() {
     if (!response.ok) throw new Error(`version HTTP ${response.status}`);
     const data = await response.json() as { version?: unknown };
     if (typeof data.version !== 'string' || compareBuildVersions(data.version, APP_BUILD_VERSION) === null) throw new Error('invalid version');
-    $('#build-server').textContent = data.version;
-    const cmp = compareBuildVersions(data.version, APP_BUILD_VERSION);
-    if (cmp === null) throw new Error('unsupported version format');
-    if (cmp > 0) { $('#updates-status').textContent = t('Update available. Reload when ready.'); reload.hidden = false; }
-    else if (cmp < 0) $('#updates-status').textContent = t('The server build is older than this page.');
-    else $('#updates-status').textContent = t("You're up to date.");
-  } catch (e) {
-    $('#build-server').textContent = '—';
-    $('#updates-status').textContent = `${t('Version information is not available on this server.')} (${e instanceof Error ? e.message : String(e)})`;
-  } finally { button.disabled = false; button.removeAttribute('aria-busy'); }
+    serverVersion = data.version;
+    const comparison = compareBuildVersions(data.version, APP_BUILD_VERSION);
+    if (comparison === null) throw new Error('unsupported version format');
+    if (comparison > 0) { updateStatus = t('Update available. Reload when ready.'); updateReloadAvailable = true; }
+    else if (comparison < 0) updateStatus = t('The server build is older than this page.');
+    else updateStatus = t("You're up to date.");
+  } catch (error) {
+    updateStatus = `${t('Version information is not available on this server.')} (${error instanceof Error ? error.message : String(error)})`;
+  }
+  notifyPlatform();
 }
 
 const placeholders = (value: string) => [...value.matchAll(/\{(\w+)\}/g)].map(m => m[1]).sort().join('|');
 const markupTokens = (value: string) => [...value.matchAll(/<\/?\d+>/g)].map(m => m[0]).sort().join('|');
-async function checkTranslations() {
-  const button = $<HTMLButtonElement>('#i18n-check'); button.disabled = true; button.setAttribute('aria-busy', 'true');
-  const status = $('#i18n-check-status'); status.textContent = '';
+async function checkTranslations(): Promise<void> {
+  translationStatus = '';
+  notifyPlatform();
   try {
     const manifestResponse = await fetch(`/i18n-key-manifest.json?check=${Date.now()}`, { cache: 'no-store', signal: AbortSignal.timeout(7000) });
     if (!manifestResponse.ok) throw new Error('Translation key manifest is unavailable; rebuild the web app first.');
     const manifest = await manifestResponse.json() as { key: string; plural?: boolean; one?: string }[];
     if (!Array.isArray(manifest) || manifest.length < 100) throw new Error('Invalid translation key manifest.');
-    let missing = 0, malformed = 0, untranslated = 0, checked = 0;
-    for (const lang of LANGUAGES.filter(l => l !== 'english')) {
+    let missing = 0, malformed = 0, untranslated = 0;
+    for (const lang of LANGUAGES.filter(language => language !== 'english')) {
       const response = await fetch(`/lang/${lang}.json?check=${Date.now()}`, { cache: 'no-store', signal: AbortSignal.timeout(7000) });
       if (!response.ok) { missing++; continue; }
-      const dict = await response.json() as Record<string, unknown>; checked++;
+      const dict = await response.json() as Record<string, unknown>;
       for (const entry of manifest) {
         const value = dict[entry.key];
         if (value === undefined) { missing++; continue; }
         const forms = typeof value === 'string' ? [value] : value && typeof value === 'object' && entry.plural ? Object.values(value as Record<string, unknown>) : [];
-        if (!forms.length || forms.some(x => typeof x !== 'string' || !x.trim())) { malformed++; continue; }
+        if (!forms.length || forms.some(item => typeof item !== 'string' || !item.trim())) { malformed++; continue; }
         if (typeof value === 'string' && value === entry.key) untranslated++;
         const source = entry.plural ? `${entry.one ?? ''} ${entry.key}` : entry.key;
         for (const form of forms as string[]) if (placeholders(source) !== placeholders(form) || markupTokens(entry.key) !== markupTokens(form)) malformed++;
       }
-      const known = new Set(manifest.map(e => e.key));
+      const known = new Set(manifest.map(entry => entry.key));
       if (Object.keys(dict).some(key => !known.has(key))) malformed++;
     }
     const count = `15 languages checked: ${missing} missing entries, ${malformed} formatting issues, ${untranslated} English-identical entries.`;
-    status.textContent = missing || malformed ? `${count} Review the reported language files before release.` : `${count} No structural issues found.`;
-    status.dataset.state = missing || malformed ? 'warning' : 'ok';
-  } catch (e) {
-    status.textContent = e instanceof Error ? e.message : t('Could not check translations.'); status.dataset.state = 'warning';
-  } finally { button.disabled = false; button.removeAttribute('aria-busy'); }
+    translationStatus = missing || malformed ? `${count} Review the reported language files before release.` : `${count} No structural issues found.`;
+  } catch (error) {
+    translationStatus = error instanceof Error ? error.message : t('Could not check translations.');
+  }
+  notifyPlatform();
 }
 
-function wireFirstRun(settings: SettingsService, log: (line: string) => void) {
+function wireFirstRun(settings: SettingsService, log: (line: string) => void): () => Promise<void> {
   const dialog = $<HTMLDialogElement>('#first-run-dialog');
   const languageSelect = $<HTMLSelectElement>('#first-run-language');
   const populate = () => {
@@ -638,7 +526,6 @@ function wireFirstRun(settings: SettingsService, log: (line: string) => void) {
       dialog.getBoundingClientRect();
     }
   };
-  $<HTMLButtonElement>('#first-run-open').onclick = () => { void showFirstRun(); };
   $<HTMLAnchorElement>('#first-run-settings').onclick = () => dialog.close('settings');
   $<HTMLAnchorElement>('#first-run-diagnostics').onclick = () => dialog.close('diagnostics');
   $<HTMLButtonElement>('#first-run-continue').onclick = async () => {
@@ -660,11 +547,12 @@ function wireFirstRun(settings: SettingsService, log: (line: string) => void) {
   };
   dialog.addEventListener('close', () => {
     if (dialog.returnValue === 'settings') location.hash = '#settings';
-    else if (dialog.returnValue === 'diagnostics') location.hash = '#diagnostics';
+    else if (dialog.returnValue === 'diagnostics') location.hash = '#system';
     if ($<HTMLInputElement>('#first-run-skip').checked) { try { localStorage.setItem(STORE.onboarding, '1'); } catch { /* optional */ } }
   });
   let alreadySeen = false; try { alreadySeen = localStorage.getItem(STORE.onboarding) === '1'; } catch { /* optional */ }
   if (!alreadySeen && !isAutomatedTest()) setTimeout(() => { void showFirstRun(); }, 900);
+  return showFirstRun;
 }
 function isAutomatedTest(): boolean { return location.search.includes('test=') || location.pathname.startsWith('/test/'); }
 
@@ -693,39 +581,6 @@ const SETTINGS_PRESETS = {
 };
 
 export function setupPlatformFeatures(settings: SettingsService, confirm: (title: string, body: string, ok: string, danger?: boolean) => Promise<boolean>, log: (line: string) => void) {
-  $('#build-current').textContent = APP_BUILD_VERSION;
-  $('#garage-search').addEventListener('input', renderGarage);
-  $('#garage-favorites-only').addEventListener('change', renderGarage);
-  $('#garage-make-filter').addEventListener('change', renderGarage);
-  $('#garage-class-filter').addEventListener('change', renderGarage);
-  $('#custom-mod-filter').addEventListener('change', renderGarage);
-  $('#packs-check').addEventListener('click', () => void checkPacks());
-  $('#custom-mod-add').addEventListener('click', () => {
-    const nameInput = $<HTMLInputElement>('#custom-mod-name'), urlInput = $<HTMLInputElement>('#custom-mod-url');
-    const categoryInput = $<HTMLSelectElement>('#custom-mod-category'), pathInput = $<HTMLInputElement>('#custom-mod-path');
-    const name = nameInput.value.trim(), url = urlInput.value.trim(), targetPath = pathInput.value.trim(), status = $('#custom-mod-status');
-    if (!name || name.length > 80 || /[\u0000-\u001f\u007f]/.test(name)) { status.textContent = t('The mod name is required.'); nameInput.focus(); return; }
-    if (!validHttpUrl(url)) { status.textContent = t('A valid HTTP or HTTPS URL is required.'); urlInput.focus(); return; }
-    if (targetPath && !validRelativeGamePath(targetPath)) { status.textContent = t('Expected game-data path must be a safe relative path.'); pathInput.focus(); return; }
-    if (!isModCategory(categoryInput.value)) { status.textContent = t('Invalid mod list file.'); categoryInput.focus(); return; }
-    const mods = getCustomMods();
-    if (mods.length >= 100) { status.textContent = t('The local mod-link list is full.'); return; }
-    if (mods.some(mod => mod.name.toLocaleLowerCase() === name.toLocaleLowerCase() && mod.url === url)) { status.textContent = t('This mod link is already saved.'); return; }
-    const id = `m-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
-    mods.push({ id, name, url, category: categoryInput.value, targetPath: targetPath ? normalizeGamePath(targetPath) : '', createdAt: Date.now() });
-    if (!saveCustomMods(mods)) { status.textContent = t('Could not save the mod link.'); return; }
-    nameInput.value = ''; urlInput.value = ''; pathInput.value = ''; categoryInput.value = 'other';
-    status.textContent = t('Saved in this browser.'); renderGarage();
-  });
-  $('#custom-mod-export').addEventListener('click', () => {
-    const mods = getCustomMods().map(({ name, url, category, targetPath }) => ({ name, url, category: category ?? 'other', targetPath: targetPath ?? '' }));
-    downloadJSON({ schema: 1, mods }, 'trpolaris-mod-list.json');
-    $('#custom-mod-status').textContent = t('Mod list exported.');
-  });
-  $('#custom-mod-import').addEventListener('change', event => {
-    const file = (event.currentTarget as HTMLInputElement).files?.[0]; if (file) void importModList(file);
-  });
-
   window.__trpSettingsProfilesBridge = {
     snapshot: () => getProfiles().map(({ id, name, createdAt }) => ({ id, name, createdAt })),
     readOnly: () => settings.readOnly(),
@@ -790,20 +645,15 @@ export function setupPlatformFeatures(settings: SettingsService, confirm: (title
     set: (key, value) => setAccessibilityPreference(key, value),
   };
   window.dispatchEvent(new Event('trp-accessibility-ready'));
-  void populateVehicleFilters();
-  $<HTMLButtonElement>('#updates-check').onclick = () => void checkUpdates();
-  $<HTMLButtonElement>('#updates-reload').onclick = () => location.reload();
-  $<HTMLButtonElement>('#i18n-check').onclick = () => void checkTranslations();
   const clearPreferences = async () => {
     if (!await confirm(t('Clear app preferences'), t('This clears favorites, mod links, saved profiles, preferred vehicle, accessibility and onboarding preferences; game saves and settings are not deleted.'), t('Clear app preferences'), true)) return false;
     for (const key of [STORE.favorites, STORE.customMods, STORE.accessibility, STORE.onboarding, STORE.profiles, STORE.preferredVehicle]) { try { localStorage.removeItem(key); } catch { /* optional */ } }
-    loadAccessibility(); renderGarage();  $('#privacy-status').textContent = t('App preferences cleared.');
+    loadAccessibility(); renderGarage(); privacyStatus = t('App preferences cleared.');
     window.dispatchEvent(new Event('trp-platform-changed'));
     return true;
   };
-  $('#clear-app-preferences').addEventListener('click', () => { void clearPreferences(); });
-  wireFirstRun(settings, log);
-  onLanguage(() => { void populateVehicleFilters(); renderGarage();  });
+  const openFirstRun = wireFirstRun(settings, log);
+  onLanguage(() => { renderGarage(); });
   window.__trpModLibraryBridge = {
     snapshot: () => getModLibrarySnapshot(),
     toggleFavorite: id => toggleModLibraryFavorite(id),
@@ -817,17 +667,17 @@ export function setupPlatformFeatures(settings: SettingsService, confirm: (title
   renderGarage(); 
   window.__trpPlatformBridge = {
     snapshot: () => ({
-      currentVersion: $('#build-current').textContent ?? APP_BUILD_VERSION,
-      serverVersion: $('#build-server').textContent ?? '—',
-      updateStatus: $('#updates-status').textContent ?? '',
-      translationStatus: $('#i18n-check-status').textContent ?? '',
-      privacyStatus: $('#privacy-status').textContent ?? '',
-      reloadAvailable: !$<HTMLButtonElement>('#updates-reload').hidden,
+      currentVersion: APP_BUILD_VERSION,
+      serverVersion,
+      updateStatus,
+      translationStatus,
+      privacyStatus,
+      reloadAvailable: updateReloadAvailable,
     }),
     checkUpdates: async () => { await checkUpdates(); window.dispatchEvent(new Event('trp-platform-changed')); return window.__trpPlatformBridge!.snapshot(); },
     checkTranslations: async () => { await checkTranslations(); window.dispatchEvent(new Event('trp-platform-changed')); return window.__trpPlatformBridge!.snapshot(); },
     clearPreferences,
-    openFirstRun: () => $<HTMLButtonElement>('#first-run-open').click(),
+    openFirstRun: () => { void openFirstRun(); },
     reload: () => location.reload(),
   };
   window.dispatchEvent(new Event('trp-platform-ready'));

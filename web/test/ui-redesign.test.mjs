@@ -73,17 +73,17 @@ test('inner pages use polished modern controls without replacing their existing 
   assert.match(reactUi, /trp-online-live-status/);
   assert.doesNotMatch(polish, /#saves|#game-data/);
   assert.match(reactCss, /\.trp-saves-profile/);
-  assert.match(polish, /#mods \.custom-mod-list > li/);
+  assert.doesNotMatch(polish, /#mods|#updates|#diagnostics/);
+  assert.match(reactCss, /\.trp-mod-panel/);
   assert.doesNotMatch(polish, /#controls/);
   assert.doesNotMatch(polish, /#accessibility/);
-  assert.match(polish, /#updates \.update-row > div/);
+  assert.match(reactCss, /\.trp-system-react/);
   assert.match(polish, /\.bar-fill::after/);
   assert.match(polish, /prefers-reduced-motion:\s*reduce/);
   assert.doesNotMatch(html, /id="online-body"|id="settings-body"|id="config-profile-save"/);
   assert.match(reactUi, /function SettingsProfilesReactControls\(\)/);
   assert.match(reactUi, /function SettingsPresetsReactControls\(\)/);
-  assert.match(html, /id="custom-mod-add"/);
-  assert.match(html, /id="diagnostic-list"/);
+  assert.doesNotMatch(html, /id="(?:custom-mod-add|diagnostic-list|app-pages|mods|updates|diagnostics)"/);
   assert.match(settingsUi, /async setFromReact\(key: string, rawValue: string\)/);
   assert.doesNotMatch(settingsUi, /document\.|querySelector|HTMLElement|this\.root|render\(/);
 });
@@ -136,14 +136,13 @@ test('the page shell uses horizontal navigation and a single-column workspace', 
   assert.match(css, /@media\(max-width:380px\)/);
 });
 
-test('diagnostics are populated, refreshable and downloadable; module bytes remain visible under Play', () => {
-  for (const id of ['diagnostic-list','diagnostics-refresh','diagnostics-download','module-download-status','module-download-percent']) {
-    assert.match(html, new RegExp('id="' + id + '"'), id);
-  }
-  assert.match(shell, /function renderDiagnostics\(/);
-  assert.match(shell, /function refreshDiagnostics\(/);
-  assert.match(shell, /function downloadDiagnostics\(/);
-  assert.match(shell, /#diagnostics-refresh/);
+test('diagnostics are populated, refreshable and downloadable through React while module bytes remain visible under Play', () => {
+  assert.doesNotMatch(html, /id="(?:app-pages|diagnostic-list|diagnostics-refresh|diagnostics-download|diagnostics)"/);
+  assert.match(reactUi, /function DiagnosticsReactPanel\(\)/);
+  assert.match(reactUi, /window\.__trpDiagnosticsBridge\?\.snapshot\(\)/);
+  assert.match(shell, /function refreshDiagnostics\(\)/);
+  assert.match(shell, /function downloadDiagnostics\(\)/);
+  assert.doesNotMatch(shell, /#(?:diagnostics-refresh|diagnostics-download|diagnostic-list|storage-note)/);
   assert.match(shell, /#module-download-status/);
   assert.match(shell, /#module-download-percent/);
   assert.match(shell, /#play'\)\.disabled = !ok/);
@@ -157,7 +156,8 @@ test('first-run, language default, accessibility and version metadata stay align
   assert.match(css, /html\[data-reduce-motion\]/);
   assert.match(css, /html\[data-high-contrast\]/);
   assert.ok(platform.includes(`APP_BUILD_VERSION = '${version.version}'`));
-  assert.ok(html.includes(`id="build-current">${version.version}`));
+  assert.doesNotMatch(html, /id="build-current"/);
+  assert.match(platform, /currentVersion: APP_BUILD_VERSION/);
   assert.match(platform, /lastLanguage\(\)/, 'first-run language falls back to the saved language');
   assert.match(platform, /: lastLanguage\(\)/, 'an empty top picker does not blank the first-run language');
   assert.match(i18n, /return isLanguage\(v\) \? v : 'turkish'/, 'new visitors default to Turkish');
@@ -165,7 +165,7 @@ test('first-run, language default, accessibility and version metadata stay align
 });
 
 test('mod workshop, cloud keyphrase, team join and about cards have bounded responsive layouts', () => {
-  assert.match(css, /#mods \.mod-tool-icon svg\{[^}]*width:21px!important/);
+  assert.match(reactCss, /\.trp-mod-panel/);
   assert.match(reactUi, /className="trp-vault-react-key-form"/);
   assert.match(reactUi, /className="trp-vault-react-key-row"/);
   assert.match(css, /\.crew-line \.crew-add\{/);
@@ -192,8 +192,8 @@ test('empty crew chips do not create a full-width blank panel, and Community Pic
   assert.match(crewUi, /const chips = document\.createElement\('div'\); chips\.className = 'crew-chips'/);
   assert.match(crewUi, /line\.append\(chips, box\)/);
   assert.match(css, /\.crew-line \.crew-chips:has\(ul\.crews:empty\)\{display:none\}/);
-  assert.match(css, /#mods \.mods-feature-grid\{max-width:1080px/);
-  assert.match(css, /#mods \.favorite-button svg\{[\s\S]*?width:17px!important/);
+  assert.match(reactCss, /\.trp-mod-react-form-grid/);
+  assert.match(reactUi, /function ModLibraryLists\(\)/);
 });
 
 
@@ -205,7 +205,7 @@ test('Night Circuit 2.0 shares one restrained midnight-teal palette across the w
   assert.match(css, /--acid: var\(--lime\)/);
   assert.match(css, /NIGHT CIRCUIT 2\.0/);
   assert.match(css, /\.home-overview-grid\s*\{[\s\S]*?grid-template-columns: minmax\(0, \.9fr\) minmax\(0, 1\.1fr\)/);
-  assert.match(css, /#mods \.mods-feature-grid\s*\{[\s\S]*?max-width: 960px/);
+  assert.match(reactCss, /\.trp-mod-dashboard/);
   assert.match(css, /\.crew-line\s*\{[\s\S]*?flex-direction: row/);
   assert.match(css, /@media \(prefers-reduced-motion: reduce\)/);
   assert.doesNotMatch(html, /class="landing-art"|class="hero-car"|class="art-grid"/);

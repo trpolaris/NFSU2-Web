@@ -57,7 +57,7 @@ test('React owns the main navigation, route state and motion transitions', () =>
 });
 
 test('the legacy runtime anchors remain present while React provides the page shell', () => {
-  for (const id of ['app', 'home-page', 'play', 'progress', 'status', 'saves', 'diagnostics', 'game-data', 'stage']) {
+  for (const id of ['app', 'home-page', 'play', 'progress', 'status', 'stage']) {
     assert.match(html, new RegExp('id="' + id + '"'), id);
   }
   assert.doesNotMatch(html, /id="lang-pick"|id="install-app"|id="install-security-notice"/);
@@ -181,8 +181,8 @@ test('remaining React routes render without obsolete About/Changes DOM sections'
   assert.match(app, /active === 'mods' && !gameActive && <ModLibraryDashboard \/>/);
   assert.match(app, /active === 'about' && !gameActive && <AboutDashboard \/>/);
   assert.doesNotMatch(app, /LegacyRoutePage|trp-legacy-route/);
-  for (const id of ['mods','saves','updates','diagnostics','game-data']) {
-    assert.match(html, new RegExp('id="' + id + '"'));
+  for (const id of ['mods','saves','updates','diagnostics','game-data','app-pages']) {
+    assert.doesNotMatch(html, new RegExp('id="' + id + '"'));
   }
   assert.doesNotMatch(html, /id="changes"|id="about"|class="top app-topbar"/);
   assert.match(shellCss, /\.trp-about-feature-grid/);
@@ -321,32 +321,30 @@ test('About and project credits are rendered directly in the React route, not le
 });
 
 
-test('Mod Library is rendered in React while its hidden platform data root remains available to the legacy storage helpers', () => {
+test('Mod Library is React-owned over a DOM-free local-storage and manifest service', () => {
   assert.ok(app.includes('function ModLibraryDashboard'));
   assert.ok(app.includes('function ModLibraryLists'));
   assert.ok(app.includes('function ModLibraryForm'));
   assert.ok(app.includes("active === 'mods' && !gameActive && <ModLibraryDashboard />"));
   assert.ok(app.includes('<ModLibraryLists />'));
   assert.ok(app.includes('<ModLibraryForm />'));
-  assert.ok(!app.includes("selectors: ['#mods']"));
-  for (const selector of ['#pack-list','#custom-mod-list','#custom-mod-filter','#mod-link-form']) {
-    assert.ok(html.includes('id="' + selector.slice(1) + '"'), selector + ' remains in the hidden platform root');
-    assert.ok(!app.includes('LegacyNode selector="' + selector + '"'), selector + ' is not a React DOM island');
+  for (const id of ['app-pages','mods','pack-list','custom-mod-list','custom-mod-filter','mod-link-form','custom-mod-name','custom-mod-url','custom-mod-category','custom-mod-path','custom-mod-add','custom-mod-export','custom-mod-import','custom-mod-status','custom-mod-count','packs-check']) {
+    assert.doesNotMatch(html, new RegExp('id="' + id + '"'), id + ' is retired');
   }
-  assert.ok(platform.includes('window.__trpModLibraryBridge = {'));
-  assert.ok(platform.includes('addCustomModLink'));
-  assert.ok(platform.includes('importModList'));
-  assert.ok(platform.includes('exportModList'));
-  assert.ok(shellCss.includes('#app.experience-shell { display:none!important; }'));
-  assert.ok(shellCss.includes('.trp-mod-panel'));
-  assert.ok(shellCss.includes('.trp-mod-react-form-grid'));
+  assert.match(platform, /window\.__trpModLibraryBridge = \{/);
+  assert.match(platform, /modStatusText/);
+  assert.match(platform, /addCustomModLink/);
+  assert.match(platform, /importModList/);
+  assert.match(platform, /exportModList/);
+  assert.doesNotMatch(platform, /#(?:pack-list|custom-mod-status|custom-mod-add|custom-mod-import|packs-check)/);
+  assert.match(shellCss, /\.trp-mod-panel/);
+  assert.match(shellCss, /\.trp-mod-react-form-grid/);
 });
-
 
 test('Saves route is rendered by React over DOM-free OPFS and predownload services', () => {
   assert.match(app, /function SavesDashboard/);
   assert.ok(app.includes("active === 'saves' && !gameActive && <SavesDashboard />"));
-  assert.ok(html.includes('<div class="app-grid" id="app-pages" hidden>'));
+  assert.ok(!html.includes('id="app-pages"'));
   assert.doesNotMatch(html, /id="saves"|id="game-data"/);
   assert.doesNotMatch(html, /id="vault-service-host"|id="vault"/);
   assert.match(vaultUi, /reactSnapshot\(\)/);
@@ -429,46 +427,45 @@ test('Saves and screenshots expose DOM-free APIs for the React dashboards', () =
   assert.match(shotsUi, /thumbnail\(path: string\)/);
   assert.match(shotsUi, /imageUrl\(path: string\)/);
   assert.doesNotMatch(html, /id="saves"|id="game-data"|id="shot-view"/);
-  assert.match(html, /id="vault-service-host" hidden/);
+  assert.doesNotMatch(html, /id="vault-service-host"|id="vault"/);
 });
 
-test('System update, diagnostics and game-data panels are React-owned through typed service bridges', () => {
+test('System update, diagnostics and game-data panels are React-owned through DOM-free service bridges', () => {
   assert.ok(app.includes('function UpdatesReactPanel()'));
   assert.ok(app.includes('function DiagnosticsReactPanel()'));
   assert.ok(app.includes('function GameDataReactPanel()'));
   assert.ok(app.includes('<UpdatesReactPanel />'));
   assert.ok(app.includes('<DiagnosticsReactPanel />'));
   assert.ok(app.includes('<GameDataReactPanel />'));
-  assert.ok(!app.includes('LegacyNode selector="#updates"'));
-  assert.ok(!app.includes('LegacyNode selector="#diagnostics"'));
-  assert.ok(!app.includes('LegacyNode selector="#game-data"'));
+  assert.doesNotMatch(html, /id="(?:app-pages|mods|updates|diagnostics|game-data|diagnostic-list|diagnostics-refresh|diagnostics-download|updates-check|updates-reload|build-current|build-server|i18n-check|i18n-check-status|privacy-status)"/);
   assert.match(runtime, /window\.__trpDiagnosticsBridge = \{/);
   assert.match(runtime, /diagnosticsSnapshot\(\)/);
+  assert.doesNotMatch(runtime, /#(?:storage-note|diagnostic-list|diagnostics-refresh|diagnostics-download)/);
   assert.match(platform, /window\.__trpPlatformBridge = \{/);
   assert.match(platform, /checkUpdates: async \(\) => \{ await checkUpdates\(\)/);
   assert.match(platform, /checkTranslations: async \(\) => \{ await checkTranslations\(\)/);
+  assert.match(platform, /currentVersion: APP_BUILD_VERSION/);
+  assert.match(platform, /serverVersion,/);
+  assert.match(platform, /translationStatus,/);
   assert.match(runtime, /gameDataSnapshot: \(\) => saves\.gameDataSnapshot\(\)/);
   assert.match(savesUi, /gameDataSnapshot\(\)/);
-  assert.match(savesUi, /togglePreload\(\): Promise<void>/);
-  assert.match(savesUi, /clearGameData\(\): Promise<void>/);
-  for (const id of ['updates','diagnostics']) assert.ok(html.includes('id="' + id + '"'));
-  assert.ok(shellCss.includes('.trp-system-react'));
-  assert.ok(shellCss.includes('.trp-diagnostics-react-list'));
-  assert.ok(shellCss.includes('.trp-game-data-progress'));
+  assert.match(shellCss, /\.trp-system-react/);
+  assert.match(shellCss, /\.trp-diagnostics-react-list/);
+  assert.match(shellCss, /\.trp-game-data-progress/);
 });
 
 test('Settings and accessibility routes are fully React-owned while game configuration persists through SettingsService', () => {
   assert.ok(app.includes('function SettingsDashboard'));
   assert.ok(app.includes("active === 'settings' && !gameActive && <SettingsDashboard />"));
   assert.ok(!app.includes("selectors: ['#settings', '#accessibility']"));
-  assert.ok(html.includes('id="settings"'));
-  assert.ok(html.includes('<div class="app-grid" id="app-pages" hidden>'));
+  assert.ok(!html.includes('id="settings"'));
+  assert.ok(!html.includes('id="app-pages"'));
   assert.ok(app.includes('<AccessibilityReactControls />'));
   assert.ok(!app.includes('LegacyNode selector="#accessibility"'));
-  assert.ok(html.includes('id="online"'));
+  assert.ok(!html.includes('id="online"'));
   assert.ok(shellCss.includes('.trp-a11y-react-options'));
   assert.ok(!shellCss.includes('.trp-settings-accessibility-legacy'));
-  assert.ok(runtime.includes("new SettingsPanel($('#settings')"));
+  assert.ok(runtime.includes('new SettingsService({'));
   assert.ok(!html.includes('id="accessibility"'));
 });
 
@@ -620,5 +617,5 @@ test('Settings profiles, quick presets and the raw settings editor are React-own
   assert.match(shellCss, /\.trp-settings-profiles-react/);
   assert.match(shellCss, /\.trp-settings-presets-grid/);
   assert.match(shellCss, /\.trp-settings-raw-react textarea/);
-  assert.match(html, /id="app-pages" hidden/);
+  assert.doesNotMatch(html, /id="app-pages"/);
 });

@@ -217,7 +217,6 @@ function setSub(sub: Msg, code?: string) {
 function setCheck(c: Check) {
   checks.set(c.id, c);
   renderProblems();
-  renderDiagnostics();
   evaluate();
   window.dispatchEvent(new Event('trp-diagnostics-changed'));
 }
@@ -262,27 +261,26 @@ const label = (c: Check) => tvars(c.tl ?? c.label, c.v), detail = (c: Check) => 
  *  the saves.  Each with its code, and in the log once, in English. */
 function renderProblems() {
   const shown = ORDER.map(id => checks.get(id))
-    .filter((c): c is Check => !!c && (c.state === 'fail' || (c.state === 'warn' && (c.id === 'browser' || c.id === 'gpu'))));
+    .filter((c): c is Check => !!c && (c.state === 'fail' || (c.state === 'warn' && (c.id === 'browser' || c.id === 'gpu' || c.id === 'storage'))));
   const key = pageLanguage() + '|' + shown.map(c => `${c.id}:${c.state}:${c.detail}`).join('|');
-  if (key !== problemsShown) {          // the list is a live region: rebuilt only when it changes
+  if (key !== problemsShown) {
     problemsShown = key;
     $('#problems').replaceChildren(...shown.map(c => {
       const li = document.createElement('li'); li.dataset.id = c.id; li.className = c.state;
-      const s = document.createElement('strong'); s.textContent = label(c);
-      const p = document.createElement('p'); p.textContent = detail(c);
-      if (c.code) p.append(codeOf(c.code));
-      li.append(s, p);
+      const title = document.createElement('strong'); title.textContent = label(c);
+      const detailLine = document.createElement('p'); detailLine.textContent = detail(c);
+      if (c.code) detailLine.append(codeOf(c.code));
+      li.append(title, detailLine);
       return li;
     }));
   }
-  const st = checks.get('storage');
-  for (const c of [...shown, ...(st?.state === 'warn' ? [st] : [])]) {
+  for (const c of shown) {
     const k = `${c.id}:${c.state}:${c.detail}`;
-    if (!problemsLogged.has(k)) { problemsLogged.add(k); log.add(`[app] ${c.state === 'fail' ? 'problem' : 'warning'} ${c.code ?? c.id}: ${c.label}: ${c.detail}`); }
+    if (!problemsLogged.has(k)) {
+      problemsLogged.add(k);
+      log.add(`[app] ${c.state === 'fail' ? 'problem' : 'warning'} ${c.code ?? c.id}: ${c.label}: ${c.detail}`);
+    }
   }
-  const note = $('#storage-note');
-  note.hidden = st?.state !== 'warn';
-  if (st?.state === 'warn') live(note, () => detail(st), st.code); else live(note, () => '');
 }
 /** No graphics since the last game's went (GPU-ADAPTER-AFTER-LOST): asked again every 10 s while the page shows, as the
  *  browser may give them back after a while (Chrome: two minutes); the log says when they came back. */
@@ -295,33 +293,6 @@ function recheckGpu(since = performance.now()) {
   }, 10_000);
 }
 /** Every real startup check is also listed on the dedicated diagnostics page. */
-function renderDiagnostics() {
-  const root = $('#diagnostic-list');
-  const items = ORDER.map(id => checks.get(id)).filter((x): x is Check => !!x);
-  root.replaceChildren(...items.map(c => {
-    const li = document.createElement('li');
-    li.className = `diagnostic-item diagnostic-${c.state}`;
-    li.dataset.id = c.id;
-    const icon = document.createElement('span');
-    icon.className = 'diagnostic-icon';
-    icon.setAttribute('aria-hidden', 'true');
-    icon.textContent = c.state === 'ok' ? '✓' : c.state === 'warn' ? '!' : c.state === 'fail' ? '×' : '…';
-    const copy = document.createElement('div');
-    copy.className = 'diagnostic-copy';
-    const title = document.createElement('strong');
-    title.textContent = label(c);
-    const detailLine = document.createElement('p');
-    detailLine.textContent = detail(c);
-    if (c.code) detailLine.append(' ', codeOf(c.code));
-    copy.append(title, detailLine);
-    const state = document.createElement('span');
-    state.className = 'diagnostic-state';
-    state.textContent = c.state.toUpperCase();
-    li.append(icon, copy, state);
-    return li;
-  }));
-  window.dispatchEvent(new Event('trp-diagnostics-changed'));
-}
 function diagnosticsSnapshot() {
   return ORDER.map(id => checks.get(id)).filter((item): item is Check => !!item).map(item => ({
     id: item.id, state: item.state, label: label(item), detail: detail(item),
@@ -331,9 +302,6 @@ function diagnosticsSnapshot() {
 async function refreshDiagnostics() {
   diagnosticsBusy = true;
   window.dispatchEvent(new Event('trp-diagnostics-changed'));
-  const button = $<HTMLButtonElement>('#diagnostics-refresh');
-  button.disabled = true;
-  button.setAttribute('aria-busy', 'true');
   try {
     setCheck(checkBrowser());
     setCheck(checkIsolation());
@@ -351,8 +319,6 @@ async function refreshDiagnostics() {
     setCheck(gameData);
     void answer?.then(setCheck);
   } finally {
-    button.disabled = false;
-    button.removeAttribute('aria-busy');
     diagnosticsBusy = false;
     window.dispatchEvent(new Event('trp-diagnostics-changed'));
   }
@@ -1833,8 +1799,6 @@ export async function boot() {
   $<HTMLButtonElement>('#retry').onclick = () => void loadModule();
   $<HTMLButtonElement>('#reload').onclick = () => void reload();
   $<HTMLButtonElement>('#log-btn').onclick = downloadLog;
-  $<HTMLButtonElement>('#diagnostics-refresh').onclick = () => void refreshDiagnostics();
-  $<HTMLButtonElement>('#diagnostics-download').onclick = downloadDiagnostics;
   $('#menu').addEventListener('click', e => {
     const target = e.target as HTMLElement;
     const tab = target.closest<HTMLButtonElement>('[data-menu-tab]');
@@ -1957,8 +1921,6 @@ export async function boot() {
   setPhase('boot', T('Loading'), T('Loading the game.'));
   live($('#module-download-status'), T('Loading the game.'));
   setProgress(0);
-  renderDiagnostics();
-
   showOverrides(given, dev);
   if (given.length) log.add(dev ? `[app] test settings from the page address: ${given.join(', ')}` : `[app] the page address's test settings (${given.join(', ')}) are ignored: not a development server`);
   if (q.has('fresh') && SAVE !== 'save') { await removeSaveDir(SAVE); forgetLink(SAVE); log.add(`[app] fresh save folder ${SAVE}`); }

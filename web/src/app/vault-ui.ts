@@ -96,7 +96,7 @@ function sidesOf(here: Side, cloud?: Side | null): string {
     return [where, names, at, isNewer ? t('Newer') : ''].filter(Boolean).join(' · ');
   };
   return [row(t('This browser'), here, n === 'here'),
-    ...(cloud === undefined ? [] : [row(t('Cloud'), cloud, n === 'cloud')])].join('\\n');
+    ...(cloud === undefined ? [] : [row(t('Cloud'), cloud, n === 'cloud')])].join('\n');
 }
 
 const QUIT_FIRST = N('Quit the game first.');
@@ -284,7 +284,7 @@ export class VaultPanel {
   private async putBack() {
     const r = this.replaced; if (!r) return;
     if (this.d.busy()) { this.msg(() => t(QUIT_FIRST), true); return; }
-    const body = `${t('The saves this browser had before cloud saves replaced them ({when}) come back in place of the ones here. The saves here now are kept instead, so you can switch back.', { when: when(r.at) })}\\n\\n${sidesOf(r.side)}`;
+    const body = `${t('The saves this browser had before cloud saves replaced them ({when}) come back in place of the ones here. The saves here now are kept instead, so you can switch back.', { when: when(r.at) })}\n\n${sidesOf(r.side)}`;
     if (!await this.d.confirm(t('Put back the replaced saves?'), body, t('Put back'), true)) return;
     if (this.d.busy()) { this.msg(() => t(QUIT_FIRST), true); return; }
     try { const dir = replacedDir(this.d.saveDir), backup = await readVault(await readBytes(dir, 'saves.zip')); await this.keepReplaced(); await restoreVault(this.d.saveDir, backup); }
@@ -332,7 +332,7 @@ export class VaultPanel {
   async askAtPlay(): Promise<'play' | 'taken' | 'stop'> {
     const s = this.sync, st = s?.state;
     if (!s?.link || st?.s !== 'conflict' || !this.d.owner()) return 'play';
-    const body = [this.conflictText(), sidesOf(st.here, st.cloud), t('Cloud saves stay paused until you pick. Esc goes back without playing.')].filter(Boolean).join('\\n\\n');
+    const body = [this.conflictText(), sidesOf(st.here, st.cloud), t('Cloud saves stay paused until you pick. Esc goes back without playing.')].filter(Boolean).join('\n\n');
     const pick = await this.d.choose(t('Which saves do you want to keep?'), body, t('Keep this browser\'s'), t('Use the cloud\'s'));
     this.d.log(`[app] keyphrase: a conflict (${st.why}) at Play: ${pick === 'ok' ? 'keep this browser\'s' : pick === 'cancel' ? 'use the cloud\'s' : 'back to the page'}`);
     if (pick === 'ok') return await this.keepMine() ? 'play' : 'stop';
@@ -420,7 +420,7 @@ export class VaultPanel {
     let r: Awaited<ReturnType<typeof readVault>>;
     try { r = await readVault(got.zip); }
     catch (e) { this.msg(() => t('These saves cannot be read: {error}.', { error: e instanceof Error ? e.message : String(e) }), true, 'VAULT-UNREADABLE'); return false; }
-    const body = [description, ...backupItems(r, true).map(item => `• ${item}`)].join('\\n');
+    const body = [description, ...backupItems(r, true).map(item => `• ${item}`)].join('\n');
     if (!await this.d.confirm(title, body, ok, (await listFiles(this.d.saveDir)).some(file => keeps(file.path)))) { this.msg(''); return false; }
     if (this.d.busy()) { this.msg(() => t(QUIT_FIRST), true); return false; }
     try { await this.keepReplaced(); }
@@ -497,7 +497,7 @@ export class VaultPanel {
         ? t('They replace the cloud\'s saves from {when}, here and in every browser that syncs with this passphrase.', { when: when(cloudAt) })
         : t('They replace the cloud\'s saves, here and in every browser that syncs with this passphrase.');
     const newerCloud = newer(st.here, st.cloud) === 'cloud';
-    const body = [explanation, sidesOf(st.here, st.cloud), ...(newerCloud ? [t('The cloud\'s saves are newer: what was played on them since is lost.')] : [])].filter(Boolean).join('\\n\\n');
+    const body = [explanation, sidesOf(st.here, st.cloud), ...(newerCloud ? [t('The cloud\'s saves are newer: what was played on them since is lost.')] : [])].filter(Boolean).join('\n\n');
     if (!await this.d.confirm(t('Keep this browser\'s saves?'), body, t('Keep this browser\'s'), st.why === 'empty' || newerCloud)) return false;
     await s.keepMine().catch(() => {});
     return s.state.s === 'synced';
@@ -514,7 +514,7 @@ export class VaultPanel {
     if (cloudAt != null && newer(st.here, st.cloud) === 'here') parts.push(t('This browser\'s saves are newer: the progress since {when} is replaced.', { when: when(cloudAt) }));
     if (st.why === 'bare') parts.push(t('They have no profiles: the profiles here are deleted.'));
     if (st.here.profiles?.length) parts.push(tn(REPLACED_DAYS, 'A copy of the saves here stays in this browser for {n} day: Put back under Cloud saves brings it back.', 'A copy of the saves here stays in this browser for {n} days: Put back under Cloud saves brings it back.'));
-    if (!await this.d.confirm(t('Use the cloud\'s saves?'), parts.join('\\n\\n'), t('Use the cloud\'s'), true)) return false;
+    if (!await this.d.confirm(t('Use the cloud\'s saves?'), parts.join('\n\n'), t('Use the cloud\'s'), true)) return false;
     if (busy()) { this.msg(() => t(QUIT_FIRST), true); return false; }
     try { await this.keepReplaced(); }
     catch (e) { this.msg(() => t('The saves here could not be kept, so nothing was replaced: {error}.', { error: e instanceof Error ? e.message : String(e) }), true, 'VAULT-KEEP-COPY'); return false; }
