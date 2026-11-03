@@ -28,6 +28,7 @@
 <link rel="apple-touch-icon" sizes="512x512" href="/icon.png">
 <link rel="stylesheet" href="/main.css">
 <link rel="stylesheet" href="/tailwind.css">
+<link rel="stylesheet" href="/react-shell.css">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -42,9 +43,12 @@
   "playMode": ["SinglePlayer", "MultiPlayer", "CoOp"]
 }
 </script>
+<script type="module" src="/ui/main.js"></script>
 <script type="module" src="/main.js"></script>
 </head>
 <body data-phase="boot">
+
+<div id="trp-react-root"></div>
 
 <main class="app experience-shell command-center" id="app">
   <header class="top app-topbar">
