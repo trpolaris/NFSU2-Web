@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { checkCrew, CREW_COLOUR_NAMES, CREW_MAX, CREW_PALETTE, freeColour } from '../app/crews';
+import { checkCrew, CREW_BIG, CREW_COLOUR_NAMES, CREW_MAX, CREW_PALETTE, freeColour } from '../app/crews';
 import { t } from '../app/i18n';
 import { CATS, DEFAULT_GROUPS, DEFAULT_PHRASES, PHRASES } from '../app/phrases';
 import { flushSync } from 'react-dom';
@@ -368,9 +368,13 @@ function OnlineReactControls() {
           <div><span className="trp-eyebrow" data-i18n>DRIVER GROUPS / 02</span><h3 id="trp-online-crews-title" data-i18n>Your crews</h3></div>
           <span className="trp-online-crews-count">{crewList.length} / {CREW_MAX}</span>
         </div>
-        {crewList.map((crew, index) => (
+        {crewList.map((crew, index) => {
+          const count = window.__trpSettingsBridge?.crewCount(crew.name);
+          return (
           <div className="trp-online-crew-row" key={crew.name}>
-            <span className="trp-online-crew-name"><i style={{ backgroundColor: '#' + crew.rgb }} />{crew.name}</span>
+            <span className="trp-online-crew-name"><i style={{ backgroundColor: '#' + crew.rgb }} />{crew.name}
+              {count !== undefined && <small>{t('{n} in free roam', { n: count })}</small>}
+            </span>
             <div className="trp-online-crew-palette" role="group" aria-label={t('Colour of {name}', { name: crew.name })}>
               {CREW_PALETTE.map((rgb, colourIndex) => (
                 <button key={rgb} type="button" className="trp-online-crew-swatch"
@@ -384,8 +388,10 @@ function OnlineReactControls() {
             </div>
             <button type="button" className="trp-online-crew-leave" data-i18n
               disabled={!ready || readOnly || !!busy} onClick={() => leaveCrew(index)}>Leave</button>
+            {count !== undefined && count > CREW_BIG && <em className="trp-online-crew-large">{t('{name} has more than 64 players in free roam: in a crew that big, crew-mates far away no longer always show, only the ones nearby, as with everyone else. A less common name works better.', { name: crew.name })}</em>}
           </div>
-        ))}
+          );
+        })}
         <div className="trp-online-crew-add">
           <input type="text" maxLength={24} autoComplete="off" spellCheck={false}
             value={crewDraft} placeholder="Crew name"

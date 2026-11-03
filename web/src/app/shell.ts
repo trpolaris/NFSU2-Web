@@ -1679,6 +1679,7 @@ export async function boot() {
     set: async (key, value) => { await settings.set(key, value); window.dispatchEvent(new Event('trp-settings-changed')); },
     setValidated: async (key, value) => { await settings.setValidated(key, value); window.dispatchEvent(new Event('trp-settings-changed')); },
     crews: () => crewsOf(settings.current('roam_crew'), settings.current('roam_crew_colours')),
+    crewCount: name => settings.crewCount(roomHash(name)),
     setCrews: async list => { await settings.saveCrewsFromReact(list); window.dispatchEvent(new Event('trp-settings-changed')); },
     quickChat: () => ({ phrases: phrasesOf(settings.current('quick_chat_phrases')), groups: groupsOf(settings.current('quick_chat_groups')) }),
     saveQuickChat: async (phrases, groups) => { await settings.saveQuickChatFromReact(phrases, groups); window.dispatchEvent(new Event('trp-settings-changed')); },
@@ -1694,7 +1695,7 @@ export async function boot() {
   pick.onchange = () => void settings.set('language', pick.value);
   // who plays on this server now (Online): only while no game runs here; with free roam on in a room, that room too,
   // and in crews (free roam on or not: the row shows them either way), how many are in each (on the Crews row's lines)
-  players = watchPlayers((line, crews) => { settings.setStatus(line); settings.setCrewCounts(crews); }, () => !session && !starting, setReach,
+  players = watchPlayers((line, crews) => { settings.setStatus(line); settings.setCrewCounts(crews); window.dispatchEvent(new Event('trp-settings-changed')); }, () => !session && !starting, setReach,
     () => { const e = resolved().env; return e.NFSU2_ROAM === '1' ? e.NFSU2_ROAM_ROOM ?? '' : ''; },
     () => crewList(resolved().env.NFSU2_ROAM_CREW ?? '').map(roomHash));
   window.addEventListener('online', () => players?.now());

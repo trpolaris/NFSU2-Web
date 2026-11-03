@@ -17,6 +17,7 @@ declare global {
     set(key: string, value: string | null): Promise<void>;
     setValidated(key: string, value: string | null): Promise<void>;
     crews(): TrpCrew[];
+    crewCount(name: string): number | undefined;
     setCrews(list: TrpCrew[]): Promise<void>;
     quickChat(): { phrases: number[]; groups: string[] };
     saveQuickChat(phrases: number[], groups: string[]): Promise<void>;

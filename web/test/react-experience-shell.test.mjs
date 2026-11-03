@@ -250,3 +250,13 @@ test('React Crew and Quick Chat dynamic controls are retranslated whenever their
   assert.match(app, /data-i18n>\\{category\\.name\\}/);
   assert.match(app, /data-i18n>\\{phrase\\.text\\}/);
 });
+
+
+test('React Crew rows show only live /players counts and the existing large-crew warning', () => {
+  assert.match(gameEntry, /crewCount\(name: string\): number \| undefined/);
+  assert.match(settingsUi, /crewCount\(hash: number\): number \| undefined/);
+  assert.match(shell, /crewCount: name => settings\.crewCount\(roomHash\(name\)\)/);
+  assert.match(shell, /settings\.setCrewCounts\(crews\); window\.dispatchEvent\(new Event\('trp-settings-changed'\)\)/);
+  assert.match(app, /crewCount\(crew\.name\)/);
+  assert.match(app, /count !== undefined && count > CREW_BIG/);
+});

@@ -580,6 +580,9 @@ export class SettingsPanel {
     for (const r of [this.root, this.online]) showCrewCounts(r, counts);
   }
 
+  /** Live player count for a crew hash, or undefined when the /players feed has no count yet. */
+  crewCount(hash: number): number | undefined { return this.crewCounts.get(hash); }
+
   private group(g: Group): HTMLElement {
     const box = document.createElement('div'); box.className = 'group';
     // a group in its own section has that section's heading
