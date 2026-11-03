@@ -8,7 +8,7 @@ on:
     tags: ['v*']
   pull_request:
     paths: ['web/server-rs/**', 'web/src/**', web/build.mjs, web/index.html,
-      web/package.json, web/package-lock.json, app/registry-defaults.txt, .github/workflows/image-rs.yml]
+      web/tools/i18n-keys.mjs, web/package.json, web/package-lock.json, app/registry-defaults.txt, .github/workflows/image-rs.yml]
   workflow_dispatch:
 permissions:
   contents: read
