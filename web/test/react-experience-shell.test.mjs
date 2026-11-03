@@ -260,3 +260,19 @@ test('React Crew rows show only live /players counts and the existing large-crew
   assert.match(app, /crewCount\(crew\.name\)/);
   assert.match(app, /count !== undefined && count > CREW_BIG/);
 });
+
+
+test('About and project credits are rendered directly in the React route, not legacy DOM islands', () => {
+  assert.match(app, /function AboutDashboard/);
+  assert.match(app, /active === 'about' && !gameActive && <AboutDashboard \/>/);
+  assert.doesNotMatch(app, /selectors: \['#changes', '#about'\]/);
+  assert.doesNotMatch(app, /about: \{/);
+  assert.match(app, /https:\/\/github\.com\/trpolaris\/NFSU2-Web/);
+  assert.match(app, /https:\/\/github\.com\/trpolaris\/NFSU2-Web\/issues/);
+  assert.match(app, /KyoriAsh's/);
+  assert.match(app, /Lee-Ryo's Thai support/);
+  assert.match(app, /Electronic Arts/);
+  assert.match(shellCss, /#changes,.trp-legacy-slot #app #about \{ display:none!important; \}/);
+  assert.match(shellCss, /\.trp-about-feature-grid/);
+  assert.match(shellCss, /\.trp-about-info-grid/);
+});

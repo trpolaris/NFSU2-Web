@@ -132,3 +132,8 @@ The Free Roam Crew editor is now React-owned. It uses the existing pure crew rul
 ## Quick Chat phrase editor migration
 
 The 16-slot Quick Chat editor is now a React interface backed by the existing phrase catalogue and category definitions. Each of the four groups can select a category, and each of its four slots only offers phrases from that category. The phrase ids and category ids are validated with the same settings validators and written together in one save. Defaults are restored as commented template values when the default set is chosen. The in-game phrase picker and typed chat pipeline are unchanged.
+
+
+## About page migration
+
+The About route is now fully rendered by React, including the original feature summary, project links, independent-project notice and translation/texture credits. The original `#changes` and `#about` nodes are hidden inside the compatibility host but no longer used as the route content. All external destinations and attribution text are retained.
