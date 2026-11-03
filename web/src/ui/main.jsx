@@ -78,6 +78,100 @@ const HOME_LINKS = [
   { id: 'settings', label: 'Settings', detail: 'Display and accessibility', icon: Settings },
 ];
 
+function RuntimePlayControls() {
+  const [state, setState] = useState({ phase: 'boot', progress: 0, canPlay: false, detail: 'Loading the game.' });
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    const update = () => {
+      const next = window.__trpRuntimeBridge?.snapshot();
+      if (next) setState(next);
+    };
+    window.addEventListener('trp-runtime-ready', update);
+    window.addEventListener('trp-runtime-changed', update);
+    update();
+    return () => {
+      window.removeEventListener('trp-runtime-ready', update);
+      window.removeEventListener('trp-runtime-changed', update);
+    };
+  }, []);
+  const play = async () => {
+    if (!state.canPlay || busy) return;
+    setBusy(true);
+    try { await window.__trpRuntimeBridge?.play(); }
+    finally {
+      const next = window.__trpRuntimeBridge?.snapshot();
+      if (next) setState(next);
+      setBusy(false);
+    }
+  };
+  const pct = Math.max(0, Math.min(100, state.progress ?? 0));
+  return (
+    <section className="panel hero play-console trp-runtime-play" aria-label="Play">
+      <div className="play-console-head"><div><span className="play-console-eyebrow">01 / START YOUR ENGINE</span><h2 data-i18n>Play</h2></div><span className="play-console-mark">NFSU2 / WEB</span></div>
+      <button type="button" className="play" disabled={!state.canPlay || busy} onClick={() => void play()}>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l10-6.5z" /></svg>
+        <span className="play-label" data-i18n>Play</span>
+      </button>
+      <div className="launch-progress-row"><span data-i18n>Game loading</span><span className="launch-progress-note" data-i18n>RUNTIME STATUS</span></div>
+      <div className="bar launch-progress" role="progressbar" aria-label="Game loading" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct}>
+        <div className="bar-fill" style={{ width: pct + '%' }} />
+      </div>
+      <div className="module-download-meta"><p role="status" aria-live="polite">{state.detail}</p><span aria-hidden="true">{pct}%</span></div>
+    </section>
+  );
+}
+
+function RuntimeHomeStatus({ onNavigate }) {
+  const [state, setState] = useState({
+    phase: 'boot', headline: 'Loading', detail: 'Loading the game.', progress: 0,
+    canPlay: false, retryAvailable: false, reloadAvailable: false, logAvailable: false,
+    lastGameMessage: '', reportMessage: '', updateMessage: '', overrideMessage: '', problems: [], storageWarning: '',
+  });
+  useEffect(() => {
+    const update = () => {
+      const next = window.__trpRuntimeBridge?.snapshot();
+      if (next) setState(next);
+    };
+    window.addEventListener('trp-runtime-ready', update);
+    window.addEventListener('trp-runtime-changed', update);
+    update();
+    return () => {
+      window.removeEventListener('trp-runtime-ready', update);
+      window.removeEventListener('trp-runtime-changed', update);
+    };
+  }, []);
+  const act = async action => { await action?.(); };
+  return (
+    <section className="panel home-status-panel trp-runtime-status" aria-labelledby="home-status-title">
+      <div className="home-status-head">
+        <div className="home-status-title-wrap"><span className="home-status-eyebrow" data-i18n>LIVE / CONNECTION</span><h2 id="home-status-title" data-i18n>System diagnostics</h2></div>
+        <p className="status" role="status">{state.headline}</p>
+      </div>
+      <p className="status-sub">{state.detail}</p>
+      <div className="home-status-details">
+        {state.lastGameMessage && <p className="msg">{state.lastGameMessage}</p>}
+        {state.reportMessage && <p className="msg">{state.reportMessage}</p>}
+        {state.updateMessage && <p className="msg" aria-live="polite">{state.updateMessage}</p>}
+        {state.overrideMessage && <p className="msg">{state.overrideMessage}</p>}
+        {state.storageWarning && <p className="msg warn">{state.storageWarning}</p>}
+        <ul className="problems" aria-live="polite">
+          {state.problems.map(problem => (
+            <li className={problem.state} key={problem.id} data-id={problem.id}>
+              <strong>{problem.label}</strong><p>{problem.detail}{problem.code ? ' ' + problem.code : ''}</p>
+            </li>
+          ))}
+        </ul>
+      </div>
+      <div className="home-status-actions">
+        {state.retryAvailable && <button type="button" className="btn" onClick={() => void act(() => window.__trpRuntimeBridge?.retry())}><span data-i18n>Retry</span></button>}
+        {state.reloadAvailable && <button type="button" className="btn" onClick={() => void act(() => window.__trpRuntimeBridge?.reload())}><span data-i18n>Reload</span></button>}
+        {state.logAvailable && <button type="button" className="btn" onClick={() => void act(() => window.__trpRuntimeBridge?.downloadLog())}><span data-i18n>Download log</span></button>}
+        <button type="button" className="btn status-details-link" onClick={() => onNavigate('system')}><span data-i18n>System diagnostics</span></button>
+      </div>
+    </section>
+  );
+}
+
 function HomeDashboard({ onNavigate }) {
   const reduceMotion = useReducedMotion();
   const enter = reduceMotion ? false : { opacity: 0, y: 16 };
@@ -92,8 +186,26 @@ function HomeDashboard({ onNavigate }) {
   return (
     <motion.div className="home-page trp-react-home experience-shell" initial={enter} animate={shown} transition={transition}>
       <motion.section className="landing-hero" aria-labelledby="landing-heading" initial={enter} animate={shown} transition={transition}>
-        <LegacyNode selector="#hero-particles" className="trp-home-particles-slot" />
-        <LegacyNode selector=".hero-visual" className="trp-home-art-slot" />
+        <div className="trp-home-particle-field" aria-hidden="true" />
+        <div className="hero-visual trp-home-react-visual" aria-hidden="true">
+          <div className="hero-visual-grid" />
+          <div className="hero-visual-glow" />
+          <div className="hero-visual-index"><span>MIDNIGHT RUN</span><strong>02 / 04</strong></div>
+          <svg className="hero-vehicle-art" viewBox="0 0 1100 560" role="presentation" focusable="false">
+            <ellipse cx="550" cy="435" rx="440" ry="54" className="trp-home-car-floor" />
+            <g className="vehicle-motion-lines"><path d="M80 300H320M25 330H235M755 185H1010M830 215H1080M110 455H365M780 470H1035" /></g>
+            <path d="M132 365 179 317 310 286 395 213Q427 184 482 179L628 186Q682 190 733 238L816 273 923 302 970 351 954 389 883 414 210 418 150 397Z" className="vehicle-shell" />
+            <path d="M329 285 407 211Q432 190 480 190L617 197Q661 202 704 244L754 284Z" className="vehicle-glass" />
+            <path d="M474 193 470 283M623 201 670 283M393 216 358 284M176 357 329 337 472 344 632 340 795 347 925 358" className="vehicle-detail" />
+            <path d="M187 319 312 292 355 294 329 329 183 352Z" className="vehicle-dark-detail" />
+            <path d="M778 282 883 308 930 337 910 351 785 332Z" className="vehicle-light-detail" />
+            <path d="M300 365Q356 333 412 365L435 406H280ZM715 366Q773 332 821 366L848 407H697Z" className="vehicle-wheel-arch" />
+            <circle cx="360" cy="382" r="54" className="vehicle-wheel" /><circle cx="360" cy="382" r="30" className="vehicle-rim" />
+            <circle cx="774" cy="382" r="54" className="vehicle-wheel" /><circle cx="774" cy="382" r="30" className="vehicle-rim" />
+            <path d="M164 354 247 339 270 348 252 363 166 373ZM877 321 927 337 946 350 911 354 870 342Z" className="vehicle-lights" />
+            <path d="M208 398 340 405 472 405 618 403 792 405 908 392" className="vehicle-accent" />
+          </svg>
+        </div>
 
         <div className="landing-copy">
           <div className="hero-kicker">
@@ -124,11 +236,11 @@ function HomeDashboard({ onNavigate }) {
           </div>
         </div>
 
-        <LegacyNode selector="#play-panel" className="trp-home-play-slot" />
+        <RuntimePlayControls />
       </motion.section>
 
       <div className="home-overview-grid">
-        <LegacyNode selector="#home-status-panel" className="trp-home-status-slot" />
+        <RuntimeHomeStatus onNavigate={onNavigate} />
         <motion.section className="home-quick-section" initial={enter} animate={shown} transition={{ ...transition, delay: reduceMotion ? 0 : .1 }} aria-labelledby="home-quick-title">
           <div className="home-quick-heading">
             <div><span className="home-status-eyebrow" data-i18n>GARAGE / QUICK ACCESS</span><h2 id="home-quick-title" data-i18n>Quick access</h2></div>

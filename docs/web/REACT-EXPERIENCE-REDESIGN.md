@@ -177,3 +177,8 @@ Recommended packs and saved mod-link lists are now rendered as React cards. Sear
 
 
 The Add/Import/Export form is now React-rendered too. It calls a narrow bridge into the existing platform helpers: adding still validates printable names, HTTP/HTTPS URLs, safe relative game-data paths, duplicate pairs and the 100-link cap; import still accepts only the schema-1 JSON format with a 256 KB file limit; export keeps the existing JSON schema and filename. The original handlers remain available only for hidden legacy elements and are no longer the visible form.
+
+
+## Home runtime adapter migration
+
+The Home route now renders its car artwork, Play dock, module progress and live status card in React. A typed runtime adapter exposes the current phase, progress, play readiness, startup checks, retry/reload and log-download commands. The existing game lifecycle and module loader stay in the TypeScript runtime; the WebAssembly canvas, renderer, audio, workers and input path are not rendered by React. The old #play-panel and #home-status-panel nodes remain hidden in the runtime host as temporary compatibility anchors while the remaining shell selectors are removed.

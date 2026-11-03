@@ -69,16 +69,26 @@ test('Player Hub uses React Motion navigation and communicates its real connecti
 });
 
 
-test('the home dashboard is React-owned while live game controls and status nodes remain bridged', () => {
+test('Home Play and live status are React-owned through the game runtime adapter', () => {
   assert.match(app, /function HomeDashboard/);
-  assert.match(app, /active === 'home' && !gameActive && <HomeDashboard/);
-  for (const selector of ['#hero-particles', '.hero-visual', '#play-panel', '#home-status-panel']) {
-    assert.ok(app.includes('selector="' + selector + '"'), 'live node is hosted: ' + selector);
-  }
-  assert.match(app, /onClick=\{event => jump\(event, item\.id\)\}/);
-  assert.match(app, /HOME_LINKS\.map/);
+  assert.match(app, /function RuntimePlayControls\(\)/);
+  assert.match(app, /function RuntimeHomeStatus\(/);
+  assert.match(app, /<RuntimePlayControls \/>/);
+  assert.match(app, /<RuntimeHomeStatus onNavigate=\{onNavigate\} \/>/);
+  assert.ok(!app.includes('LegacyNode selector="#hero-particles"'));
+  assert.ok(!app.includes('LegacyNode selector=".hero-visual"'));
+  assert.ok(!app.includes('LegacyNode selector="#play-panel"'));
+  assert.ok(!app.includes('LegacyNode selector="#home-status-panel"'));
+  assert.match(app, /window\.__trpRuntimeBridge\?\.play\(\)/);
+  assert.match(app, /window\.__trpRuntimeBridge\?\.downloadLog\(\)/);
+  assert.match(runtime, /window\.__trpRuntimeBridge = \{/);
+  assert.match(runtime, /runtimeSnapshot\(\)/);
+  assert.match(runtime, /runtimeChanged\(\)/);
+  assert.match(gameEntry, /interface TrpRuntimeBridge/);
+  assert.match(gameEntry, /__trpRuntimeBridge\?: TrpRuntimeBridge/);
+  assert.match(shellCss, /\.trp-runtime-play/);
+  assert.match(shellCss, /\.trp-runtime-status/);
   assert.match(shellCss, /\.trp-legacy-slot #app > #home-page \{ display:none!important; \}/);
-  assert.match(shellCss, /\.trp-home-particles-slot,.trp-home-art-slot,.trp-home-play-slot,.trp-home-status-slot \{ display:contents; \}/);
   assert.match(shellCss, /trp-react-shell\.is-home \.trp-content-heading/);
 });
 

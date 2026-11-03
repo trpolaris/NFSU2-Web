@@ -1031,3 +1031,28 @@
   .trp-diagnostic-react-item { grid-template-columns:26px minmax(0,1fr); }
   .trp-diagnostic-react-state { grid-column:2; }
 }
+
+
+/* Home start and status panels now render in React; only the game runtime is service-owned. */
+.trp-home-particle-field { position:absolute;inset:0;pointer-events:none;overflow:hidden;opacity:.65;
+  background:radial-gradient(circle at 18% 72%,rgba(255,105,69,.16),transparent 34%),radial-gradient(circle at 82% 12%,rgba(166,154,255,.14),transparent 33%); }
+.trp-home-particle-field:before,.trp-home-particle-field:after { content:"";position:absolute;width:3px;height:3px;border-radius:50%;background:rgba(190,205,230,.5);box-shadow:140px 80px rgba(190,205,230,.4),260px 24px rgba(190,205,230,.26),460px 120px rgba(190,205,230,.42),690px 60px rgba(190,205,230,.28),850px 180px rgba(190,205,230,.33); }
+.trp-home-particle-field:after { right:14%;top:20%;transform:scale(.7);opacity:.65; }
+.trp-home-react-visual .vehicle-motion-lines { fill:none;stroke:#a69aff;stroke-opacity:.25;stroke-width:2; }
+.trp-home-car-floor { fill:rgba(255,105,69,.14); }
+.trp-home-react-visual .vehicle-shell { fill:#54637b;stroke:rgba(235,242,255,.65);stroke-width:2; }
+.trp-home-react-visual .vehicle-glass { fill:#182438;stroke:rgba(201,217,245,.55);stroke-width:2; }
+.trp-home-react-visual .vehicle-detail { fill:none;stroke:rgba(210,221,243,.5);stroke-width:2; }
+.trp-home-react-visual .vehicle-dark-detail { fill:#111827;stroke:rgba(216,223,239,.45);stroke-width:2; }
+.trp-home-react-visual .vehicle-light-detail { fill:#101827;stroke:rgba(255,176,154,.7);stroke-width:2; }
+.trp-home-react-visual .vehicle-wheel-arch { fill:#0a101b;stroke:rgba(155,169,196,.55);stroke-width:3; }
+.trp-home-react-visual .vehicle-wheel { fill:#101827;stroke:#d8e0ee;stroke-width:5; }
+.trp-home-react-visual .vehicle-rim { fill:none;stroke:#9ba9c4;stroke-width:5; }
+.trp-home-react-visual .vehicle-lights { fill:#ff8060; }
+.trp-home-react-visual .vehicle-accent { fill:none;stroke:#ff8060;stroke-width:5; }
+.trp-runtime-play .play:disabled { cursor:not-allowed;opacity:.58;filter:saturate(.7); }
+.trp-runtime-play .bar-fill { height:100%;border-radius:inherit;background:linear-gradient(90deg,#8c9df2,#77dfbf);transition:width .2s ease; }
+.trp-runtime-status .home-status-actions button { cursor:pointer; }
+.trp-runtime-status .problems:empty { display:none; }
+.trp-runtime-status .problems li { margin:0 0 8px; }
+.trp-runtime-status .problems p { margin:3px 0 0; }

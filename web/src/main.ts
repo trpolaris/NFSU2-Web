@@ -77,6 +77,20 @@ declare global {
     info: string; message: string; state: string; busy: boolean; preloading: boolean;
     paused: boolean; progress: number; showPreload: boolean; preloadLabel: string; progressHidden: boolean;
   }
+  interface TrpRuntimeProblem { id: string; state: string; label: string; detail: string; code: string; }
+  interface TrpRuntimeSnapshot {
+    phase: string; headline: string; detail: string; progress: number; canPlay: boolean;
+    retryAvailable: boolean; reloadAvailable: boolean; logAvailable: boolean;
+    lastGameMessage: string; reportMessage: string; updateMessage: string; overrideMessage: string;
+    problems: TrpRuntimeProblem[]; storageWarning: string;
+  }
+  interface TrpRuntimeBridge {
+    snapshot(): TrpRuntimeSnapshot;
+    play(): Promise<void>;
+    retry(): Promise<void>;
+    reload(): Promise<void>;
+    downloadLog(): Promise<void>;
+  }
   interface TrpSaveProfile { name: string; mtime: number; size: number; }
   interface TrpSavesSnapshot { profiles: TrpSaveProfile[]; busy: boolean; message: string; }
   interface TrpSavesBridge {
@@ -132,6 +146,7 @@ declare global {
     __trpControlsBridge?: TrpControlsBridge;
     __trpPlatformBridge?: TrpPlatformBridge;
     __trpDiagnosticsBridge?: TrpDiagnosticsBridge;
+    __trpRuntimeBridge?: TrpRuntimeBridge;
     __trpModLibraryBridge?: TrpModLibraryBridge;
   }
 }

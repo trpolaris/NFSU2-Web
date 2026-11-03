@@ -104,7 +104,35 @@ async function devServer(): Promise<boolean> {
 const log = new LogRing(8 << 20);
 log.onLine = s => { privacy.learn(s); };    // the names a downloaded log must not carry (privacy.ts)
 let phase: Phase = 'boot';
+let runtimeHeadline: Msg = () => t('Loading');
+let runtimeDetail: Msg = () => t('Loading the game.');
+let moduleProgress = 0;
 let loaded: Loaded | null = null;
+
+function runtimeChanged() { window.dispatchEvent(new Event('trp-runtime-changed')); }
+function runtimeSnapshot() {
+  const read = (id: string) => document.getElementById(id)?.textContent?.trim() ?? '';
+  const items = ORDER.map(id => checks.get(id)).filter((item): item is Check => !!item)
+    .filter(item => item.state === 'fail' || (item.state === 'warn' && (item.id === 'browser' || item.id === 'gpu')))
+    .map(item => ({ id: item.id, state: item.state, label: label(item), detail: detail(item), code: item.code ? codeOf(item.code) : '' }));
+  const storage = checks.get('storage');
+  return {
+    phase,
+    headline: runtimeHeadline(),
+    detail: runtimeDetail(),
+    progress: moduleProgress,
+    canPlay: !!loaded && !!instance?.owner && !blocking() && !starting && (phase === 'ready' || phase === 'exited'),
+    retryAvailable: checks.get('module')?.state === 'fail',
+    reloadAvailable: !!newer,
+    logAvailable: !document.getElementById('log-btn')?.hidden,
+    lastGameMessage: read('lastgame'),
+    reportMessage: document.getElementById('report')?.hidden ? '' : read('report'),
+    updateMessage: read('newer'),
+    overrideMessage: document.getElementById('override')?.hidden ? '' : read('override'),
+    problems: items,
+    storageWarning: storage?.state === 'warn' ? detail(storage) : '',
+  };
+}
 let displayHz = 60;
 // NFSU2_DISPLAY_HZ ("fps = auto" follows it): Play waits for the measurement,
 // at most 2 s (a hidden tab has no animation frames)
@@ -157,25 +185,31 @@ let saved: { name: string; at: number; count: number } | null = null;
 function setProgress(f: number) {
   const v = Math.max(0, Math.min(1, f));
   const pct = Math.round(v * 100);
+  moduleProgress = pct;
   $('#progress-fill').style.width = `${(v * 100).toFixed(1)}%`;
   $('#progress').setAttribute('aria-valuenow', String(pct));
   $('#module-download-percent').textContent = `${pct}%`;
+  runtimeChanged();
 }
 
 // --------------------------------------------------------------- status --
 /** the headline and the line under it (in the page's language, again when it changes); code: a problem's */
 function setPhase(p: Phase, title: Msg, sub: Msg, code?: string) {
   phase = p;
+  runtimeHeadline = title;
   document.body.dataset.phase = p;
   live($('#status'), title);
   setSub(sub, code);
   updatePlay();
+  runtimeChanged();
 }
 /** the line under the headline alone; subSeq counts what it showed (an answer that comes later may add to it) */
 let subSeq = 0;
 function setSub(sub: Msg, code?: string) {
   subSeq++;
+  runtimeDetail = sub;
   live($('#status-sub'), sub, code);
+  runtimeChanged();
 }
 function setCheck(c: Check) {
   checks.set(c.id, c);
@@ -373,9 +407,10 @@ function evaluate() {
 }
 
 function updatePlay() {
-  const ok = !!loaded && instance.owner && !blocking() && !starting && (phase === 'ready' || phase === 'exited');
+  const ok = !!loaded && !!instance?.owner && !blocking() && !starting && (phase === 'ready' || phase === 'exited');
   $<HTMLButtonElement>('#play').disabled = !ok;
   $('#retry').hidden = checks.get('module')?.state !== 'fail';
+  runtimeChanged();
 }
 
 // ------------------------------------------------------------- settings --
@@ -1613,6 +1648,7 @@ function showNewer() {
     : u ? t('This page reloaded for the new version of the game. Your saves and settings stayed.') : '');
   line.hidden = !newer && !updated;
   $('#reload').hidden = !newer;
+  runtimeChanged();
 }
 async function reload() {
   await saves.settled();              // a rename or restore the Saves section is writing ends first
@@ -1661,6 +1697,14 @@ export async function boot() {
   const dev = asked && await devServer();
   const given = takeParams(dev);
   instance = claimInstance(`nfsu2-saves:${SAVE}`);
+  window.__trpRuntimeBridge = {
+    snapshot: () => runtimeSnapshot(),
+    play: async () => { await play(); },
+    retry: async () => { await loadModule(); },
+    reload: async () => { await reload(); },
+    downloadLog: async () => { await downloadLog(); },
+  };
+  window.dispatchEvent(new Event('trp-runtime-ready'));
   // the last game of this save folder that did not get to its end (Safari stopped the page, say): its log is offered
   keeper = new LastGameKeeper(SAVE, log, logLine, text => privacy.scrub(text));
   lastGame = lastGameToOffer(SAVE);
@@ -1861,6 +1905,7 @@ export async function boot() {
     renderProblems(); evaluate(); settings.render(); void saves.refresh(); vault.refresh(); keySheet.relabel(); lobbyPanel.redraw(); touch.relabel();
     helpSheet = null; $('#help-body').replaceChildren();
     syncPicker();
+    runtimeChanged();
   });
   const stageMenu = $<HTMLButtonElement>('#stage-menu');
   stageMenu.onpointerdown = e => e.preventDefault();     // the canvas keeps the focus (and with it the keyboard)
