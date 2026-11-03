@@ -54,6 +54,29 @@ declare global {
     setTouchSize(value: string): void;
     setMenuSize(value: string): void;
   }
+  interface TrpPlatformSnapshot {
+    currentVersion: string; serverVersion: string; updateStatus: string;
+    translationStatus: string; privacyStatus: string; reloadAvailable: boolean;
+  }
+  interface TrpPlatformBridge {
+    snapshot(): TrpPlatformSnapshot;
+    checkUpdates(): Promise<TrpPlatformSnapshot>;
+    checkTranslations(): Promise<TrpPlatformSnapshot>;
+    clearPreferences(): Promise<boolean>;
+    openFirstRun(): void;
+    reload(): void;
+  }
+  interface TrpDiagnosticItem { id: string; state: string; label: string; detail: string; code: string; }
+  interface TrpDiagnosticsSnapshot { items: TrpDiagnosticItem[]; busy: boolean; }
+  interface TrpDiagnosticsBridge {
+    snapshot(): TrpDiagnosticsSnapshot;
+    refresh(): Promise<void>;
+    download(): void;
+  }
+  interface TrpGameDataSnapshot {
+    info: string; message: string; state: string; busy: boolean; preloading: boolean;
+    paused: boolean; progress: number; showPreload: boolean; preloadLabel: string; progressHidden: boolean;
+  }
   interface TrpSaveProfile { name: string; mtime: number; size: number; }
   interface TrpSavesSnapshot { profiles: TrpSaveProfile[]; busy: boolean; message: string; }
   interface TrpSavesBridge {
@@ -61,6 +84,9 @@ declare global {
     rename(from: string, to: string): Promise<{ ok: boolean; message: string }>;
     exportBackup(): Promise<void>;
     importBackup(file: File): Promise<void>;
+    gameDataSnapshot(): TrpGameDataSnapshot;
+    togglePreload(): Promise<void>;
+    clearGameData(): Promise<void>;
     nameMax: number;
   }
   interface TrpAccessibilityBridge {
@@ -104,6 +130,8 @@ declare global {
     __trpAccessibilityBridge?: TrpAccessibilityBridge;
     __trpSavesBridge?: TrpSavesBridge;
     __trpControlsBridge?: TrpControlsBridge;
+    __trpPlatformBridge?: TrpPlatformBridge;
+    __trpDiagnosticsBridge?: TrpDiagnosticsBridge;
     __trpModLibraryBridge?: TrpModLibraryBridge;
   }
 }

@@ -1177,6 +1177,140 @@ function ControlsDashboard() {
 }
 
 
+function UpdatesReactPanel() {
+  const [snapshot, setSnapshot] = useState({ currentVersion: '—', serverVersion: '—', updateStatus: '', translationStatus: '', privacyStatus: '', reloadAvailable: false });
+  const [busy, setBusy] = useState('');
+  const rootRef = useRef(null);
+  useEffect(() => {
+    const update = () => {
+      const next = window.__trpPlatformBridge?.snapshot();
+      if (next) setSnapshot(next);
+    };
+    window.addEventListener('trp-platform-ready', update);
+    window.addEventListener('trp-platform-changed', update);
+    update();
+    return () => {
+      window.removeEventListener('trp-platform-ready', update);
+      window.removeEventListener('trp-platform-changed', update);
+    };
+  }, []);
+  useEffect(() => { if (rootRef.current) window.__trpTranslateReact?.(rootRef.current); }, [snapshot]);
+  const run = async (key, action) => {
+    const bridge = window.__trpPlatformBridge;
+    if (!bridge) return;
+    setBusy(key);
+    try { await action(bridge); setSnapshot(bridge.snapshot()); }
+    finally { setBusy(''); }
+  };
+  return (
+    <div className="trp-system-react" ref={rootRef}>
+      <div className="trp-system-version-grid">
+        <div><span data-i18n>Current build</span><strong>{snapshot.currentVersion}</strong></div>
+        <div><span data-i18n>Server build</span><strong>{snapshot.serverVersion}</strong></div>
+      </div>
+      <div className="trp-system-react-actions">
+        <button type="button" disabled={busy !== ''} onClick={() => void run('updates', bridge => bridge.checkUpdates())}><span data-i18n>{busy === 'updates' ? 'Checking…' : 'Check for updates'}</span></button>
+        {snapshot.reloadAvailable && <button type="button" className="is-primary" disabled={busy !== ''} onClick={() => window.__trpPlatformBridge?.reload()}><span data-i18n>Reload</span></button>}
+        <button type="button" disabled={busy !== ''} onClick={() => window.__trpPlatformBridge?.openFirstRun()}><span data-i18n>First-run setup</span></button>
+      </div>
+      <p className="trp-system-react-status" role="status" aria-live="polite">{snapshot.updateStatus}</p>
+      <div className="trp-system-subsection">
+        <div><strong data-i18n>Translation quality</strong><p data-i18n>Checks language files for missing text, formatting placeholders and markup tokens.</p></div>
+        <button type="button" disabled={busy !== ''} onClick={() => void run('translations', bridge => bridge.checkTranslations())}><span data-i18n>{busy === 'translations' ? 'Checking…' : 'Run translation checks'}</span></button>
+      </div>
+      <p className="trp-system-react-status" role="status" aria-live="polite">{snapshot.translationStatus}</p>
+      <div className="trp-system-subsection">
+        <div><strong data-i18n>Privacy &amp; security</strong><p data-i18n>Clear browser app preferences. Game saves and game settings are not deleted.</p></div>
+        <button type="button" className="is-danger" disabled={busy !== ''} onClick={() => void run('privacy', async bridge => { await bridge.clearPreferences(); })}><span data-i18n>Clear app preferences</span></button>
+      </div>
+      <p className="trp-system-react-status" role="status" aria-live="polite">{snapshot.privacyStatus}</p>
+    </div>
+  );
+}
+
+function DiagnosticsReactPanel() {
+  const [snapshot, setSnapshot] = useState({ items: [], busy: false });
+  const [action, setAction] = useState('');
+  const rootRef = useRef(null);
+  useEffect(() => {
+    const update = () => {
+      const next = window.__trpDiagnosticsBridge?.snapshot();
+      if (next) setSnapshot(next);
+    };
+    window.addEventListener('trp-diagnostics-ready', update);
+    window.addEventListener('trp-diagnostics-changed', update);
+    update();
+    return () => {
+      window.removeEventListener('trp-diagnostics-ready', update);
+      window.removeEventListener('trp-diagnostics-changed', update);
+    };
+  }, []);
+  useEffect(() => { if (rootRef.current) window.__trpTranslateReact?.(rootRef.current); }, [snapshot]);
+  const refresh = async () => {
+    const bridge = window.__trpDiagnosticsBridge;
+    if (!bridge) return;
+    setAction('refresh');
+    try { await bridge.refresh(); setSnapshot(bridge.snapshot()); }
+    finally { setAction(''); }
+  };
+  return (
+    <div className="trp-diagnostics-react" ref={rootRef}>
+      <div className="trp-diagnostics-react-actions">
+        <button type="button" disabled={snapshot.busy || action !== ''} onClick={() => void refresh()}><span data-i18n>{snapshot.busy || action === 'refresh' ? 'Checking…' : 'Check again'}</span></button>
+        <button type="button" disabled={action !== ''} onClick={() => window.__trpDiagnosticsBridge?.download()}><span data-i18n>Download diagnostic report</span></button>
+      </div>
+      <ul className="trp-diagnostics-react-list">
+        {snapshot.items.map(item => (
+          <li className={'trp-diagnostic-react-item is-' + item.state} key={item.id}>
+            <span className="trp-diagnostic-react-icon" aria-hidden="true">{item.state === 'ok' ? '✓' : item.state === 'warn' ? '!' : item.state === 'fail' ? '×' : '…'}</span>
+            <div><strong data-i18n>{item.label}</strong><p>{item.detail}{item.code ? ' ' + item.code : ''}</p></div>
+            <span className="trp-diagnostic-react-state">{item.state.toUpperCase()}</span>
+          </li>
+        ))}
+        {!snapshot.items.length && <li className="trp-diagnostics-empty" data-i18n>Diagnostics have not run yet.</li>}
+      </ul>
+    </div>
+  );
+}
+
+function GameDataReactPanel() {
+  const [snapshot, setSnapshot] = useState({ info: '', message: '', state: 'idle', busy: true, preloading: false, paused: false, progress: 0, showPreload: false, preloadLabel: 'Preload the game data', progressHidden: true });
+  const [action, setAction] = useState('');
+  const rootRef = useRef(null);
+  useEffect(() => {
+    const update = () => {
+      const next = window.__trpSavesBridge?.gameDataSnapshot();
+      if (next) setSnapshot(next);
+    };
+    window.addEventListener('trp-saves-ready', update);
+    window.addEventListener('trp-saves-changed', update);
+    update();
+    return () => {
+      window.removeEventListener('trp-saves-ready', update);
+      window.removeEventListener('trp-saves-changed', update);
+    };
+  }, []);
+  useEffect(() => { if (rootRef.current) window.__trpTranslateReact?.(rootRef.current); }, [snapshot]);
+  const run = async (key, operation) => {
+    const bridge = window.__trpSavesBridge;
+    if (!bridge) return;
+    setAction(key);
+    try { await operation(bridge); setSnapshot(bridge.gameDataSnapshot()); }
+    finally { setAction(''); }
+  };
+  return (
+    <div className="trp-game-data-react" ref={rootRef}>
+      <p className="trp-game-data-info">{snapshot.info}</p>
+      {snapshot.preloading && <div className="trp-game-data-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow={snapshot.progress}><span style={{ width: snapshot.progress + '%' }} /></div>}
+      {snapshot.message && <p className="trp-game-data-status" role="status">{snapshot.message}</p>}
+      <div className="trp-system-react-actions">
+        {snapshot.showPreload && <button type="button" disabled={snapshot.busy || action !== '' || snapshot.paused} onClick={() => void run('preload', bridge => bridge.togglePreload())}><span data-i18n>{action === 'preload' ? 'Working…' : snapshot.preloadLabel}</span></button>}
+        <button type="button" className="is-danger" disabled={snapshot.busy || action !== ''} onClick={() => void run('clear', bridge => bridge.clearGameData())}><span data-i18n>Delete the game data on this PC</span></button>
+      </div>
+    </div>
+  );
+}
+
 function SystemDashboard() {
   const reduceMotion = useReducedMotion();
   const enter = reduceMotion ? false : { opacity: 0, y: 12 };
@@ -1189,85 +1323,21 @@ function SystemDashboard() {
           <h2 data-i18n>Know what is ready.</h2>
           <p data-i18n>Check app updates, browser compatibility, storage and the game data kept on this device.</p>
         </div>
-        <div className="trp-system-hero-stamp">
-          <span data-i18n>LIVE CHECKS</span><strong>TRP / SYS</strong>
-        </div>
+        <div className="trp-system-hero-stamp"><span data-i18n>LIVE CHECKS</span><strong>TRP / SYS</strong></div>
       </motion.section>
       <motion.section className="trp-system-panel" initial={enter} animate={{ opacity: 1, y: 0 }} transition={{ ...transition, delay: reduceMotion ? 0 : .05 }}>
-        <div className="trp-system-panel-head">
-          <div><div className="trp-eyebrow" data-i18n>RELEASE / SECURITY / 01</div><h3 data-i18n>Updates and security</h3><p data-i18n>Build availability, translation files, privacy and first-run setup.</p></div>
-          <span className="trp-system-index">01</span>
-        </div>
-        <LegacyNode selector="#updates" className="trp-system-updates-slot" />
+        <div className="trp-system-panel-head"><div><div className="trp-eyebrow" data-i18n>RELEASE / SECURITY / 01</div><h3 data-i18n>Updates and security</h3><p data-i18n>Build availability, translation files, privacy and first-run setup.</p></div><span className="trp-system-index">01</span></div>
+        <UpdatesReactPanel />
       </motion.section>
       <motion.section className="trp-system-panel" initial={enter} animate={{ opacity: 1, y: 0 }} transition={{ ...transition, delay: reduceMotion ? 0 : .1 }}>
-        <div className="trp-system-panel-head">
-          <div><div className="trp-eyebrow" data-i18n>DIAGNOSTICS / 02</div><h3 data-i18n>Browser and runtime checks</h3><p data-i18n>Inspect the current browser, graphics, security, storage and game module.</p></div>
-          <span className="trp-system-index">02</span>
-        </div>
-        <LegacyNode selector="#diagnostics" className="trp-system-diagnostics-slot" />
+        <div className="trp-system-panel-head"><div><div className="trp-eyebrow" data-i18n>DIAGNOSTICS / 02</div><h3 data-i18n>Browser and runtime checks</h3><p data-i18n>Inspect the current browser, graphics, security, storage and game module.</p></div><span className="trp-system-index">02</span></div>
+        <DiagnosticsReactPanel />
       </motion.section>
       <motion.section className="trp-system-panel" initial={enter} animate={{ opacity: 1, y: 0 }} transition={{ ...transition, delay: reduceMotion ? 0 : .15 }}>
-        <div className="trp-system-panel-head">
-          <div><div className="trp-eyebrow" data-i18n>LOCAL GAME DATA / 03</div><h3 data-i18n>Game data on this device</h3><p data-i18n>Review cached game data, preload what is missing, or clear the local copy.</p></div>
-          <span className="trp-system-index">03</span>
-        </div>
-        <LegacyNode selector="#game-data" className="trp-system-game-data-slot" />
+        <div className="trp-system-panel-head"><div><div className="trp-eyebrow" data-i18n>LOCAL GAME DATA / 03</div><h3 data-i18n>Game data on this device</h3><p data-i18n>Review cached game data, preload what is missing, or clear the local copy.</p></div><span className="trp-system-index">03</span></div>
+        <GameDataReactPanel />
       </motion.section>
     </motion.div>
-  );
-}
-
-
-
-function AccessibilityReactControls() {
-  const statusRoot = useRef(null);
-  const [prefs, setPrefs] = useState({ largeText: false, reduceMotion: false, highContrast: false });
-  const [ready, setReady] = useState(false);
-  const sync = useCallback(() => {
-    const bridge = window.__trpAccessibilityBridge;
-    if (!bridge) return;
-    try { setPrefs(bridge.current()); setReady(true); } catch { setReady(false); }
-  }, []);
-  useEffect(() => {
-    const onChange = () => sync();
-    window.addEventListener('trp-accessibility-ready', onChange);
-    window.addEventListener('trp-accessibility-changed', onChange);
-    sync();
-    return () => {
-      window.removeEventListener('trp-accessibility-ready', onChange);
-      window.removeEventListener('trp-accessibility-changed', onChange);
-    };
-  }, [sync]);
-  useLayoutEffect(() => {
-    if (statusRoot.current && typeof window.__trpTranslateReact === 'function') {
-      window.__trpTranslateReact(statusRoot.current);
-    }
-  }, [prefs, ready]);
-  const update = (key, value) => {
-    const bridge = window.__trpAccessibilityBridge;
-    if (!bridge) return;
-    try { setPrefs(bridge.set(key, value)); } catch { sync(); }
-  };
-  return (
-    <div ref={statusRoot} className="trp-a11y-react-options">
-      <label className="trp-a11y-option-card">
-        <span className="trp-a11y-option-copy"><strong data-i18n>Larger text</strong><small data-i18n>Increase interface text size for easier reading.</small></span>
-        <input type="checkbox" role="switch" checked={prefs.largeText} disabled={!ready}
-          onChange={event => update('largeText', event.target.checked)} />
-      </label>
-      <label className="trp-a11y-option-card">
-        <span className="trp-a11y-option-copy"><strong data-i18n>Reduce animations</strong><small data-i18n>Use less movement in the page interface.</small></span>
-        <input type="checkbox" role="switch" checked={prefs.reduceMotion} disabled={!ready}
-          onChange={event => update('reduceMotion', event.target.checked)} />
-      </label>
-      <label className="trp-a11y-option-card">
-        <span className="trp-a11y-option-copy"><strong data-i18n>High contrast</strong><small data-i18n>Increase contrast between interface elements.</small></span>
-        <input type="checkbox" role="switch" checked={prefs.highContrast} disabled={!ready}
-          onChange={event => update('highContrast', event.target.checked)} />
-      </label>
-      <LegacyNode selector="#accessibility" className="trp-settings-accessibility-legacy" />
-    </div>
   );
 }
 

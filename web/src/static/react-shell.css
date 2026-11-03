@@ -989,3 +989,45 @@
   .trp-touch-settings-grid { grid-template-columns:1fr; }
   .trp-controls-react-intro { flex-direction:column; }
 }
+
+
+/* React System panels use snapshots from the platform, diagnostic and cache services. */
+.trp-system-react,.trp-diagnostics-react,.trp-game-data-react { display:grid;gap:11px;min-width:0; }
+.trp-system-version-grid { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px; }
+.trp-system-version-grid > div { display:grid;gap:5px;padding:11px;border:1px solid rgba(167,185,214,.12);border-radius:9px;background:rgba(4,10,18,.32); }
+.trp-system-version-grid span { color:#8e9eb4;font-size:.59rem; }
+.trp-system-version-grid strong { color:#e7eef8;font:800 .72rem ui-monospace,monospace; }
+.trp-system-react-actions,.trp-diagnostics-react-actions { display:flex;align-items:center;gap:7px;flex-wrap:wrap; }
+.trp-system-react-actions button,.trp-diagnostics-react-actions button {
+  min-height:34px;padding:0 11px;border:1px solid rgba(167,185,214,.17);border-radius:8px;background:rgba(255,255,255,.025);
+  color:#d6e0ed;font-family:inherit;font-size:.61rem;font-weight:800;cursor:pointer;
+}
+.trp-system-react-actions button.is-primary { border-color:rgba(102,215,176,.35);background:rgba(102,215,176,.1);color:#b9f0dd; }
+.trp-system-react-actions button.is-danger { border-color:rgba(255,125,105,.3);color:#ffc0b1; }
+.trp-system-react-actions button:disabled,.trp-diagnostics-react-actions button:disabled { opacity:.45;cursor:not-allowed; }
+.trp-system-react-status,.trp-game-data-status { min-height:1em;margin:0;color:#a0b0c3;font-size:.63rem;line-height:1.5; }
+.trp-system-subsection { display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-top:1px solid rgba(167,185,214,.1); }
+.trp-system-subsection strong { color:#dfe8f3;font-size:.66rem; }
+.trp-system-subsection p { margin:4px 0 0;color:#8798af;font-size:.59rem;line-height:1.45; }
+.trp-system-subsection button { flex:0 0 auto;min-height:31px;padding:0 9px;border:1px solid rgba(167,185,214,.15);border-radius:7px;background:rgba(255,255,255,.025);color:#b8c5d5;font-family:inherit;font-size:.57rem;font-weight:800;cursor:pointer; }
+.trp-system-subsection button.is-danger { border-color:rgba(255,125,105,.3);color:#ffc0b1; }
+.trp-diagnostics-react-list { display:grid;gap:7px;list-style:none;margin:0;padding:0; }
+.trp-diagnostic-react-item { display:grid;grid-template-columns:28px minmax(0,1fr) auto;align-items:center;gap:10px;min-width:0;padding:10px;border:1px solid rgba(167,185,214,.1);border-radius:9px;background:rgba(4,10,18,.3); }
+.trp-diagnostic-react-icon { display:grid;place-items:center;width:25px;height:25px;border-radius:8px;background:rgba(167,185,214,.1);color:#b8c9da;font-weight:900; }
+.trp-diagnostic-react-item.is-ok .trp-diagnostic-react-icon { background:rgba(102,215,176,.1);color:#9de3c9; }
+.trp-diagnostic-react-item.is-warn .trp-diagnostic-react-icon { background:rgba(255,193,112,.1);color:#f1c98d; }
+.trp-diagnostic-react-item.is-fail .trp-diagnostic-react-icon { background:rgba(255,125,105,.1);color:#ffb9a9; }
+.trp-diagnostic-react-item > div { display:grid;gap:3px;min-width:0; }
+.trp-diagnostic-react-item strong { color:#dce5f1;font-size:.64rem; }
+.trp-diagnostic-react-item p { margin:0;color:#91a1b6;font-size:.58rem;line-height:1.45;overflow-wrap:anywhere; }
+.trp-diagnostic-react-state { color:#8293a9;font:800 .52rem ui-monospace,monospace; }
+.trp-diagnostics-empty { padding:12px;border:1px dashed rgba(167,185,214,.14);border-radius:8px;color:#8fa0b7;font-size:.63rem; }
+.trp-game-data-info { margin:0;color:#a7b6c9;font-size:.63rem;line-height:1.6; }
+.trp-game-data-progress { height:8px;overflow:hidden;border-radius:99px;background:rgba(167,185,214,.13); }
+.trp-game-data-progress span { display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#7e9de8,#8edfc5);transition:width .2s ease; }
+@media(max-width:620px) {
+  .trp-system-version-grid { grid-template-columns:1fr 1fr; }
+  .trp-system-subsection { align-items:flex-start;flex-direction:column; }
+  .trp-diagnostic-react-item { grid-template-columns:26px minmax(0,1fr); }
+  .trp-diagnostic-react-state { grid-column:2; }
+}

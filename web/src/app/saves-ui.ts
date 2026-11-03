@@ -303,6 +303,7 @@ export class SavesPanel {
   private dataMsg(s: string | Msg, warn = false, en = '') {
     const m = this.dataPanel.querySelector('#data-msg')!;
     this.said.data = en; live(m, typeof s === 'string' ? () => s : s); m.classList.toggle('warn', warn);
+    this.deps.onReactUpdate?.();
   }
 
   /** the game data in this browser: of the server's files (null: their list did not load), and all that is kept */
@@ -329,6 +330,29 @@ export class SavesPanel {
       message: this.root.querySelector<HTMLElement>('#saves-msg')?.textContent ?? '',
     };
   }
+
+  /** Current predownload state: the existing cache and Predownload service remain authoritative. */
+  gameDataSnapshot() {
+    const status = this.deps.download.status;
+    const info = this.dataPanel.querySelector<HTMLElement>('#cache-info')?.textContent ?? '';
+    const message = this.dataPanel.querySelector<HTMLElement>('#data-msg')?.textContent ?? '';
+    const fetchButton = this.dataPanel.querySelector<HTMLButtonElement>('#fetch-all');
+    const bar = this.dataPanel.querySelector<HTMLElement>('#data-bar');
+    return {
+      info, message,
+      state: status.state,
+      busy: this.deps.busy(),
+      preloading: status.state === 'running' || status.state === 'paused',
+      paused: status.state === 'paused',
+      progress: status.total > 0 ? Math.floor(status.have / status.total * 100) : 0,
+      showPreload: !!fetchButton && !fetchButton.hidden,
+      preloadLabel: fetchButton?.textContent ?? t('Preload the game data'),
+      progressHidden: !!bar?.hidden,
+    };
+  }
+
+  togglePreload(): Promise<void> { return this.doDownload(); }
+  clearGameData(): Promise<void> { return this.doClearCache(); }
 
   /** Delegate export and restore to the existing save validation and transaction routines. */
   exportBackup(): Promise<void> { return this.doExport(); }
@@ -424,6 +448,7 @@ export class SavesPanel {
         : !d ? t('Preloading the game data: counting what is here already.')
         : t('Preloading the game data: {have} of {total} ({pct} %){speed}. Play whenever you like: preloading pauses while the game runs and goes on after it.',
           { have: fmtBytes(d.have), total: fmtBytes(d.total), pct: Math.floor(f * 100), speed: st.rate ? `, ${fmtBytes(st.rate)}/s, ${eta(rest / st.rate)}` : '' });
+      this.deps.onReactUpdate?.();
       return;
     }
     fetchBtn.textContent = d && d.have ? t('Preload the rest ({size})', { size: fmtBytes(rest) }) : d ? t('Preload the game data ({size})', { size: fmtBytes(d.total) }) : t('Preload the game data');
@@ -438,6 +463,7 @@ export class SavesPanel {
         t('Preload the rest too, and no loading screen waits on the network. Deleting it only means loading it from the server again.');
     else
       info.textContent = t('Nothing here yet. The game streams its data from the server as it needs it and keeps it here. Preload it now (all but the movies, compressed on the way) and no loading screen waits on the network.');
+    this.deps.onReactUpdate?.();
   }
 
   /** The profiles, each with its Rename button, or the name being edited. */

@@ -794,11 +794,14 @@ export function setupPlatformFeatures(settings: SettingsPanel, confirm: (title: 
   $<HTMLButtonElement>('#updates-check').onclick = () => void checkUpdates();
   $<HTMLButtonElement>('#updates-reload').onclick = () => location.reload();
   $<HTMLButtonElement>('#i18n-check').onclick = () => void checkTranslations();
-  $('#clear-app-preferences').addEventListener('click', async () => {
-    if (!await confirm(t('Clear app preferences'), t('This clears favorites, mod links, saved profiles, preferred vehicle, accessibility and onboarding preferences; game saves and settings are not deleted.'), t('Clear app preferences'), true)) return;
+  const clearPreferences = async () => {
+    if (!await confirm(t('Clear app preferences'), t('This clears favorites, mod links, saved profiles, preferred vehicle, accessibility and onboarding preferences; game saves and settings are not deleted.'), t('Clear app preferences'), true)) return false;
     for (const key of [STORE.favorites, STORE.customMods, STORE.accessibility, STORE.onboarding, STORE.profiles, STORE.preferredVehicle]) { try { localStorage.removeItem(key); } catch { /* optional */ } }
     loadAccessibility(); renderGarage(); renderProfilePicker(); $('#privacy-status').textContent = t('App preferences cleared.');
-  });
+    window.dispatchEvent(new Event('trp-platform-changed'));
+    return true;
+  };
+  $('#clear-app-preferences').addEventListener('click', () => { void clearPreferences(); });
   wireFirstRun(settings, log);
   onLanguage(() => { void populateVehicleFilters(); renderGarage(); renderProfilePicker(); syncA11yLabels(); });
   window.__trpModLibraryBridge = {
@@ -812,7 +815,23 @@ export function setupPlatformFeatures(settings: SettingsPanel, confirm: (title: 
   };
   window.dispatchEvent(new Event('trp-mod-library-ready'));
   renderGarage(); renderProfilePicker();
-  void checkUpdates();
+  window.__trpPlatformBridge = {
+    snapshot: () => ({
+      currentVersion: $('#build-current').textContent ?? APP_BUILD_VERSION,
+      serverVersion: $('#build-server').textContent ?? '—',
+      updateStatus: $('#updates-status').textContent ?? '',
+      translationStatus: $('#i18n-check-status').textContent ?? '',
+      privacyStatus: $('#privacy-status').textContent ?? '',
+      reloadAvailable: !$<HTMLButtonElement>('#updates-reload').hidden,
+    }),
+    checkUpdates: async () => { await checkUpdates(); window.dispatchEvent(new Event('trp-platform-changed')); return window.__trpPlatformBridge!.snapshot(); },
+    checkTranslations: async () => { await checkTranslations(); window.dispatchEvent(new Event('trp-platform-changed')); return window.__trpPlatformBridge!.snapshot(); },
+    clearPreferences,
+    openFirstRun: () => $<HTMLButtonElement>('#first-run-open').click(),
+    reload: () => location.reload(),
+  };
+  window.dispatchEvent(new Event('trp-platform-ready'));
+  void checkUpdates().then(() => window.dispatchEvent(new Event('trp-platform-changed')));
 }
 function syncA11yLabels() {
   for (const [id, key] of [['a11y-large-text', 'Larger text'], ['a11y-reduce-motion', 'Reduce animations'], ['a11y-high-contrast', 'High contrast']]) {

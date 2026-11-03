@@ -344,17 +344,29 @@ test('SavesPanel still owns all descendant profile, screenshot and message contr
   assert.match(app, /LegacyNode selector="#saves" className="trp-saves-legacy-slot"/);
 });
 
-test('System route is composed in React while updates, diagnostics and game-data roots stay mounted', () => {
-  assert.ok(app.includes('function SystemDashboard'));
-  assert.ok(app.includes("active === 'system' && !gameActive && <SystemDashboard />"));
-  assert.ok(!app.includes("selectors: ['#updates', '#diagnostics', '#game-data']"));
-  for (const selector of ['#updates','#diagnostics','#game-data']) {
-    assert.ok(app.includes('selector="' + selector + '"'), selector + ' remains mounted');
-  }
-  assert.ok(shellCss.includes('.trp-system-hero'));
-  assert.ok(shellCss.includes('.trp-system-updates-slot > #updates'));
-  assert.ok(shellCss.includes('.trp-system-diagnostics-slot > #diagnostics'));
-  assert.ok(shellCss.includes('.trp-system-game-data-slot > #game-data'));
+test('System update, diagnostics and game-data panels are React-owned through typed service bridges', () => {
+  assert.ok(app.includes('function UpdatesReactPanel()'));
+  assert.ok(app.includes('function DiagnosticsReactPanel()'));
+  assert.ok(app.includes('function GameDataReactPanel()'));
+  assert.ok(app.includes('<UpdatesReactPanel />'));
+  assert.ok(app.includes('<DiagnosticsReactPanel />'));
+  assert.ok(app.includes('<GameDataReactPanel />'));
+  assert.ok(!app.includes('LegacyNode selector="#updates"'));
+  assert.ok(!app.includes('LegacyNode selector="#diagnostics"'));
+  assert.ok(!app.includes('LegacyNode selector="#game-data"'));
+  assert.match(runtime, /window\.__trpDiagnosticsBridge = \{/);
+  assert.match(runtime, /diagnosticsSnapshot\(\)/);
+  assert.match(platform, /window\.__trpPlatformBridge = \{/);
+  assert.match(platform, /checkUpdates: async \(\) => \{ await checkUpdates\(\)/);
+  assert.match(platform, /checkTranslations: async \(\) => \{ await checkTranslations\(\)/);
+  assert.match(runtime, /gameDataSnapshot: \(\) => saves\.gameDataSnapshot\(\)/);
+  assert.match(savesUi, /gameDataSnapshot\(\)/);
+  assert.match(savesUi, /togglePreload\(\): Promise<void>/);
+  assert.match(savesUi, /clearGameData\(\): Promise<void>/);
+  for (const id of ['updates','diagnostics','game-data']) assert.ok(html.includes('id="' + id + '"'));
+  assert.ok(shellCss.includes('.trp-system-react'));
+  assert.ok(shellCss.includes('.trp-diagnostics-react-list'));
+  assert.ok(shellCss.includes('.trp-game-data-progress'));
 });
 
 test('Settings route is composed in React while game settings and accessibility roots stay intact', () => {

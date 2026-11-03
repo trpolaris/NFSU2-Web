@@ -159,7 +159,7 @@ The Controls route now renders its keyboard map, controller map, Xbox/PlayStatio
 
 ## System route migration
 
-The System page is now composed in React with three sections: Updates & Security, Browser and Runtime Diagnostics, and local Game Data. The full #updates, #diagnostics, and #game-data service roots remain individually mounted so their existing actions and progress updates continue to target the same elements. Preload/download logic, cache deletion, update checks, translation audits, privacy actions and diagnostic reporting are unchanged.
+The System page's Updates & Security, Browser and Runtime Diagnostics, and local Game Data panels are now React-rendered. Typed bridges call the existing update and translation checks, privacy-preference cleanup, diagnostics collector/export, and Predownload/cache services. The previous #updates, #diagnostics and #game-data nodes remain hidden as service anchors only; their controls are no longer presented to the player. Update comparison, translation audit, diagnostic data and cache behavior are unchanged.
 
 ## Settings route migration
 

@@ -124,6 +124,7 @@ let keeper: LastGameKeeper;              // the running game's log, copied where
 let lastGame: LastGame | null = null;    // the last game's copy, when that game did not get to its end (lastgame.ts)
 let hiddenAt = 0;                        // when the page was hidden during a game (0: shown)
 const checks = new Map<string, Check>();
+let diagnosticsBusy = false;
 let instance: ReturnType<typeof claimInstance>;
 let settingsText: string | null = null;
 let starting = false;                    // Play pressed, the session not there yet
@@ -181,6 +182,7 @@ function setCheck(c: Check) {
   renderProblems();
   renderDiagnostics();
   evaluate();
+  window.dispatchEvent(new Event('trp-diagnostics-changed'));
 }
 
 /** Verify the server's actual game-data manifest before the WASM guest touches files.
@@ -281,8 +283,17 @@ function renderDiagnostics() {
     li.append(icon, copy, state);
     return li;
   }));
+  window.dispatchEvent(new Event('trp-diagnostics-changed'));
+}
+function diagnosticsSnapshot() {
+  return ORDER.map(id => checks.get(id)).filter((item): item is Check => !!item).map(item => ({
+    id: item.id, state: item.state, label: label(item), detail: detail(item),
+    code: item.code ? codeOf(item.code) : '',
+  }));
 }
 async function refreshDiagnostics() {
+  diagnosticsBusy = true;
+  window.dispatchEvent(new Event('trp-diagnostics-changed'));
   const button = $<HTMLButtonElement>('#diagnostics-refresh');
   button.disabled = true;
   button.setAttribute('aria-busy', 'true');
@@ -305,6 +316,8 @@ async function refreshDiagnostics() {
   } finally {
     button.disabled = false;
     button.removeAttribute('aria-busy');
+    diagnosticsBusy = false;
+    window.dispatchEvent(new Event('trp-diagnostics-changed'));
   }
 }
 function downloadDiagnostics() {
@@ -326,6 +339,13 @@ function downloadDiagnostics() {
   ];
   downloadBlob(lines.join('\n') + '\n', `trpolaris-diagnostics-${stamp()}.txt`, 'text/plain;charset=utf-8');
 }
+window.__trpDiagnosticsBridge = {
+  snapshot: () => ({ items: diagnosticsSnapshot(), busy: diagnosticsBusy }),
+  refresh: async () => await refreshDiagnostics(),
+  download: () => downloadDiagnostics(),
+};
+window.dispatchEvent(new Event('trp-diagnostics-ready'));
+
 function blocking(): Check | undefined { return ORDER.map(id => checks.get(id)).find(c => c?.state === 'fail'); }
 
 /** Decide the start page's headline from what is known so far. */
@@ -1715,6 +1735,9 @@ export async function boot() {
   });
   window.__trpSavesBridge = {
     snapshot: () => saves.snapshot(),
+    gameDataSnapshot: () => saves.gameDataSnapshot(),
+    togglePreload: () => saves.togglePreload(),
+    clearGameData: () => saves.clearGameData(),
     rename: (from, to) => saves.renameFromReact(from, to),
     exportBackup: () => saves.exportBackup(),
     importBackup: file => saves.importBackup(file),
