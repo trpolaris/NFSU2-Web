@@ -146,7 +146,7 @@ The Mod Library route now has a React-owned composition for community picks, sav
 
 ## Saves route migration
 
-The Saves route now uses a React dashboard for local profiles, export/restore, screenshots and TRPOLARIS Cloud. Existing profile lists, screenshot lists, status messages, backup/restore controls and the full Cloud vault form remain mounted as compatibility islands, preserving the current OPFS and encrypted vault workflows without changing data formats or server APIs.
+The Saves route now uses a React dashboard for local profiles, export/restore, screenshots and TRPOLARIS Cloud. The entire #saves section stays mounted as one compatibility island because SavesPanel queries its descendant controls from that root. This preserves profile lists, screenshot lists, status messages, backup/restore controls and the full Cloud vault form, including the current OPFS and encrypted vault workflows, without changing data formats or server APIs.
 
 
 ## Controls route migration

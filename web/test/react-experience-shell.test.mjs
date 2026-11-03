@@ -291,13 +291,16 @@ test('Mod Library page layout is React-owned while existing local mod handlers r
 });
 
 
-test('Saves route is React-composed while local profile, screenshot and Cloud handlers remain mounted', () => {
+test('Saves route keeps the complete SavesPanel root intact inside one React compatibility island', () => {
   assert.match(app, /function SavesDashboard/);
   assert.match(app, /active === 'saves' && !gameActive && <SavesDashboard \\/>/);
   assert.doesNotMatch(app, /selectors: \\['#saves'\\]/);
+  assert.ok(app.includes('LegacyNode selector="#saves" className="trp-saves-legacy-slot"'));
   for (const selector of ['#export','#import','#saves-msg','#profiles','#storage-note','#shots-info','#shots','#vault']) {
-    assert.ok(app.includes('selector="' + selector + '"'), selector + ' remains connected');
+    assert.ok(html.includes('id="' + selector.slice(1) + '"'), selector + ' remains inside the single Saves root');
   }
+  assert.ok(!app.includes('LegacyNode selector="#profiles"'));
+  assert.ok(!app.includes('LegacyNode selector="#vault"'));
   assert.match(shellCss, /#app #saves \\{ display:none!important; \\}/);
   assert.match(shellCss, /\\.trp-saves-hero/);
   assert.match(shellCss, /\\.trp-saves-vault-slot/);
@@ -314,4 +317,12 @@ test('Controls route is React-composed while the existing controlsSheet, gamepad
   assert.ok(shellCss.includes('.trp-controls-hero'));
   assert.ok(shellCss.includes('.trp-controls-legacy-slot > #controls .controls-tabs'));
   assert.ok(shellCss.includes('.trp-controls-legacy-slot > #controls .controller-visual'));
+});
+
+test('SavesPanel still owns all descendant profile, screenshot and message controls under #saves', () => {
+  assert.match(runtime, /new SavesPanel\(\$\('#saves'\)/);
+  assert.match(runtime, /root\.querySelector\('#saves-msg'\)/);
+  assert.match(runtime, /root\.querySelector\('#profiles'\)/);
+  assert.match(runtime, /root\.querySelector\('#shots'\)/);
+  assert.match(app, /LegacyNode selector="#saves" className="trp-saves-legacy-slot"/);
 });

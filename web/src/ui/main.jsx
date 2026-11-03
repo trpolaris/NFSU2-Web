@@ -650,10 +650,7 @@ function SavesDashboard() {
           <h2 data-i18n>Your progress, your way.</h2>
           <p data-i18n>Manage browser profiles and screenshots, keep a local backup, or synchronize encrypted saves with TRPOLARIS Cloud.</p>
         </div>
-        <div className="trp-saves-hero-actions">
-          <LegacyNode selector="#export" />
-          <LegacyNode selector="#import" />
-        </div>
+
       </motion.section>
 
       <motion.section className="trp-saves-panel" initial={enter} animate={{ opacity: 1, y: 0 }} transition={{ ...transition, delay: reduceMotion ? 0 : .05 }}>
@@ -661,26 +658,8 @@ function SavesDashboard() {
           <div><div className="trp-eyebrow" data-i18n>LOCAL STORAGE / 01</div><h3 data-i18n>Profiles in this browser</h3></div>
           <span className="trp-saves-index">01</span>
         </div>
-        <LegacyNode selector="#saves-msg" />
-        <LegacyNode selector="#profiles" />
-        <LegacyNode selector="#storage-note" />
-      </motion.section>
-
-      <motion.section className="trp-saves-panel" initial={enter} animate={{ opacity: 1, y: 0 }} transition={{ ...transition, delay: reduceMotion ? 0 : .09 }}>
-        <div className="trp-saves-panel-head">
-          <div><div className="trp-eyebrow" data-i18n>CAPTURE / 02</div><h3 data-i18n>Screenshots</h3><p data-i18n>Screenshots captured in-game are kept in this browser.</p></div>
-          <span className="trp-saves-index">02</span>
-        </div>
-        <LegacyNode selector="#shots-info" />
-        <LegacyNode selector="#shots" />
-      </motion.section>
-
-      <motion.section className="trp-saves-cloud-section" initial={enter} animate={{ opacity: 1, y: 0 }} transition={{ ...transition, delay: reduceMotion ? 0 : .13 }}>
-        <div className="trp-saves-panel-head">
-          <div><div className="trp-eyebrow" data-i18n>TRPOLARIS CLOUD / 03</div><h3 data-i18n>Private encrypted sync</h3><p data-i18n>Cloud saves use your keyphrase; the keyphrase is never stored as a readable password on this server.</p></div>
-          <span className="trp-saves-index">03</span>
-        </div>
-        <LegacyNode selector="#vault" className="trp-saves-vault-slot" />
+        <p className="trp-saves-section-description" data-i18n>Profiles, screenshots, local backups and encrypted Cloud sync stay together in the same save manager.</p>
+        <LegacyNode selector="#saves" className="trp-saves-legacy-slot" />
       </motion.section>
     </motion.div>
   );

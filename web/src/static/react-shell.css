@@ -595,11 +595,7 @@
 .trp-saves-panel-head h3 { margin:5px 0 0;color:#eff3fa;font-size:1rem;font-weight:870; }
 .trp-saves-panel-head p { margin:5px 0 0;color:#91a1b7;font-size:.65rem;line-height:1.5; }
 .trp-saves-index { color:rgba(166,154,255,.68);font:800 .62rem ui-monospace,monospace;letter-spacing:.12em; }
-.trp-saves-dashboard #profiles,.trp-saves-dashboard #shots { display:grid;gap:8px;list-style:none;margin:0;padding:0; }
-.trp-saves-dashboard .trp-legacy-control:has(> #profiles),.trp-saves-dashboard .trp-legacy-control:has(> #shots) { min-width:0; }
-.trp-saves-dashboard #saves-msg,.trp-saves-dashboard #storage-note,.trp-saves-dashboard #shots-info { margin:0 0 9px;font-size:.66rem; }
-.trp-saves-dashboard #vault { width:100%;max-width:none;margin:0; }
-.trp-saves-vault-slot { min-width:0; }
+.trp-saves-legacy-slot { min-width:0; }
 @media(max-width:900px) {
   .trp-saves-hero { align-items:flex-start;flex-direction:column; }
   .trp-saves-hero-actions { flex-wrap:wrap; }
@@ -683,3 +679,26 @@
   .trp-controls-legacy-slot > #controls .keyboard-map-grid,.trp-controls-legacy-slot > #controls .site-shortcut-grid,.trp-controls-legacy-slot > #controls .touch-options-grid { grid-template-columns:1fr; }
   .trp-controls-legacy-slot > #controls .controls-panel-intro { flex-direction:column;gap:8px; }
 }
+
+/* The SavesPanel owns #saves and queries descendants from that root: keep the entire section mounted together. */
+.trp-saves-legacy-slot { min-width:0; }
+.trp-saves-legacy-slot > #saves {
+  display:block!important;width:100%!important;max-width:none!important;min-width:0!important;margin:0!important;padding:0!important;
+  border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;
+}
+.trp-saves-legacy-slot > #saves > .panel-head:first-child {
+  display:flex;align-items:center;justify-content:flex-end;gap:9px;margin:0 0 14px;padding:0;
+}
+.trp-saves-legacy-slot > #saves > .panel-head:first-child > h2 { display:none!important; }
+.trp-saves-legacy-slot > #saves > .panel-head:first-child .row { display:flex;flex-wrap:wrap;gap:8px; }
+.trp-saves-legacy-slot > #saves > .panel-head:first-child #export,
+.trp-saves-legacy-slot > #saves > .panel-head:first-child #import { min-height:37px; }
+.trp-saves-legacy-slot > #saves .profiles,.trp-saves-legacy-slot > #saves .shots { display:grid;gap:8px;list-style:none;margin:0;padding:0; }
+.trp-saves-legacy-slot > #saves > .panel-head.sub { display:flex;align-items:center;justify-content:space-between;gap:12px;margin:20px 0 10px;padding:12px 0 0;border-top:1px solid rgba(167,185,214,.11); }
+.trp-saves-legacy-slot > #saves > .panel-head.sub h3 { margin:0;color:#edf2f8;font-size:.82rem;font-weight:840; }
+.trp-saves-legacy-slot > #saves #vault { width:100%;max-width:none;margin:14px 0 0; }
+.trp-saves-legacy-slot > #saves #vault .panel-head.sub { border:0;margin:0 0 12px;padding:0; }
+.trp-saves-legacy-slot > #saves #saves-msg,
+.trp-saves-legacy-slot > #saves #storage-note,
+.trp-saves-legacy-slot > #saves #shots-info { margin:0 0 10px;font-size:.66rem; }
+.trp-saves-section-description { margin:0 0 14px;color:#91a1b7;font-size:.66rem;line-height:1.6; }
