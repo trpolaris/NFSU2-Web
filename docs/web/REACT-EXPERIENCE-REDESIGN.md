@@ -142,3 +142,8 @@ The About route is now fully rendered by React, including the original feature s
 ## Mod Library route migration
 
 The Mod Library route now has a React-owned composition for community picks, saved mod links, category filters and the add/import/export form. The live pack list, custom link list, count/filter controls, installed-pack check action and add-link form are moved individually into React slots so the existing browser-local storage, safe URL/path validation, duplicate checks, 100-link cap, import/export format and server manifest checks remain unchanged. No mod files are installed or written to the server.
+
+
+## Saves route migration
+
+The Saves route now uses a React dashboard for local profiles, export/restore, screenshots and TRPOLARIS Cloud. Existing profile lists, screenshot lists, status messages, backup/restore controls and the full Cloud vault form remain mounted as compatibility islands, preserving the current OPFS and encrypted vault workflows without changing data formats or server APIs.

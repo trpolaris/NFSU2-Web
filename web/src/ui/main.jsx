@@ -637,14 +637,56 @@ function ModLibraryDashboard() {
   );
 }
 
+
+function SavesDashboard() {
+  const reduceMotion = useReducedMotion();
+  const enter = reduceMotion ? false : { opacity: 0, y: 12 };
+  const transition = { duration: reduceMotion ? 0 : .27, ease: [.2, .75, .25, 1] };
+  return (
+    <motion.div className="trp-route-page trp-saves-dashboard" initial={enter} animate={{ opacity: 1, y: 0 }} transition={transition}>
+      <motion.section className="trp-saves-hero" initial={enter} animate={{ opacity: 1, y: 0 }} transition={transition}>
+        <div className="trp-saves-hero-copy">
+          <div className="trp-eyebrow"><Save size={13} /> <span data-i18n>GARAGE DATA / BACKUP</span></div>
+          <h2 data-i18n>Your progress, your way.</h2>
+          <p data-i18n>Manage browser profiles and screenshots, keep a local backup, or synchronize encrypted saves with TRPOLARIS Cloud.</p>
+        </div>
+        <div className="trp-saves-hero-actions">
+          <LegacyNode selector="#export" />
+          <LegacyNode selector="#import" />
+        </div>
+      </motion.section>
+
+      <motion.section className="trp-saves-panel" initial={enter} animate={{ opacity: 1, y: 0 }} transition={{ ...transition, delay: reduceMotion ? 0 : .05 }}>
+        <div className="trp-saves-panel-head">
+          <div><div className="trp-eyebrow" data-i18n>LOCAL STORAGE / 01</div><h3 data-i18n>Profiles in this browser</h3></div>
+          <span className="trp-saves-index">01</span>
+        </div>
+        <LegacyNode selector="#saves-msg" />
+        <LegacyNode selector="#profiles" />
+        <LegacyNode selector="#storage-note" />
+      </motion.section>
+
+      <motion.section className="trp-saves-panel" initial={enter} animate={{ opacity: 1, y: 0 }} transition={{ ...transition, delay: reduceMotion ? 0 : .09 }}>
+        <div className="trp-saves-panel-head">
+          <div><div className="trp-eyebrow" data-i18n>CAPTURE / 02</div><h3 data-i18n>Screenshots</h3><p data-i18n>Screenshots captured in-game are kept in this browser.</p></div>
+          <span className="trp-saves-index">02</span>
+        </div>
+        <LegacyNode selector="#shots-info" />
+        <LegacyNode selector="#shots" />
+      </motion.section>
+
+      <motion.section className="trp-saves-cloud-section" initial={enter} animate={{ opacity: 1, y: 0 }} transition={{ ...transition, delay: reduceMotion ? 0 : .13 }}>
+        <div className="trp-saves-panel-head">
+          <div><div className="trp-eyebrow" data-i18n>TRPOLARIS CLOUD / 03</div><h3 data-i18n>Private encrypted sync</h3><p data-i18n>Cloud saves use your keyphrase; the keyphrase is never stored as a readable password on this server.</p></div>
+          <span className="trp-saves-index">03</span>
+        </div>
+        <LegacyNode selector="#vault" className="trp-saves-vault-slot" />
+      </motion.section>
+    </motion.div>
+  );
+}
+
 const LEGACY_PAGES = {
-  saves: {
-    eyebrow: 'GARAGE DATA / 05',
-    headline: 'Your progress, in your hands.',
-    description: 'Manage local profiles, screenshots and encrypted cloud-save synchronization.',
-    icon: Save,
-    selectors: ['#saves'],
-  },
   controls: {
     eyebrow: 'DRIVER INPUT / 06',
     headline: 'Make every input count.',
@@ -839,7 +881,8 @@ function App({ legacyApp }) {
             transition={{ duration: reduceMotion ? 0 : .19, ease: [0.2, 0.75, 0.25, 1] }}>
             {active === 'home' && !gameActive && <HomeDashboard onNavigate={navigate} />}
             {active === 'online' && !gameActive && <OnlineDashboard />}
-            {['saves', 'controls', 'settings', 'system'].includes(active) && !gameActive && <LegacyRoutePage page={active} />}
+            {['controls', 'settings', 'system'].includes(active) && !gameActive && <LegacyRoutePage page={active} />}
+            {active === 'saves' && !gameActive && <SavesDashboard />}
             {active === 'mods' && !gameActive && <ModLibraryDashboard />}
             {active === 'about' && !gameActive && <AboutDashboard />}
             <LegacyAppHost app={legacyApp} />
