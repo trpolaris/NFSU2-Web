@@ -2230,6 +2230,8 @@ function App() {
   const [statusText, setStatusText] = useState(initialRuntime?.statusText || '');
   const [runtimeLocked, setRuntimeLocked] = useState(() => Boolean(initialRuntime?.locked));
   const [transitioning, setTransitioning] = useState(false);
+  // Route headings are React-owned; refresh their t() output when the page language changes.
+  const [, setLanguageRevision] = useState(0);
   const rootRef = useRef(null);
   const activeItem = useMemo(() => NAV.find(item => item.id === active) || NAV[0], [active]);
 
@@ -2267,6 +2269,10 @@ function App() {
       window.removeEventListener('trp-runtime-changed', syncStatus);
     };
   }, [syncStatus]);
+
+  useEffect(() => {
+    onLanguage(() => setLanguageRevision(revision => revision + 1));
+  }, []);
 
   useLayoutEffect(() => {
     if (rootRef.current && typeof window.__trpTranslateReact === 'function') {
@@ -2329,7 +2335,7 @@ function App() {
         <header className="trp-topbar" inert={gameActive}>
           <div className="trp-breadcrumb">
             <span className="trp-breadcrumb-mark"><Activity size={14} /></span>
-            <span>TRPOLARIS</span><ChevronRight size={14} /><strong key={activeItem.id} data-i18n>{activeItem.label}</strong>
+            <span>TRPOLARIS</span><ChevronRight size={14} /><strong>{t(activeItem.label)}</strong>
           </div>
           <div className="trp-topbar-actions">
             <div className="trp-build-label"><span className={'trp-live-indicator' + (connectedTone ? ' is-live' : '')} /> {phaseLabel}</div>
@@ -2341,10 +2347,10 @@ function App() {
 
         <div className="trp-content">
           <div className="trp-content-heading">
-            <div>
+            <div key={activeItem.id}>
               <div className="trp-eyebrow" data-i18n>BAYVIEW / NIGHT DRIVER SYSTEM</div>
-              <h1 key={activeItem.id}><span data-i18n>{activeItem.label}</span><span>.</span></h1>
-              <p key={activeItem.id}><span data-i18n>{activeItem.detail}</span> <span>·</span> TRPOLARIS NFSU2 Web</p>
+              <h1>{t(activeItem.label)}.</h1>
+              <p>{t(activeItem.detail)} <span>·</span> TRPOLARIS NFSU2 Web</p>
             </div>
             <div className="trp-heading-index" aria-hidden="true"><span>EXPERIENCE</span><strong>02</strong></div>
           </div>
