@@ -4,6 +4,14 @@ This branch selectively ports compatible changes from `th0mk/nfsu2-web` while ke
 
 ## Integrated
 
+### WebAssembly source manifest correction
+- The integrated right-stick camera and invalid saved-position guard add `runtime/look.c` and `runtime/carspot.c`.
+- The native `link.sh` list already included both modules, but the WebAssembly builder's explicit `RT` list in `web/build.sh` did not.
+- Added both modules to the WebAssembly build list so the changes are compiled into `out/web/nfsu2.wasm`, not only native builds.
+- Added `web/test/wasm-build-sources.test.mjs` to prevent these modules from silently dropping out of the WASM source manifest.
+- This is a build-manifest correction; a fresh WASM build against the user's game files is still required and has not yet been run in WSL.
+
+
 ### React route heading accumulation on menu navigation
 - Fixed the page-header issue where changing the left navigation caused previous section labels to remain stacked above the active page.
 - The dynamic breadcrumb, page title and page description now use React's `t()` output instead of being mutated by the legacy `data-i18n` DOM translation pass.
