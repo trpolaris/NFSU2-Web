@@ -590,14 +590,54 @@ function AboutDashboard() {
   );
 }
 
+
+function ModLibraryDashboard() {
+  const reduceMotion = useReducedMotion();
+  const enter = reduceMotion ? false : { opacity: 0, y: 12 };
+  const transition = { duration: reduceMotion ? 0 : .27, ease: [.2, .75, .25, 1] };
+  return (
+    <motion.div className="trp-route-page trp-mod-dashboard" initial={enter} animate={{ opacity: 1, y: 0 }} transition={transition}>
+      <motion.section className="trp-mod-hero" initial={enter} animate={{ opacity: 1, y: 0 }} transition={transition}>
+        <div>
+          <div className="trp-eyebrow" data-i18n>TRPOLARIS / WORKSHOP</div>
+          <h2 data-i18n>Build your own Underground.</h2>
+          <p data-i18n>Save mod links, track expected files, and export your mod list. The library stores links and metadata; it does not install files on the server.</p>
+        </div>
+        <div className="trp-mod-hero-actions">
+          <LegacyNode selector="#custom-mod-count" className="trp-mod-count-slot" />
+          <LegacyNode selector="#packs-check" className="trp-mod-check-slot" />
+        </div>
+        <span className="trp-mod-hero-stamp" aria-hidden="true">WORKSHOP / 04</span>
+      </motion.section>
+
+      <motion.section className="trp-mod-panel" initial={enter} animate={{ opacity: 1, y: 0 }} transition={{ ...transition, delay: reduceMotion ? 0 : .06 }}>
+        <div className="trp-mod-section-head">
+          <div><div className="trp-eyebrow" data-i18n>COMMUNITY PICKS</div><h3 data-i18n>Recommended packs</h3></div>
+          <span className="trp-mod-section-mark">01</span>
+        </div>
+        <ul className="pack-list trp-react-pack-list" aria-live="polite"><LegacyNode selector="#pack-list" /></ul>
+      </motion.section>
+
+      <motion.section className="trp-mod-panel" initial={enter} animate={{ opacity: 1, y: 0 }} transition={{ ...transition, delay: reduceMotion ? 0 : .1 }}>
+        <div className="trp-mod-section-head trp-mod-collection-head">
+          <div><div className="trp-eyebrow" data-i18n>YOUR COLLECTION</div><h3 data-i18n>Saved mod links</h3><p data-i18n>The mod list stores names and links only. It does not contain mod files.</p></div>
+          <div className="trp-mod-filter"><label htmlFor="trp-mod-filter-label" data-i18n>Filter by category</label><LegacyNode selector="#custom-mod-filter" /></div>
+        </div>
+        <ul className="custom-mod-list trp-react-custom-mod-list"><LegacyNode selector="#custom-mod-list" /></ul>
+      </motion.section>
+
+      <motion.section className="trp-mod-add-panel" initial={enter} animate={{ opacity: 1, y: 0 }} transition={{ ...transition, delay: reduceMotion ? 0 : .14 }}>
+        <div className="trp-mod-add-heading">
+          <div><div className="trp-eyebrow" data-i18n>PERSONAL LIBRARY</div><h3 data-i18n>Add or transfer links</h3></div>
+          <span className="trp-mod-section-mark">03</span>
+        </div>
+        <LegacyNode selector="#mod-link-form" className="trp-mod-form-slot" />
+      </motion.section>
+    </motion.div>
+  );
+}
+
 const LEGACY_PAGES = {
-  mods: {
-    eyebrow: 'COMMUNITY WORKSHOP / 04',
-    headline: 'Shape your next build.',
-    description: 'Keep mod links, check supported vehicle packages and organize your collection in this browser.',
-    icon: CarFront,
-    selectors: ['#mods'],
-  },
   saves: {
     eyebrow: 'GARAGE DATA / 05',
     headline: 'Your progress, in your hands.',
@@ -799,7 +839,8 @@ function App({ legacyApp }) {
             transition={{ duration: reduceMotion ? 0 : .19, ease: [0.2, 0.75, 0.25, 1] }}>
             {active === 'home' && !gameActive && <HomeDashboard onNavigate={navigate} />}
             {active === 'online' && !gameActive && <OnlineDashboard />}
-            {['mods', 'saves', 'controls', 'settings', 'system'].includes(active) && !gameActive && <LegacyRoutePage page={active} />}
+            {['saves', 'controls', 'settings', 'system'].includes(active) && !gameActive && <LegacyRoutePage page={active} />}
+            {active === 'mods' && !gameActive && <ModLibraryDashboard />}
             {active === 'about' && !gameActive && <AboutDashboard />}
             <LegacyAppHost app={legacyApp} />
           </motion.div>

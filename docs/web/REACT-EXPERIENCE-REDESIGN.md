@@ -137,3 +137,8 @@ The 16-slot Quick Chat editor is now a React interface backed by the existing ph
 ## About page migration
 
 The About route is now fully rendered by React, including the original feature summary, project links, independent-project notice and translation/texture credits. The original `#changes` and `#about` nodes are hidden inside the compatibility host but no longer used as the route content. All external destinations and attribution text are retained.
+
+
+## Mod Library route migration
+
+The Mod Library route now has a React-owned composition for community picks, saved mod links, category filters and the add/import/export form. The live pack list, custom link list, count/filter controls, installed-pack check action and add-link form are moved individually into React slots so the existing browser-local storage, safe URL/path validation, duplicate checks, 100-link cap, import/export format and server manifest checks remain unchanged. No mod files are installed or written to the server.

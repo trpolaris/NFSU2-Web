@@ -276,3 +276,16 @@ test('About and project credits are rendered directly in the React route, not le
   assert.match(shellCss, /\.trp-about-feature-grid/);
   assert.match(shellCss, /\.trp-about-info-grid/);
 });
+
+
+test('Mod Library page layout is React-owned while existing local mod handlers remain mounted', () => {
+  assert.match(app, /function ModLibraryDashboard/);
+  assert.match(app, /active === 'mods' && !gameActive && <ModLibraryDashboard \/>/);
+  assert.doesNotMatch(app, /selectors: \['#mods'\]/);
+  for (const selector of ['#custom-mod-count','#packs-check','#pack-list','#custom-mod-filter','#custom-mod-list','#mod-link-form']) {
+    assert.ok(app.includes('selector="' + selector + '"'), selector + ' remains connected');
+  }
+  assert.match(shellCss, /#app #mods \{ display:none!important; \}/);
+  assert.match(shellCss, /\.trp-mod-feature-grid/);
+  assert.match(shellCss, /\.trp-mod-add-panel \.mod-form-grid/);
+});
