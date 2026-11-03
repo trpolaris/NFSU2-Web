@@ -1539,5 +1539,6 @@
   "Radio: off": "Радио: выкл.",
   "Your selected local playlist stays on this device.": "Выбранный локальный плейлист остаётся на этом устройстве.",
   "Toggle radio": "Переключить радио",
-  "LOCAL FILES ONLY · NOTHING IS SENT TO THE SERVER": "ТОЛЬКО ЛОКАЛЬНЫЕ ФАЙЛЫ · НА СЕРВЕР НИЧЕГО НЕ ОТПРАВЛЯЕТСЯ"
+  "LOCAL FILES ONLY · NOTHING IS SENT TO THE SERVER": "ТОЛЬКО ЛОКАЛЬНЫЕ ФАЙЛЫ · НА СЕРВЕР НИЧЕГО НЕ ОТПРАВЛЯЕТСЯ",
+  "This browser is too old for the game: it needs iOS 26, iPadOS 26 or Safari 26. Update this device (Settings, General, Software Update).": "Этот браузер слишком старый для игры: нужны iOS 26, iPadOS 26 или Safari 26. Обновите это устройство (Настройки, Основные, Обновление ПО)."
 }
