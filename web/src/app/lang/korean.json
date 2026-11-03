@@ -1424,5 +1424,6 @@
   "Radio: off": "라디오: 꺼짐",
   "Your selected local playlist stays on this device.": "선택한 로컬 재생 목록은 이 기기에 저장됩니다.",
   "Toggle radio": "라디오 전환",
-  "LOCAL FILES ONLY · NOTHING IS SENT TO THE SERVER": "로컬 파일만 사용 · 서버로 전송되는 항목 없음"
+  "LOCAL FILES ONLY · NOTHING IS SENT TO THE SERVER": "로컬 파일만 사용 · 서버로 전송되는 항목 없음",
+  "This browser is too old for the game: it needs iOS 26, iPadOS 26 or Safari 26. Update this device (Settings, General, Software Update).": "이 브라우저는 게임을 실행하기에 너무 오래됐어요. iOS 26, iPadOS 26 또는 Safari 26이 필요하니 이 기기를 업데이트하세요(설정 > 일반 > 소프트웨어 업데이트)."
 }

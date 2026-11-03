@@ -1424,5 +1424,6 @@
   "Radio: off": "ラジオ：オフ",
   "Your selected local playlist stays on this device.": "選択したローカルプレイリストはこのデバイスに保存されます。",
   "Toggle radio": "ラジオ切り替え",
-  "LOCAL FILES ONLY · NOTHING IS SENT TO THE SERVER": "ローカルファイルのみ · サーバーには何も送信されません"
+  "LOCAL FILES ONLY · NOTHING IS SENT TO THE SERVER": "ローカルファイルのみ · サーバーには何も送信されません",
+  "This browser is too old for the game: it needs iOS 26, iPadOS 26 or Safari 26. Update this device (Settings, General, Software Update).": "このブラウザはゲームを動かすには古すぎます。iOS 26、iPadOS 26、またはSafari 26が必要です。このデバイスをアップデートしてください（「設定」>「一般」>「ソフトウェアアップデート」）。"
 }
