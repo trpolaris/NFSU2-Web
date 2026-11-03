@@ -4,6 +4,13 @@ This branch selectively ports compatible changes from `th0mk/nfsu2-web` while ke
 
 ## Integrated
 
+### Invalid saved FreeRoam position guard
+- Upstream commit: `0f17d0a736a08913888482a0bf0b4f8a25513a21` (partial, deliberately scoped).
+- Ported the independent `runtime/carspot.c` guard, wired it into the main-loop hook in `runtime/roam.c`, and added it to `link.sh`.
+- A non-finite or out-of-world Career saved position is replaced with the known career starting position before a later world load can restore the invalid coordinates.
+- Added `tests/scripts/carspot_nan.txt` for the saved-position case.
+- The same upstream commit's larger `roam_game.c` changes (rollback of invalid collision results and extra car rescue checks) are **not** included: they modify heavily customized TRPOLARIS FreeRoam contact/physics code and need a separate port review.
+
 ### Radio track completion and dual-reader synchronization
 - Upstream commit: `fbe1cef92cd70369fab83fcfc811b70e0947980a`
 - Ported the matching upstream changes to `runtime/radio.c`, `tests/radio_mixer_stub.h`, and `tests/radio_unit.c`.
