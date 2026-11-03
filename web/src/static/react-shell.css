@@ -702,3 +702,50 @@
 .trp-saves-legacy-slot > #saves #storage-note,
 .trp-saves-legacy-slot > #saves #shots-info { margin:0 0 10px;font-size:.66rem; }
 .trp-saves-section-description { margin:0 0 14px;color:#91a1b7;font-size:.66rem;line-height:1.6; }
+
+/* System route: three independently mounted live sections retain their existing service roots. */
+.trp-system-dashboard { display:grid;gap:14px;min-width:0; }
+.trp-system-hero {
+  position:relative;isolation:isolate;display:flex;align-items:center;justify-content:space-between;gap:22px;
+  min-height:154px;padding:clamp(22px,3vw,34px);overflow:hidden;
+  border:1px solid rgba(102,215,176,.18);border-radius:20px;
+  background:radial-gradient(ellipse at 90% 16%,rgba(102,215,176,.14),transparent 22rem),radial-gradient(ellipse at 0% 100%,rgba(166,154,255,.1),transparent 20rem),linear-gradient(118deg,#122131,#0c1624 68%,#15192a);
+  box-shadow:0 20px 50px rgba(0,0,0,.18),inset 0 1px rgba(255,255,255,.04);
+}
+.trp-system-hero-copy { position:relative;z-index:1;max-width:740px; }
+.trp-system-hero-copy .trp-eyebrow { display:flex;align-items:center;gap:8px; }
+.trp-system-hero-copy h2 { margin:9px 0 7px;color:#f4f6fb;font-size:clamp(1.55rem,3vw,2.35rem);font-weight:930;line-height:1.04;letter-spacing:-.055em; }
+.trp-system-hero-copy p { margin:0;color:#a5b4c9;font-size:.73rem;line-height:1.65; }
+.trp-system-hero-stamp { position:relative;z-index:1;display:grid;gap:5px;min-width:130px;padding:13px 15px;border:1px solid rgba(102,215,176,.19);border-radius:12px;background:rgba(4,12,20,.42);color:#8299a9;font:800 .54rem ui-monospace,monospace;letter-spacing:.12em; }
+.trp-system-hero-stamp strong { color:#a4e9d1;font:850 .75rem ui-monospace,monospace; }
+.trp-system-panel { min-width:0;padding:19px;border:1px solid rgba(167,185,214,.13);border-radius:18px;background:linear-gradient(145deg,rgba(17,27,43,.94),rgba(9,16,28,.96));box-shadow:0 16px 38px rgba(0,0,0,.14); }
+.trp-system-panel-head { display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:13px; }
+.trp-system-panel-head h3 { margin:5px 0 0;color:#eff3fa;font-size:1rem;font-weight:870; }
+.trp-system-panel-head p { margin:5px 0 0;color:#91a1b7;font-size:.64rem;line-height:1.55; }
+.trp-system-index { color:rgba(166,154,255,.68);font:800 .62rem ui-monospace,monospace;letter-spacing:.12em; }
+.trp-system-updates-slot,.trp-system-diagnostics-slot,.trp-system-game-data-slot { min-width:0; }
+.trp-system-updates-slot > #updates,
+.trp-system-diagnostics-slot > #diagnostics,
+.trp-system-game-data-slot > #game-data {
+  display:block!important;width:100%!important;max-width:none!important;min-width:0!important;margin:0!important;padding:0!important;
+  border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;
+}
+.trp-system-updates-slot > #updates > h2:first-child,
+.trp-system-diagnostics-slot > #diagnostics .panel-head h2,
+.trp-system-game-data-slot > #game-data > h2:first-child { display:none!important; }
+.trp-system-updates-slot > #updates .panel-head.sub,
+.trp-system-diagnostics-slot > #diagnostics .diagnostic-actions { flex-wrap:wrap; }
+.trp-system-diagnostics-slot > #diagnostics #diagnostic-list { display:grid;gap:8px; }
+.trp-system-game-data-slot > #game-data .bar { overflow:hidden;border-radius:999px; }
+.trp-system-game-data-slot > #game-data .bar-fill { border-radius:inherit; }
+.trp-system-game-data-slot > #game-data .row { display:flex;flex-wrap:wrap;gap:8px; }
+@media(max-width:700px) {
+  .trp-system-dashboard { gap:10px; }
+  .trp-system-hero { min-height:0;align-items:flex-start;padding:18px 15px;border-radius:16px; }
+  .trp-system-hero-copy h2 { font-size:1.5rem; }
+  .trp-system-hero-copy p { font-size:.67rem; }
+  .trp-system-hero-stamp { min-width:0;padding:9px 10px; }
+  .trp-system-hero-stamp span { font-size:.48rem; }
+  .trp-system-panel { padding:14px;border-radius:15px; }
+  .trp-system-panel-head { gap:8px; }
+}

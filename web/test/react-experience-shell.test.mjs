@@ -326,3 +326,16 @@ test('SavesPanel still owns all descendant profile, screenshot and message contr
   assert.match(runtime, /root\.querySelector\('#shots'\)/);
   assert.match(app, /LegacyNode selector="#saves" className="trp-saves-legacy-slot"/);
 });
+
+test('System route is composed in React while updates, diagnostics and game-data roots stay mounted', () => {
+  assert.ok(app.includes('function SystemDashboard'));
+  assert.ok(app.includes("active === 'system' && !gameActive && <SystemDashboard />"));
+  assert.ok(!app.includes("selectors: ['#updates', '#diagnostics', '#game-data']"));
+  for (const selector of ['#updates','#diagnostics','#game-data']) {
+    assert.ok(app.includes('selector="' + selector + '"'), selector + ' remains mounted');
+  }
+  assert.ok(shellCss.includes('.trp-system-hero'));
+  assert.ok(shellCss.includes('.trp-system-updates-slot > #updates'));
+  assert.ok(shellCss.includes('.trp-system-diagnostics-slot > #diagnostics'));
+  assert.ok(shellCss.includes('.trp-system-game-data-slot > #game-data'));
+});

@@ -695,6 +695,48 @@ function ControlsDashboard() {
   );
 }
 
+
+function SystemDashboard() {
+  const reduceMotion = useReducedMotion();
+  const enter = reduceMotion ? false : { opacity: 0, y: 12 };
+  const transition = { duration: reduceMotion ? 0 : .27, ease: [.2, .75, .25, 1] };
+  return (
+    <motion.div className="trp-route-page trp-system-dashboard" initial={enter} animate={{ opacity: 1, y: 0 }} transition={transition}>
+      <motion.section className="trp-system-hero" initial={enter} animate={{ opacity: 1, y: 0 }} transition={transition}>
+        <div className="trp-system-hero-copy">
+          <div className="trp-eyebrow"><Gauge size={13} /> <span data-i18n>SYSTEM STATUS / OVERVIEW</span></div>
+          <h2 data-i18n>Know what is ready.</h2>
+          <p data-i18n>Check app updates, browser compatibility, storage and the game data kept on this device.</p>
+        </div>
+        <div className="trp-system-hero-stamp">
+          <span data-i18n>LIVE CHECKS</span><strong>TRP / SYS</strong>
+        </div>
+      </motion.section>
+      <motion.section className="trp-system-panel" initial={enter} animate={{ opacity: 1, y: 0 }} transition={{ ...transition, delay: reduceMotion ? 0 : .05 }}>
+        <div className="trp-system-panel-head">
+          <div><div className="trp-eyebrow" data-i18n>RELEASE / SECURITY / 01</div><h3 data-i18n>Updates and security</h3><p data-i18n>Build availability, translation files, privacy and first-run setup.</p></div>
+          <span className="trp-system-index">01</span>
+        </div>
+        <LegacyNode selector="#updates" className="trp-system-updates-slot" />
+      </motion.section>
+      <motion.section className="trp-system-panel" initial={enter} animate={{ opacity: 1, y: 0 }} transition={{ ...transition, delay: reduceMotion ? 0 : .1 }}>
+        <div className="trp-system-panel-head">
+          <div><div className="trp-eyebrow" data-i18n>DIAGNOSTICS / 02</div><h3 data-i18n>Browser and runtime checks</h3><p data-i18n>Inspect the current browser, graphics, security, storage and game module.</p></div>
+          <span className="trp-system-index">02</span>
+        </div>
+        <LegacyNode selector="#diagnostics" className="trp-system-diagnostics-slot" />
+      </motion.section>
+      <motion.section className="trp-system-panel" initial={enter} animate={{ opacity: 1, y: 0 }} transition={{ ...transition, delay: reduceMotion ? 0 : .15 }}>
+        <div className="trp-system-panel-head">
+          <div><div className="trp-eyebrow" data-i18n>LOCAL GAME DATA / 03</div><h3 data-i18n>Game data on this device</h3><p data-i18n>Review cached game data, preload what is missing, or clear the local copy.</p></div>
+          <span className="trp-system-index">03</span>
+        </div>
+        <LegacyNode selector="#game-data" className="trp-system-game-data-slot" />
+      </motion.section>
+    </motion.div>
+  );
+}
+
 const LEGACY_PAGES = {
   settings: {
     eyebrow: 'CONFIGURATION / 07',
@@ -702,13 +744,6 @@ const LEGACY_PAGES = {
     description: 'Adjust validated game options and browser display preferences.',
     icon: Settings,
     selectors: ['#settings', '#accessibility'],
-  },
-  system: {
-    eyebrow: 'SYSTEM STATUS / 08',
-    headline: 'Know what is ready.',
-    description: 'Review browser compatibility, graphics, storage, game data and update status.',
-    icon: Gauge,
-    selectors: ['#updates', '#diagnostics', '#game-data'],
   },
 };
 
@@ -883,7 +918,8 @@ function App({ legacyApp }) {
             transition={{ duration: reduceMotion ? 0 : .19, ease: [0.2, 0.75, 0.25, 1] }}>
             {active === 'home' && !gameActive && <HomeDashboard onNavigate={navigate} />}
             {active === 'online' && !gameActive && <OnlineDashboard />}
-            {['settings', 'system'].includes(active) && !gameActive && <LegacyRoutePage page={active} />}
+            {active === 'settings' && !gameActive && <LegacyRoutePage page={active} />}
+            {active === 'system' && !gameActive && <SystemDashboard />}
             {active === 'controls' && !gameActive && <ControlsDashboard />}
             {active === 'saves' && !gameActive && <SavesDashboard />}
             {active === 'mods' && !gameActive && <ModLibraryDashboard />}

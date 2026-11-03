@@ -152,3 +152,7 @@ The Saves route now uses a React dashboard for local profiles, export/restore, s
 ## Controls route migration
 
 The Controls route now has a React-owned responsive dashboard and layout for keyboard, gamepad and touch control sections. The complete existing #controls section is mounted as one compatibility island so the original controlsSheet can still find #keys and retain its tab keyboard navigation, Xbox/PlayStation labels, live controller-follow behavior, wheel drawing, touch steering, level-horizon, control-size and menu-size settings. The game input mappings and runtime input pipeline are unchanged.
+
+## System route migration
+
+The System page is now composed in React with three sections: Updates & Security, Browser and Runtime Diagnostics, and local Game Data. The full #updates, #diagnostics, and #game-data service roots remain individually mounted so their existing actions and progress updates continue to target the same elements. Preload/download logic, cache deletion, update checks, translation audits, privacy actions and diagnostic reporting are unchanged.
