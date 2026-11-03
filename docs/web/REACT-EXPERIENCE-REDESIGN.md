@@ -1,0 +1,236 @@
+# TRPOLARIS React Web Experience
+
+## Goal
+
+The main web experience (/) and Player Hub (/hub/) should share one coherent, responsive design language and use React for their user-facing page composition. Motion should improve hierarchy and feedback without making navigation slower or consuming unnecessary GPU time.
+
+## Current migration slice
+
+The main page now has a React + Motion application frame:
+
+- React owns the left navigation, active-route presentation, top bar, system-state indicator, language/install control placements and Player Hub shortcuts.
+- The React frame includes desktop, compact-tablet and mobile navigation layouts.
+- Page changes use a short Motion transition. The active navigation marker uses a shared layout animation.
+- The existing page root is mounted in a dedicated compatibility slot. This deliberately preserves the DOM IDs and event hooks currently used by the TypeScript application shell.
+- When a game session is starting or playing, the surrounding React application frame becomes inert, preserving the previous rule that page controls must not compete with the active game surface.
+- The page and Hub remain same-origin. No CDN scripts or remote font imports are introduced.
+
+Player Hub is already a separate React application. Its current iteration adds an animated active-navigation marker, ambient background layers, subtle card feedback and a truthful disconnected state.
+
+## Target component structure
+
+The intended main-page composition is:
+
+    ExperienceRoot
+    ├── ExperienceShell
+    │   ├── PrimaryNavigation
+    │   ├── StatusBar
+    │   └── RouteViewport
+    │       ├── HomePage
+    │       ├── OnlinePage
+    │       ├── ModLibraryPage
+    │       ├── SavesPage
+    │       ├── ControlsPage
+    │       ├── SettingsPage
+    │       ├── AccessibilityPage
+    │       ├── UpdatesPage
+    │       ├── DiagnosticsPage
+    │       ├── GameDataPage
+    │       └── AboutPage
+    └── GameRuntimeAdapter
+        ├── StartupChecks
+        ├── GameSession
+        ├── LocalSaveStorage
+        └── NetworkAndInputServices
+
+The target structure separates view rendering from the game runtime. React should own the pages and reusable interface components; the TypeScript services should continue to own browser capabilities, game lifecycle, storage, input, audio, networking and diagnostics.
+
+## Migration order
+
+1. **App shell and navigation** — completed as the first migration slice. Keep the compatibility host until every dependent panel has moved.
+2. **Home / launch screen** — React now owns the hero, visual composition and quick-access cards. The live game launch dock and status console are temporarily mounted as DOM islands so the existing TypeScript runtime keeps its event listeners and progress updates. The next sub-step is to replace those islands with a typed runtime adapter.
+3. **Online and community views** — connect the current /players and same-origin status sources through a read-only external store.
+4. **Saves and cloud** — move the forms and status states into React while retaining the existing save and cloud service contracts.
+5. **Controls and settings** — preserve the validated settings model and input-device behavior; do not let React rerenders overwrite live device state.
+6. **Mod library, diagnostics, accessibility, updates and about** — move the remaining content panels and their tests.
+7. **Remove the compatibility host** — only after the DOM selectors, event listeners and runtime hooks have been replaced by typed adapters and regression coverage.
+
+## Runtime and API boundaries
+
+The React migration is a presentation-layer change:
+
+- Do not replace or re-render the WebAssembly game canvas, WebGPU renderer, audio worklets, workers or in-game HUD through React.
+- Do not change Rust routes, WebSocket message formats, CSRF/session behavior, save formats, multiplayer contracts or server storage.
+- Keep local game settings and save data in their existing storage services.
+- Expose runtime state to React through typed snapshots/subscriptions rather than allowing React components to mutate engine internals.
+- Retain the current Player Hub API routes and same-origin credential handling.
+
+The compatibility host is temporary. It prevents existing runtime selectors from breaking while each view is migrated, but it is not the final component architecture.
+
+## Motion and accessibility rules
+
+- Use short route transitions and restrained hover/press feedback.
+- Prefer transform and opacity animations over expensive layout or filter animations.
+- Respect prefers-reduced-motion; navigation and controls must remain fully understandable without animation.
+- Keep focus-visible indicators, semantic landmarks, button labels and keyboard navigation.
+- Make small-screen navigation reachable without covering form controls or game launch status.
+- Avoid continuous decorative animation on the game canvas or during active gameplay.
+
+## Validation checklist
+
+For each migrated view:
+
+- npm run check
+- npm run build
+- node --test --test-concurrency=1 web/test/*.test.mjs
+- Verify navigation and browser back/forward behavior.
+- Verify keyboard focus and reduced-motion mode.
+- Verify viewport widths around 360, 768, 1024 and 1440 pixels.
+- Verify page controls do not interfere with a starting or active game session.
+
+A migration step is complete only when its old DOM hooks are either intentionally retained in the compatibility host or replaced by tested typed interfaces. The compatibility host must not be removed just because the React shell renders successfully.
+
+
+## Home dashboard migration note
+
+The React home page uses the existing car artwork/particle canvas and keeps the original live Play dock and status console mounted via placeholder-backed DOM islands. The hidden legacy home container remains in the compatibility host to preserve runtime references. When the game enters its starting/playing phase, the React dashboard unmounts and restores those live nodes to the original app container; the legacy runtime then applies its own app inert state while the separate game stage remains interactive. Navigation chrome becomes inert during the active game session, but the React root itself is never inert because the game stage is outside it.
+
+
+## React localization bridge
+
+The existing language dictionaries remain the source of truth. The game entry exposes the already-loaded translatePage function to the React shell, and the shell reapplies it after route/phase remounts. React UI labels use the same English source keys as the original dictionaries, so the existing language selector and all shipped language files continue to drive the visible shell and home dashboard.
+
+
+## Online / Free Roam migration slice
+
+The Online route now has a React + Motion page composition with a live-multiplayer hero and feature cards for Free Roam, the game's Online mode, and rooms/crews. The existing #online section is mounted into the React route using a placeholder-backed compatibility island. Its SettingsController still owns validated settings writes, room/crew controls, horn preview and the live status line from /players; this avoids duplicating or bypassing the existing settings model while the visual route migrates.
+
+Next, the controls inside #online-body should move from the imperative SettingsController.group()/row() renderer into typed React field components backed by a narrow settings adapter. Keep watchPlayers, playersText, crewCounts, roomHash and the same /players query contract as the source of live counts. Do not invent player totals or room/crew availability when the server does not report them.
+
+
+## Remaining route composition
+
+Mod Library, Saves, Controls, Settings/Accessibility, System (updates, diagnostics and game data), and About are now mounted under React route compositions. Each route gets a shared animated intro and responsive feature container. Existing section nodes are temporarily moved into those routes with placeholder-backed islands so the existing platform, settings, saves, input and diagnostics controllers retain their event handlers and DOM IDs. The compatibility host remains until those inner controls are converted to typed React components.
+
+
+## React settings bridge
+
+Two primary Online toggles — Free Roam with others and Online mode — are now controlled by React. They read through the existing SettingsPanel current method and write through its existing set method. The bridge also exposes the current tab's read-only state and a refresh signal. This does not bypass the existing save-file ownership check or change the settings.ini format. Room/name and blocked-player inputs, crew/colour editing, Quick Chat switches and the 16-phrase editor are now React-owned. Horn preview and its audio control remain on the existing specialized controller.
+
+
+The Online route also now has React text editors for the driver's display name and room name. Their save action calls a dedicated SettingsPanel method that uses the same name normalization and per-key validation as the original controls. Crews, horn preview, blocked-player lists and quick-chat phrase editing remain on the legacy controller for this stage.
+
+
+Additional simple Free Roam preferences are now React-managed too: Ghost Mode (including its inverted settings-file meaning), Quick Chat enablement, the nearby-player car limit, and the blocked-player name list. The room/name/blocked-name controls use the same SettingsPanel validation path. Horn preview remains on the original specialized renderer because it owns the audio preview lifecycle; crew and phrase editing now use the React controls described below.
+
+
+## Crew editor migration
+
+The Free Roam Crew editor is now React-owned. It uses the existing pure crew rules (checkCrew, CREW_MAX, CREW_PALETTE, freeColour and crewsOf) and keeps each crew's selected colour with its name. A dedicated SettingsPanel method validates and writes roam_crew and roam_crew_colours together in one settings update, so leaving a crew or changing its colour does not desynchronize the two lists. The legacy crew editor is hidden only inside the React route; the existing /players crew counts and server visibility logic are unchanged.
+
+
+## Quick Chat phrase editor migration
+
+The 16-slot Quick Chat editor is now a React interface backed by the existing phrase catalogue and category definitions. Each of the four groups can select a category, and each of its four slots only offers phrases from that category. The phrase ids and category ids are validated with the same settings validators and written together in one save. Defaults are restored as commented template values when the default set is chosen. The in-game phrase picker and typed chat pipeline are unchanged.
+
+
+## About page migration
+
+The About route is now fully rendered by React, including the original feature summary, project links, independent-project notice and translation/texture credits. The original `#changes` and `#about` nodes are hidden inside the compatibility host but no longer used as the route content. All external destinations and attribution text are retained.
+
+
+## Mod Library route migration
+
+The Mod Library route now has a React-owned composition for community picks, saved mod links, category filters and the add/import/export form. The live pack list, custom link list, count/filter controls, installed-pack check action and add-link form are moved individually into React slots so the existing browser-local storage, safe URL/path validation, duplicate checks, 100-link cap, import/export format and server manifest checks remain unchanged. No mod files are installed or written to the server.
+
+
+## Saves route migration
+
+The Saves route uses a React dashboard. Local profile cards, profile renaming, backup export and restore are React-owned controls backed by a narrow typed bridge into the existing SavesPanel. The bridge reads the existing OPFS profile snapshot and delegates rename/import/export to the same validation, confirmation and file-transaction routines; save formats and storage behavior are unchanged.
+
+The #saves root remains mounted as a compatibility island for the screenshot list and TRPOLARIS Cloud form. ScreenshotsPart and VaultPanel keep their current DOM anchors, event handlers, OPFS operations, encryption, same-origin API calls and conflict handling. The legacy profile list and backup toolbar remain in the mounted root only as compatibility anchors and are not displayed beside the React controls.
+
+Next, migrate screenshot viewing/deletion and the Cloud keyphrase/conflict controls through typed adapters. Do not change save formats, OPFS paths, Cloud routes, encryption behavior or server storage as part of this presentation-layer work.
+
+
+## Controls route migration
+
+The Controls route now renders its keyboard map, controller map, Xbox/PlayStation selector, browser shortcuts and touch-device preferences directly in React. A typed bridge exposes the current pad family and the existing touch settings (steering, level horizon, touch size and menu-button size); updates still go through the original touch/input services. The old #controls sheet remains only as a hidden compatibility anchor for the gamepad-follow and wheel setup controllers while those services are separated from their DOM mount. Game input mappings and the runtime input pipeline are unchanged.
+
+## System route migration
+
+The System page's Updates & Security, Browser and Runtime Diagnostics, and local Game Data panels are now React-rendered. Typed bridges call the existing update and translation checks, privacy-preference cleanup, diagnostics collector/export, and Predownload/cache services. The previous #updates, #diagnostics and #game-data nodes remain hidden as service anchors only; their controls are no longer presented to the player. Update comparison, translation audit, diagnostic data and cache behavior are unchanged.
+
+## Settings route migration
+
+Game, Display and Controller option groups are now rendered by React from a serializable schema exported by SettingsPanel. React changes are written through the existing SettingsPanel validators, read-only ownership check, companion-key handling and settings.ini writer. Reset and audio-preview actions use the same settings service. The existing configuration-profile manager, quick presets and raw settings.ini editor remain mounted as compatibility controls for this slice; the legacy #settings-body is no longer the visible settings form. Accessibility switches are already React-controlled through the browser preference store.
+
+
+## Accessibility controls migration
+
+The three browser accessibility preferences — Larger text, Reduce animations and High contrast — now render as React-controlled switches. A narrow adapter reads and writes the existing browser preference store and keeps the original checkbox elements and document-level data attributes synchronized. The localStorage key and preference names remain unchanged.
+
+
+## Mod Library list migration
+
+Recommended packs and saved mod-link lists are now rendered as React cards. Search, category and favorites-only filters are React state. The bridge returns a snapshot from the existing known community packs, browser-local custom mod storage, favorites key and server manifest status map. Favorite toggles and deletion call the existing storage helpers; installed-pack checks still call the original /data-manifest validator. The add/import/export form remains on its original DOM controller for this stage.
+
+
+The Add/Import/Export form is now React-rendered too. It calls a narrow bridge into the existing platform helpers: adding still validates printable names, HTTP/HTTPS URLs, safe relative game-data paths, duplicate pairs and the 100-link cap; import still accepts only the schema-1 JSON format with a 256 KB file limit; export keeps the existing JSON schema and filename. The original handlers remain available only for hidden legacy elements and are no longer the visible form.
+
+
+## Home runtime adapter migration
+
+The Home route now renders its car artwork, Play dock, module progress and live status card in React. A typed runtime adapter exposes the current phase, progress, play readiness, startup checks, retry/reload and log-download commands. The existing game lifecycle and module loader stay in the TypeScript runtime; the WebAssembly canvas, renderer, audio, workers and input path are not rendered by React. The old #play-panel and #home-status-panel nodes remain hidden in the runtime host as temporary compatibility anchors while the remaining shell selectors are removed.
+
+
+## Saves screenshots and Cloud Vault migration
+
+The Screenshots gallery, lazy thumbnail grid, image lightbox, navigation, download and delete actions now render in React. Existing screenshot decoding (including TGA), thumbnail object-URL cache and OPFS files remain in ScreenshotsPart. The Cloud Vault keyphrase field, enable/load, sync, conflict choice, earlier-version restore, stop/delete and Put back controls now render in React through a typed VaultPanel adapter. Encryption, passphrase format, local link storage, sync timing, server routes, conflict rules and the 30-day replaced-save copy are unchanged. The complete #saves subtree remains mounted but hidden as a service anchor while remaining save selectors are removed.
+
+
+## Settings profiles, presets and raw editor migration
+
+Saved configuration profiles, import/export/delete, the three quick presets and the advanced settings.ini editor now render in React. Profile records keep the existing localStorage schema and only carry the existing allow-listed, validated settings. Applying profiles and presets goes through SettingsPanel validation and the existing settings.ini write path. The raw editor and unlisted key resets use the same settings parser, read-only ownership checks, reset confirmation and writer. The previous #settings DOM subtree is now hidden as a service/controller anchor; its profile, preset and raw editor controls are no longer visible.
+
+
+## Online / Free Roam migration
+
+The visible Online and Free Roam controls are now entirely rendered in React: multiplayer toggles, room/name/blocked-player settings, crews and colours, live crew counts, quick-chat phrases, player limit and the live status line. Name claim status, Claim/Change name and alternative-name actions are React controls backed by the existing NameRow and NameClaims services. The Cloudflare Turnstile mount is placed in a React-owned host while the claim service retains its validation and passphrase flow. The previous #online node remains in the hidden application service subtree only as a SettingsPanel controller anchor.
+
+
+## Language picker and PWA install migration
+
+The language picker and install-app action in the top bar now render in React. Language changes still persist through the SettingsPanel language key and existing i18n loader; the picker follows changes from Settings and is disabled when the current tab is read-only. The PWA button uses the existing `beforeinstallprompt` event through a typed bridge, and secure-context/certificate guidance is rendered by React. The old language selector, install button and static security notice have been removed from `web/index.html`.
+
+
+## Main navigation migration
+
+The static quick-navigation bar and the legacy click-to-navigate handler have been removed. React now owns route changes and writes canonical page hashes directly with the History API; browser back/forward and direct links are handled by the React route state. The legacy `#app-pages` node remains hidden in its original service subtree so game/service selectors and dialogs are not rewritten as part of this navigation change.
+
+
+## Legacy visual enhancement cleanup
+
+The old DOM-only motion entrance, Lucide class decoration, hero particle canvas and attribute-based lazy-preview observer have been removed. React already owns visible transitions, icons, and image loading on the current screens. The browser enhancement entry now retains only the PWA install bridge and viewport/orientation stability events used by the runtime.
+
+
+## Legacy DOM transport removal and runtime state bridge
+
+The React root no longer reparents the old application node. `LegacyNode` and `LegacyAppHost` are removed; the original `#app` remains in place as a hidden compatibility/service root, and its `inert` value is exposed through the typed runtime snapshot. React listens to `trp-runtime-ready` and `trp-runtime-changed` rather than observing legacy DOM nodes for the game lock and status text. The game stage, FPS overlay, lobby and game dialogs remain outside `#app`.
+
+The remaining hidden DOM-backed service roots are not visible UI. They are still read by the existing `SettingsPanel` and `SavesPanel`/`VaultPanel` services. The routed Controls page has since been separated from its in-game help sheet: React owns the page and an inert template supplies the F9 dialog only when it opens.
+
+
+## Obsolete static About and header markup removal
+
+The duplicate static About/Changes sections and old app header have been removed from the hidden compatibility subtree. The React top bar and `AboutDashboard` remain the only visible implementations. No runtime service referenced the removed section IDs; service roots such as Settings, Saves, Controls and System remain in the hidden `#app-pages` area.
+
+
+## React Controls route and in-game help separation
+
+The routed Controls page is rendered entirely by React and no longer keeps a hidden `#controls` / `#keys` page subtree. The selected tab and Xbox/PlayStation naming preference are held by a small DOM-independent controls state adapter; live gamepad changes notify the React view through the typed bridge. The F9 in-game Controls help dialog keeps its existing sheet behavior, but its source markup is stored in an inert `controls-help-template` and instantiated only when the dialog opens. The gamepad/touch input services and their persisted settings are unchanged.
+
+
+## React accessibility controls and browser preference state
+
+The accessibility controls now live entirely in the React Settings dashboard. The preference service reads and writes the existing browser-local store and applies document-level accessibility attributes; it no longer queries or synchronizes hidden checkbox elements. The static `#accessibility` section and its route-only CSS have been removed. Game settings, saves, and runtime behavior are unaffected.

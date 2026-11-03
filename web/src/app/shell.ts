@@ -20,7 +20,7 @@
 
 import registryDefaults from '../../../app/registry-defaults.txt';
 import { browserName, check, checkBrowser, checkGpu, checkIsolation, checkStorage, fmtBytes, type Check } from './checks';
-import { codeOf, dateLocale, language as pageLanguage, lastLanguage, LANGUAGES, listOf, live, LOCALE, N, NATIVE, onLanguage, setLanguage, t, T, tn, tvars, type Msg } from './i18n';
+import { codeOf, dateLocale, language as pageLanguage, lastLanguage, listOf, live, N, onLanguage, setLanguage, t, T, tn, tvars, type Msg } from './i18n';
 import { loadGame, serverRev, type Loaded } from './loader';
 import { claimInstance } from './instance';
 import { LogRing, downloadBlob, stamp } from './logs';
@@ -30,8 +30,9 @@ import { canFullscreen, enterFullscreen, exitFullscreen, fromHomeScreen, homeScr
 import { deviceDefaults, isPhone, markTouch, noPinchZoom, padSeen, phoneScreen, touchFirst } from './device';
 import { phoneSeed, phoneUpgrade } from './phonegraphics';
 import { markPad, padPress, pageDialog } from './padnav';
-import { controlsSheet, type ControlsSheet } from './controls';
-import { TouchControls } from './touch';
+import { controlsSheet, controlsState as createControlsState, type ControlsSheet, type ControlsState, type Family, type Tab } from './controls';
+import { askMotion, levelHorizon, menuSize, onLevelHorizon, onSteering, setLevelHorizon, setSteering, steering, STEERING, steeringName, touchSize, type Size, type Steering, TouchControls } from './touch';
+import { PAD_DRIVER_EVENT } from '../input/gamepad';
 import { TextField } from './textentry';
 import { PauseHint } from './pausehint';
 import { DriftPanel } from './drift';
@@ -41,7 +42,8 @@ import type { NetQueue, NetRemoved } from '../net';
 import { blockList, checkSetting, HOST_FIXED, pageOnly, resolveEnv, settingsUpgrade, TEMPLATE, type Resolved } from './settings';
 import { exists, filesOf, listProfiles, PROFILES_DIR, readText, removeSaveDir, writeFile } from './savefs';
 import { turnOnAutosave } from './profile';
-import { crewControl, putKey, SettingsPanel, showCrewCounts } from './settings-ui';
+import { crewControl, showCrewCounts } from './crew-control';
+import { putKey, SettingsService } from './settings-service';
 import { askCrews, queueText, roomHash, serverAnswers, watchPlayers, type PlayerCounts } from './players';
 import { crewList, crewsOf, crewsValue, rgbsValue, rgbWords, type Crew } from './crews';
 import { privacy, SCRUB_NOTE } from './privacy';
@@ -103,7 +105,37 @@ async function devServer(): Promise<boolean> {
 const log = new LogRing(8 << 20);
 log.onLine = s => { privacy.learn(s); };    // the names a downloaded log must not carry (privacy.ts)
 let phase: Phase = 'boot';
+let runtimeHeadline: Msg = () => t('Loading');
+let runtimeDetail: Msg = () => t('Loading the game.');
+let moduleProgress = 0;
 let loaded: Loaded | null = null;
+
+function runtimeChanged() { window.dispatchEvent(new Event('trp-runtime-changed')); }
+function runtimeSnapshot() {
+  const read = (id: string) => document.getElementById(id)?.textContent?.trim() ?? '';
+  const items = ORDER.map(id => checks.get(id)).filter((item): item is Check => !!item)
+    .filter(item => item.state === 'fail' || (item.state === 'warn' && (item.id === 'browser' || item.id === 'gpu')))
+    .map(item => ({ id: item.id, state: item.state, label: label(item), detail: detail(item), code: item.code ?? '' }));
+  const storage = checks.get('storage');
+  return {
+    phase,
+    headline: runtimeHeadline(),
+    detail: runtimeDetail(),
+    statusText: read('status'),
+    locked: document.getElementById('app')?.inert ?? false,
+    progress: moduleProgress,
+    canPlay: !!loaded && !!instance?.owner && !blocking() && !starting && (phase === 'ready' || phase === 'exited'),
+    retryAvailable: checks.get('module')?.state === 'fail',
+    reloadAvailable: !!newer,
+    logAvailable: !document.getElementById('log-btn')?.hidden,
+    lastGameMessage: read('lastgame'),
+    reportMessage: document.getElementById('report')?.hidden ? '' : read('report'),
+    updateMessage: read('newer'),
+    overrideMessage: document.getElementById('override')?.hidden ? '' : read('override'),
+    problems: items,
+    storageWarning: storage?.state === 'warn' ? detail(storage) : '',
+  };
+}
 let displayHz = 60;
 // NFSU2_DISPLAY_HZ ("fps = auto" follows it): Play waits for the measurement,
 // at most 2 s (a hidden tab has no animation frames)
@@ -123,6 +155,7 @@ let keeper: LastGameKeeper;              // the running game's log, copied where
 let lastGame: LastGame | null = null;    // the last game's copy, when that game did not get to its end (lastgame.ts)
 let hiddenAt = 0;                        // when the page was hidden during a game (0: shown)
 const checks = new Map<string, Check>();
+let diagnosticsBusy = false;
 let instance: ReturnType<typeof claimInstance>;
 let settingsText: string | null = null;
 let starting = false;                    // Play pressed, the session not there yet
@@ -137,7 +170,7 @@ let radio: Radio | null = null;          // made at the first click on Radio: a 
 const theRadio = () => radio ??= new Radio(radioPort, l => log.add(`[radio] ${l}`));
 let lobbyPanel: LobbyPanel;
 let quickChat: QuickChat;                // free roam's fixed phrases (quickchat.ts)
-let settings: SettingsPanel;
+let settings: SettingsService;
 let players: { now(): void; last(): PlayerCounts | null; fresh(ms: number): Promise<PlayerCounts | null> } | null = null;
 let saves: SavesPanel;
 let vault: VaultPanel;
@@ -155,31 +188,37 @@ let saved: { name: string; at: number; count: number } | null = null;
 function setProgress(f: number) {
   const v = Math.max(0, Math.min(1, f));
   const pct = Math.round(v * 100);
+  moduleProgress = pct;
   $('#progress-fill').style.width = `${(v * 100).toFixed(1)}%`;
   $('#progress').setAttribute('aria-valuenow', String(pct));
   $('#module-download-percent').textContent = `${pct}%`;
+  runtimeChanged();
 }
 
 // --------------------------------------------------------------- status --
 /** the headline and the line under it (in the page's language, again when it changes); code: a problem's */
 function setPhase(p: Phase, title: Msg, sub: Msg, code?: string) {
   phase = p;
+  runtimeHeadline = title;
   document.body.dataset.phase = p;
   live($('#status'), title);
   setSub(sub, code);
   updatePlay();
+  runtimeChanged();
 }
 /** the line under the headline alone; subSeq counts what it showed (an answer that comes later may add to it) */
 let subSeq = 0;
 function setSub(sub: Msg, code?: string) {
   subSeq++;
+  runtimeDetail = sub;
   live($('#status-sub'), sub, code);
+  runtimeChanged();
 }
 function setCheck(c: Check) {
   checks.set(c.id, c);
   renderProblems();
-  renderDiagnostics();
   evaluate();
+  window.dispatchEvent(new Event('trp-diagnostics-changed'));
 }
 
 /** Verify the server's actual game-data manifest before the WASM guest touches files.
@@ -222,27 +261,26 @@ const label = (c: Check) => tvars(c.tl ?? c.label, c.v), detail = (c: Check) => 
  *  the saves.  Each with its code, and in the log once, in English. */
 function renderProblems() {
   const shown = ORDER.map(id => checks.get(id))
-    .filter((c): c is Check => !!c && (c.state === 'fail' || (c.state === 'warn' && (c.id === 'browser' || c.id === 'gpu'))));
+    .filter((c): c is Check => !!c && (c.state === 'fail' || (c.state === 'warn' && (c.id === 'browser' || c.id === 'gpu' || c.id === 'storage'))));
   const key = pageLanguage() + '|' + shown.map(c => `${c.id}:${c.state}:${c.detail}`).join('|');
-  if (key !== problemsShown) {          // the list is a live region: rebuilt only when it changes
+  if (key !== problemsShown) {
     problemsShown = key;
     $('#problems').replaceChildren(...shown.map(c => {
       const li = document.createElement('li'); li.dataset.id = c.id; li.className = c.state;
-      const s = document.createElement('strong'); s.textContent = label(c);
-      const p = document.createElement('p'); p.textContent = detail(c);
-      if (c.code) p.append(codeOf(c.code));
-      li.append(s, p);
+      const title = document.createElement('strong'); title.textContent = label(c);
+      const detailLine = document.createElement('p'); detailLine.textContent = detail(c);
+      if (c.code) detailLine.append(codeOf(c.code));
+      li.append(title, detailLine);
       return li;
     }));
   }
-  const st = checks.get('storage');
-  for (const c of [...shown, ...(st?.state === 'warn' ? [st] : [])]) {
+  for (const c of shown) {
     const k = `${c.id}:${c.state}:${c.detail}`;
-    if (!problemsLogged.has(k)) { problemsLogged.add(k); log.add(`[app] ${c.state === 'fail' ? 'problem' : 'warning'} ${c.code ?? c.id}: ${c.label}: ${c.detail}`); }
+    if (!problemsLogged.has(k)) {
+      problemsLogged.add(k);
+      log.add(`[app] ${c.state === 'fail' ? 'problem' : 'warning'} ${c.code ?? c.id}: ${c.label}: ${c.detail}`);
+    }
   }
-  const note = $('#storage-note');
-  note.hidden = st?.state !== 'warn';
-  if (st?.state === 'warn') live(note, () => detail(st), st.code); else live(note, () => '');
 }
 /** No graphics since the last game's went (GPU-ADAPTER-AFTER-LOST): asked again every 10 s while the page shows, as the
  *  browser may give them back after a while (Chrome: two minutes); the log says when they came back. */
@@ -255,36 +293,15 @@ function recheckGpu(since = performance.now()) {
   }, 10_000);
 }
 /** Every real startup check is also listed on the dedicated diagnostics page. */
-function renderDiagnostics() {
-  const root = $('#diagnostic-list');
-  const items = ORDER.map(id => checks.get(id)).filter((x): x is Check => !!x);
-  root.replaceChildren(...items.map(c => {
-    const li = document.createElement('li');
-    li.className = `diagnostic-item diagnostic-${c.state}`;
-    li.dataset.id = c.id;
-    const icon = document.createElement('span');
-    icon.className = 'diagnostic-icon';
-    icon.setAttribute('aria-hidden', 'true');
-    icon.textContent = c.state === 'ok' ? '✓' : c.state === 'warn' ? '!' : c.state === 'fail' ? '×' : '…';
-    const copy = document.createElement('div');
-    copy.className = 'diagnostic-copy';
-    const title = document.createElement('strong');
-    title.textContent = label(c);
-    const detailLine = document.createElement('p');
-    detailLine.textContent = detail(c);
-    if (c.code) detailLine.append(' ', codeOf(c.code));
-    copy.append(title, detailLine);
-    const state = document.createElement('span');
-    state.className = 'diagnostic-state';
-    state.textContent = c.state.toUpperCase();
-    li.append(icon, copy, state);
-    return li;
+function diagnosticsSnapshot() {
+  return ORDER.map(id => checks.get(id)).filter((item): item is Check => !!item).map(item => ({
+    id: item.id, state: item.state, label: label(item), detail: detail(item),
+    code: item.code ?? '',
   }));
 }
 async function refreshDiagnostics() {
-  const button = $<HTMLButtonElement>('#diagnostics-refresh');
-  button.disabled = true;
-  button.setAttribute('aria-busy', 'true');
+  diagnosticsBusy = true;
+  window.dispatchEvent(new Event('trp-diagnostics-changed'));
   try {
     setCheck(checkBrowser());
     setCheck(checkIsolation());
@@ -302,8 +319,8 @@ async function refreshDiagnostics() {
     setCheck(gameData);
     void answer?.then(setCheck);
   } finally {
-    button.disabled = false;
-    button.removeAttribute('aria-busy');
+    diagnosticsBusy = false;
+    window.dispatchEvent(new Event('trp-diagnostics-changed'));
   }
 }
 function downloadDiagnostics() {
@@ -325,6 +342,13 @@ function downloadDiagnostics() {
   ];
   downloadBlob(lines.join('\n') + '\n', `trpolaris-diagnostics-${stamp()}.txt`, 'text/plain;charset=utf-8');
 }
+window.__trpDiagnosticsBridge = {
+  snapshot: () => ({ items: diagnosticsSnapshot(), busy: diagnosticsBusy }),
+  refresh: async () => await refreshDiagnostics(),
+  download: () => downloadDiagnostics(),
+};
+window.dispatchEvent(new Event('trp-diagnostics-ready'));
+
 function blocking(): Check | undefined { return ORDER.map(id => checks.get(id)).find(c => c?.state === 'fail'); }
 
 /** Decide the start page's headline from what is known so far. */
@@ -352,9 +376,10 @@ function evaluate() {
 }
 
 function updatePlay() {
-  const ok = !!loaded && instance.owner && !blocking() && !starting && (phase === 'ready' || phase === 'exited');
+  const ok = !!loaded && !!instance?.owner && !blocking() && !starting && (phase === 'ready' || phase === 'exited');
   $<HTMLButtonElement>('#play').disabled = !ok;
   $('#retry').hidden = checks.get('module')?.state !== 'fail';
+  runtimeChanged();
 }
 
 // ------------------------------------------------------------- settings --
@@ -633,6 +658,7 @@ async function startGame() {
   const stage = $('#stage');
   stage.hidden = false;
   $('#app').inert = true;             // the start page is behind the game: out of the focus order and screen readers
+  runtimeChanged();
   const canvas = stageCanvas();
   untrack = trackCanvasSize(canvas);
   awake = keepScreenOn(logLine);
@@ -885,18 +911,6 @@ const cap = (s: string) => s[0].toUpperCase() + s.slice(1);
  *  the player picks another, in Settings or in the list at the top.  A tab that does not own the saves follows the file. */
 function applyLanguage() {
   void setLanguage(language(resolveEnv(settingsText ?? settings.text, ENVIRONMENT, {}, DEVICE)), logLine);
-  syncPicker();
-}
-/** the list at the top shows the language the file asks for (disabled where another tab owns the saves) */
-function syncPicker() {
-  const pick = $<HTMLSelectElement>('#lang-pick');
-  pick.value = language(resolveEnv(settingsText ?? settings.text, ENVIRONMENT, {}, DEVICE));
-  pick.disabled = !instance.owner;
-  // as wide as the name shown (CSS field-sizing where the browser has it; Firefox measures it here)
-  if (!CSS.supports?.('field-sizing', 'content')) {
-    const g = document.createElement('canvas').getContext('2d'), cs = getComputedStyle(pick);
-    if (g) { g.font = cs.font; pick.style.width = `${Math.ceil(g.measureText(pick.selectedOptions[0]?.textContent ?? '').width) + 80}px`; }
-  }
 }
 
 /** the controller's share of the page while a game runs (gamepad.ts): Home, or both sticks pressed in, opens or
@@ -948,6 +962,7 @@ function endStage() {
   $('#stage').hidden = true;
   $('#stage').querySelector('canvas')?.remove();
   $('#app').inert = false;
+  runtimeChanged();
 }
 
 function onExit(s: GameSession, code: number) {
@@ -1024,15 +1039,17 @@ function pageToast(msg: string | Msg) {
 
 /** the controls sheet of the start page, in a dialog (F9, Controls, while the game runs), at the page's tab and
  *  button names */
-let keySheet: ControlsSheet, helpSheet: ControlsSheet | null = null;
+let controlState: ControlsState, helpSheet: ControlsSheet | null = null;
 function openHelp() {
   const body = $('#help-body');
   if (!helpSheet) {
-    body.append(...[...$('#keys').childNodes].map(n => n.cloneNode(true)));
+    const template = document.getElementById('controls-help-template') as HTMLTemplateElement | null;
+    if (!template) throw new Error('Controls help template is missing');
+    body.append(template.content.cloneNode(true));
     helpSheet = controlsSheet(body, 'help');
   }
-  helpSheet.show(keySheet.tab);
-  helpSheet.family(keySheet.fam);
+  helpSheet.show(controlState.tab);
+  helpSheet.family(controlState.fam);
   $<HTMLDialogElement>('#help').showModal();
 }
 
@@ -1592,6 +1609,7 @@ function showNewer() {
     : u ? t('This page reloaded for the new version of the game. Your saves and settings stayed.') : '');
   line.hidden = !newer && !updated;
   $('#reload').hidden = !newer;
+  runtimeChanged();
 }
 async function reload() {
   await saves.settled();              // a rename or restore the Saves section is writing ends first
@@ -1640,6 +1658,14 @@ export async function boot() {
   const dev = asked && await devServer();
   const given = takeParams(dev);
   instance = claimInstance(`nfsu2-saves:${SAVE}`);
+  window.__trpRuntimeBridge = {
+    snapshot: () => runtimeSnapshot(),
+    play: async () => { await play(); },
+    retry: async () => { await loadModule(); },
+    reload: async () => { await reload(); },
+    downloadLog: async () => { await downloadLog(); },
+  };
+  window.dispatchEvent(new Event('trp-runtime-ready'));
   // the last game of this save folder that did not get to its end (Safari stopped the page, say): its log is offered
   keeper = new LastGameKeeper(SAVE, log, logLine, text => privacy.scrub(text));
   lastGame = lastGameToOffer(SAVE);
@@ -1660,38 +1686,74 @@ export async function boot() {
   fps.extra = () => session?.stats() ?? {};
   // the language this browser showed last, at once (settings.ini says which it is: applyLanguage, once it is read)
   void setLanguage(lastLanguage(), logLine);
-  settings = new SettingsPanel($('#settings'), {
+  settings = new SettingsService({
     // another language or texture pack counts other files as the game data (its pack); a keyphrase sends the file
     saveDir: SAVE, environment: ENVIRONMENT, defaults: DEVICE, onSaved: text => {
       const was = language() + '/' + texpack(); settingsText = text;
       if (language() + '/' + texpack() !== was) void saves.refresh();
       vault?.changed(); players?.now();
       applyLanguage();
+      window.dispatchEvent(new Event('trp-settings-changed'));
     },
-    onLoaded: applyLanguage,
+    onLoaded: () => { applyLanguage(); window.dispatchEvent(new Event('trp-settings-changed')); },
     // the tab that owns the saves is the one whose Play reads the file: another tab only looks
     readOnly: () => !instance.owner, say: pageToast, confirm: confirmBox,
-    nameRow: (row, input, ctl) => nameRow.attach(row, input, ctl),
-  }, $('#online'));
+  });
+  window.__trpSettingsBridge = {
+    current: key => settings.current(key),
+    snapshot: () => settings.reactSnapshot(),
+    rawSnapshot: () => settings.rawSnapshot(),
+    saveRaw: async text => { const message = await settings.saveRawFromReact(text); window.dispatchEvent(new Event('trp-settings-changed')); return message; },
+    resetAll: async () => { const reset = await settings.resetAllFromReact(); window.dispatchEvent(new Event('trp-settings-changed')); return reset; },
+    resetOther: async (line, key) => { await settings.resetOtherFromReact(line, key); window.dispatchEvent(new Event('trp-settings-changed')); },
+    setOption: async (key, value) => { await settings.setFromReact(key, value); window.dispatchEvent(new Event('trp-settings-changed')); },
+    resetOption: async key => { await settings.resetFromReact(key); window.dispatchEvent(new Event('trp-settings-changed')); },
+    previewOption: (key, value) => settings.previewFromReact(key, value),
+    stopPreviewOption: key => settings.stopPreviewFromReact(key),
+    set: async (key, value) => { await settings.set(key, value); window.dispatchEvent(new Event('trp-settings-changed')); },
+    setValidated: async (key, value) => { await settings.setValidated(key, value); window.dispatchEvent(new Event('trp-settings-changed')); },
+    crews: () => crewsOf(settings.current('roam_crew'), settings.current('roam_crew_colours')),
+    crewCount: name => settings.crewCount(roomHash(name)),
+    setCrews: async list => { await settings.saveCrewsFromReact(list); window.dispatchEvent(new Event('trp-settings-changed')); },
+    quickChat: () => ({ phrases: phrasesOf(settings.current('quick_chat_phrases')), groups: groupsOf(settings.current('quick_chat_groups')) }),
+    saveQuickChat: async (phrases, groups) => { await settings.saveQuickChatFromReact(phrases, groups); window.dispatchEvent(new Event('trp-settings-changed')); },
+    readOnly: () => !instance.owner,
+    onlineStatus: () => settings.onlineStatus(),
+    refresh: async () => { await settings.refresh(); window.dispatchEvent(new Event('trp-settings-changed')); },
+  };
+  window.dispatchEvent(new Event('trp-settings-ready'));
 
   setupPlatformFeatures(settings, confirmBox, logLine);
-  // the language picker at the top: the same setting as Settings, Game, Language
-  const pick = $<HTMLSelectElement>('#lang-pick');
-  pick.replaceChildren(...LANGUAGES.map(l => Object.assign(document.createElement('option'), { value: l, textContent: NATIVE[l], lang: LOCALE[l] })));
-  pick.onchange = () => void settings.set('language', pick.value);
   // who plays on this server now (Online): only while no game runs here; with free roam on in a room, that room too,
   // and in crews (free roam on or not: the row shows them either way), how many are in each (on the Crews row's lines)
-  players = watchPlayers((line, crews) => { settings.setStatus(line); settings.setCrewCounts(crews); }, () => !session && !starting, setReach,
+  players = watchPlayers((line, crews) => { settings.setStatus(line); settings.setCrewCounts(crews); window.dispatchEvent(new Event('trp-settings-changed')); }, () => !session && !starting, setReach,
     () => { const e = resolved().env; return e.NFSU2_ROAM === '1' ? e.NFSU2_ROAM_ROOM ?? '' : ''; },
     () => crewList(resolved().env.NFSU2_ROAM_CREW ?? '').map(roomHash));
   window.addEventListener('online', () => players?.now());
   window.addEventListener('resize', placeNotices);
   window.addEventListener('resize', placeLobby);
   download = new Predownload(s => saves.showData(s), logLine, () => language(), () => texpack());
-  saves = new SavesPanel($('#saves'), $('#game-data'), {
+  saves = new SavesPanel({
     saveDir: SAVE, busy: () => !!session || starting || !instance.owner, confirm: confirmBox,
     onRestored: () => { void loadSettings(); void settings.refresh(); }, download, onChanged: () => vault.changed(),
+    onReactUpdate: () => window.dispatchEvent(new Event('trp-saves-changed')),
   });
+  window.__trpSavesBridge = {
+    snapshot: () => saves.snapshot(),
+    gameDataSnapshot: () => saves.gameDataSnapshot(),
+    togglePreload: () => saves.togglePreload(),
+    clearGameData: () => saves.clearGameData(),
+    shotsSnapshot: () => saves.shotsSnapshot(),
+    shotThumbnail: path => saves.shotThumbnail(path),
+    shotImageUrl: path => saves.shotImageUrl(path),
+    downloadShot: path => saves.downloadShot(path),
+    deleteShot: path => saves.deleteShot(path),
+    rename: (from, to) => saves.renameFromReact(from, to),
+    exportBackup: () => saves.exportBackup(),
+    importBackup: file => saves.importBackup(file),
+    nameMax: saves.nameMax,
+  };
+  window.dispatchEvent(new Event('trp-saves-ready'));
   // keyphrase saves (on a server that keeps them): synced by the tab that owns the saves, once its settings are loaded
   // the claimed names: asked with the keyphrase's token (claim.ts); the line under Your name (claim-ui.ts)
   claims = new NameClaims(() => vault ? vault.token() : Promise.resolve(null));
@@ -1700,20 +1762,43 @@ export async function boot() {
     profileName: async () => (await newestProfile())?.name ?? null,
     save: n => settings.putName(n), writable: () => instance.owner,
     kept: n => vault?.showClaim(n), say: pageToast, log: logLine,
+    onReactUpdate: () => window.dispatchEvent(new Event('trp-name-row-changed')),
   });
-  vault = new VaultPanel($('#vault'), {
+  window.__trpNameRowBridge = {
+    snapshot: () => nameRow.reactSnapshot(),
+    updateName: name => nameRow.updateName(name),
+    claim: () => nameRow.claimFromReact(),
+    useAlternative: () => nameRow.useAlternativeFromReact(),
+    mountChallenge: host => nameRow.mountChallenge(host),
+  };
+  window.dispatchEvent(new Event('trp-name-row-ready'));
+  vault = new VaultPanel({
     saveDir: SAVE, owner: () => instance.owner, playing: () => !!session, busy: () => !!session || starting || !instance.owner,
     confirm: confirmBox, choose: (title, body, ok, cancel) => choiceBox(title, body, ok, cancel),
     onRestored: () => { void loadSettings(); void settings.refresh(); void saves.refresh(); }, log: logLine,
     // another passphrase here (or none): the line under Your name asks again with it
     onLink: () => void nameRow.ask(),
+    onReactUpdate: () => window.dispatchEvent(new Event('trp-vault-changed')),
   });
+  window.__trpVaultBridge = {
+    snapshot: () => vault.reactSnapshot(),
+    make: () => vault.makeFromReact(),
+    load: phrase => vault.loadFromReact(phrase),
+    toggleVisibility: () => vault.toggleVisibilityFromReact(),
+    download: () => vault.downloadFromReact(),
+    sync: () => vault.syncFromReact(),
+    goBack: () => vault.goBackFromReact(),
+    stop: () => vault.stopFromReact(),
+    remove: () => vault.deleteFromReact(),
+    keepMine: () => vault.keepMineFromReact(),
+    takeTheirs: () => vault.takeTheirsFromReact(),
+    putBack: () => vault.putBackFromReact(),
+  };
+  window.dispatchEvent(new Event('trp-vault-ready'));
   $<HTMLButtonElement>('#play').onclick = () => void play();
   $<HTMLButtonElement>('#retry').onclick = () => void loadModule();
   $<HTMLButtonElement>('#reload').onclick = () => void reload();
   $<HTMLButtonElement>('#log-btn').onclick = downloadLog;
-  $<HTMLButtonElement>('#diagnostics-refresh').onclick = () => void refreshDiagnostics();
-  $<HTMLButtonElement>('#diagnostics-download').onclick = downloadDiagnostics;
   $('#menu').addEventListener('click', e => {
     const target = e.target as HTMLElement;
     const tab = target.closest<HTMLButtonElement>('[data-menu-tab]');
@@ -1773,12 +1858,42 @@ export async function boot() {
   noPinchZoom();
   // the menu's button on the game: on a touch screen from the start, elsewhere from the first touch
   markTouch();
-  keySheet = controlsSheet($('#keys'), 'keys', { follow: true });
+  const controlsChanged = () => window.dispatchEvent(new Event('trp-controls-changed'));
+  controlState = createControlsState({ follow: true, onChange: controlsChanged });
+  const sizeOptions = (setting: typeof touchSize) => setting.sizes.map(value => ({
+    value: String(value), label: setting.name(value),
+  }));
+  window.__trpControlsBridge = {
+    snapshot: () => ({
+      tab: controlState.tab,
+      family: controlState.fam,
+      steering: steering(),
+      steeringOptions: STEERING.map(value => ({ value, label: steeringName(value) })),
+      levelHorizon: levelHorizon(),
+      touchSize: String(touchSize.get()),
+      touchSizeOptions: sizeOptions(touchSize),
+      menuSize: String(menuSize.get()),
+      menuSizeOptions: sizeOptions(menuSize),
+    }),
+    showTab: (tab: Tab) => controlState.show(tab),
+    setFamily: (family: Family) => controlState.family(family),
+    setSteering: (value: Steering) => { if (value === 'tilt') void askMotion(); setSteering(value); },
+    setLevelHorizon: (value: boolean) => setLevelHorizon(value),
+    setTouchSize: (value: string) => touchSize.set(value === 'auto' ? 'auto' : Number(value) as Size),
+    setMenuSize: (value: string) => menuSize.set(value === 'auto' ? 'auto' : Number(value) as Size),
+  };
+  onSteering(controlsChanged);
+  onLevelHorizon(controlsChanged);
+  touchSize.on(controlsChanged);
+  menuSize.on(controlsChanged);
+  window.addEventListener(PAD_DRIVER_EVENT, controlsChanged);
+  window.addEventListener('gamepadconnected', controlsChanged);
+  window.dispatchEvent(new Event('trp-controls-ready'));
   // what the page drew itself, again in the language picked (the markup and the live texts redraw themselves)
   onLanguage(() => {
-    renderProblems(); evaluate(); settings.render(); void saves.refresh(); vault.refresh(); keySheet.relabel(); lobbyPanel.redraw(); touch.relabel();
+    renderProblems(); evaluate(); window.dispatchEvent(new Event('trp-settings-changed')); nameRow.refresh(); void saves.refresh(); vault.refresh(); controlsChanged(); lobbyPanel.redraw(); touch.relabel();
     helpSheet = null; $('#help-body').replaceChildren();
-    syncPicker();
+    runtimeChanged();
   });
   const stageMenu = $<HTMLButtonElement>('#stage-menu');
   stageMenu.onpointerdown = e => e.preventDefault();     // the canvas keeps the focus (and with it the keyboard)
@@ -1806,8 +1921,6 @@ export async function boot() {
   setPhase('boot', T('Loading'), T('Loading the game.'));
   live($('#module-download-status'), T('Loading the game.'));
   setProgress(0);
-  renderDiagnostics();
-
   showOverrides(given, dev);
   if (given.length) log.add(dev ? `[app] test settings from the page address: ${given.join(', ')}` : `[app] the page address's test settings (${given.join(', ')}) are ignored: not a development server`);
   if (q.has('fresh') && SAVE !== 'save') { await removeSaveDir(SAVE); forgetLink(SAVE); log.add(`[app] fresh save folder ${SAVE}`); }
@@ -1815,7 +1928,7 @@ export async function boot() {
   void settings.refresh();
   void saves.refresh();
   void vault.start();
-  void instance.whenOwner.then(async () => { await loadSettings(); evaluate(); void settings.refresh(); void saves.refresh(); vault.ownerNow(); syncPicker(); });
+  void instance.whenOwner.then(async () => { await loadSettings(); evaluate(); void settings.refresh(); void saves.refresh(); vault.ownerNow(); });
   void checkGpu(lastGame?.ended?.why === 'GPU-LOST').then(c => { setCheck(c); if (c.code === 'GPU-ADAPTER-AFTER-LOST') recheckGpu(); });
   // Firefox's answer to its storage prompt comes later: the check again then
   void checkStorage().then(({ answer, ...c }) => { setCheck(c); void answer?.then(setCheck); });

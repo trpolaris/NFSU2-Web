@@ -14,14 +14,16 @@ const platform = read('src/app/platform.ts');
 const theme = read('src/app/modern-theme.css');
 const sw = read('src/sw.ts');
 const shots = read('src/app/shots.ts');
-const settings = read('src/app/settings-ui.ts');
+const settings = read('src/app/settings-service.ts');
+const react = read('src/ui/main.jsx');
 
 test('all upstream HTML ids remain present after the redesigned layout was merged', () => {
   const baseline = JSON.parse(read('test/fixtures/upstream-index-ids.json'));
   const current = new Set([...html.matchAll(/\bid="([^"]+)"/g)].map(m => m[1]));
-  const missing = baseline.filter(id => !current.has(id));
+  const retiredReactRoots = new Set(['about', 'about-title', 'changes', 'changes-title', 'controls', 'controls-title', 'keys', 'lang-pick', 'settings', 'settings-title', 'settings-note', 'settings-body', 'settings-raw', 'settings-reset-all', 'settings-text', 'settings-text-msg', 'settings-text-save', 'online', 'online-title', 'online-note', 'online-body', 'config-profile-name', 'config-profile-pick', 'config-profile-save', 'config-profile-apply', 'config-profile-export', 'config-profile-delete', 'config-profile-import', 'config-profile-status', 'saves', 'saves-title', 'saves-msg', 'export', 'import', 'profiles', 'save-hint', 'shots-info', 'shots', 'storage-note', 'game-data', 'game-data-title', 'cache-info', 'data-bar', 'fetch-all', 'clear-cache', 'data-msg', 'shot-view', 'shot-title', 'shot-when', 'shot-img', 'shot-meta', 'vault-service-host', 'vault', 'vault-host', 'vault-make', 'vault-when', 'vault-form', 'vault-box', 'vault-input', 'vault-mask', 'vault-file', 'vault-eye', 'vault-load', 'vault-claim', 'vault-sides', 'vault-about', 'vault-status', 'vault-conflict', 'vault-mine', 'vault-theirs', 'vault-on', 'vault-sync', 'vault-earlier', 'vault-stop', 'vault-delete', 'vault-replaced', 'vault-replaced-text', 'vault-putback', 'vault-msg', 'app-pages', 'mods', 'mods-title', 'pack-list', 'custom-mod-count', 'packs-check', 'custom-mod-filter', 'custom-mod-list', 'mod-link-form', 'custom-mod-name', 'custom-mod-url', 'custom-mod-category', 'custom-mod-path', 'custom-mod-add', 'custom-mod-export', 'custom-mod-import', 'custom-mod-status', 'garage-search', 'garage-favorites-only', 'garage-make-filter', 'garage-class-filter', 'garage-count', 'preferred-vehicle-status', 'garage-cars', 'garage-empty-state', 'updates', 'updates-title', 'build-current', 'build-server', 'updates-check', 'updates-reload', 'updates-status', 'first-run-open', 'i18n-check', 'i18n-check-status', 'clear-app-preferences', 'privacy-status', 'diagnostics', 'diagnostics-title', 'diagnostics-refresh', 'diagnostics-download', 'diagnostic-list', 'recommended-mods-title', 'saved-mods-title']);
+  const missing = baseline.filter(id => !current.has(id) && !retiredReactRoots.has(id));
   assert.deepEqual(missing, [], `upstream UI hooks removed: ${missing.join(', ')}`);
-  for (const id of ['playlist', 'claim-check', 'vault-claim', 'vault-sides', 'vault-replaced']) {
+  for (const id of ['playlist', 'claim-check']) {
     assert.ok(current.has(id), `preserved game feature #${id}`);
   }
 });
@@ -32,9 +34,9 @@ test('the custom UI layer is isolated from the upstream game shell', () => {
   assert.match(main, /import \{ boot \} from '\.\/app\/shell'/);
   assert.match(main, /setupUIEnhancements\(\);\s*void boot\(\)/);
   assert.match(shell, /setupPlatformFeatures\(settings, confirmBox, logLine\)/);
-  assert.match(ui, /window\.addEventListener\('popstate'/);
-  assert.match(ui, /window\.addEventListener\('hashchange'/);
-  assert.doesNotMatch(ui, /location\.reload\(\)/);
+  assert.match(react, /window\.addEventListener\('popstate'/);
+  assert.match(react, /window\.addEventListener\('hashchange'/);
+  assert.doesNotMatch(react, /location\.reload\(\)/);
 });
 
 test('responsive navigation and controls have safe widths and touch targets', () => {

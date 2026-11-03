@@ -1,5 +1,5 @@
 /* MIDNIGHT RUN / COMPONENT POLISH
-   Refines inner-page controls and content surfaces without changing their DOM or behavior. */
+   Refines inner-page controls and content surfaces around the React-owned routes. */
 :root {
   --ui-surface-0: #0b111d;
   --ui-surface-1: #101a29;
@@ -199,28 +199,6 @@
 .experience-shell input[type="checkbox"]:not(.switch),
 .experience-shell input[type="radio"] {
   accent-color: var(--ui-coral);
-}
-
-/* Settings and Online: rows become compact two-column cards, with the value aligned to the right. */
-.experience-shell #settings .group,
-.experience-shell #online .group {
-  display: grid;
-  gap: 9px;
-  margin: 0 0 15px;
-  padding: 18px;
-  border: 1px solid rgba(164,180,204,.12);
-  border-radius: 18px;
-  background: linear-gradient(145deg, rgba(21,32,50,.68), rgba(11,18,30,.66));
-  box-shadow: inset 0 1px rgba(255,255,255,.025);
-}
-.experience-shell #settings .group > h3 {
-  margin: 0 0 4px;
-  padding: 0 0 12px;
-  border-bottom: 1px solid var(--ui-border);
-  color: #c6d1e3;
-  font-size: .78rem;
-  font-weight: 780;
-  letter-spacing: .015em;
 }
 .experience-shell .set {
   display: grid;
@@ -572,464 +550,6 @@
   outline: 2px solid #fff;
   outline-offset: 2px;
 }
-
-/* Online's live status line. */
-.experience-shell #online .group-status:not([hidden]) {
-  margin: 0 0 8px;
-  padding: 14px 16px 14px 42px;
-  border: 1px solid rgba(166,154,255,.22);
-  border-radius: 14px;
-  background: linear-gradient(105deg, rgba(113,137,247,.11), rgba(166,154,255,.045));
-  color: #e0e6f4;
-  font-size: .8rem;
-  line-height: 1.6;
-}
-.experience-shell #online .group-status:not([hidden])::before {
-  top: 19px;
-  background: var(--ui-lavender);
-  box-shadow: 0 0 12px rgba(166,154,255,.65);
-}
-
-/* Save profiles and cloud vault become structured cards rather than plain list rows. */
-.experience-shell #saves .profiles,
-.experience-shell #saves .shots {
-  display: grid;
-  gap: 9px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-.experience-shell #saves .profiles > li,
-.experience-shell #saves .shots > li {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 10px 14px;
-  min-width: 0;
-  padding: 13px 15px;
-  border: 1px solid rgba(164,180,204,.14);
-  border-radius: 14px;
-  background: linear-gradient(110deg, rgba(8,14,24,.78), rgba(17,27,43,.6));
-  color: #dce5f2;
-  transition: border-color .18s ease, transform .18s ease, background .18s ease;
-}
-.experience-shell #saves .profiles > li:hover,
-.experience-shell #saves .shots > li:hover {
-  border-color: rgba(166,154,255,.28);
-  background: linear-gradient(110deg, rgba(166,154,255,.06), rgba(17,27,43,.72));
-}
-.experience-shell #saves .profiles .name {
-  color: #ff8a6d;
-  font-size: .8rem;
-  font-weight: 820;
-  font-style: normal;
-}
-.experience-shell #saves .profiles .hint,
-.experience-shell #saves .shots .hint { margin-left: auto; }
-.experience-shell #saves .panel-head.sub {
-  margin: 24px 0 12px;
-  padding-top: 20px;
-  border-top: 1px solid var(--ui-border);
-}
-.experience-shell #saves .vault {
-  margin-top: 24px;
-  padding: clamp(16px,2vw,23px);
-  border: 1px solid rgba(166,154,255,.2);
-  border-radius: 18px;
-  background:
-    radial-gradient(ellipse at 100% 0%, rgba(166,154,255,.1), transparent 35%),
-    linear-gradient(145deg, rgba(17,27,43,.88), rgba(8,14,24,.9));
-}
-.experience-shell #saves .vault .vault-brand {
-  color: #71e3d0;
-  font: 800 .58rem var(--mono);
-  letter-spacing: .16em;
-}
-.experience-shell #saves .vault .vault-endpoint {
-  color: #73849c;
-  font: 700 .55rem var(--mono);
-  letter-spacing: .1em;
-}
-.experience-shell #saves .vault .vault-endpoint code {
-  color: #72e6d3;
-  background: rgba(113,227,208,.07);
-  border-color: rgba(113,227,208,.16);
-}
-.experience-shell #saves .vault .keybox {
-  display: flex;
-  align-items: center;
-  min-width: 0;
-  gap: 6px;
-  padding: 5px;
-  border: 1px solid rgba(164,180,204,.14);
-  border-radius: 13px;
-  background: rgba(3,8,16,.72);
-}
-.experience-shell #saves .vault .keyfield { flex: 1; min-width: 0; }
-.experience-shell #saves .vault .keybox input {
-  width: 100%;
-  min-width: 0;
-  border: 0;
-  background: transparent;
-  box-shadow: none;
-  color: #ff9379;
-  font: 700 .75rem var(--mono);
-  letter-spacing: .06em;
-}
-.experience-shell #saves .vault .keybox .icon-btn { flex: 0 0 36px; }
-
-/* Mod library: cards, list entries and disclosure become more product-like. */
-.experience-shell #mods .mods-hero {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 18px;
-  padding: 0 0 22px;
-  margin: 0 0 20px;
-  border-bottom: 1px solid var(--ui-border);
-}
-.experience-shell #mods .mods-title-copy h2 {
-  margin: 5px 0 7px;
-  padding: 0;
-  border: 0;
-  color: #f1f4fa;
-  font-size: clamp(2rem,3.5vw,2.8rem);
-  font-weight: 880;
-  letter-spacing: -.07em;
-}
-.experience-shell #mods .mods-lede { max-width: 60ch; color: var(--ui-muted); font-size: .8rem; }
-.experience-shell #mods .mod-count-chip {
-  display: inline-flex;
-  align-items: center;
-  min-height: 30px;
-  padding: 5px 10px;
-  border: 1px solid rgba(255,105,69,.22);
-  border-radius: 999px;
-  background: rgba(255,105,69,.07);
-  color: #ff9b82;
-  font: 750 .61rem var(--mono);
-}
-.experience-shell #mods .mod-tool-card {
-  display: grid;
-  grid-template-columns: 40px minmax(0,1fr);
-  gap: 13px;
-  padding: 20px;
-  border: 1px solid var(--ui-border);
-  border-radius: 18px;
-  background: linear-gradient(145deg, rgba(17,27,43,.88), rgba(9,15,26,.92));
-  box-shadow: 0 12px 28px rgba(0,0,0,.12);
-}
-.experience-shell #mods .mod-tool-icon {
-  display: grid;
-  place-items: center;
-  width: 40px; height: 40px;
-  border: 1px solid rgba(255,105,69,.24);
-  border-radius: 12px;
-  background: rgba(255,105,69,.08);
-  color: #ff8c70;
-}
-.experience-shell #mods .mod-tool-icon svg { width: 18px !important; height: 18px !important; stroke: currentColor; }
-.experience-shell #mods .mod-tool-eyebrow,
-.experience-shell #mods .mods-eyebrow {
-  color: #8e9eb5;
-  font: 780 .57rem var(--mono);
-  letter-spacing: .14em;
-}
-.experience-shell #mods .mod-tool-copy h3 {
-  margin: 4px 0 5px;
-  font-size: 1.05rem;
-  font-weight: 790;
-}
-.experience-shell #mods .pack-list {
-  display: grid;
-  gap: 8px;
-  margin: 12px 0 0;
-  padding: 0;
-  list-style: none;
-}
-.experience-shell #mods .pack-list > li {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px 12px;
-  min-width: 0;
-  padding: 10px 11px;
-  border: 1px solid rgba(164,180,204,.12);
-  border-radius: 12px;
-  background: rgba(5,10,19,.45);
-}
-.experience-shell #mods .pack-list > li > :first-child { min-width: 0; }
-.experience-shell #mods .saved-mods-section,
-.experience-shell #mods .mod-add-content {
-  padding: 20px;
-  border: 1px solid var(--ui-border);
-  border-radius: 18px;
-  background: linear-gradient(145deg, rgba(15,24,39,.72), rgba(8,14,24,.72));
-}
-.experience-shell #mods .mods-section-head {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 14px;
-  margin-bottom: 15px;
-}
-.experience-shell #mods .mods-section-head h3 { margin: 4px 0 0; font-size: 1.02rem; }
-.experience-shell #mods .mod-filter-label { display: grid; gap: 6px; color: #9aa9be; font-size: .68rem; }
-.experience-shell #mods .mod-filter-label select { min-width: 210px; }
-.experience-shell #mods .custom-mod-list {
-  display: grid;
-  gap: 8px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-.experience-shell #mods .custom-mod-list > li {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 9px 12px;
-  min-width: 0;
-  padding: 12px 14px;
-  border: 1px solid rgba(164,180,204,.13);
-  border-radius: 12px;
-  background: rgba(5,10,19,.43);
-}
-.experience-shell #mods .mod-list-note { margin-top: 13px; }
-.experience-shell #mods .mod-add-details {
-  margin-top: 15px;
-  border: 1px solid var(--ui-border);
-  border-radius: 15px;
-  background: rgba(11,18,30,.66);
-  overflow: hidden;
-}
-.experience-shell #mods .mod-add-details > summary {
-  display: flex;
-  align-items: center;
-  gap: 11px;
-  min-height: 54px;
-  padding: 10px 16px;
-  color: #e4eaf5;
-  font-size: .79rem;
-  font-weight: 740;
-  list-style: none;
-  cursor: pointer;
-}
-.experience-shell #mods .mod-add-details > summary::-webkit-details-marker { display:none; }
-.experience-shell #mods .mod-add-details[open] > summary { border-bottom: 1px solid var(--ui-border); }
-.experience-shell #mods .mod-add-plus {
-  display: grid;
-  place-items: center;
-  width: 26px; height: 26px;
-  border: 1px solid rgba(255,105,69,.28);
-  border-radius: 8px;
-  background: rgba(255,105,69,.09);
-  color: #ff987f;
-  font-size: 1.05rem;
-}
-.experience-shell #mods .mod-form-grid {
-  display: grid;
-  grid-template-columns: repeat(2,minmax(0,1fr));
-  gap: 13px;
-}
-.experience-shell #mods .mod-form-grid label { display: grid; gap: 6px; color: #aab7cb; font-size: .7rem; font-weight: 650; }
-.experience-shell #mods .mod-form-grid input { width: 100%; }
-.experience-shell #mods .mod-form-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 15px; }
-
-/* Controls studio: one modern segmented tab set and calmer key-map tiles. */
-.experience-shell #controls .controls-heading {
-  padding-bottom: 22px;
-  border-bottom: 1px solid var(--ui-border);
-}
-.experience-shell #controls .controls-heading h2 {
-  font-size: clamp(2.2rem,4vw,3.6rem) !important;
-  font-weight: 900;
-  letter-spacing: -.075em;
-  font-style: normal;
-}
-.experience-shell #controls .controls-tabs {
-  display: flex;
-  gap: 4px;
-  padding: 5px;
-  margin: 0 0 15px;
-  border: 1px solid rgba(164,180,204,.13);
-  border-radius: 14px;
-  background: rgba(4,9,17,.64);
-  box-shadow: inset 0 1px 3px rgba(0,0,0,.24);
-}
-.experience-shell #controls .controls-tabs .tab {
-  flex: 1 1 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  min-width: 0;
-  min-height: 43px;
-  padding: 9px 14px;
-  border: 1px solid transparent;
-  border-radius: 10px;
-  background: transparent;
-  color: #8e9db3;
-  font-size: .73rem;
-  line-height: 1.2;
-  font-weight: 720;
-  font-style: normal;
-  transition: color .18s ease, background .18s ease, border-color .18s ease, box-shadow .18s ease;
-}
-.experience-shell #controls .controls-tabs .tab:hover:not([aria-selected="true"]) {
-  color: #e4eaf5;
-  background: rgba(255,255,255,.035);
-}
-.experience-shell #controls .controls-tabs .tab[aria-selected="true"] {
-  border-color: rgba(255,105,69,.3);
-  background: linear-gradient(135deg, rgba(255,105,69,.18), rgba(255,105,69,.075));
-  color: #fff0eb;
-  box-shadow: inset 0 1px rgba(255,255,255,.05), 0 4px 13px rgba(0,0,0,.16);
-}
-.experience-shell #controls .controls-tabs .tab .tab-number {
-  color: #74839a;
-  font: 750 .55rem var(--mono);
-}
-.experience-shell #controls .controls-tabs .tab[aria-selected="true"] .tab-number { color: #ff987e; }
-.experience-shell #controls .controls-tab-panel {
-  padding: clamp(16px,2.5vw,26px);
-  border: 1px solid var(--ui-border);
-  border-radius: 17px;
-  background: linear-gradient(145deg, rgba(16,26,42,.78), rgba(8,14,24,.76));
-}
-.experience-shell #controls .controls-panel-intro { margin-bottom: 16px; }
-.experience-shell #controls .keyboard-map-grid,
-.experience-shell #controls .site-shortcut-grid {
-  display: grid;
-  grid-template-columns: repeat(2,minmax(0,1fr));
-  gap: 8px;
-}
-.experience-shell #controls .keyboard-map-grid > div,
-.experience-shell #controls .site-shortcut-grid > div {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  min-width: 0;
-  min-height: 57px;
-  padding: 11px 13px;
-  border: 1px solid rgba(164,180,204,.11);
-  border-radius: 12px;
-  background: rgba(4,10,19,.45);
-  transition: border-color .18s ease, background .18s ease, transform .18s ease;
-}
-.experience-shell #controls .keyboard-map-grid > div:hover,
-.experience-shell #controls .site-shortcut-grid > div:hover {
-  transform: translateY(-1px);
-  border-color: rgba(166,154,255,.25);
-  background: rgba(166,154,255,.045);
-}
-.experience-shell #controls .keyboard-map-grid dd,
-.experience-shell #controls .site-shortcut-grid dd {
-  color: #aab7cb;
-  font-size: .72rem;
-  line-height: 1.45;
-}
-.experience-shell #controls kbd {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 30px;
-  min-height: 27px;
-  padding: 4px 8px;
-  border: 1px solid rgba(166,154,255,.25);
-  border-bottom-width: 2px;
-  border-radius: 8px;
-  background: linear-gradient(180deg, #172237, #0c1524);
-  color: #d3cbff;
-  font: 740 .66rem var(--mono);
-  box-shadow: 0 2px 4px rgba(0,0,0,.28);
-}
-
-/* Accessibility, update metadata and diagnostics. */
-.experience-shell #accessibility .accessibility-options {
-  display: grid;
-  grid-template-columns: repeat(3,minmax(0,1fr));
-  gap: 10px;
-  margin: 18px 0;
-}
-.experience-shell #accessibility .accessibility-option {
-  display: flex;
-  align-items: center;
-  gap: 11px;
-  min-height: 58px;
-  padding: 13px 15px;
-  border: 1px solid rgba(164,180,204,.13);
-  border-radius: 13px;
-  background: rgba(5,10,19,.46);
-  color: #d9e2f0;
-  font-size: .75rem;
-  font-weight: 640;
-  cursor: pointer;
-  transition: border-color .18s ease, background .18s ease, transform .18s ease;
-}
-.experience-shell #accessibility .accessibility-option:hover {
-  transform: translateY(-1px);
-  border-color: rgba(166,154,255,.28);
-  background: rgba(166,154,255,.045);
-}
-.experience-shell #accessibility .accessibility-option input {
-  width: 17px;
-  height: 17px;
-  margin: 0;
-  flex: 0 0 17px;
-}
-.experience-shell #updates .update-row {
-  display: grid;
-  grid-template-columns: repeat(2,minmax(0,1fr));
-  gap: 10px;
-  margin: 17px 0;
-}
-.experience-shell #updates .update-row > div {
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-  min-width: 0;
-  padding: 15px 16px;
-  border: 1px solid rgba(164,180,204,.13);
-  border-radius: 13px;
-  background: rgba(5,10,19,.48);
-}
-.experience-shell #updates .update-row strong {
-  color: #ff9279;
-  font: 780 .72rem var(--mono);
-}
-.experience-shell .diagnostic-list {
-  display: grid;
-  grid-template-columns: repeat(2,minmax(0,1fr));
-  gap: 9px;
-  margin: 16px 0 0;
-  padding: 0;
-  list-style: none;
-}
-.experience-shell .diagnostic-list > li {
-  display: flex;
-  align-items: flex-start;
-  gap: 11px;
-  min-width: 0;
-  padding: 14px;
-  border: 1px solid rgba(164,180,204,.13);
-  border-radius: 13px;
-  background: rgba(5,10,19,.48);
-}
-.experience-shell .diagnostic-list > li strong { color: #e9eff8; font-size: .76rem; }
-.experience-shell .diagnostic-list > li .hint { margin-top: 3px; font-size: .68rem; }
-
-/* Text editor and data-preload progress: cleaner surfaces, animated fill. */
-.experience-shell .preset-panel,
-.experience-shell .profile-manager,
-.experience-shell .raw,
-.experience-shell .vault,
-.experience-shell .mods-section {
-  border-color: var(--ui-border);
-  border-radius: 17px;
-  background: linear-gradient(145deg, rgba(16,26,42,.72), rgba(8,14,24,.7));
-}
 .experience-shell .profile-controls {
   gap: 10px;
   align-items: flex-end;
@@ -1046,15 +566,13 @@
   padding: 14px;
   margin-top: 16px;
 }
-.experience-shell .raw details > summary,
-.experience-shell #settings-raw > summary {
+.experience-shell .raw details > summary {
   color: #b9afff;
   font-size: .73rem;
   font-weight: 740;
   cursor: pointer;
 }
-.experience-shell .raw textarea,
-.experience-shell #settings-text {
+.experience-shell .raw textarea {
   min-height: 230px;
   margin: 12px 0;
   font: .72rem/1.6 var(--mono);
@@ -1123,25 +641,9 @@
     grid-template-columns: minmax(0,1fr) auto;
     column-gap: 14px;
   }
-  .experience-shell #mods .mods-feature-grid { grid-template-columns: minmax(0,1fr); }
 }
 @media (max-width: 720px) {
   .experience-shell .app-grid .panel { padding: 18px; border-radius: 18px; }
-  .experience-shell #online .set,
-  .experience-shell #settings .set {
-    grid-template-columns: minmax(0,1fr);
-    grid-template-rows: auto auto auto;
-    gap: 8px;
-    padding: 14px 11px;
-  }
-  .experience-shell #online .set .set-control,
-  .experience-shell #settings .set .set-control {
-    grid-column: 1;
-    grid-row: 3;
-    justify-content: flex-start;
-    flex-wrap: wrap;
-    margin-top: 4px;
-  }
   .experience-shell .set-control > input:not(.switch),
   .experience-shell .set-control > select {
     width: min(100%, 360px);
@@ -1151,15 +653,6 @@
   .experience-shell .seg .opt { min-height: 36px; }
   .experience-shell .crew-line { grid-template-columns: minmax(0,1fr); }
   .experience-shell .crew-line .crew-add { max-width: 430px; }
-  .experience-shell #controls .keyboard-map-grid,
-  .experience-shell #controls .site-shortcut-grid,
-  .experience-shell .diagnostic-list { grid-template-columns: minmax(0,1fr); }
-  .experience-shell #accessibility .accessibility-options,
-  .experience-shell #updates .update-row { grid-template-columns: minmax(0,1fr); }
-  .experience-shell #mods .mod-form-grid { grid-template-columns: minmax(0,1fr); }
-  .experience-shell #mods .mods-hero { align-items: flex-start; flex-direction: column; }
-  .experience-shell #mods .mod-filter-label,
-  .experience-shell #mods .mod-filter-label select { width: 100%; }
 }
 @media (max-width: 440px) {
   .experience-shell .app-grid .panel { padding: 15px; }
@@ -1169,7 +662,6 @@
   .experience-shell .seg .opt { flex: 1 1 auto; min-width: 38px; padding-inline: 8px; }
   .experience-shell .profile-controls { align-items: stretch; }
   .experience-shell .profile-controls > * { min-width: 0; }
-  .experience-shell #controls .controls-tabs .tab { gap: 6px; padding-inline: 7px; font-size: .66rem; }
 }
 @media (prefers-reduced-motion: reduce) {
   .experience-shell .bar-fill::after { animation: none; }
@@ -1217,23 +709,4 @@
 
 /* Keep the controls hero readable and inside its panel on narrow phones. */
 @media (max-width: 440px) {
-  .experience-shell #controls .controls-heading {
-    flex-direction: column;
-    align-items: flex-start;
-    justify-content: flex-start;
-    gap: 12px;
-  }
-  .experience-shell #controls .controls-heading-copy {
-    width: 100%;
-    min-width: 0;
-    max-width: 100%;
-  }
-  .experience-shell #controls .controls-heading h2 {
-    max-width: 100%;
-    font-size: clamp(1.6rem, 8vw, 2rem) !important;
-    overflow-wrap: anywhere;
-  }
-  .experience-shell #controls .controls-heading-stamp {
-    align-self: flex-start;
-  }
 }

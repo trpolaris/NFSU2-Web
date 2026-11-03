@@ -7,10 +7,13 @@ import { fileURLToPath } from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
 const css = fs.readFileSync(path.join(ROOT, 'src/app/experience.css'), 'utf8');
+const reactCss = fs.readFileSync(path.join(ROOT, 'src/static/react-shell.css'), 'utf8');
 const theme = fs.readFileSync(path.join(ROOT, 'src/app/modern-theme.css'), 'utf8');
 const main = fs.readFileSync(path.join(ROOT, 'src/main.ts'), 'utf8');
 const controls = fs.readFileSync(path.join(ROOT, 'src/app/controls.ts'), 'utf8');
-const settingsUi = fs.readFileSync(path.join(ROOT, 'src/app/settings-ui.ts'), 'utf8');
+const settingsUi = fs.readFileSync(path.join(ROOT, 'src/app/settings-service.ts'), 'utf8');
+const crewUi = fs.readFileSync(path.join(ROOT, 'src/app/crew-control.ts'), 'utf8');
+const reactUi = fs.readFileSync(path.join(ROOT, 'src/ui/main.jsx'), 'utf8');
 const wheel = fs.readFileSync(path.join(ROOT, 'src/app/wheel-setup.ts'), 'utf8');
 const shell = fs.readFileSync(path.join(ROOT, 'src/app/shell.ts'), 'utf8');
 const platform = fs.readFileSync(path.join(ROOT, 'src/app/platform.ts'), 'utf8');
@@ -30,9 +33,11 @@ test('TRPOLARIS neon design system integrates Tailwind v4 without resetting game
   for (const token of ['#050708', '#00ffcc', '#10b981', '#09090b', '#18181b']) assert.ok(design.includes(token), token);
   assert.match(design, /backdrop-filter:\s*blur\(16px\)/);
   assert.match(design, /prefers-reduced-motion:\s*reduce/);
-  assert.match(enhancements, /function setupMotionTransitions\(/);
-  assert.match(enhancements, /function setupLucideIcons\(/);
-  assert.match(enhancements, /function setupHeroParticles\(/);
+  assert.match(reactUi, /from 'motion\/react'/);
+  assert.match(reactUi, /from 'lucide-react'/);
+  assert.match(reactUi, /useReducedMotion/);
+  assert.match(reactUi, /motion\.div/);
+  assert.doesNotMatch(enhancements, /setupMotionTransitions|setupLucideIcons|setupHeroParticles/);
 });
 
 
@@ -51,9 +56,10 @@ test('Midnight Run is a full layout redesign with a responsive rail, vehicle sta
   assert.match(redesign, /--cyan: #a69aff/);
   assert.match(redesign, /@keyframes trpCarFloat/);
   assert.match(redesign, /@keyframes trpAura/);
-  assert.match(enhancements, /target\.animate\(frames/);
-  assert.match(enhancements, /new IntersectionObserver/);
-  assert.match(enhancements, /createElement\('canvas'\)/);
+  assert.match(reactUi, /motion\.div/);
+  assert.match(reactUi, /motion\.section/);
+  assert.match(reactUi, /useReducedMotion/);
+  assert.match(enhancements, /setupViewportStability/);
   assert.doesNotMatch(enhancements, /cdn\.jsdelivr\.net|fonts\.googleapis\.com/);
 });
 
@@ -63,47 +69,54 @@ test('inner pages use polished modern controls without replacing their existing 
   assert.match(main, /import ['"]\.\/app\/component-polish\.css['"]/);
   assert.match(polish, /input\.switch::after/);
   assert.match(polish, /\.seg \.opt:has\(input:checked\)/);
-  assert.match(polish, /#online \.group-status:not\(\[hidden\]\)/);
-  assert.match(polish, /#saves \.profiles > li/);
-  assert.match(polish, /#mods \.custom-mod-list > li/);
-  assert.match(polish, /#controls \.controls-tabs \.tab\[aria-selected="true"\]/);
-  assert.match(polish, /#accessibility \.accessibility-option/);
-  assert.match(polish, /#updates \.update-row > div/);
+  assert.doesNotMatch(polish, /(?:^|[\s,])#(?:online|settings)(?:[\s.#:[>]|$)/m);
+  assert.match(reactUi, /trp-online-live-status/);
+  assert.doesNotMatch(polish, /#saves|#game-data/);
+  assert.match(reactCss, /\.trp-saves-profile/);
+  assert.doesNotMatch(polish, /#mods|#updates|#diagnostics/);
+  assert.match(reactCss, /\.trp-mod-panel/);
+  assert.doesNotMatch(polish, /#controls/);
+  assert.doesNotMatch(polish, /#accessibility/);
+  assert.match(reactCss, /\.trp-system-react/);
   assert.match(polish, /\.bar-fill::after/);
   assert.match(polish, /prefers-reduced-motion:\s*reduce/);
-  assert.match(html, /id="online-body"/);
-  assert.match(html, /id="settings-body"/);
-  assert.match(html, /id="config-profile-save"/);
-  assert.match(html, /id="custom-mod-add"/);
-  assert.match(html, /id="diagnostic-list"/);
-  assert.match(fs.readFileSync(path.join(ROOT, 'src/app/settings-ui.ts'), 'utf8'), /b\.onchange = \(\) => void this\.put\(it\.key/);
+  assert.doesNotMatch(html, /id="online-body"|id="settings-body"|id="config-profile-save"/);
+  assert.match(reactUi, /function SettingsProfilesReactControls\(\)/);
+  assert.match(reactUi, /function SettingsPresetsReactControls\(\)/);
+  assert.doesNotMatch(html, /id="(?:custom-mod-add|diagnostic-list|app-pages|mods|updates|diagnostics)"/);
+  assert.match(settingsUi, /async setFromReact\(key: string, rawValue: string\)/);
+  assert.doesNotMatch(settingsUi, /document\.|querySelector|HTMLElement|this\.root|render\(/);
 });
 
 test('online controls display only the live player and room counts supplied by /players', () => {
   const design = fs.readFileSync(path.join(ROOT, 'src/app/design-system.css'), 'utf8');
   const playerSource = fs.readFileSync(path.join(ROOT, 'src/app/players.ts'), 'utf8');
-  const renderer = fs.readFileSync(path.join(ROOT, 'src/app/settings-ui.ts'), 'utf8');
-  assert.match(html, /id="online-body"/);
-  assert.ok(renderer.includes("this.online.querySelector('#online-body')!.replaceChildren"));
-  assert.match(renderer, /id = 'group-status'/);
+  const renderer = fs.readFileSync(path.join(ROOT, 'src/app/settings-service.ts'), 'utf8');
+  assert.doesNotMatch(html, /id="online-body"/);
+  assert.match(reactUi, /function OnlineReactControls\(\)/);
+  assert.match(reactUi, /trp-online-live-status/);
+  assert.doesNotMatch(renderer, /this\.online|#online-body|document\./);
   assert.match(playerSource, /export function playersText\(/);
   assert.match(playerSource, /On this server now:/);
-  assert.match(design, /#online \.group-status:not\(\[hidden\]\)/);
-  assert.match(design, /#online \.set-control/);
-  assert.match(design, /@media \(max-width: 720px\)[\s\S]*?#online \.set/);
+  assert.doesNotMatch(design, /#online|#settings/);
+  assert.match(reactUi, /bridge\.onlineStatus\(\)/);
+  assert.match(reactUi, /trp-online-live-status/);
 });
 
 
 test('Nightshift shell keeps the runtime anchors used by the game modules', () => {
   for (const id of [
-    'app','lang-pick','install-app','home-page','play-panel','play','progress','progress-fill',
+    'app','home-page','play-panel','play','progress','progress-fill',
     'status','status-sub','lastgame','report','newer','problems','override','retry','reload','log-btn',
-    'controls','keys','saves','online','mods','settings','diagnostics','game-data','stage','stage-menu'
+    'saves','mods','diagnostics','game-data','stage','stage-menu'
   ]) assert.match(html, new RegExp('id="' + id + '"'), id);
+  assert.match(reactUi, /function InstallAppReact\(\)/);
   assert.match(main, /import ['"]\.\/app\/experience\.css['"]/);
 });
 
-test('controls workspace retains keyboard, controller, site and touch preference hooks', () => {
+test('React owns the Controls route while the F9 help sheet keeps its inert source template', () => {
+  assert.match(html, /<template id="controls-help-template">/);
+  assert.doesNotMatch(html, /id="controls"|id="keys"/);
   for (const tab of ['keys','pad','site']) assert.match(html, new RegExp('data-tab="' + tab + '"'));
   for (const hook of ['data-steer','data-level','data-size','data-menu-size']) assert.ok(html.includes(hook), hook);
   assert.match(html, /role="tablist"/);
@@ -112,7 +125,7 @@ test('controls workspace retains keyboard, controller, site and touch preference
   assert.match(controls, /querySelector<HTMLElement>\('\[data-pad-mount\]'\)/);
   assert.match(wheel, /querySelector<HTMLElement>\('\[data-pad-mount\]'\)/);
   assert.match(wheel, /for \(const el of mount\.children\)/, 'a connected wheel only hides the drawing area');
-  assert.match(css, /#controls \.pad/);
+  assert.doesNotMatch(css, /#controls/);
   assert.match(css, /\.keyboard-map-grid/);
 });
 
@@ -123,14 +136,13 @@ test('the page shell uses horizontal navigation and a single-column workspace', 
   assert.match(css, /@media\(max-width:380px\)/);
 });
 
-test('diagnostics are populated, refreshable and downloadable; module bytes remain visible under Play', () => {
-  for (const id of ['diagnostic-list','diagnostics-refresh','diagnostics-download','module-download-status','module-download-percent']) {
-    assert.match(html, new RegExp('id="' + id + '"'), id);
-  }
-  assert.match(shell, /function renderDiagnostics\(/);
-  assert.match(shell, /function refreshDiagnostics\(/);
-  assert.match(shell, /function downloadDiagnostics\(/);
-  assert.match(shell, /#diagnostics-refresh/);
+test('diagnostics are populated, refreshable and downloadable through React while module bytes remain visible under Play', () => {
+  assert.doesNotMatch(html, /id="(?:app-pages|diagnostic-list|diagnostics-refresh|diagnostics-download|diagnostics)"/);
+  assert.match(reactUi, /function DiagnosticsReactPanel\(\)/);
+  assert.match(reactUi, /window\.__trpDiagnosticsBridge\?\.snapshot\(\)/);
+  assert.match(shell, /function refreshDiagnostics\(\)/);
+  assert.match(shell, /function downloadDiagnostics\(\)/);
+  assert.doesNotMatch(shell, /#(?:diagnostics-refresh|diagnostics-download|diagnostic-list|storage-note)/);
   assert.match(shell, /#module-download-status/);
   assert.match(shell, /#module-download-percent/);
   assert.match(shell, /#play'\)\.disabled = !ok/);
@@ -144,7 +156,8 @@ test('first-run, language default, accessibility and version metadata stay align
   assert.match(css, /html\[data-reduce-motion\]/);
   assert.match(css, /html\[data-high-contrast\]/);
   assert.ok(platform.includes(`APP_BUILD_VERSION = '${version.version}'`));
-  assert.ok(html.includes(`id="build-current">${version.version}`));
+  assert.doesNotMatch(html, /id="build-current"/);
+  assert.match(platform, /currentVersion: APP_BUILD_VERSION/);
   assert.match(platform, /lastLanguage\(\)/, 'first-run language falls back to the saved language');
   assert.match(platform, /: lastLanguage\(\)/, 'an empty top picker does not blank the first-run language');
   assert.match(i18n, /return isLanguage\(v\) \? v : 'turkish'/, 'new visitors default to Turkish');
@@ -152,13 +165,14 @@ test('first-run, language default, accessibility and version metadata stay align
 });
 
 test('mod workshop, cloud keyphrase, team join and about cards have bounded responsive layouts', () => {
-  assert.match(css, /#mods \.mod-tool-icon svg\{[^}]*width:21px!important/);
-  assert.match(css, /#saves \.vault-row\{display:grid/);
-  assert.match(css, /#saves \.keybox\{/);
+  assert.match(reactCss, /\.trp-mod-panel/);
+  assert.match(reactUi, /className="trp-vault-react-key-form"/);
+  assert.match(reactUi, /className="trp-vault-react-key-row"/);
   assert.match(css, /\.crew-line \.crew-add\{/);
-  assert.match(css, /\.about-feature-grid/);
-  assert.match(css, /\.about-info-grid/);
-  assert.match(html, /id="about"/);
+  assert.match(reactUi, /className="trp-about-feature-grid"/);
+  assert.match(reactUi, /className="trp-about-info-grid"/);
+  assert.match(reactUi, /function AboutDashboard\(\)/);
+  assert.doesNotMatch(html, /id="about"/);
 });
 
 test('missing core NFSU2 data is diagnosed before the game process starts', () => {
@@ -175,11 +189,11 @@ test('missing core NFSU2 data is diagnosed before the game process starts', () =
 });
 
 test('empty crew chips do not create a full-width blank panel, and Community Picks stays compact', () => {
-  assert.match(settingsUi, /const chips = document\.createElement\('div'\); chips\.className = 'crew-chips'/);
-  assert.match(settingsUi, /line\.append\(chips, box\)/);
+  assert.match(crewUi, /const chips = document\.createElement\('div'\); chips\.className = 'crew-chips'/);
+  assert.match(crewUi, /line\.append\(chips, box\)/);
   assert.match(css, /\.crew-line \.crew-chips:has\(ul\.crews:empty\)\{display:none\}/);
-  assert.match(css, /#mods \.mods-feature-grid\{max-width:1080px/);
-  assert.match(css, /#mods \.favorite-button svg\{[\s\S]*?width:17px!important/);
+  assert.match(reactCss, /\.trp-mod-react-form-grid/);
+  assert.match(reactUi, /function ModLibraryLists\(\)/);
 });
 
 
@@ -191,7 +205,7 @@ test('Night Circuit 2.0 shares one restrained midnight-teal palette across the w
   assert.match(css, /--acid: var\(--lime\)/);
   assert.match(css, /NIGHT CIRCUIT 2\.0/);
   assert.match(css, /\.home-overview-grid\s*\{[\s\S]*?grid-template-columns: minmax\(0, \.9fr\) minmax\(0, 1\.1fr\)/);
-  assert.match(css, /#mods \.mods-feature-grid\s*\{[\s\S]*?max-width: 960px/);
+  assert.match(reactCss, /\.trp-mod-dashboard/);
   assert.match(css, /\.crew-line\s*\{[\s\S]*?flex-direction: row/);
   assert.match(css, /@media \(prefers-reduced-motion: reduce\)/);
   assert.doesNotMatch(html, /class="landing-art"|class="hero-car"|class="art-grid"/);

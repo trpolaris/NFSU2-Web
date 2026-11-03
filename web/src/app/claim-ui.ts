@@ -60,95 +60,132 @@ export interface NameRowDeps {
   kept(name: string | null): void;
   say(msg: string): void;
   log(s: string): void;
+  onReactUpdate?(): void;
 }
 
 /** The line under Your name, with its button; kept across the settings panel's re-renders (`attach` each time). */
+/** React-owned player-name claim state. The Turnstile challenge is the only mounted DOM island. */
 export class NameRow {
   private info: NameInfo | null = null;
-  /** the name (Online form) `info` is about, and its digits */
   private of = '';
   private alt = '';
+  private typedName = '';
   private claiming = false;
-  /** a claim's own line (an error), until the name is typed again */
   private note: string | null = null;
   private seq = 0;
   private timer: ReturnType<typeof setTimeout> | undefined;
-  private els: { input: HTMLInputElement; btn: HTMLButtonElement; line: HTMLParagraphElement; use: HTMLButtonElement } | null = null;
-  /** Cloudflare's widget's box: one for every drawing of the row (the panel draws its rows again as settings change,
-   *  turning cloud saves on among them, and a widget drawn into a box gone from the page never answers) */
+  private view = {
+    ready: true, line: '', tone: 'free', lineVisible: false,
+    claimVisible: false, claimLabel: '', claimDisabled: true,
+    alternativeVisible: false, alternativeLabel: '', checking: false,
+  };
   private readonly check = Object.assign(document.createElement('div'), { className: 'claim-check', hidden: true });
 
-  constructor(private d: NameRowDeps) {}
-
-  /** the row settings-ui made: its text box and control */
-  attach(row: HTMLElement, input: HTMLInputElement, ctl: HTMLElement) {
-    const btn = Object.assign(document.createElement('button'), { type: 'button', className: 'btn', hidden: true });
-    btn.onclick = () => void this.claim();
-    ctl.append(btn);
-    const line = Object.assign(document.createElement('p'), { className: 'set-state free', id: 'set-roam_name-claim', hidden: true });
-    line.setAttribute('aria-live', 'polite');
-    const use = Object.assign(document.createElement('button'), { type: 'button', className: 'text-btn', hidden: true });
-    use.onclick = () => { input.value = this.alt; input.dispatchEvent(new Event('input')); input.dispatchEvent(new Event('change')); };
-    row.append(this.check, line);
-    this.els = { input, btn, line, use };
-    input.maxLength = 15;
-    input.addEventListener('input', () => { this.note = null; clearTimeout(this.timer); this.timer = setTimeout(() => void this.ask(), 300); this.draw(); });
+  constructor(private d: NameRowDeps) {
     this.draw();
     void this.ask();
   }
 
-  /** the name the row is about: what is typed, else the profile's */
-  private async typed(): Promise<string> {
-    const v = this.els?.input.value.trim() ?? '';
-    return v || (await this.d.profileName()) || '';
+  reactSnapshot() { return { ...this.view }; }
+  refresh() { this.draw(); return this.reactSnapshot(); }
+
+  updateName(value: string) {
+    const next = value.slice(0, 15);
+    if (next === this.typedName) return this.reactSnapshot();
+    this.typedName = next;
+    this.note = null;
+    this.info = null;
+    this.seq++;
+    if (this.timer) clearTimeout(this.timer);
+    this.timer = setTimeout(() => { void this.ask(); }, 300);
+    this.draw();
+    return this.reactSnapshot();
   }
 
-  /** the server asked about the name typed (or the profile's) */
+  claimFromReact() { return this.claim(); }
+
+  useAlternativeFromReact() {
+    if (!this.alt) return this.typedName;
+    this.updateName(this.alt);
+    return this.alt;
+  }
+
+  mountChallenge(host: HTMLElement | null) {
+    if (host && this.check.parentElement !== host) host.replaceChildren(this.check);
+  }
+
+  private async typed(): Promise<string> {
+    return this.typedName.trim() || (await this.d.profileName()) || '';
+  }
+
   async ask() {
-    const typed = await this.typed();
-    const name = onlineName(typed);
     const n = ++this.seq;
-    if (!name || local(typed)) { this.of = name ?? ''; this.info = null; this.draw(); return; }
+    const typed = await this.typed();
+    if (n !== this.seq) return;
+    const name = onlineName(typed);
+    if (!name || local(typed)) {
+      this.of = name ?? '';
+      this.info = null;
+      this.draw();
+      return;
+    }
     const alt = await digitsFor(name, this.d.seed());
     const info = await this.d.claims.check(name, alt);
     if (n !== this.seq) return;
-    this.of = name; this.alt = alt; this.info = info;
+    this.of = name;
+    this.alt = alt;
+    this.info = info;
     this.d.kept(info?.mine?.name ?? null);
     this.draw();
   }
 
   private draw() {
-    const e = this.els;
-    if (!e) return;
-    const { btn, line, use } = e;
-    const check = this.check;
-    const show = (text: string | null, cls = 'free', button: string | null = null, offer: string | null = null) => {
-      line.hidden = !text;
-      line.textContent = text ?? '';
-      line.className = `set-state ${cls}`;
-      btn.hidden = !button;
-      btn.textContent = button ?? '';
-      btn.disabled = this.claiming || !this.d.writable();
-      use.hidden = !offer;
-      if (offer) { use.textContent = t('Use {name}', { name: offer }); line.append(' ', use); }
+    const typed = this.typedName.trim();
+    const base = {
+      ready: true,
+      line: '',
+      tone: 'free',
+      lineVisible: false,
+      claimVisible: false,
+      claimLabel: '',
+      claimDisabled: this.claiming || !this.d.writable(),
+      alternativeVisible: false,
+      alternativeLabel: '',
+      checking: this.claiming,
     };
-    check.hidden = !this.claiming;
+    const show = (text: string | null, tone = 'free', button: string | null = null, offer: string | null = null) => {
+      this.view = {
+        ...base,
+        line: text ?? '',
+        tone,
+        lineVisible: !!text,
+        claimVisible: !!button,
+        claimLabel: button ?? '',
+        claimDisabled: this.claiming || !this.d.writable(),
+        alternativeVisible: !!offer,
+        alternativeLabel: offer ? t('Use {name}', { name: offer }) : '',
+      };
+      this.check.hidden = !this.claiming;
+      this.d.onReactUpdate?.();
+    };
+
     if (this.claiming) return show(t('One check that you are a person, so no one can claim names by the thousand. Once per name.'), 'free', t('Claiming'));
-    const typed = e.input.value.trim();
     const bad = typed ? local(typed) : null;
     if (bad) return show(bad[0], bad[1]);
     if (this.note) return show(this.note, 'bad');
-    const i = this.info;
-    if (!i || this.d.claims.here === false || onlineName(typed || this.of) !== this.of) return show(null);
-    const name = i.name ?? this.of, mine = i.mine;
-    switch (i.state) {
+    const info = this.info;
+    if (!info || this.d.claims.here === false || onlineName(typed || this.of) !== this.of) return show(null);
+
+    const name = info.name ?? this.of;
+    const mine = info.mine;
+    switch (info.state) {
       case 'default':
         return show(t('{name} is the game\'s default and can\'t be claimed. Type a name of your own.', { name }), 'env', null, this.alt);
       case 'yours':
-        return show(t('Claimed with your passphrase. Yours while you play at least once every {n} days (now until {date}).', { n: HOLD_DAYS, date: day(i.until ?? 0) }), 'ok');
+        return show(t('Claimed with your passphrase. Yours while you play at least once every {n} days (now until {date}).', { n: HOLD_DAYS, date: day(info.until ?? 0) }), 'ok');
       case 'old':
-        if (mine && mine.next <= Date.now()) return show(t('{name} was your name before your change: yours until {date}.', { name, date: day(i.until ?? 0) }), 'ok', t('Change name'));
-        return show(t('{name} was your name before your change: yours until {date}.', { name, date: day(i.until ?? 0) }), 'ok');
+        if (mine && mine.next <= Date.now()) return show(t('{name} was your name before your change: yours until {date}.', { name, date: day(info.until ?? 0) }), 'ok', t('Change name'));
+        return show(t('{name} was your name before your change: yours until {date}.', { name, date: day(info.until ?? 0) }), 'ok');
       case 'taken':
         return show(t('Another player claimed {name}, so you play as {alt}. Type another name. Is it yours? Enter your passphrase under Cloud saves.', { name, alt: this.alt }), 'bad', null, this.alt);
       case 'free':
@@ -161,10 +198,8 @@ export class NameRow {
     }
   }
 
-  /** Claim (or Change name): cloud saves first when there is no keyphrase (the keyphrase shown to keep after the
-   *  claim, for the name too), Cloudflare's check when the server asks */
   private async claim() {
-    if (!this.els || this.claiming || !this.d.writable()) return;
+    if (this.claiming || !this.d.writable()) return;
     const name = onlineName(await this.typed());
     if (!name) return;
     const phrase = this.d.linked() ? null : await this.made();
@@ -174,7 +209,6 @@ export class NameRow {
     if (phrase) await this.d.showPassphrase(phrase, mine);
   }
 
-  /** a keyphrase made for the claim (cloud saves on), the name asked about again; undefined: none */
   private async made(): Promise<string | undefined> {
     this.d.log('[app] claim: cloud saves first (no keyphrase here)');
     const phrase = await this.d.enable();
@@ -183,26 +217,35 @@ export class NameRow {
     return phrase;
   }
 
-  /** the claim itself: the name claimed, or null (the line says why) */
   private async claimNow(name: string): Promise<string | null> {
-    this.claiming = true; this.note = null; this.draw();
+    this.claiming = true;
+    this.note = null;
+    this.draw();
     let captcha: string | null = null;
     if (this.info?.captcha) {
       this.check.replaceChildren();
       captcha = await turnstile(this.info.captcha, this.check);
-      if (!captcha) { this.claiming = false; this.note = t('Cloudflare\'s check did not pass. Try again.'); this.draw(); return null; }
+      if (!captcha) {
+        this.claiming = false;
+        this.note = t('Cloudflare\'s check did not pass. Try again.');
+        this.draw();
+        return null;
+      }
     }
-    const r = await this.d.claims.claim(name, captcha);
+    const result = await this.d.claims.claim(name, captcha);
     this.claiming = false;
-    if (r.ok) {
+    if (result.ok) {
       this.d.log('[app] claim: your name claimed with this browser\'s keyphrase');
-      if (this.els?.input.value.trim() !== r.mine.name) await this.d.save(r.mine.name);
-      this.d.say(t('Claimed: {name}.', { name: r.mine.name }));
+      if (this.typedName.trim() !== result.mine.name) {
+        this.typedName = result.mine.name;
+        await this.d.save(result.mine.name);
+      }
+      this.d.say(t('Claimed: {name}.', { name: result.mine.name }));
       await this.ask();
-      return r.mine.name;
+      return result.mine.name;
     }
-    this.d.log(`[app] claim: your name not claimed (${r.error})`);
-    this.note = claimError(r, name);
+    this.d.log(`[app] claim: your name not claimed (${result.error})`);
+    this.note = claimError(result, name);
     this.draw();
     return null;
   }
