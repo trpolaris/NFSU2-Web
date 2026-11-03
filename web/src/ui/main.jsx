@@ -32,21 +32,6 @@ const PHASE_LABELS = {
   exited: 'Session ended',
 };
 
-function LegacyAppHost({ app }) {
-  const [slot, setSlot] = useState(null);
-  useLayoutEffect(() => {
-    if (!slot || !app || app.parentNode === slot) return undefined;
-    const placeholder = document.createComment('TRPOLARIS legacy application');
-    app.parentNode?.insertBefore(placeholder, app);
-    slot.appendChild(app);
-    return () => {
-      if (placeholder.parentNode) placeholder.parentNode.insertBefore(app, placeholder);
-      placeholder.remove();
-    };
-  }, [app, slot]);
-  return <div className="trp-legacy-slot" ref={setSlot} />;
-}
-
 function pageFromHash(value) {
   const raw = decodeURIComponent(value.replace(/^#\/?/, ''));
   const aliases = {
@@ -2288,7 +2273,7 @@ function App({ legacyApp }) {
             {active === 'saves' && !gameActive && <SavesDashboard />}
             {active === 'mods' && !gameActive && <ModLibraryDashboard />}
             {active === 'about' && !gameActive && <AboutDashboard />}
-            <LegacyAppHost app={legacyApp} />
+
           </motion.div>
 
           <footer className="trp-shell-footer">
