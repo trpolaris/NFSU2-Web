@@ -19,6 +19,7 @@ const settingsUi = read('src/app/settings-ui.ts');
 const savesUi = read('src/app/saves-ui.ts');
 const shotsUi = read('src/app/shots.ts');
 const vaultUi = read('src/app/vault-ui.ts');
+const claimUi = read('src/app/claim-ui.ts');
 const platform = read('src/app/platform.ts');
 const navigation = read('src/app/ui-enhancements.js');
 const settingsRuntime = read('src/app/shell.ts');
@@ -115,20 +116,23 @@ test('React-owned UI text uses the existing game language dictionaries and is tr
 });
 
 
-test('Online / Free Roam is composed by React while the validated settings controller and live player source remain intact', () => {
+test('Online / Free Roam is React-owned, including live status and name claim actions', () => {
   assert.match(app, /function OnlineDashboard/);
+  assert.match(app, /function OnlineReactControls\(\)/);
   assert.match(app, /active === 'online' && !gameActive && <OnlineDashboard/);
-  assert.match(app, /LegacyNode selector="#online" className="trp-online-legacy-slot"/);
-  assert.match(app, /ONLINE_FEATURES\.map/);
-  assert.match(app, /Meet the city on the server/);
-  assert.match(shellCss, /\.trp-online-legacy-slot > #online/);
-  assert.match(shellCss, /\.trp-online-feature-grid/);
-  assert.match(shellCss, /@media \(max-width:700px\)[\s\S]*?trp-online-legacy-slot/);
-  assert.match(settingsUi, /this\.online\.querySelector\('#online-body'\)!\.replaceChildren/);
-  assert.match(settingsUi, /this\.online\.querySelector<HTMLElement>\('#online-note'\)/);
-  assert.match(settingsUi, /setCrewCounts\(counts: Map<number, number>\)/);
-  assert.match(navigation, /online: \['online'\]/);
-  assert.match(navigation, /pageForHash = \{[\s\S]*online: 'online'/);
+  assert.doesNotMatch(app, /LegacyNode selector="#online"/);
+  assert.match(app, /trp-online-name-claim/);
+  assert.match(app, /window\.__trpNameRowBridge\?\.claim\(\)/);
+  assert.match(app, /window\.__trpNameRowBridge\?\.useAlternative\(\)/);
+  assert.match(runtime, /window\.__trpNameRowBridge = \{/);
+  assert.match(runtime, /onlineStatus: \(\) => settings\.onlineStatus\(\)/);
+  assert.match(gameEntry, /interface TrpNameRowBridge/);
+  assert.match(claimUi, /reactSnapshot\(\)/);
+  assert.match(claimUi, /claimFromReact\(\)/);
+  assert.match(claimUi, /mountChallenge\(host: HTMLElement \| null\)/);
+  assert.match(settingsUi, /onlineStatus\(\)/);
+  assert.match(shellCss, /\.trp-online-name-claim/);
+  assert.match(shellCss, /\.trp-online-live-status/);
 });
 
 test('Online dashboard labels describe existing Free Roam, Online and Crew settings without inventing player counts', () => {

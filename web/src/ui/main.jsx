@@ -278,6 +278,7 @@ const ONLINE_FEATURES = [
 
 function OnlineReactControls() {
   const statusRoot = useRef(null);
+  const claimHostRef = useRef(null);
   const [values, setValues] = useState({ roam: 'off', online: 'off', roam_collide: 'off', quick_chat: 'off', roam_max_cars: '32' });
   const [textValues, setTextValues] = useState({ roam_name: '', roam_room: '', roam_block: '' });
   const [crewList, setCrewListState] = useState([]);
@@ -287,6 +288,8 @@ function OnlineReactControls() {
   const [readOnly, setReadOnly] = useState(true);
   const [busy, setBusy] = useState('');
   const [message, setMessage] = useState('');
+  const [onlineStatus, setOnlineStatus] = useState('');
+  const [nameClaim, setNameClaim] = useState({ ready: false, line: '', tone: 'free', lineVisible: false, claimVisible: false, claimLabel: '', claimDisabled: true, alternativeVisible: false, alternativeLabel: '', checking: false });
 
   const statusText = !ready ? 'Loading' : readOnly ? 'Read only' : '';
 
@@ -294,7 +297,7 @@ function OnlineReactControls() {
     if (statusRoot.current && typeof window.__trpTranslateReact === 'function') {
       window.__trpTranslateReact(statusRoot.current);
     }
-  }, [values, textValues, crewList, crewDraft, quickChatDraft, message, ready, readOnly, busy, statusText]);
+  }, [values, textValues, crewList, crewDraft, quickChatDraft, message, ready, readOnly, busy, statusText, onlineStatus, nameClaim]);
 
   const sync = useCallback(() => {
     const bridge = window.__trpSettingsBridge;
@@ -311,6 +314,7 @@ function OnlineReactControls() {
       });
       setCrewListState(bridge.crews());
       setQuickChatDraft(bridge.quickChat());
+      setOnlineStatus(bridge.onlineStatus());
       setReadOnly(bridge.readOnly());
       setReady(true);
     } catch { setReady(false); }
@@ -318,14 +322,25 @@ function OnlineReactControls() {
 
   useEffect(() => {
     const onSettings = () => sync();
+    const onClaim = () => {
+      const bridge = window.__trpNameRowBridge;
+      if (!bridge) return;
+      setNameClaim(bridge.snapshot());
+      bridge.mountChallenge(claimHostRef.current);
+    };
     window.addEventListener('trp-settings-ready', onSettings);
     window.addEventListener('trp-settings-changed', onSettings);
+    window.addEventListener('trp-name-row-ready', onClaim);
+    window.addEventListener('trp-name-row-changed', onClaim);
     sync();
+    onClaim();
     const bridge = window.__trpSettingsBridge;
     if (bridge) void bridge.refresh().then(sync).catch(error => setMessage(String(error)));
     return () => {
       window.removeEventListener('trp-settings-ready', onSettings);
       window.removeEventListener('trp-settings-changed', onSettings);
+      window.removeEventListener('trp-name-row-ready', onClaim);
+      window.removeEventListener('trp-name-row-changed', onClaim);
     };
   }, [sync]);
 
@@ -552,6 +567,7 @@ function OnlineReactControls() {
           ))}
         </div>
       </section>
+      {onlineStatus && <p className="trp-online-live-status" role="status" aria-live="polite">{onlineStatus}</p>}
       <div className="trp-online-text-grid">
         <label className="trp-online-text-card">
           <span className="trp-online-text-label" data-i18n>Your name</span>
@@ -564,6 +580,12 @@ function OnlineReactControls() {
             <button type="button" disabled={!ready || readOnly || !!busy} onClick={() => void saveText('roam_name')} data-i18n>Save</button>
           </span>
         </label>
+        <div className="trp-online-name-claim">
+          {nameClaim.lineVisible && <p className={'trp-online-name-claim-line is-' + nameClaim.tone} role="status" aria-live="polite">{nameClaim.line}</p>}
+          {nameClaim.alternativeVisible && <button type="button" className="trp-online-name-alternative" onClick={() => window.__trpNameRowBridge?.useAlternative()}>{nameClaim.alternativeLabel}</button>}
+          {nameClaim.claimVisible && <button type="button" className="trp-online-name-claim-button" disabled={nameClaim.claimDisabled || busy !== ''} onClick={() => void window.__trpNameRowBridge?.claim()}>{nameClaim.claimLabel}</button>}
+          <div className="trp-online-name-claim-widget" ref={claimHostRef} />
+        </div>
         <label className="trp-online-text-card">
           <span className="trp-online-text-label" data-i18n>Room</span>
           <span className="trp-online-text-help" data-i18n>Leave empty to drive with everyone. A room name shows only matching Free Roam players.</span>
@@ -637,7 +659,6 @@ function OnlineDashboard() {
           <span className="trp-online-settings-icon"><Settings size={20} /></span>
         </div>
         <OnlineReactControls />
-        <LegacyNode selector="#online" className="trp-online-legacy-slot" />
       </motion.section>
     </motion.div>
   );

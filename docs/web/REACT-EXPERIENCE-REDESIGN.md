@@ -192,3 +192,8 @@ The Screenshots gallery, lazy thumbnail grid, image lightbox, navigation, downlo
 ## Settings profiles, presets and raw editor migration
 
 Saved configuration profiles, import/export/delete, the three quick presets and the advanced settings.ini editor now render in React. Profile records keep the existing localStorage schema and only carry the existing allow-listed, validated settings. Applying profiles and presets goes through SettingsPanel validation and the existing settings.ini write path. The raw editor and unlisted key resets use the same settings parser, read-only ownership checks, reset confirmation and writer. The previous #settings DOM subtree is now hidden as a service/controller anchor; its profile, preset and raw editor controls are no longer visible.
+
+
+## Online / Free Roam migration
+
+The visible Online and Free Roam controls are now entirely rendered in React: multiplayer toggles, room/name/blocked-player settings, crews and colours, live crew counts, quick-chat phrases, player limit and the live status line. Name claim status, Claim/Change name and alternative-name actions are React controls backed by the existing NameRow and NameClaims services. The Cloudflare Turnstile mount is placed in a React-owned host while the claim service retains its validation and passphrase flow. The previous #online node remains in the hidden application service subtree only as a SettingsPanel controller anchor.

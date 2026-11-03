@@ -1171,3 +1171,16 @@
   .trp-settings-preset-card { grid-template-columns:32px 1fr;align-items:center; }
   .trp-settings-preset-card small,.trp-settings-preset-card em { grid-column:2; }
 }
+
+
+/* Online / Free Roam: visible controls and name claim are React-owned. */
+.trp-online-name-claim { display:grid;gap:6px;min-width:0;padding:9px 10px;border:1px solid rgba(167,185,214,.1);border-radius:9px;background:rgba(4,10,18,.26); }
+.trp-online-live-status { margin:0 0 14px;padding:10px 12px;border:1px solid rgba(167,185,214,.11);border-radius:9px;background:rgba(4,10,18,.26);color:#a8b8cc;font-size:.62rem;line-height:1.5; }
+.trp-online-name-claim-line { margin:0;color:#aab8ca;font-size:.6rem;line-height:1.5; }
+.trp-online-name-claim-line.is-ok { color:#9ee3c9; }
+.trp-online-name-claim-line.is-bad { color:#ffb8a9; }
+.trp-online-name-claim-line.is-env { color:#e9c88f; }
+.trp-online-name-claim-button,.trp-online-name-alternative { justify-self:start;min-height:30px;padding:0 10px;border:1px solid rgba(102,215,176,.25);border-radius:7px;background:rgba(102,215,176,.075);color:#a9e8d0;font-family:inherit;font-size:.58rem;font-weight:800;cursor:pointer; }
+.trp-online-name-alternative { border-color:rgba(166,154,255,.25);background:rgba(166,154,255,.07);color:#c5bbff; }
+.trp-online-name-claim-button:disabled { opacity:.45;cursor:not-allowed; }
+.trp-online-name-claim-widget:empty { display:none; }

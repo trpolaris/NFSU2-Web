@@ -670,7 +670,7 @@ export class SettingsPanel {
 
   readOnly() { return this.ro(); }
 
-  private ro() { return !!this.deps.readOnly?.(); }  private ro() { return !!this.deps.readOnly?.(); }
+  private ro() { return !!this.deps.readOnly?.(); }
 
   /** key's line, and also's (a row's second key: COMPANION) in the same write */
   /** Your name written (a claim made under it: claim-ui.ts) */

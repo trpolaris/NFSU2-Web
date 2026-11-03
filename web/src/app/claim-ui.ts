@@ -89,7 +89,7 @@ export class NameRow {
       line: copy?.textContent ?? '',
       tone: line?.className.replace('set-state', '').trim() ?? 'free',
       lineVisible: !!line && !line.hidden,
-      claimVisible: !!this.els?.btn.hidden,
+      claimVisible: !!this.els?.btn && !this.els.btn.hidden,
       claimLabel: this.els?.btn.textContent ?? '',
       claimDisabled: this.els?.btn.disabled ?? true,
       alternativeVisible: !!this.els?.use && !this.els.use.hidden,
