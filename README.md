@@ -206,16 +206,6 @@ DNS, dosya aktarımı, TLS, Cloudflare ve güvenlik ayarları için [VPS kurulum
 
 ## Geliştirme
 
-### GitHub değişiklik ve gönderim akışı
-
-Bu projedeki geliştirme oturumlarında, kullanıcı tarafından istenen ve içeriği çalışma ortamında erişilebilir olan kod ve dokümantasyon değişikliklerinin GitHub commit/push işlemleri ChatGPT tarafından yürütülür. Kullanıcıdan rutin olarak manuel `git push` çalıştırması istenmez.
-
-- Değişiklikler hedef geliştirme dalına gönderilmeden önce ilgili testler ve derleme kontrolleri çalıştırılır.
-- Her gönderim sonrasında hedef dal, commit SHA, değişen dosyalar ve gönderim sonucu raporlanır.
-- Kullanıcının bilgisayarında bulunan ancak çalışma ortamına aktarılmamış yerel dosyalar, içerikleri görülmeden değiştirilmez veya üzerine yazılmaz.
-- Kullanıcı ayrıntılı proje özeti istediğinde GitHub commit/push sorumluluğunun ChatGPT tarafından yürütüldüğü, son gönderim ve doğrulama durumu ile birlikte özette belirtilir.
-
-
 ### Depo yapısı
 
 | Yol | İçerik |
