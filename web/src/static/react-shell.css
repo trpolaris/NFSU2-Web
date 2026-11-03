@@ -345,8 +345,8 @@
 .trp-online-toggle-card input[type="checkbox"]:disabled { opacity:.55; cursor:not-allowed; }
 .trp-online-toggle-card input[type="checkbox"]:focus-visible { outline:2px solid var(--trp-shell-coral); outline-offset:3px; }
 .trp-online-setting-message { grid-column:1/-1; margin:0; color:#ffb09a; font-size:.68rem; }
-.trp-online-legacy-slot > #online #online-body > .group > .set[data-key="roam"],
-.trp-online-legacy-slot > #online #online-body > .group > .set[data-key="online"] { display:none!important; }
+.trp-online-legacy-slot > #online #online-body .set[data-key="roam"],
+.trp-online-legacy-slot > #online #online-body .set[data-key="online"] { display:none!important; }
 @media (max-width:820px) {
   .trp-online-react-controls { grid-template-columns:1fr; }
 }

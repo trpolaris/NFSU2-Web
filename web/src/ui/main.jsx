@@ -161,11 +161,20 @@ const ONLINE_FEATURES = [
 
 
 function OnlineReactControls() {
+  const statusRoot = useRef(null);
   const [values, setValues] = useState({ roam: 'off', online: 'off' });
   const [ready, setReady] = useState(false);
   const [readOnly, setReadOnly] = useState(true);
   const [busy, setBusy] = useState('');
   const [message, setMessage] = useState('');
+
+  const statusText = !ready ? 'Loading' : readOnly ? 'Read only' : '';
+
+  useLayoutEffect(() => {
+    if (statusRoot.current && typeof window.__trpTranslateReact === 'function') {
+      window.__trpTranslateReact(statusRoot.current);
+    }
+  }, [values, ready, readOnly, busy, statusText]);
 
   const sync = useCallback(() => {
     const bridge = window.__trpSettingsBridge;
@@ -210,13 +219,13 @@ function OnlineReactControls() {
   };
 
   return (
-    <div className="trp-online-react-controls">
+    <div ref={statusRoot} className="trp-online-react-controls">
       <label className="trp-online-toggle-card">
         <span className="trp-online-toggle-icon"><CarFront size={19} /></span>
         <span className="trp-online-toggle-copy">
           <strong data-i18n>Free roam with others</strong>
           <small data-i18n>Show your car to other players and see theirs in career free roam.</small>
-          <em>{!ready ? 'Loading settings…' : readOnly ? 'Read-only in this tab' : values.roam === 'on' ? 'Enabled' : 'Disabled'}</em>
+          <em data-i18n data-i18n-src={!ready ? 'Loading' : readOnly ? 'Read only' : values.roam === 'on' ? 'On' : 'Off'}>{!ready ? 'Loading' : readOnly ? 'Read only' : values.roam === 'on' ? 'On' : 'Off'}</em>
         </span>
         <input type="checkbox" role="switch" checked={values.roam === 'on'} disabled={!ready || readOnly || !!busy}
           aria-label="Free roam with others" onChange={event => void update('roam', event.target.checked)} />
@@ -226,7 +235,7 @@ function OnlineReactControls() {
         <span className="trp-online-toggle-copy">
           <strong data-i18n>Online mode</strong>
           <small data-i18n>Open the game’s Online menu for lobbies, chat and races on this server.</small>
-          <em>{!ready ? 'Loading settings…' : readOnly ? 'Read-only in this tab' : values.online === 'on' ? 'Enabled' : 'Disabled'}</em>
+          <em data-i18n data-i18n-src={!ready ? 'Loading' : readOnly ? 'Read only' : values.online === 'on' ? 'On' : 'Off'}>{!ready ? 'Loading' : readOnly ? 'Read only' : values.online === 'on' ? 'On' : 'Off'}</em>
         </span>
         <input type="checkbox" role="switch" checked={values.online === 'on'} disabled={!ready || readOnly || !!busy}
           aria-label="Online mode" onChange={event => void update('online', event.target.checked)} />

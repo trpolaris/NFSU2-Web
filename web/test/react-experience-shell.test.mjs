@@ -166,3 +166,12 @@ test('Free Roam and Online toggles are React-controlled through the existing Set
   assert.match(shellCss, /data-key="roam"/);
   assert.match(shellCss, /data-key="online"/);
 });
+
+
+test('React Online toggle status follows the existing UI language and does not leave duplicate legacy switches', () => {
+  assert.match(app, /const statusRoot = useRef\(null\)/);
+  assert.match(app, /data-i18n-src=\{!ready \? 'Loading'/);
+  assert.match(app, /__trpTranslateReact\(statusRoot\.current\)/);
+  assert.match(shellCss, /\.trp-online-legacy-slot > #online #online-body \.set\[data-key="roam"\]/);
+  assert.match(shellCss, /\.trp-online-legacy-slot > #online #online-body \.set\[data-key="online"\]/);
+});
