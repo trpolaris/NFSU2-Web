@@ -3,11 +3,12 @@ import { createRoot } from 'react-dom/client';
 import { checkCrew, CREW_BIG, CREW_COLOUR_NAMES, CREW_MAX, CREW_PALETTE, freeColour } from '../app/crews';
 import { dateLocale, language, LANGUAGES, NATIVE, onLanguage, setLanguage, t } from '../app/i18n';
 import { fmtBytes } from '../app/checks';
+import { TEST_NOTICE_TEXT } from '../app/test-notice';
 import { CATS, DEFAULT_GROUPS, DEFAULT_PHRASES, PHRASES } from '../app/phrases';
-import { flushSync } from 'react-dom';
+import { createPortal, flushSync } from 'react-dom';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import {
-  Activity, ArrowUpRight, CarFront, ChevronRight, Gamepad2, Gauge, Info,
+  Activity, AlertTriangle, ArrowRight, ArrowUpRight, CarFront, ChevronRight, Gamepad2, Gauge, Info,
   LayoutDashboard, LibraryBig, MessageCircle, Save, Settings, ShieldCheck, Users,
 } from 'lucide-react';
 
@@ -2224,6 +2225,63 @@ function InstallAppReact() {
   );
 }
 
+
+function TestEnvironmentNotice() {
+  const dialogRef = useRef(null);
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return undefined;
+    if (!dialog.open) dialog.showModal();
+    return () => {
+      if (dialog.open) dialog.close();
+    };
+  }, []);
+
+  const preventDismiss = event => event.preventDefault();
+
+  return createPortal(
+    <dialog
+      ref={dialogRef}
+      className="trp-test-notice-dialog"
+      aria-modal="true"
+      aria-labelledby="trp-test-notice-title"
+      aria-describedby="trp-test-notice-description"
+      data-testid="test-environment-notice"
+      onCancel={preventDismiss}
+    >
+      <div className="trp-test-notice-card">
+        <div className="trp-test-notice-header">
+          <span className="trp-test-notice-icon" aria-hidden="true">
+            <AlertTriangle size={21} strokeWidth={1.8} />
+          </span>
+          <span className="trp-test-notice-kicker">{t(TEST_NOTICE_TEXT.kicker)}</span>
+          <span className="trp-test-notice-mark">TRP / TEST</span>
+        </div>
+        <h2 id="trp-test-notice-title">{t(TEST_NOTICE_TEXT.title)}</h2>
+        <div id="trp-test-notice-description" className="trp-test-notice-copy">
+          <p>{t(TEST_NOTICE_TEXT.stability)}</p>
+          <p>{t(TEST_NOTICE_TEXT.details)}</p>
+          <p className="trp-test-notice-acknowledgement">{t(TEST_NOTICE_TEXT.acknowledgement)}</p>
+        </div>
+        <div className="trp-test-notice-footer">
+          <span className="trp-test-notice-brand">TRPOLARIS / NFSU2 WEB</span>
+          <button
+            type="button"
+            className="trp-test-notice-continue"
+            autoFocus
+            onClick={() => dialogRef.current?.close()}
+          >
+            <span>{t(TEST_NOTICE_TEXT.button)}</span>
+            <ArrowRight size={17} aria-hidden="true" />
+          </button>
+        </div>
+      </div>
+    </dialog>,
+    document.body,
+  );
+}
+
 function App() {
   const reduceMotion = useReducedMotion();
   const initialHash = pageFromHash(location.hash);
@@ -2296,6 +2354,7 @@ function App() {
 
   return (
     <div ref={rootRef} className={'trp-react-shell' + (active === 'home' ? ' is-home' : '')}>
+      <TestEnvironmentNotice />
       <div className="trp-shell-atmosphere" aria-hidden="true">
         <span className="trp-atmosphere-orb trp-orb-coral" />
         <span className="trp-atmosphere-orb trp-orb-violet" />

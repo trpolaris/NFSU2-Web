@@ -1498,5 +1498,11 @@
   "Not loading": "Indlæser ikke",
   "Your antivirus or network is probably blocking the game. Allow {site} in it, then reload.": "Dit antivirus eller netværk blokerer sandsynligvis spillet. Tillad {site}, og genindlæs derefter.",
   "Message… (@ player name)": "Besked… (@ spillernavn)",
-  "Message blocked by chat filter": "Beskeden blev blokeret af chatfilteret."
+  "Message blocked by chat filter": "Beskeden blev blokeret af chatfilteret.",
+  "TEST ENVIRONMENT / TEST BUILD": "TESTMILJØ / TESTVERSION",
+  "Test server notice": "Meddelelse om testserveren",
+  "This server is currently running for testing only and should not be considered a stable, production-ready service.": "Denne server kører i øjeblikket kun til testformål og bør ikke betragtes som en stabil, produktionsklar tjeneste.",
+  "The project is still in development and testing. You may encounter bugs, interruptions, or unexpected behavior in gameplay, multiplayer connections, chat, or website features.": "Projektet er stadig under udvikling og test. Du kan opleve fejl, afbrydelser eller uventet adfærd i spillet, multiplayerforbindelser, chatten eller webstedets funktioner.",
+  "By continuing, you acknowledge that you are using a test build.": "Ved at fortsætte bekræfter du, at du bruger en testversion.",
+  "I understand, continue": "Jeg forstår, fortsæt"
 }

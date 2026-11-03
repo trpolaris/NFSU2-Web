@@ -1521,5 +1521,11 @@
   "Not loading": "No carga",
   "Your antivirus or network is probably blocking the game. Allow {site} in it, then reload.": "Seguramente tu antivirus o tu red están bloqueando el juego. Permite {site} y recarga.",
   "Message… (@ player name)": "Mensaje… (@ nombre del jugador)",
-  "Message blocked by chat filter": "El mensaje fue bloqueado por el filtro del chat."
+  "Message blocked by chat filter": "El mensaje fue bloqueado por el filtro del chat.",
+  "TEST ENVIRONMENT / TEST BUILD": "ENTORNO DE PRUEBAS / VERSIÓN DE PRUEBA",
+  "Test server notice": "Aviso del servidor de pruebas",
+  "This server is currently running for testing only and should not be considered a stable, production-ready service.": "Este servidor está funcionando actualmente solo con fines de prueba y no debe considerarse un servicio estable y listo para producción.",
+  "The project is still in development and testing. You may encounter bugs, interruptions, or unexpected behavior in gameplay, multiplayer connections, chat, or website features.": "El proyecto sigue en desarrollo y en fase de pruebas. Puedes encontrar errores, interrupciones o comportamientos inesperados durante el juego, en las conexiones multijugador, el chat o las funciones del sitio web.",
+  "By continuing, you acknowledge that you are using a test build.": "Al continuar, reconoces que estás utilizando una versión de prueba.",
+  "I understand, continue": "Entendido, continuar"
 }

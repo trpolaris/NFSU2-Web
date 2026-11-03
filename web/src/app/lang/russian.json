@@ -1544,5 +1544,11 @@
   "Not loading": "Не загружается",
   "Your antivirus or network is probably blocking the game. Allow {site} in it, then reload.": "Скорее всего, игру блокирует ваш антивирус или сеть. Разрешите доступ к {site}, затем перезагрузите страницу.",
   "Message… (@ player name)": "Сообщение… (@ имя игрока)",
-  "Message blocked by chat filter": "Сообщение заблокировано фильтром чата."
+  "Message blocked by chat filter": "Сообщение заблокировано фильтром чата.",
+  "TEST ENVIRONMENT / TEST BUILD": "ТЕСТОВАЯ СРЕДА / ТЕСТОВАЯ ВЕРСИЯ",
+  "Test server notice": "Уведомление о тестовом сервере",
+  "This server is currently running for testing only and should not be considered a stable, production-ready service.": "Сейчас этот сервер работает только для тестирования и не должен рассматриваться как стабильный готовый к эксплуатации сервис.",
+  "The project is still in development and testing. You may encounter bugs, interruptions, or unexpected behavior in gameplay, multiplayer connections, chat, or website features.": "Проект всё ещё находится на стадии разработки и тестирования. В игре, многопользовательском подключении, чате или функциях сайта возможны ошибки, перебои и неожиданное поведение.",
+  "By continuing, you acknowledge that you are using a test build.": "Продолжая, вы подтверждаете, что используете тестовую версию.",
+  "I understand, continue": "Понятно, продолжить"
 }

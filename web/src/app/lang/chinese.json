@@ -1429,5 +1429,11 @@
   "Not loading": "無法載入",
   "Your antivirus or network is probably blocking the game. Allow {site} in it, then reload.": "你的防毒軟體或網路可能封鎖了遊戲。請允許 {site}，然後重新載入。",
   "Message… (@ player name)": "訊息…（@ 玩家名稱）",
-  "Message blocked by chat filter": "訊息已被聊天過濾器封鎖。"
+  "Message blocked by chat filter": "訊息已被聊天過濾器封鎖。",
+  "TEST ENVIRONMENT / TEST BUILD": "測試環境 / 測試版本",
+  "Test server notice": "測試伺服器通知",
+  "This server is currently running for testing only and should not be considered a stable, production-ready service.": "此伺服器目前僅供測試使用，不應視為穩定且已可正式提供服務的版本。",
+  "The project is still in development and testing. You may encounter bugs, interruptions, or unexpected behavior in gameplay, multiplayer connections, chat, or website features.": "本專案仍處於開發與測試階段。遊戲、多玩家連線、聊天或網站功能可能出現錯誤、中斷或非預期行為。",
+  "By continuing, you acknowledge that you are using a test build.": "繼續使用即表示你了解目前使用的是測試版本。",
+  "I understand, continue": "我知道了，繼續"
 }
