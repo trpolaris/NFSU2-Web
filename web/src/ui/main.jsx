@@ -594,7 +594,7 @@ function AboutDashboard() {
 
 function ModLibraryLists() {
   const rootRef = useRef(null);
-  const [snapshot, setSnapshot] = useState<TrpModLibrarySnapshot>({ packs: [], custom: [], count: 0, statusText: '' });
+  const [snapshot, setSnapshot] = useState({ packs: [], custom: [], count: 0, statusText: '' });
   const [ready, setReady] = useState(false);
   const [checking, setChecking] = useState(false);
   const [search, setSearch] = useState('');
