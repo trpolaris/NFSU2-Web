@@ -1542,5 +1542,7 @@
   "LOCAL FILES ONLY · NOTHING IS SENT TO THE SERVER": "ТОЛЬКО ЛОКАЛЬНЫЕ ФАЙЛЫ · НА СЕРВЕР НИЧЕГО НЕ ОТПРАВЛЯЕТСЯ",
   "This browser is too old for the game: it needs iOS 26, iPadOS 26 or Safari 26. Update this device (Settings, General, Software Update).": "Этот браузер слишком старый для игры: нужны iOS 26, iPadOS 26 или Safari 26. Обновите это устройство (Настройки, Основные, Обновление ПО).",
   "Not loading": "Не загружается",
-  "Your antivirus or network is probably blocking the game. Allow {site} in it, then reload.": "Скорее всего, игру блокирует ваш антивирус или сеть. Разрешите доступ к {site}, затем перезагрузите страницу."
+  "Your antivirus or network is probably blocking the game. Allow {site} in it, then reload.": "Скорее всего, игру блокирует ваш антивирус или сеть. Разрешите доступ к {site}, затем перезагрузите страницу.",
+  "Message… (@ player name)": "Сообщение… (@ имя игрока)",
+  "Message blocked by chat filter": "Сообщение заблокировано фильтром чата."
 }

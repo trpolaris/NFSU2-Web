@@ -1496,5 +1496,7 @@
   "LOCAL FILES ONLY · NOTHING IS SENT TO THE SERVER": "KUN LOKALE FILER · INTET SENDES TIL SERVEREN",
   "This browser is too old for the game: it needs iOS 26, iPadOS 26 or Safari 26. Update this device (Settings, General, Software Update).": "Denne browser er for gammel til spillet: det kræver iOS 26, iPadOS 26 eller Safari 26. Opdater enheden (Indstillinger, Generelt, Softwareopdatering).",
   "Not loading": "Indlæser ikke",
-  "Your antivirus or network is probably blocking the game. Allow {site} in it, then reload.": "Dit antivirus eller netværk blokerer sandsynligvis spillet. Tillad {site}, og genindlæs derefter."
+  "Your antivirus or network is probably blocking the game. Allow {site} in it, then reload.": "Dit antivirus eller netværk blokerer sandsynligvis spillet. Tillad {site}, og genindlæs derefter.",
+  "Message… (@ player name)": "Besked… (@ spillernavn)",
+  "Message blocked by chat filter": "Beskeden blev blokeret af chatfilteret."
 }

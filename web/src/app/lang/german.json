@@ -1496,5 +1496,7 @@
   "LOCAL FILES ONLY · NOTHING IS SENT TO THE SERVER": "NUR LOKALE DATEIEN · ES WIRD NICHTS AN DEN SERVER GESENDET",
   "This browser is too old for the game: it needs iOS 26, iPadOS 26 or Safari 26. Update this device (Settings, General, Software Update).": "Dieser Browser ist zu alt für das Spiel: Es braucht iOS 26, iPadOS 26 oder Safari 26. Aktualisiere dieses Gerät (Einstellungen, Allgemein, Softwareupdate).",
   "Not loading": "Lädt nicht",
-  "Your antivirus or network is probably blocking the game. Allow {site} in it, then reload.": "Dein Antivirenprogramm oder Netzwerk blockiert wahrscheinlich das Spiel. Erlaube dort {site} und lade dann neu."
+  "Your antivirus or network is probably blocking the game. Allow {site} in it, then reload.": "Dein Antivirenprogramm oder Netzwerk blockiert wahrscheinlich das Spiel. Erlaube dort {site} und lade dann neu.",
+  "Message… (@ player name)": "Nachricht… (@ Spielername)",
+  "Message blocked by chat filter": "Die Nachricht wurde durch den Chatfilter blockiert."
 }

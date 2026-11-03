@@ -14,7 +14,7 @@
 //          same picture; the player's own over their car.  Also the chat log on the left, in the notices' place, and
 //          beside the player's name in a race lobby's card.
 import type { GameSession } from './game';
-import { language, onLanguage, t } from './i18n';
+import { N, language, onLanguage, t } from './i18n';
 import { hasChatProfanity } from './chat-filter';
 import { catName, DEFAULT_GROUPS, DEFAULT_PHRASES, PHRASES, type CatId } from './phrases';
 
@@ -361,9 +361,7 @@ export class QuickChat {
     }
     this.searchInput.placeholder = t('Search chat…');
     this.searchInput.setAttribute('aria-label', t('Search chat…'));
-    this.chatInput.placeholder = language() === 'turkish'
-      ? 'Mesaj yazın… (@ oyuncu adı)'
-      : t('Message… (@ player name)');
+    this.chatInput.placeholder = t(N('Message… (@ player name)'));
     this.chatTools.querySelector('.chat-filter-group')?.setAttribute('aria-label', t('Chat filters'));
     this.renderMutedPlayers();
     this.updateChatToolStates();
@@ -578,9 +576,7 @@ export class QuickChat {
     const s = this.session, clean = text.trim(), channel = this.currentChannel();
     if (!s?.net?.chat || !clean) return false;
     if (hasChatProfanity(clean)) {
-      this.systemMessage(language() === 'turkish'
-        ? 'Mesaj küfür filtresine takıldı.'
-        : t('Message blocked by chat filter'));
+      this.systemMessage(t(N('Message blocked by chat filter')));
       this.deps.log('[chat] message blocked by the profanity filter');
       return false;
     }

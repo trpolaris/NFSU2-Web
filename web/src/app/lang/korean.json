@@ -1427,5 +1427,7 @@
   "LOCAL FILES ONLY · NOTHING IS SENT TO THE SERVER": "로컬 파일만 사용 · 서버로 전송되는 항목 없음",
   "This browser is too old for the game: it needs iOS 26, iPadOS 26 or Safari 26. Update this device (Settings, General, Software Update).": "이 브라우저는 게임을 실행하기에 너무 오래됐어요. iOS 26, iPadOS 26 또는 Safari 26이 필요하니 이 기기를 업데이트하세요(설정 > 일반 > 소프트웨어 업데이트).",
   "Not loading": "불러오지 못함",
-  "Your antivirus or network is probably blocking the game. Allow {site} in it, then reload.": "백신 프로그램이나 네트워크에서 게임을 막고 있는 것 같아요. {site} 주소를 허용한 뒤 새로고침하세요."
+  "Your antivirus or network is probably blocking the game. Allow {site} in it, then reload.": "백신 프로그램이나 네트워크에서 게임을 막고 있는 것 같아요. {site} 주소를 허용한 뒤 새로고침하세요.",
+  "Message… (@ player name)": "메시지… (@ 플레이어 이름)",
+  "Message blocked by chat filter": "메시지가 채팅 필터에 의해 차단되었습니다."
 }
