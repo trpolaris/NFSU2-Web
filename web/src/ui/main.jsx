@@ -32,23 +32,6 @@ const PHASE_LABELS = {
   exited: 'Session ended',
 };
 
-function LegacyNode({ selector, className = '' }) {
-  const [slot, setSlot] = useState(null);
-  useLayoutEffect(() => {
-    if (!slot) return undefined;
-    const node = document.querySelector(selector);
-    if (!node || node.parentNode === slot) return undefined;
-    const placeholder = document.createComment('TRPOLARIS legacy control');
-    node.parentNode?.insertBefore(placeholder, node);
-    slot.appendChild(node);
-    return () => {
-      if (placeholder.parentNode) placeholder.parentNode.insertBefore(node, placeholder);
-      placeholder.remove();
-    };
-  }, [selector, slot]);
-  return <div className={'trp-legacy-control ' + className} ref={setSlot} />;
-}
-
 function LegacyAppHost({ app }) {
   const [slot, setSlot] = useState(null);
   useLayoutEffect(() => {
@@ -1358,7 +1341,7 @@ function SavesDashboard() {
         <SavesReactControls />
         <ScreenshotsReactControls />
         <VaultReactControls />
-        <LegacyNode selector="#saves" className="trp-saves-legacy-slot" />
+
       </motion.section>
     </motion.div>
   );
@@ -2085,7 +2068,7 @@ function SettingsDashboard() {
         <SettingsPresetsReactControls />
         <SettingsReactControls />
         <SettingsRawReactControls />
-        <LegacyNode selector="#settings" className="trp-settings-game-slot" />
+
       </motion.section>
 
       <motion.section className="trp-settings-panel" initial={enter} animate={{ opacity: 1, y: 0 }} transition={{ ...transition, delay: reduceMotion ? 0 : .12 }}>

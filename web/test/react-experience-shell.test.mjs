@@ -340,7 +340,9 @@ test('Saves route keeps the complete SavesPanel root intact inside one React com
   assert.match(app, /function SavesDashboard/);
   assert.ok(app.includes("active === 'saves' && !gameActive && <SavesDashboard />"));
   assert.ok(!app.includes("selectors: ['#saves']"));
-  assert.ok(app.includes('LegacyNode selector="#saves" className="trp-saves-legacy-slot"'));
+  assert.ok(html.includes('<div class="app-grid" id="app-pages" hidden>'));
+  assert.ok(html.includes('id="saves"'));
+  assert.ok(shellCss.includes('#app #saves { display:none!important; }'));
   for (const selector of ['#export','#import','#saves-msg','#profiles','#storage-note','#shots-info','#shots','#vault']) {
     assert.ok(html.includes('id="' + selector.slice(1) + '"'), selector + ' remains inside the single Saves root');
   }
@@ -348,7 +350,7 @@ test('Saves route keeps the complete SavesPanel root intact inside one React com
   assert.ok(!app.includes('LegacyNode selector="#vault"'));
   assert.ok(shellCss.includes('#app #saves { display:none!important; }'));
   assert.ok(shellCss.includes('.trp-saves-hero'));
-  assert.ok(shellCss.includes('.trp-saves-legacy-slot > #saves #vault'));
+  assert.ok(html.includes('id="vault"'));
 });
 
 
@@ -398,7 +400,7 @@ test('Cloud Vault controls are React-rendered while keyphrase sync and conflict 
   assert.match(gameEntry, /__trpVaultBridge\?: TrpVaultBridge/);
   assert.match(shellCss, /\.trp-vault-react-key-form/);
   assert.match(shellCss, /\.trp-vault-react-conflict/);
-  assert.match(shellCss, /\.trp-saves-legacy-slot \{ display:none!important; \}/);
+  assert.match(shellCss, /#app #saves \{ display:none!important; \}/);
 });
 
 test('SavesPanel still owns all descendant profile, screenshot and message controls under #saves', () => {
@@ -406,7 +408,8 @@ test('SavesPanel still owns all descendant profile, screenshot and message contr
   assert.match(runtime, /root\.querySelector\('#saves-msg'\)/);
   assert.match(runtime, /root\.querySelector\('#profiles'\)/);
   assert.match(runtime, /root\.querySelector\('#shots'\)/);
-  assert.match(app, /LegacyNode selector="#saves" className="trp-saves-legacy-slot"/);
+  assert.match(html, /id="saves"/);
+  assert.match(html, /id="app-pages" hidden/);
 });
 
 test('System update, diagnostics and game-data panels are React-owned through typed service bridges', () => {
@@ -438,9 +441,10 @@ test('Settings route is composed in React while game settings and accessibility 
   assert.ok(app.includes('function SettingsDashboard'));
   assert.ok(app.includes("active === 'settings' && !gameActive && <SettingsDashboard />"));
   assert.ok(!app.includes("selectors: ['#settings', '#accessibility']"));
-  assert.ok(app.includes('LegacyNode selector="#settings" className="trp-settings-game-slot"'));
+  assert.ok(html.includes('id="settings"'));
+  assert.ok(html.includes('<div class="app-grid" id="app-pages" hidden>'));
   assert.ok(app.includes('LegacyNode selector="#accessibility" className="trp-settings-accessibility-legacy"'));
-  assert.ok(shellCss.includes('.trp-settings-game-slot > #settings'));
+  assert.ok(html.includes('id="online"'));
   assert.ok(shellCss.includes('.trp-settings-accessibility-legacy { display:none!important; }'));
   assert.ok(runtime.includes("new SettingsPanel($('#settings')"));
   assert.ok(html.includes('id="accessibility"'));
@@ -538,14 +542,16 @@ test('local save profiles and backup actions are React-owned through the existin
 });
 
 test('screenshots and encrypted Cloud keep their existing mounts while profiles and backup controls move to React', () => {
-  assert.ok(app.includes('LegacyNode selector="#saves" className="trp-saves-legacy-slot"'));
+  assert.ok(html.includes('<div class="app-grid" id="app-pages" hidden>'));
+  assert.ok(html.includes('id="saves"'));
+  assert.ok(shellCss.includes('#app #saves { display:none!important; }'));
   for (const selector of ['#shots', '#vault', '#vault-form', '#vault-conflict', '#vault-on']) {
     assert.ok(html.includes('id="' + selector.slice(1) + '"'), selector + ' remains mounted');
   }
   assert.match(runtime, /new SavesPanel\(\$\('#saves'\)/);
   assert.match(runtime, /new VaultPanel\(\$\('#vault'\)/);
   assert.match(savesUi, /new ScreenshotsPart\(root/);
-  assert.match(shellCss, /\.trp-saves-legacy-slot > #saves #vault/);
+  assert.match(runtime, /new VaultPanel\(\$\('#vault'\)/);
 });
 
 
@@ -585,5 +591,5 @@ test('Settings profiles, quick presets and the raw settings editor are React-own
   assert.match(shellCss, /\.trp-settings-profiles-react/);
   assert.match(shellCss, /\.trp-settings-presets-grid/);
   assert.match(shellCss, /\.trp-settings-raw-react textarea/);
-  assert.match(shellCss, /\.trp-settings-game-slot \{ display:none!important; \}/);
+  assert.match(html, /id="app-pages" hidden/);
 });
