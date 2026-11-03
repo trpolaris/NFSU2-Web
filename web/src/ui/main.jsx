@@ -65,6 +65,93 @@ function pageFromHash(value) {
   return page === 'diagnostics' ? 'system' : page;
 }
 
+
+const HOME_LINKS = [
+  { id: 'online', label: 'Online', detail: 'Free roam + online play', icon: Users },
+  { id: 'mods', label: 'Mod library', detail: 'Community vehicle packages', icon: CarFront },
+  { id: 'saves', label: 'Saves', detail: 'Local + cloud saves', icon: Save },
+  { id: 'controls', label: 'Controls', detail: 'Keyboard + controller', icon: Gamepad2 },
+  { id: 'settings', label: 'Settings', detail: 'Display and accessibility', icon: Settings },
+];
+
+function HomeDashboard({ onNavigate }) {
+  const reduceMotion = useReducedMotion();
+  const enter = reduceMotion ? false : { opacity: 0, y: 16 };
+  const shown = { opacity: 1, y: 0 };
+  const transition = { duration: reduceMotion ? 0 : .34, ease: [.2, .75, .25, 1] };
+
+  const jump = (event, id) => {
+    event.preventDefault();
+    onNavigate(id);
+  };
+
+  return (
+    <motion.div className="home-page trp-react-home experience-shell" initial={enter} animate={shown} transition={transition}>
+      <motion.section className="landing-hero" aria-labelledby="landing-heading" initial={enter} animate={shown} transition={transition}>
+        <LegacyNode selector="#hero-particles" className="trp-home-particles-slot" />
+        <LegacyNode selector=".hero-visual" className="trp-home-art-slot" />
+
+        <div className="landing-copy">
+          <div className="hero-kicker">
+            <span className="signal-dot" aria-hidden="true" />
+            <span className="kicker-brand">TRPOLARIS <i>/</i> NFSU2</span>
+            <span className="kicker-tag" data-i18n>STREET RACING / 2004</span>
+          </div>
+          <p className="hero-overline" data-i18n>THE CITY NEVER SLEEPS</p>
+          <motion.h1 className="landing-title" id="landing-heading" initial={reduceMotion ? false : { opacity: 0, y: 12 }} animate={shown} transition={{ ...transition, delay: reduceMotion ? 0 : .08 }}>
+            <span data-i18n>Own the night.</span>
+            <em data-i18n>The streets are yours.</em>
+          </motion.h1>
+          <p className="landing-description" data-i18n>A new home for your Underground 2 experience.</p>
+          <div className="hero-capabilities" aria-label="Game features">
+            <span><b className="cap-dot cyan" aria-hidden="true" /><span data-i18n>WebGPU rendering</span></span>
+            <span><b className="cap-dot violet" aria-hidden="true" /><span data-i18n>CONTROLLER READY</span></span>
+            <span><b className="cap-dot lime" aria-hidden="true" /><span data-i18n>LOCAL + CLOUD SAVES</span></span>
+          </div>
+          <div className="hero-shortcuts">
+            <a className="hero-garage-link" href="#controls" onClick={event => jump(event, 'controls')}>
+              <span className="hero-garage-icon" aria-hidden="true"><Gamepad2 size={17} /></span>
+              <span data-i18n>Controls</span><span className="hero-link-arrow" aria-hidden="true">↗</span>
+            </a>
+            <a className="hero-garage-link" href="#online" onClick={event => jump(event, 'online')}>
+              <span className="hero-garage-icon" aria-hidden="true"><Users size={17} /></span>
+              <span data-i18n>Online</span><span className="hero-link-arrow" aria-hidden="true">↗</span>
+            </a>
+          </div>
+        </div>
+
+        <LegacyNode selector="#play-panel" className="trp-home-play-slot" />
+      </motion.section>
+
+      <div className="home-overview-grid">
+        <LegacyNode selector="#home-status-panel" className="trp-home-status-slot" />
+        <motion.section className="home-quick-section" initial={enter} animate={shown} transition={{ ...transition, delay: reduceMotion ? 0 : .1 }} aria-labelledby="home-quick-title">
+          <div className="home-quick-heading">
+            <div><span className="home-status-eyebrow" data-i18n>GARAGE / QUICK ACCESS</span><h2 id="home-quick-title" data-i18n>Quick access</h2></div>
+            <span className="home-quick-mark" aria-hidden="true">02</span>
+          </div>
+          <div className="home-action-grid">
+            {HOME_LINKS.map((item, index) => {
+              const Icon = item.icon;
+              return (
+                <motion.a key={item.id} className="home-action-card" href={'#' + item.id}
+                  onClick={event => jump(event, item.id)}
+                  initial={reduceMotion ? false : { opacity: 0, y: 9 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: reduceMotion ? 0 : .22, delay: reduceMotion ? 0 : .07 + index * .045 }}>
+                  <span className="home-action-icon" aria-hidden="true"><Icon size={19} strokeWidth={1.8} /></span>
+                  <span className="home-action-copy"><strong data-i18n>{item.label}</strong><small data-i18n>{item.detail}</small></span>
+                  <span className="home-action-arrow" aria-hidden="true"><ArrowUpRight size={16} /></span>
+                </motion.a>
+              );
+            })}
+          </div>
+        </motion.section>
+      </div>
+    </motion.div>
+  );
+}
+
 function App({ legacyApp }) {
   const reduceMotion = useReducedMotion();
   const initialHash = pageFromHash(location.hash);
@@ -123,16 +210,17 @@ function App({ legacyApp }) {
 
   const phaseLabel = PHASE_LABELS[phase] || 'TRPOLARIS';
   const connectedTone = phase === 'ready' || phase === 'playing';
+  const gameActive = phase === 'playing' || phase === 'starting';
 
   return (
-    <div className="trp-react-shell" inert={phase === 'playing' || phase === 'starting'}>
+    <div className={'trp-react-shell' + (active === 'home' ? ' is-home' : '')}>
       <div className="trp-shell-atmosphere" aria-hidden="true">
         <span className="trp-atmosphere-orb trp-orb-coral" />
         <span className="trp-atmosphere-orb trp-orb-violet" />
         <span className="trp-atmosphere-grid" />
       </div>
 
-      <aside className="trp-sidebar" aria-label="Ana gezinme">
+      <aside className="trp-sidebar" aria-label="Ana gezinme" inert={gameActive}>
         <a className="trp-brand" href="/" aria-label="TRPOLARIS ana sayfa">
           <span className="trp-brand-mark"><b>T</b><i /></span>
           <span className="trp-brand-copy"><strong>TRPOLARIS</strong><small>NFSU2 / WEB EDITION</small></span>
@@ -165,7 +253,7 @@ function App({ legacyApp }) {
       </aside>
 
       <div className="trp-main-column">
-        <header className="trp-topbar">
+        <header className="trp-topbar" inert={gameActive}>
           <div className="trp-breadcrumb">
             <span className="trp-breadcrumb-mark"><Activity size={14} /></span>
             <span>TRPOLARIS</span><ChevronRight size={14} /><strong>{activeItem.label.toUpperCase()}</strong>
@@ -191,6 +279,7 @@ function App({ legacyApp }) {
           <motion.div className="trp-page-frame" initial={false}
             animate={transitioning ? { opacity: .78, y: 7, filter: 'blur(1.5px)' } : { opacity: 1, y: 0, filter: 'blur(0px)' }}
             transition={{ duration: reduceMotion ? 0 : .19, ease: [0.2, 0.75, 0.25, 1] }}>
+            {active === 'home' && !gameActive && <HomeDashboard onNavigate={navigate} />}
             <LegacyAppHost app={legacyApp} />
           </motion.div>
 

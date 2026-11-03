@@ -120,3 +120,40 @@
 @media (prefers-reduced-motion:reduce) {
   .trp-react-shell *,.trp-react-shell *::before,.trp-react-shell *::after { scroll-behavior:auto!important; animation-duration:.01ms!important; animation-iteration-count:1!important; transition-duration:.01ms!important; }
 }
+
+
+/* React home dashboard mounts the existing live runtime controls as temporary islands. */
+.trp-react-shell.is-home .trp-content-heading { display:none; }
+.trp-react-shell.is-home .trp-content { padding-top:22px; }
+.trp-react-home { width:100%; min-width:0; gap:17px; }
+.trp-home-particles-slot,.trp-home-art-slot,.trp-home-play-slot,.trp-home-status-slot { display:contents; }
+.trp-legacy-slot #app > #home-page { display:none!important; }
+.trp-home-status-slot { min-width:0; }
+.trp-react-home .landing-hero { min-height:clamp(570px,49vw,690px); }
+.trp-react-home .landing-copy { width:min(59%,760px); }
+.trp-react-home .home-quick-section { align-self:stretch; }
+.trp-react-home .home-action-card { min-height:68px; }
+.trp-react-home .home-action-arrow { display:grid; place-items:center; }
+.trp-react-home .hero-garage-icon { display:grid; place-items:center; }
+.trp-react-home .hero-garage-icon svg { width:17px; height:17px; fill:none; stroke:currentColor; stroke-width:1.7; }
+@media (max-width:1120px) {
+  .trp-react-home .landing-hero { min-height:600px; }
+  .trp-react-home .landing-copy { width:63%; padding:46px; }
+}
+@media (max-width:700px) {
+  .trp-react-shell.is-home .trp-content { padding-top:14px; }
+  .trp-react-home { gap:12px; }
+  .trp-react-home .landing-hero { display:flex; flex-direction:column; min-height:0; border-radius:19px; }
+  .trp-react-home .landing-copy { width:100%; min-height:0; padding:24px 19px 20px; }
+  .trp-react-home .hero-overline { margin-top:24px; }
+  .trp-react-home .landing-title { font-size:clamp(2.6rem,12vw,4.1rem); }
+  .trp-react-home .landing-description { font-size:.88rem; }
+  .trp-react-home .hero-capabilities { gap:7px 11px; font-size:.57rem; }
+  .trp-react-home .play-console { position:relative; right:auto; bottom:auto; width:auto; max-width:none; margin:0 12px 13px; }
+  .trp-react-home .hero-visual { width:100%; height:230px; position:relative; inset:auto; order:2; }
+  .trp-react-home .hero-vehicle-art { width:108%; right:-4%; top:0; }
+  .trp-react-home .hero-visual-index { right:15px; top:13px; }
+  .trp-react-home .home-overview-grid { grid-template-columns:1fr; gap:10px; }
+  .trp-react-home .home-quick-section { padding:16px; }
+  .trp-react-home .home-action-grid { grid-template-columns:1fr; }
+}

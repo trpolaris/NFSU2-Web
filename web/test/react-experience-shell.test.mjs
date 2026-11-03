@@ -13,6 +13,7 @@ const app = read('src/ui/main.jsx');
 const shellCss = read('src/static/react-shell.css');
 const hub = read('src/hub/main.jsx');
 const hubCss = read('src/hub/hub.css');
+const runtime = read('src/app/shell.ts');
 
 test('the main page loads its React shell before the legacy runtime boot sequence', () => {
   assert.match(html, /id="trp-react-root"/);
@@ -59,4 +60,25 @@ test('Player Hub uses React Motion navigation and communicates its real connecti
   assert.match(hub, /BAĞLANTI BEKLENİYOR/);
   assert.match(hubCss, /\.hub-atmosphere/);
   assert.match(hubCss, /prefers-reduced-motion:\s*reduce/);
+});
+
+
+test('the home dashboard is React-owned while live game controls and status nodes remain bridged', () => {
+  assert.match(app, /function HomeDashboard/);
+  assert.match(app, /active === 'home' && !gameActive && <HomeDashboard/);
+  for (const selector of ['#hero-particles', '.hero-visual', '#play-panel', '#home-status-panel']) {
+    assert.ok(app.includes('selector="' + selector + '"'), 'live node is hosted: ' + selector);
+  }
+  assert.match(app, /onClick=\{event => jump\(event, item\.id\)\}/);
+  assert.match(app, /HOME_LINKS\.map/);
+  assert.match(shellCss, /\.trp-legacy-slot #app > #home-page \{ display:none!important; \}/);
+  assert.match(shellCss, /\.trp-home-particles-slot,.trp-home-art-slot,.trp-home-play-slot,.trp-home-status-slot \{ display:contents; \}/);
+  assert.match(shellCss, /trp-react-shell\.is-home \.trp-content-heading/);
+});
+
+test('the game stage is never placed inside an inert React root while page chrome is disabled during play', () => {
+  assert.doesNotMatch(app, /<div className=\{[^}]*trp-react-shell[^}]*\} inert=/);
+  assert.match(app, /<aside className="trp-sidebar" aria-label="Ana gezinme" inert=\{gameActive\}/);
+  assert.match(app, /<header className="trp-topbar" inert=\{gameActive\}/);
+  assert.ok(runtime.includes("$('#app').inert = true"), 'legacy app retains its existing game-session focus rule');
 });

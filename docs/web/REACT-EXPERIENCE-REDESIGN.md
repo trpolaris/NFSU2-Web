@@ -48,7 +48,7 @@ The target structure separates view rendering from the game runtime. React shoul
 ## Migration order
 
 1. **App shell and navigation** — completed as the first migration slice. Keep the compatibility host until every dependent panel has moved.
-2. **Home / launch screen** — move launch state, browser checks, module progress and last-session messages into React views backed by a stable runtime adapter.
+2. **Home / launch screen** — React now owns the hero, visual composition and quick-access cards. The live game launch dock and status console are temporarily mounted as DOM islands so the existing TypeScript runtime keeps its event listeners and progress updates. The next sub-step is to replace those islands with a typed runtime adapter.
 3. **Online and community views** — connect the current /players and same-origin status sources through a read-only external store.
 4. **Saves and cloud** — move the forms and status states into React while retaining the existing save and cloud service contracts.
 5. **Controls and settings** — preserve the validated settings model and input-device behavior; do not let React rerenders overwrite live device state.
@@ -89,3 +89,8 @@ For each migrated view:
 - Verify page controls do not interfere with a starting or active game session.
 
 A migration step is complete only when its old DOM hooks are either intentionally retained in the compatibility host or replaced by tested typed interfaces. The compatibility host must not be removed just because the React shell renders successfully.
+
+
+## Home dashboard migration note
+
+The React home page uses the existing car artwork/particle canvas and keeps the original live Play dock and status console mounted via placeholder-backed DOM islands. The hidden legacy home container remains in the compatibility host to preserve runtime references. When the game enters its starting/playing phase, the React dashboard unmounts and restores those live nodes to the original app container; the legacy runtime then applies its own app inert state while the separate game stage remains interactive. Navigation chrome becomes inert during the active game session, but the React root itself is never inert because the game stage is outside it.
