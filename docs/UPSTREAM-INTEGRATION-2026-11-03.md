@@ -4,6 +4,13 @@ This branch selectively ports compatible changes from `th0mk/nfsu2-web` while ke
 
 ## Integrated
 
+### Car-meet crowd guard for player outruns
+- Upstream commit: `8ef3fa96181c4be08882eaa3203bd46381058055`
+- Added `DU_CROWD = 4` and a nearby-player count using all active, visible peer cars within `DU_NEAR_M` (25 m), including parked/paused cars.
+- The duel prompt proximity timer is reset while the crowd threshold is met; the HUD challenge icon is therefore hidden, and offers resume once the group thins.
+- An outrun already negotiated or in progress is not forcibly cancelled.
+- Added a bounded transition log for crowd enter/exit. No dedicated crowd integration test was run; runtime testing remains pending.
+
 ### Race-link sender and slot authentication
 - Upstream commits: `e9177e0314a2ffe26c87fbfc7a1ce4003a12be7b` and `2efb9337568f25387ac1b7f67bbccbdaf54e7895`.
 - The Rust/wasm virtual LAN now records which remote addresses the game's UDP 3658 race link itself sent to (`vlan_race_sent_to`); receiving an arbitrary datagram no longer makes that address an accepted race peer.
