@@ -246,9 +246,9 @@ test('React Quick Chat phrase editor keeps four groups of four and saves phrase/
 
 
 test('React Crew and Quick Chat dynamic controls are retranslated whenever their draft state changes', () => {
-  assert.match(app, /\\[values, textValues, crewList, crewDraft, quickChatDraft, message, ready, readOnly, busy, statusText\\]/);
-  assert.match(app, /data-i18n>\\{category\\.name\\}/);
-  assert.match(app, /data-i18n>\\{phrase\\.text\\}/);
+  assert.ok(app.includes('[values, textValues, crewList, crewDraft, quickChatDraft, message, ready, readOnly, busy, statusText]'));
+  assert.ok(app.includes('data-i18n>{category.name}'));
+  assert.ok(app.includes('data-i18n>{phrase.text}'));
 });
 
 
@@ -293,17 +293,17 @@ test('Mod Library page layout is React-owned while existing local mod handlers r
 
 test('Saves route keeps the complete SavesPanel root intact inside one React compatibility island', () => {
   assert.match(app, /function SavesDashboard/);
-  assert.match(app, /active === 'saves' && !gameActive && <SavesDashboard \\/>/);
-  assert.doesNotMatch(app, /selectors: \\['#saves'\\]/);
+  assert.ok(app.includes("active === 'saves' && !gameActive && <SavesDashboard />"));
+  assert.ok(!app.includes("selectors: ['#saves']"));
   assert.ok(app.includes('LegacyNode selector="#saves" className="trp-saves-legacy-slot"'));
   for (const selector of ['#export','#import','#saves-msg','#profiles','#storage-note','#shots-info','#shots','#vault']) {
     assert.ok(html.includes('id="' + selector.slice(1) + '"'), selector + ' remains inside the single Saves root');
   }
   assert.ok(!app.includes('LegacyNode selector="#profiles"'));
   assert.ok(!app.includes('LegacyNode selector="#vault"'));
-  assert.match(shellCss, /#app #saves \\{ display:none!important; \\}/);
-  assert.match(shellCss, /\\.trp-saves-hero/);
-  assert.match(shellCss, /\\.trp-saves-vault-slot/);
+  assert.ok(shellCss.includes('#app #saves { display:none!important; }'));
+  assert.ok(shellCss.includes('.trp-saves-hero'));
+  assert.ok(shellCss.includes('.trp-saves-vault-slot'));
 });
 
 
