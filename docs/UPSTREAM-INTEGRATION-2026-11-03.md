@@ -4,6 +4,14 @@ This branch selectively ports compatible changes from `th0mk/nfsu2-web` while ke
 
 ## Integrated
 
+### Blocked game-script startup warning
+- Upstream commit: `701f93585742474051a1514dbaa7f6db60454602`
+- Added `web/src/boot.ts`, emitted as a standalone classic `/boot.js` and loaded before the module entry points.
+- Shows a localized warning and Reload action when `/main.js` fails to load or does not start within 15 seconds.
+- Added `web/src/app/started.ts`, imported first by the player entry point; a late start clears the warning and restores the original status text.
+- Added build-time extraction of the required strings from all 15 available locale files. The warning uses the existing `nfsu2-page-language` preference and current hostname.
+- Leaves the React UI, runtime loader, and existing startup flow in place.
+
 ### Right-stick look camera and Look Back
 - Upstream commit: `77a2a70643d286369e252436f978c795a3005057`
 - Added `runtime/look.c`.
