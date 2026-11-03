@@ -65,8 +65,14 @@ function LegacyAppHost({ app }) {
 }
 
 function pageFromHash(value) {
-  const page = value.replace(/^#\/?/, '').replace(/-page$/, '');
-  return page === 'diagnostics' ? 'system' : page;
+  const raw = decodeURIComponent(value.replace(/^#\/?/, ''));
+  const aliases = {
+    'home-page': 'home', 'play-panel': 'home', garage: 'mods',
+    accessibility: 'settings', updates: 'system', diagnostics: 'system',
+    'game-data': 'system', changes: 'about',
+  };
+  const page = aliases[raw] ?? raw.replace(/-page$/, '');
+  return NAV.some(item => item.id === page) ? page : 'home';
 }
 
 
@@ -2176,25 +2182,20 @@ function App({ legacyApp }) {
 
   const navigate = useCallback((id) => {
     if (!NAV.some(item => item.id === id)) return;
-    const legacyLink = legacyApp?.querySelector('.quick-nav [data-page="' + id + '"]');
-    if (legacyLink instanceof HTMLElement) legacyLink.click();
+    const pageHash = {
+      home: 'home-page', online: 'online', mods: 'mods', saves: 'saves',
+      controls: 'controls', settings: 'settings', system: 'diagnostics', about: 'about',
+    };
+    const hash = '#' + (pageHash[id] || 'home-page');
+    if (location.hash !== hash) history.pushState({ page: id }, '', hash);
     setActive(id);
-  }, [legacyApp]);
+    window.scrollTo({ top: 0, behavior: reduceMotion ? 'auto' : 'smooth' });
+  }, [reduceMotion]);
 
   useEffect(() => {
-    const onLegacyClick = (event) => {
-      const target = event.target instanceof Element ? event.target : null;
-      const link = target?.closest('[data-page]');
-      const id = link?.getAttribute('data-page');
-      if (NAV.some(item => item.id === id)) setActive(id);
-    };
-    const onHashChange = () => {
-      const hash = pageFromHash(location.hash);
-      const item = NAV.find(entry => entry.id === hash);
-      if (item) setActive(item.id);
-    };
-    legacyApp?.addEventListener('click', onLegacyClick, true);
+    const onHashChange = () => setActive(pageFromHash(location.hash));
     window.addEventListener('hashchange', onHashChange);
+    window.addEventListener('popstate', onHashChange);
     const bodyObserver = new MutationObserver(syncStatus);
     bodyObserver.observe(document.body, { attributes: true, attributeFilter: ['data-phase'] });
     const statusNode = document.getElementById('status');
@@ -2204,8 +2205,8 @@ function App({ legacyApp }) {
     if (legacyApp && runtimeObserver) runtimeObserver.observe(legacyApp, { attributes: true, attributeFilter: ['inert'] });
     syncStatus();
     return () => {
-      legacyApp?.removeEventListener('click', onLegacyClick, true);
       window.removeEventListener('hashchange', onHashChange);
+      window.removeEventListener('popstate', onHashChange);
       bodyObserver.disconnect();
       statusObserver?.disconnect();
       runtimeObserver?.disconnect();

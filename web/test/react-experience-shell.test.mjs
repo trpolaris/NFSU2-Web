@@ -59,7 +59,10 @@ test('the legacy runtime anchors remain present while React provides the page sh
   assert.match(gameEntry, /interface TrpInstallBridge/);
   assert.match(navigation, /window\.__trpInstallBridge = \{ snapshot, install \}/);
   assert.match(shellCss, /#app\.experience-shell/);
-  assert.match(shellCss, /quick-nav \{ display:none/);
+  assert.doesNotMatch(html, /class="quick-nav/);
+  assert.doesNotMatch(navigation, /function setupNavigation\(/);
+  assert.match(app, /history\.pushState\(\{ page: id \}/);
+  assert.match(app, /window\.addEventListener\('popstate', onHashChange\)/);
 });
 
 test('the React shell remains responsive and follows reduced-motion preferences', () => {

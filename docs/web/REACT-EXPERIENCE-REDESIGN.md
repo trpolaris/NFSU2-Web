@@ -202,3 +202,8 @@ The visible Online and Free Roam controls are now entirely rendered in React: mu
 ## Language picker and PWA install migration
 
 The language picker and install-app action in the top bar now render in React. Language changes still persist through the SettingsPanel language key and existing i18n loader; the picker follows changes from Settings and is disabled when the current tab is read-only. The PWA button uses the existing `beforeinstallprompt` event through a typed bridge, and secure-context/certificate guidance is rendered by React. The old language selector, install button and static security notice have been removed from `web/index.html`.
+
+
+## Main navigation migration
+
+The static quick-navigation bar and the legacy click-to-navigate handler have been removed. React now owns route changes and writes canonical page hashes directly with the History API; browser back/forward and direct links are handled by the React route state. The legacy `#app-pages` node remains hidden in its original service subtree so game/service selectors and dialogs are not rewritten as part of this navigation change.

@@ -1,100 +1,17 @@
 /**
  * TRPOLARIS UI enhancements kept separate from the game shell so upstream game behavior remains intact.
- * Handles navigation, PWA install guidance, orientation resize, and deferred previews only.
+ * Handles PWA install state, viewport stability, motion, icons, and deferred previews.
  */
 const $ = (selector) => document.querySelector(selector);
 let motionAnimate = null;
 
 export function setupUIEnhancements() {
-  setupNavigation();
   setupMotionTransitions();
   setupLucideIcons();
   setupHeroParticles();
   setupInstallExperience();
   setupViewportStability();
   setupLazyPreviews();
-}
-
-function setupNavigation() {
-  const nav = $('.quick-nav');
-  const home = $('#home-page');
-  const grid = $('#app-pages');
-  if (!nav || !home || !grid) return;
-
-  const links = [...nav.querySelectorAll('a[href^="#"]')];
-  const side = grid.querySelector(':scope > .side');
-  const content = grid.querySelector(':scope > .content');
-  const sections = [...grid.querySelectorAll(':scope > .side > section, :scope > .content > section')];
-  const pageSections = {
-    home: [],
-    mods: ['mods'],
-    saves: ['saves'],
-    online: ['online'],
-    controls: ['controls'],
-    settings: ['settings', 'accessibility'],
-    system: ['updates', 'diagnostics', 'game-data'],
-    about: ['changes', 'about'],
-  };
-  const pageForHash = {
-    'home-page': 'home', 'play-panel': 'home',
-    mods: 'mods', garage: 'mods', saves: 'saves', online: 'online',
-    controls: 'controls', settings: 'settings', accessibility: 'settings',
-    updates: 'system', diagnostics: 'system', 'game-data': 'system',
-    changes: 'about', about: 'about',
-  };
-  const pageHash = {
-    home: 'home-page', mods: 'mods', saves: 'saves', online: 'online',
-    controls: 'controls', settings: 'settings', system: 'diagnostics', about: 'about',
-  };
-  const pageFromHash = (hash) => pageForHash[decodeURIComponent(hash.replace(/^#/, ''))] ?? 'home';
-  const wrapperHasContent = (el) => !!el && [...el.children].some(child => child instanceof HTMLElement && !child.hidden);
-
-  const showPage = (requested, push = false) => {
-    const page = Object.hasOwn(pageSections, requested) ? requested : 'home';
-    const visible = new Set(pageSections[page]);
-    const isHome = page === 'home';
-    home.hidden = !isHome;
-    grid.hidden = isHome;
-    for (const section of sections) section.hidden = isHome || !visible.has(section.id);
-    if (side) side.hidden = isHome || !wrapperHasContent(side);
-    if (content) content.hidden = isHome || !wrapperHasContent(content);
-    document.body.dataset.uiPage = page;
-    if (motionAnimate && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      const target = isHome ? home.querySelector('.landing-hero') : sections.find(section => !section.hidden);
-      if (target) {
-        try {
-          motionAnimate(target, { opacity: [0, 1], y: [10, 0] }, {
-            duration: .26,
-            ease: 'easeOut',
-          });
-        } catch { /* The page remains fully usable without motion. */ }
-      }
-    }
-    for (const link of links) {
-      const active = link.dataset.page === page;
-      link.classList.toggle('active', active);
-      if (active) link.setAttribute('aria-current', 'page');
-      else link.removeAttribute('aria-current');
-    }
-    if (push) {
-      const hash = `#${pageHash[page] ?? 'home-page'}`;
-      if (location.hash !== hash) history.pushState({ page }, '', hash);
-      window.scrollTo({ top: 0, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
-    }
-  };
-  document.addEventListener('click', event => {
-    const link = event.target instanceof Element ? event.target.closest('a[href^="#"]') : null;
-    if (!link) return;
-    const id = link.hash.slice(1);
-    const page = link.dataset.page ?? pageForHash[id];
-    if (!page || !Object.hasOwn(pageSections, page)) return;
-    event.preventDefault();
-    showPage(page, true);
-  });
-  const restore = () => showPage(pageFromHash(location.hash), false);
-  window.addEventListener('popstate', restore);
-  window.addEventListener('hashchange', restore);
-  showPage(location.hash ? pageFromHash(location.hash) : 'home', false);
 }
 
 function setupInstallExperience() {
