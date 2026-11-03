@@ -1425,5 +1425,7 @@
   "Your selected local playlist stays on this device.": "你選取的本機播放清單會保留在此裝置上。",
   "Toggle radio": "切換電台",
   "LOCAL FILES ONLY · NOTHING IS SENT TO THE SERVER": "僅限本機檔案 · 不會傳送任何資料至伺服器",
-  "This browser is too old for the game: it needs iOS 26, iPadOS 26 or Safari 26. Update this device (Settings, General, Software Update).": "此瀏覽器版本過舊，無法執行遊戲：需要 iOS 26、iPadOS 26 或 Safari 26。請更新此裝置（設定 > 一般 > 軟體更新）。"
+  "This browser is too old for the game: it needs iOS 26, iPadOS 26 or Safari 26. Update this device (Settings, General, Software Update).": "此瀏覽器版本過舊，無法執行遊戲：需要 iOS 26、iPadOS 26 或 Safari 26。請更新此裝置（設定 > 一般 > 軟體更新）。",
+  "Not loading": "無法載入",
+  "Your antivirus or network is probably blocking the game. Allow {site} in it, then reload.": "你的防毒軟體或網路可能封鎖了遊戲。請允許 {site}，然後重新載入。"
 }
