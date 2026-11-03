@@ -727,6 +727,12 @@ export interface AddonVehicleLaunchInfo {
 }
 
 
+const SETTINGS_PRESETS = {
+  performance: { name: 'Performance', values: [['render', 'scale:0.5'], ['fps', '60'], ['audio_latency', 'balanced']] as const },
+  balanced: { name: 'Balanced', values: [['render', 'backing'], ['fps', 'auto'], ['audio_latency', 'balanced']] as const },
+  quality: { name: 'High quality', values: [['render', 'scale:1.5'], ['fps', 'auto'], ['audio_latency', 'interactive']] as const },
+};
+
 export function setupPlatformFeatures(settings: SettingsPanel, confirm: (title: string, body: string, ok: string, danger?: boolean) => Promise<boolean>, log: (line: string) => void) {
   $('#build-current').textContent = APP_BUILD_VERSION;
   $('#garage-search').addEventListener('input', renderGarage);
@@ -782,7 +788,58 @@ export function setupPlatformFeatures(settings: SettingsPanel, confirm: (title: 
   $('#config-profile-import').addEventListener('change', event => {
     const file = (event.currentTarget as HTMLInputElement).files?.[0]; if (file) void importProfileFile(file).then(renderProfilePicker);
   });
+  window.__trpSettingsProfilesBridge = {
+    snapshot: () => getProfiles().map(({ id, name, createdAt }) => ({ id, name, createdAt })),
+    readOnly: () => settings.readOnly(),
+    save: async (name: string) => {
+      const input = $<HTMLInputElement>('#config-profile-name');
+      input.value = name;
+      await saveCurrentProfile(settings);
+      const message = $('#config-profile-status').textContent ?? '';
+      renderProfilePicker();
+      return { profiles: getProfiles().map(({ id, name, createdAt }) => ({ id, name, createdAt })), message };
+    },
+    apply: async (id: string) => {
+      const profile = getProfiles().find(item => item.id === id);
+      if (!profile) throw new Error('Profile not found');
+      const applied = await settings.applyProfileValues(profile.name, profile.values);
+      return { applied, message: applied
+        ? t('Settings profile applied: {name}. Changes apply the next time you press Play.', { name: profile.name })
+        : t('The profile could not be applied in this tab.') };
+    },
+    remove: async (id: string) => {
+      const profile = getProfiles().find(item => item.id === id);
+      if (!profile) return { removed: false, profiles: getProfiles().map(({ id, name, createdAt }) => ({ id, name, createdAt })) };
+      if (!await confirm(t('Delete profile'), `${t('Delete profile')} “${profile.name}”?`, t('Delete profile'), true)) {
+        return { removed: false, profiles: getProfiles().map(({ id, name, createdAt }) => ({ id, name, createdAt })) };
+      }
+      saveProfiles(getProfiles().filter(item => item.id !== profile.id));
+      const fav = getFavorites(); fav.delete(`profile:${profile.id}`); saveFavorites(fav);
+      renderProfilePicker();
+      return { removed: true, profiles: getProfiles().map(({ id, name, createdAt }) => ({ id, name, createdAt })), message: t('Profile deleted.') };
+    },
+    export: (id: string) => {
+      const profile = getProfiles().find(item => item.id === id);
+      if (!profile) throw new Error('Profile not found');
+      downloadJSON(profile, `trpolaris-profile-${profile.name.replace(/[^A-Za-z0-9_-]/g, '_')}.json`);
+    },
+    import: async (file: File) => {
+      await importProfileFile(file);
+      renderProfilePicker();
+      return { profiles: getProfiles().map(({ id, name, createdAt }) => ({ id, name, createdAt })), message: $('#config-profile-status').textContent ?? '' };
+    },
+    preset: async (id: string) => {
+      const preset = SETTINGS_PRESETS[id as keyof typeof SETTINGS_PRESETS];
+      if (!preset) throw new Error('Unsupported settings preset');
+      const applied = await settings.applyPreset(preset.name, preset.values);
+      window.dispatchEvent(new Event('trp-settings-changed'));
+      return { applied, message: t('Settings preset saved: {name}. Changes apply the next time you press Play.', { name: t(preset.name) }) };
+    },
+  };
+  window.dispatchEvent(new Event('trp-settings-profiles-ready'));
   renderProfilePicker();
+
+  loadAccessibility(); wireAccessibility();  renderProfilePicker();
 
   loadAccessibility(); wireAccessibility();
   window.__trpAccessibilityBridge = {

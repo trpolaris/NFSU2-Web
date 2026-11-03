@@ -1742,6 +1742,10 @@ export async function boot() {
   window.__trpSettingsBridge = {
     current: key => settings.current(key),
     snapshot: () => settings.reactSnapshot(),
+    rawSnapshot: () => settings.rawSnapshot(),
+    saveRaw: async text => { const message = await settings.saveRawFromReact(text); window.dispatchEvent(new Event('trp-settings-changed')); return message; },
+    resetAll: async () => { const reset = await settings.resetAllFromReact(); window.dispatchEvent(new Event('trp-settings-changed')); return reset; },
+    resetOther: async (line, key) => { await settings.resetOtherFromReact(line, key); window.dispatchEvent(new Event('trp-settings-changed')); },
     setOption: async (key, value) => { await settings.setFromReact(key, value); window.dispatchEvent(new Event('trp-settings-changed')); },
     resetOption: async key => { await settings.resetFromReact(key); window.dispatchEvent(new Event('trp-settings-changed')); },
     previewOption: (key, value) => settings.previewFromReact(key, value),

@@ -432,7 +432,62 @@ export class SettingsPanel {
   }
 
   /** React changes use the same catalogue, ownership guard, validation and settings.ini writer. */
-  async setFromReact(key: string, rawValue: string) {
+  /** The raw editor and unlisted keys as an immutable React snapshot. */
+  rawSnapshot() {
+    if (!this.fileOnly) return { ready: false, readOnly: true, text: this.text ?? TEMPLATE, canResetAll: false, other: [] };
+    const unshown = Object.entries(this.fileOnly.file)
+      .filter(([key, field]) => !ITEMS.has(key) && !COMPANIONS.has(key) && field.raw !== '')
+      .map(([key, field]) => ({ phys: field.phys, key, env: key, value: field.raw, refused: field.refused, why: field.why }));
+    const other = [...this.fileOnly.other, ...unshown].sort((a, b) => a.phys - b.phys).map(item => ({
+      line: item.phys,
+      key: item.key,
+      value: item.value,
+      refused: item.refused ? t('{line} (ignored: {why})', {
+        line: t('line {line}: {key} = {value}', { line: item.phys, key: item.key, value: item.value.length > 80 ? item.value.slice(0, 80) + '…' : item.value }),
+        why: item.why ? tvars(item.why.t, item.why.v) : item.refused,
+      }) : '',
+      env: item.env !== item.key ? item.env : '',
+    }));
+    return {
+      ready: true,
+      readOnly: this.ro(),
+      text: this.text ?? TEMPLATE,
+      canResetAll: !this.ro() && resetAll(this.text) !== (this.text ?? TEMPLATE),
+      other,
+    };
+  }
+
+  async saveRawFromReact(raw: string): Promise<string> {
+    if (this.ro()) throw new Error(t(READ_ONLY));
+    const next = raw.endsWith('\\n') ? raw : raw + '\\n';
+    const resolved = resolveEnv(next, this.deps.environment, {});
+    const bad = resolved.notes.filter(note => /ignored$|only the page sets it$/.test(note) && !/is set in the environment|already set/.test(note));
+    await this.write(next);
+    return bad.length
+      ? tn(bad.length, 'Saved. {n} line is ignored: {first}', 'Saved. {n} lines are ignored: {first} …', { first: bad[0] })
+      : t('Saved.');
+  }
+
+  async resetAllFromReact(): Promise<boolean> {
+    if (this.ro()) throw new Error(t(READ_ONLY));
+    if (this.deps.confirm && !await this.deps.confirm(t('Reset all settings?'),
+      t('Every setting here goes back to its default, and any other line in settings.ini is removed. Your name, crews and language stay, as do the options set inside the game.'),
+      t('Reset'), true)) return false;
+    if (this.ro()) throw new Error(t(READ_ONLY));
+    await this.write(resetAll(this.text));
+    this.deps.say?.(() => t('Settings are back to their defaults. Applies the next time you press Play.'));
+    return true;
+  }
+
+  async resetOtherFromReact(line: number, key: string): Promise<void> {
+    if (this.ro()) throw new Error(t(READ_ONLY));
+    const exists = this.rawSnapshot().other.some(item => item.line === line && item.key === key);
+    if (!exists) throw new Error('The settings.ini line changed. Refresh the editor before resetting it.');
+    await this.write(resetLine(this.text ?? TEMPLATE, line));
+    this.deps.say?.(() => t('Saved: {key} is back to its default. Applies the next time you press Play.', { key }));
+  }
+
+  async setFromReact(key: string, rawValue: string) {  async setFromReact(key: string, rawValue: string) {
     const item = ITEMS.get(key);
     if (!item || GROUP_OF.get(key)?.own) throw new Error('Unsupported React settings field');
     if (this.ro()) throw new Error(t(READ_ONLY));
@@ -613,7 +668,9 @@ export class SettingsPanel {
     return this.deps.defaults?.[key] ?? DEFAULTS.get(key) ?? '';
   }
 
-  private ro() { return !!this.deps.readOnly?.(); }
+  readOnly() { return this.ro(); }
+
+  private ro() { return !!this.deps.readOnly?.(); }  private ro() { return !!this.deps.readOnly?.(); }
 
   /** key's line, and also's (a row's second key: COMPANION) in the same write */
   /** Your name written (a claim made under it: claim-ui.ts) */

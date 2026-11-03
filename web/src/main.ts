@@ -34,9 +34,25 @@ declare global {
     options: TrpSettingsOption[]; min?: number; max?: number; step?: number; unit?: string;
     placeholder: string; preview: boolean; modified: boolean; link: { text: string; href: string } | null;
   }
+  interface TrpSettingsRawLine { line: number; key: string; value: string; refused: string; env: string; }
+  interface TrpSettingsRawSnapshot {
+    ready: boolean; readOnly: boolean; text: string; canResetAll: boolean; other: TrpSettingsRawLine[];
+  }
   interface TrpSettingsSnapshot {
     ready: boolean; readOnly: boolean; note: string;
     groups: { title: string; moreLabel: string; items: TrpSettingsItem[] }[];
+  }
+  interface TrpSettingsProfile { id: string; name: string; createdAt: number; }
+  interface TrpSettingsProfilesResult { profiles: TrpSettingsProfile[]; message?: string; }
+  interface TrpSettingsProfilesBridge {
+    snapshot(): TrpSettingsProfile[];
+    readOnly(): boolean;
+    save(name: string): Promise<TrpSettingsProfilesResult>;
+    apply(id: string): Promise<{ applied: boolean; message: string }>;
+    remove(id: string): Promise<{ removed: boolean; profiles: TrpSettingsProfile[]; message?: string }>;
+    export(id: string): void;
+    import(file: File): Promise<TrpSettingsProfilesResult>;
+    preset(id: 'performance' | 'balanced' | 'quality'): Promise<{ applied: boolean; message: string }>;
   }
   interface TrpControlOption { value: string; label: string; }
   interface TrpControlsSnapshot {
@@ -152,6 +168,10 @@ declare global {
   interface TrpSettingsBridge {
     current(key: string): string;
     snapshot(): TrpSettingsSnapshot;
+    rawSnapshot(): TrpSettingsRawSnapshot;
+    saveRaw(text: string): Promise<string>;
+    resetAll(): Promise<boolean>;
+    resetOther(line: number, key: string): Promise<void>;
     setOption(key: string, value: string): Promise<void>;
     resetOption(key: string): Promise<void>;
     previewOption(key: string, value: string): Promise<void>;
@@ -169,6 +189,7 @@ declare global {
   interface Window {
     __trpTranslateReact?: (root: ParentNode) => void;
     __trpSettingsBridge?: TrpSettingsBridge;
+    __trpSettingsProfilesBridge?: TrpSettingsProfilesBridge;
     __trpAccessibilityBridge?: TrpAccessibilityBridge;
     __trpSavesBridge?: TrpSavesBridge;
     __trpVaultBridge?: TrpVaultBridge;
