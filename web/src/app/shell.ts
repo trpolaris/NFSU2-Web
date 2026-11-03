@@ -1806,7 +1806,7 @@ export async function boot() {
     mountChallenge: host => nameRow.mountChallenge(host),
   };
   window.dispatchEvent(new Event('trp-name-row-ready'));
-  vault = new VaultPanel($('#vault'), {
+  vault = new VaultPanel({
     saveDir: SAVE, owner: () => instance.owner, playing: () => !!session, busy: () => !!session || starting || !instance.owner,
     confirm: confirmBox, choose: (title, body, ok, cancel) => choiceBox(title, body, ok, cancel),
     onRestored: () => { void loadSettings(); void settings.refresh(); void saves.refresh(); }, log: logLine,

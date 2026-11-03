@@ -20,7 +20,7 @@ import { backupItems, readVault, restoreVault } from './saves-ui';
 import { downloadBlob } from './logs';
 import { zip } from './zip';
 import { kept, keeps, keptBy, profilesIn, readPhrase, sideOf, vaultAvailable, VaultError, VaultSync, type Link, type Remote, type SaveFile, type Side } from './vault';
-import { codeOf, dateLocale, live, N, t, tn, tvars, type Msg } from './i18n';
+import { dateLocale, N, t, tn, tvars, type Msg } from './i18n';
 
 export interface VaultPanelDeps {
   saveDir: string;
@@ -30,9 +30,9 @@ export interface VaultPanelDeps {
   playing(): boolean;
   /** a game runs or starts here, or another tab owns the saves: nothing writes into them from this section */
   busy(): boolean;
-  confirm(title: string, body: Node | string, ok: string, danger?: boolean): Promise<boolean>;
+  confirm(title: string, body: string, ok: string, danger?: boolean): Promise<boolean>;
   /** a question with two answers: 'ok', 'cancel', or '' (closed: Esc) */
-  choose(title: string, body: Node | string, ok: string, cancel: string): Promise<string>;
+  choose(title: string, body: string, ok: string, cancel: string): Promise<string>;
   /** the saves here were replaced: the Saves list and the settings again */
   onRestored(): void;
   /** the passphrase linked here changed (made, loaded, stopped, deleted): what the claimed names say of this player */
@@ -87,27 +87,17 @@ function newer(here: Side, cloud: Side | null): 'here' | 'cloud' | null {
 
 /** a conflict's two sides: where, its profiles, when they were saved, the newer one marked (cloud undefined: this
  *  browser's only) */
-function sidesOf(here: Side, cloud?: Side | null): HTMLElement {
-  const ul = document.createElement('ul'), n = cloud === undefined ? null : newer(here, cloud);
-  ul.className = 'vault-sides';
-  const row = (where: string, s: Side | null, isNewer: boolean) => {
-    const li = document.createElement('li'), name = document.createElement('b'), what = document.createElement('span');
-    name.textContent = where;
-    const names = !s?.profiles ? '' : !s.profiles.length ? t('no profiles')
-      : s.profiles.map(p => p.money === null ? p.name : `${p.name} $${p.money.toLocaleString(dateLocale())}`).join(', ');
-    const at = s?.saved != null ? t('saved {when}', { when: when(s.saved) }) : '';
-    what.textContent = [names, at].filter(Boolean).join(' · ');
-    li.append(name, what);
-    if (isNewer) li.append(Object.assign(document.createElement('em'), { textContent: t('Newer') }));
-    li.classList.toggle('newer', isNewer);
-    ul.append(li);
+function sidesOf(here: Side, cloud?: Side | null): string {
+  const n = cloud === undefined ? null : newer(here, cloud);
+  const row = (where: string, side: Side | null, isNewer: boolean) => {
+    const names = !side?.profiles ? '' : !side.profiles.length ? t('no profiles')
+      : side.profiles.map(profile => profile.money === null ? profile.name : `${profile.name} $${profile.money.toLocaleString(dateLocale())}`).join(', ');
+    const at = side?.saved != null ? t('saved {when}', { when: when(side.saved) }) : '';
+    return [where, names, at, isNewer ? t('Newer') : ''].filter(Boolean).join(' · ');
   };
-  row(t('This browser'), here, n === 'here');
-  if (cloud !== undefined) row(t('Cloud'), cloud, n === 'cloud');
-  return ul;
+  return [row(t('This browser'), here, n === 'here'),
+    ...(cloud === undefined ? [] : [row(t('Cloud'), cloud, n === 'cloud')])].join('\\n');
 }
-
-const para = (text: string) => Object.assign(document.createElement('p'), { textContent: text });
 
 const QUIT_FIRST = N('Quit the game first.');
 
@@ -127,82 +117,57 @@ export class VaultPanel {
   /** the saves a cloud version replaced, kept here (null: none) */
   private replaced: Replaced | null = null;
   private readonly key: string;
-  private readonly input: HTMLInputElement;
 
   /** `start` has found whether this server keeps cloud saves (and set up the sync, with the link kept here) */
   private ready: Promise<void>;
   private readyNow: () => void = () => {};
   /** the phrase linked when the section last showed (undefined: not shown yet): `onLink` when it changes */
   private shownLink: string | null | undefined = undefined;
+  private available = false;
+  private phraseValue = '';
+  private host = typeof location !== 'undefined' ? (location.host || 'local') : 'local';
+  private whenText = '';
+  private whenVisible = false;
+  private claimText = '';
+  private claimVisible = false;
+  private aboutText = t('Make a keyphrase, or enter yours to load your saves.');
+  private sidesText = '';
+  private statusText = '';
+  private message: string | Msg = '';
+  private messageWarn = false;
 
-  constructor(private root: HTMLElement, private d: VaultPanelDeps) {
-    this.ready = new Promise<void>(r => { this.readyNow = r; });
+  constructor(private d: VaultPanelDeps) {
+    this.ready = new Promise<void>(resolve => { this.readyNow = resolve; });
     this.key = linkKey(d.saveDir);
-    this.$<HTMLElement>('#vault-host').textContent = location.host || 'local';
-    this.input = this.$<HTMLInputElement>('#vault-input');
-    const on = (id: string, f: () => unknown) => { this.$<HTMLButtonElement>(id).onclick = () => void f(); };
-    on('#vault-make', () => this.make());
-    // shown, it is selected, and the linked keyphrase copied
-    on('#vault-eye', async () => {
-      this.hidden = !this.hidden;
-      this.mask();
-      if (this.hidden || !this.input.value) return;
-      this.input.focus(); this.input.select();
-      if (!this.sync?.link) return;
-      try { await navigator.clipboard.writeText(this.input.value); this.msg(() => t('Copied.')); } catch { /* the selection is there to copy */ }
-    });
-    on('#vault-file', () => this.download());
-    on('#vault-sync', () => this.syncNow());
-    on('#vault-earlier', () => this.goBack());
-    on('#vault-stop', () => this.stop());
-    on('#vault-delete', () => this.remove());
-    on('#vault-mine', () => this.keepMine());
-    on('#vault-theirs', () => this.takeTheirs());
-    on('#vault-putback', () => this.putBack());
-    this.$<HTMLFormElement>('#vault-form').onsubmit = e => { e.preventDefault(); if (!this.sync?.link) void this.use(this.input.value); };
-    // the dots follow the field's text and its scrolling
-    for (const ev of ['input', 'scroll', 'keyup', 'select', 'pointerup', 'focus']) this.input.addEventListener(ev, () => this.mask());
   }
-
-  private $<T extends HTMLElement = HTMLElement>(sel: string) { return this.root.querySelector<T>(sel)!; }
-  /** the line under the buttons, drawn again when the page's language changes (a Msg); code: a failure's name */
   private notifyReact() { this.d.onReactUpdate?.(); }
-
-  /** React-safe view model; passphrase is exposed only in its dedicated field. */
+  private messageText(value: string | Msg): string { return typeof value === 'string' ? value : value(); }
   reactSnapshot() {
-    const button = (id: string) => this.$<HTMLButtonElement>(id);
-    const node = (id: string) => this.$<HTMLElement>(id);
-    const text = (id: string) => node(id).textContent ?? '';
-    const state = this.sync?.state;
+    const link = this.sync?.link, state = this.sync?.state;
+    const working = state?.s === 'working', conflict = state?.s === 'conflict';
+    const busy = this.d.busy(), owner = this.d.owner();
     return {
-      available: !this.root.hidden, linked: !!this.sync?.link, phrase: this.input.value, revealed: !this.hidden,
-      owner: this.d.owner(), busy: this.d.busy(), working: state?.s === 'working',
-      host: text('#vault-host'), when: text('#vault-when'), whenVisible: !node('#vault-when').hidden,
-      claim: text('#vault-claim'), claimVisible: !node('#vault-claim').hidden,
-      about: text('#vault-about'), aboutVisible: !node('#vault-about').hidden,
-      sides: text('#vault-sides'), status: text('#vault-status'), message: text('#vault-msg'),
-      messageWarn: node('#vault-msg').classList.contains('warn'),
-      makeVisible: !button('#vault-make').hidden, showDownload: !button('#vault-file').hidden,
-      showLoad: !button('#vault-load').hidden, showSync: !node('#vault-on').hidden,
-      showEarlier: !button('#vault-earlier').hidden, showConflict: !node('#vault-conflict').hidden,
-      showReplaced: !node('#vault-replaced').hidden,
-      makeDisabled: button('#vault-make').disabled, loadDisabled: button('#vault-load').disabled,
-      syncDisabled: button('#vault-sync').disabled, earlierDisabled: button('#vault-earlier').disabled,
-      keepMineDisabled: button('#vault-mine').disabled, takeTheirsDisabled: button('#vault-theirs').disabled,
-      stopDisabled: button('#vault-stop').disabled, deleteDisabled: button('#vault-delete').disabled,
-      putBackDisabled: button('#vault-putback').disabled, conflictState: state?.s === 'conflict',
+      available: this.available, linked: !!link, phrase: this.phraseValue, revealed: !this.hidden,
+      owner, busy, working, host: this.host, when: this.whenText, whenVisible: this.whenVisible,
+      claim: this.claimText, claimVisible: this.claimVisible, about: this.aboutText, aboutVisible: !link,
+      sides: this.sidesText, status: this.statusText, message: this.messageText(this.message), messageWarn: this.messageWarn,
+      makeVisible: !link && !working, showDownload: !!link, showLoad: !link, showSync: !!link,
+      showEarlier: !!link?.earlier, showConflict: !!conflict && !!link, showReplaced: !!this.replaced,
+      replacedText: this.replaced ? t('Kept in this browser: the saves replaced {when}.', { when: when(this.replaced.at) }) : '',
+      makeDisabled: !owner || !!working, loadDisabled: busy || !!working, syncDisabled: busy || !!working,
+      earlierDisabled: busy || !!working, keepMineDisabled: !owner || !!working, takeTheirsDisabled: busy || !!working,
+      stopDisabled: !owner || !!working, deleteDisabled: !owner || !!working, putBackDisabled: busy || !!working,
+      conflictState: !!conflict,
     };
   }
-
   async makeFromReact() { return this.make(); }
   async loadFromReact(phrase: string) {
-    this.input.value = phrase; this.holdsLink = false; this.hidden = true; this.mask();
-    await this.use(phrase);
+    this.phraseValue = phrase; this.holdsLink = false; this.hidden = true; this.notifyReact(); await this.use(phrase);
   }
   toggleVisibilityFromReact() {
-    this.hidden = !this.hidden; this.mask();
-    if (!this.hidden && this.input.value && this.sync?.link) {
-      const copying = navigator.clipboard?.writeText(this.input.value);
+    this.hidden = !this.hidden; this.notifyReact();
+    if (!this.hidden && this.phraseValue && this.sync?.link) {
+      const copying = navigator.clipboard?.writeText(this.phraseValue);
       if (copying) void copying.then(() => this.msg(() => t('Copied.'))).catch(() => {});
     }
   }
@@ -214,23 +179,12 @@ export class VaultPanel {
   keepMineFromReact() { return this.keepMine(); }
   takeTheirsFromReact() { return this.takeTheirs(); }
   putBackFromReact() { return this.putBack(); }
-
-  private msg(s: string | Msg, warn = false, code?: string) {
-    const m = this.$('#vault-msg');
-    live(m, typeof s === 'string' ? () => s : s, code); m.classList.toggle('warn', warn);
+  private msg(value: string | Msg, warn = false, code?: string) {
+    this.message = value; this.messageWarn = warn;
+    if (code && (this.d.owner() || !this.sync?.link)) this.message = `${this.messageText(value)} [${code}]`;
     this.notifyReact();
   }
-
-  /** the box's dots (or not), and its eye */
-  private mask() {
-    const m = this.$('#vault-mask'), eye = this.$('#vault-eye');
-    this.$('#vault-box').classList.toggle('masked', this.hidden);
-    m.textContent = masked(this.input.value);
-    m.scrollLeft = this.input.scrollLeft;
-    eye.setAttribute('aria-pressed', String(!this.hidden));
-    eye.setAttribute('aria-label', this.hidden ? t('Show passphrase') : t('Hide passphrase'));
-    this.notifyReact();
-  }
+  private mask() { this.notifyReact(); }
 
   private load(): Link | null {
     try { const t = localStorage.getItem(this.key); return t ? JSON.parse(t) as Link : null; } catch { return null; }
@@ -256,7 +210,7 @@ export class VaultPanel {
     if (!await vaultAvailable().finally(() => setTimeout(() => this.readyNow(), 0))) { this.notifyReact(); return; }
     this.makeSync();
     this.readyNow();
-    this.root.hidden = false;
+    this.available = true;
     await this.loadReplaced();
     this.show();
     if (this.owned) this.check();
@@ -328,28 +282,17 @@ export class VaultPanel {
 
   /** the kept saves back in place of the ones here, which are kept in their place (Put back again swaps back) */
   private async putBack() {
-    const r = this.replaced;
-    if (!r) return;
+    const r = this.replaced; if (!r) return;
     if (this.d.busy()) { this.msg(() => t(QUIT_FIRST), true); return; }
-    const body = document.createElement('div');
-    body.append(para(t('The saves this browser had before cloud saves replaced them ({when}) come back in place of the ones here. The saves here now are kept instead, so you can switch back.', { when: when(r.at) })),
-      sidesOf(r.side));
+    const body = `${t('The saves this browser had before cloud saves replaced them ({when}) come back in place of the ones here. The saves here now are kept instead, so you can switch back.', { when: when(r.at) })}\\n\\n${sidesOf(r.side)}`;
     if (!await this.d.confirm(t('Put back the replaced saves?'), body, t('Put back'), true)) return;
     if (this.d.busy()) { this.msg(() => t(QUIT_FIRST), true); return; }
-    try {
-      const dir = replacedDir(this.d.saveDir), back = await readVault(await readBytes(dir, 'saves.zip'));
-      await this.keepReplaced();
-      await restoreVault(this.d.saveDir, back);
-    } catch (e) {
-      this.msg(() => t('Putting back stopped: {error}.', { error: e instanceof Error ? e.message : String(e) }), true, 'VAULT-PUT-BACK');
-      return;
-    } finally { this.d.onRestored(); }
+    try { const dir = replacedDir(this.d.saveDir), backup = await readVault(await readBytes(dir, 'saves.zip')); await this.keepReplaced(); await restoreVault(this.d.saveDir, backup); }
+    catch (e) { this.msg(() => t('Putting back stopped: {error}.', { error: e instanceof Error ? e.message : String(e) }), true, 'VAULT-PUT-BACK'); return; }
+    finally { this.d.onRestored(); }
     this.msg(this.sync?.link ? () => t('Put back. They go to the cloud now.') : () => t('Put back.'));
     this.d.log('[app] keyphrase: put back the saves a cloud version had replaced');
-    // what the sync judged before is old now: synced again (a conflict asked again, with these saves)
-    this.sync?.reopen();
-    this.show();
-    this.check();
+    this.sync?.reopen(); this.show(); this.check();
   }
 
   // ---- when it syncs ----
@@ -389,15 +332,14 @@ export class VaultPanel {
   async askAtPlay(): Promise<'play' | 'taken' | 'stop'> {
     const s = this.sync, st = s?.state;
     if (!s?.link || st?.s !== 'conflict' || !this.d.owner()) return 'play';
-    const body = document.createElement('div');
-    body.append(para(this.conflictText()), sidesOf(st.here, st.cloud), para(t('Cloud saves stay paused until you pick. Esc goes back without playing.')));
+    const body = [this.conflictText(), sidesOf(st.here, st.cloud), t('Cloud saves stay paused until you pick. Esc goes back without playing.')].filter(Boolean).join('\\n\\n');
     const pick = await this.d.choose(t('Which saves do you want to keep?'), body, t('Keep this browser\'s'), t('Use the cloud\'s'));
     this.d.log(`[app] keyphrase: a conflict (${st.why}) at Play: ${pick === 'ok' ? 'keep this browser\'s' : pick === 'cancel' ? 'use the cloud\'s' : 'back to the page'}`);
     if (pick === 'ok') return await this.keepMine() ? 'play' : 'stop';
     if (pick === 'cancel') return await this.takeTheirs(true) ? 'taken' : 'stop';
     return 'stop';
   }
-  /** A game started or ended, or this tab's ownership changed: the buttons again. */
+
   refresh() { this.show(); }
 
   // ---- offered at Play (shell.ts askCloud) ----
@@ -434,9 +376,8 @@ export class VaultPanel {
   linked(): boolean { return !!this.sync?.link; }
   /** the line about the name this keyphrase claims (null: none) */
   showClaim(name: string | null) {
-    const p = this.$<HTMLElement>('#vault-claim');
-    p.hidden = !name || !this.sync?.link;
-    p.textContent = name ? t('This passphrase also holds your claim on {name}.', { name }) : '';
+    this.claimVisible = !!name && !!this.sync?.link;
+    this.claimText = name ? t('This passphrase also holds your claim on {name}.', { name }) : '';
     this.notifyReact();
   }
   /** the linked keyphrase as a file */
@@ -475,14 +416,12 @@ export class VaultPanel {
   }
 
   /** what a version brings, asked; then it replaces the saves here.  False: nothing changed. */
-  private async replace(got: { zip: Uint8Array; remote: Remote }, title: string, text: string, ok: string): Promise<boolean> {
+  private async replace(got: { zip: Uint8Array; remote: Remote }, title: string, description: string, ok: string): Promise<boolean> {
     let r: Awaited<ReturnType<typeof readVault>>;
-    try { r = await readVault(got.zip); } catch (e) { this.msg(() => t('These saves cannot be read: {error}.', { error: e instanceof Error ? e.message : String(e) }), true, 'VAULT-UNREADABLE'); return false; }
-    const body = document.createElement('div'), p = document.createElement('p'), ul = document.createElement('ul');
-    p.textContent = text;
-    for (const t of backupItems(r, true)) { const li = document.createElement('li'); li.textContent = t; ul.append(li); }
-    body.append(p, ul);
-    if (!await this.d.confirm(title, body, ok, (await listFiles(this.d.saveDir)).some(f => keeps(f.path)))) { this.msg(''); return false; }
+    try { r = await readVault(got.zip); }
+    catch (e) { this.msg(() => t('These saves cannot be read: {error}.', { error: e instanceof Error ? e.message : String(e) }), true, 'VAULT-UNREADABLE'); return false; }
+    const body = [description, ...backupItems(r, true).map(item => `• ${item}`)].join('\\n');
+    if (!await this.d.confirm(title, body, ok, (await listFiles(this.d.saveDir)).some(file => keeps(file.path)))) { this.msg(''); return false; }
     if (this.d.busy()) { this.msg(() => t(QUIT_FIRST), true); return false; }
     try { await this.keepReplaced(); }
     catch (e) { this.msg(() => t('The saves here could not be kept, so nothing was replaced: {error}.', { error: e instanceof Error ? e.message : String(e) }), true, 'VAULT-KEEP-COPY'); return false; }
@@ -528,7 +467,7 @@ export class VaultPanel {
     await s.forget().catch(() => {});
     // the keyphrase stays in the box, to keep or to load again (the job's end showed the box empty)
     this.holdsLink = false;
-    this.input.value = phrase;
+    this.phraseValue = phrase;
     this.show();
     this.msg(() => t('Stopped syncing. Your saves stay here and in the cloud.'));
   }
@@ -550,15 +489,16 @@ export class VaultPanel {
   private async keepMine(): Promise<boolean> {
     const s = this.sync, st = s?.state;
     if (!s?.link || st?.s !== 'conflict') return false;
-    const n = s.link.profiles, body = document.createElement('div'), cloudAt = st.cloud?.saved;
-    if (st.why === 'empty') body.append(para(tn(n, 'This browser has no profiles. The cloud\'s profile is deleted, here and in every browser that syncs with this passphrase.',
-      'This browser has no profiles. The cloud\'s {n} profiles are deleted, here and in every browser that syncs with this passphrase.')));
-    else body.append(para(cloudAt != null ? t('They replace the cloud\'s saves from {when}, here and in every browser that syncs with this passphrase.', { when: when(cloudAt) })
-      : t('They replace the cloud\'s saves, here and in every browser that syncs with this passphrase.')));
-    body.append(sidesOf(st.here, st.cloud));
-    const cloudNewer = newer(st.here, st.cloud) === 'cloud';
-    if (cloudNewer) body.append(Object.assign(para(t('The cloud\'s saves are newer: what was played on them since is lost.')), { className: 'warn' }));
-    if (!await this.d.confirm(t('Keep this browser\'s saves?'), body, t('Keep this browser\'s'), st.why === 'empty' || cloudNewer)) return false;
+    const cloudAt = st.cloud?.saved;
+    const explanation = st.why === 'empty'
+      ? tn(s.link.profiles, 'This browser has no profiles. The cloud\'s profile is deleted, here and in every browser that syncs with this passphrase.',
+          'This browser has no profiles. The cloud\'s {n} profiles are deleted, here and in every browser that syncs with this passphrase.')
+      : cloudAt != null
+        ? t('They replace the cloud\'s saves from {when}, here and in every browser that syncs with this passphrase.', { when: when(cloudAt) })
+        : t('They replace the cloud\'s saves, here and in every browser that syncs with this passphrase.');
+    const newerCloud = newer(st.here, st.cloud) === 'cloud';
+    const body = [explanation, sidesOf(st.here, st.cloud), ...(newerCloud ? [t('The cloud\'s saves are newer: what was played on them since is lost.')] : [])].filter(Boolean).join('\\n\\n');
+    if (!await this.d.confirm(t('Keep this browser\'s saves?'), body, t('Keep this browser\'s'), st.why === 'empty' || newerCloud)) return false;
     await s.keepMine().catch(() => {});
     return s.state.s === 'synced';
   }
@@ -569,71 +509,40 @@ export class VaultPanel {
     const s = this.sync, st = s?.state, busy = () => !atPlay && this.d.busy();
     if (!s?.link || st?.s !== 'conflict') return false;
     if (busy()) { this.msg(() => t(QUIT_FIRST), true); return false; }
-    const body = document.createElement('div'), cloudAt = st.cloud?.saved;
-    body.append(para(cloudAt != null ? t('The cloud\'s saves from {when} replace the ones here.', { when: when(cloudAt) }) : t('The cloud\'s saves replace the ones here.')),
-      sidesOf(st.here, st.cloud));
-    if (cloudAt != null && newer(st.here, st.cloud) === 'here')
-      body.append(Object.assign(para(t('This browser\'s saves are newer: the progress since {when} is replaced.', { when: when(cloudAt) })), { className: 'warn' }));
-    if (st.why === 'bare') body.append(Object.assign(para(t('They have no profiles: the profiles here are deleted.')), { className: 'warn' }));
-    if (st.here.profiles?.length) body.append(para(tn(REPLACED_DAYS, 'A copy of the saves here stays in this browser for {n} day: Put back under Cloud saves brings it back.',
-      'A copy of the saves here stays in this browser for {n} days: Put back under Cloud saves brings it back.')));
-    if (!await this.d.confirm(t('Use the cloud\'s saves?'), body, t('Use the cloud\'s'), true)) return false;
+    const cloudAt = st.cloud?.saved;
+    const parts = [cloudAt != null ? t('The cloud\'s saves from {when} replace the ones here.', { when: when(cloudAt) }) : t('The cloud\'s saves replace the ones here.'), sidesOf(st.here, st.cloud)];
+    if (cloudAt != null && newer(st.here, st.cloud) === 'here') parts.push(t('This browser\'s saves are newer: the progress since {when} is replaced.', { when: when(cloudAt) }));
+    if (st.why === 'bare') parts.push(t('They have no profiles: the profiles here are deleted.'));
+    if (st.here.profiles?.length) parts.push(tn(REPLACED_DAYS, 'A copy of the saves here stays in this browser for {n} day: Put back under Cloud saves brings it back.', 'A copy of the saves here stays in this browser for {n} days: Put back under Cloud saves brings it back.'));
+    if (!await this.d.confirm(t('Use the cloud\'s saves?'), parts.join('\\n\\n'), t('Use the cloud\'s'), true)) return false;
     if (busy()) { this.msg(() => t(QUIT_FIRST), true); return false; }
     try { await this.keepReplaced(); }
     catch (e) { this.msg(() => t('The saves here could not be kept, so nothing was replaced: {error}.', { error: e instanceof Error ? e.message : String(e) }), true, 'VAULT-KEEP-COPY'); return false; }
-    await s.takeTheirs().catch(() => {});
-    this.show();
+    await s.takeTheirs().catch(() => {}); this.show();
     return s.state.s === 'synced';
   }
 
   // ---- what it shows ----
 
   private show() {
-    const s = this.sync;
-    if (!s) return;
-    const l = s.link, st = s.state, owner = this.d.owner(), busy = this.d.busy();
-    const phrase = l?.phrase ?? null;
-    if (phrase !== this.shownLink) {
-      const first = this.shownLink === undefined;
-      this.shownLink = phrase;
-      if (!first) this.d.onLink?.();
-    }
-    const working = st.s === 'working';
-    // beside the heading: Enable cloud saving, or what it is doing, or when it last synced
-    this.$('#vault-make').hidden = !!l || working;
-    const note = this.$('#vault-when');
-    note.hidden = !l && !working;
-    note.textContent = st.s === 'working' ? `${t(st.what)}…` : l ? t('Synced {when}', { when: short(l.saved) }) : '';
-    // the box: the linked keyphrase (read only, with its download), or one to type in and load
-    if (l) { this.input.value = l.phrase; this.holdsLink = true; }
-    else if (this.holdsLink) { this.input.value = ''; this.holdsLink = false; }
-    this.input.readOnly = !!l;
-    this.$('#vault-file').hidden = !l;
-    this.$('#vault-load').hidden = !!l;
-    this.$('#vault-about').hidden = !!l;
-    this.mask();
-    this.$('#vault-on').hidden = !l;
-    const earlier = this.$<HTMLButtonElement>('#vault-earlier');
-    earlier.hidden = !l?.earlier;
-    if (l?.earlier) earlier.textContent = t('Go back to {when}', { when: short(l.earlier) });
-    const conflict = st.s === 'conflict' ? st : null;
-    this.$('#vault-conflict').hidden = !conflict || !l;
-    this.$('#vault-sides').replaceChildren(...conflict && l ? [sidesOf(conflict.here, conflict.cloud)] : []);
-    // the saves a cloud version replaced, kept here
-    const kept = this.replaced;
-    this.$('#vault-replaced').hidden = !kept;
-    if (kept) this.$('#vault-replaced-text').textContent = t('Kept in this browser: the saves replaced {when}.', { when: when(kept.at) });
-    for (const id of ['#vault-make', '#vault-mine', '#vault-delete', '#vault-stop']) this.$<HTMLButtonElement>(id).disabled = !owner || working;
-    for (const id of ['#vault-sync', '#vault-earlier', '#vault-theirs', '#vault-load', '#vault-putback']) this.$<HTMLButtonElement>(id).disabled = busy || working;
-    // under it, only what needs the player: another tab syncs, a failure, a conflict, the keyphrase gone
-    const failed = st.s === 'error' ? tvars(st.why.t, st.why.v) : '';
-    const status = this.$('#vault-status');
-    status.textContent = !owner && l ? t('Another tab is syncing these saves.')
-      : st.s === 'error' ? (l ? t('Sync failed: {error}. It tries again at the next save.', { error: failed }) : t('{Error}.', { Error: `${failed[0]?.toUpperCase() ?? ''}${failed.slice(1)}` }))
-      : st.s === 'gone' ? t('The cloud has no saves for this passphrase now: deleted in another browser, unused for 2 years, or lost on the server. Nothing is sent; Sync now looks again and can send these saves there.')
-      : conflict && l ? `${this.conflictText()} ${t('Cloud saves are paused until you pick.')}`
-      : '';
-    if (st.s === 'error' && st.code && (owner || !l)) status.append(codeOf(st.code));
+    const sync = this.sync; if (!sync) return;
+    const link = sync.link, state = sync.state, owner = this.d.owner(), phrase = sync.link?.phrase ?? null;
+    if (phrase !== this.shownLink) { const first = this.shownLink === undefined; this.shownLink = phrase; if (!first) this.d.onLink?.(); }
+    const working = state.s === 'working';
+    this.whenVisible = !!link || working;
+    this.whenText = state.s === 'working' ? `${t(state.what)}…` : link ? t('Synced {when}', { when: short(link.saved) }) : '';
+    if (link) { this.phraseValue = link.phrase; this.holdsLink = true; }
+    else if (this.holdsLink) { this.phraseValue = ''; this.holdsLink = false; }
+    const conflict = state.s === 'conflict' ? state : null;
+    this.sidesText = conflict && link ? sidesOf(conflict.here, conflict.cloud) : '';
+    this.statusText = !owner && link ? t('Another tab is syncing these saves.')
+      : state.s === 'error'
+        ? (link ? t('Sync failed: {error}. It tries again at the next save.', { error: tvars(state.why.t, state.why.v) })
+          : t('{Error}.', { Error: (() => { const text = tvars(state.why.t, state.why.v); return `${text[0]?.toUpperCase() ?? ''}${text.slice(1)}`; })() }))
+        : state.s === 'gone'
+          ? t('The cloud has no saves for this passphrase now: deleted in another browser, unused for 2 years, or lost on the server. Nothing is sent; Sync now looks again and can send these saves there.')
+          : conflict && link ? `${this.conflictText()} ${t('Cloud saves are paused until you pick.')}` : '';
+    if (state.s === 'error' && state.code && (owner || !link)) this.statusText += ` [${state.code}]`;
     this.notifyReact();
   }
 

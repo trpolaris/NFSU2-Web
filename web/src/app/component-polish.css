@@ -748,17 +748,6 @@
 }
 .experience-shell .diagnostic-list > li strong { color: #e9eff8; font-size: .76rem; }
 .experience-shell .diagnostic-list > li .hint { margin-top: 3px; font-size: .68rem; }
-
-/* Text editor and data-preload progress: cleaner surfaces, animated fill. */
-.experience-shell .preset-panel,
-.experience-shell .profile-manager,
-.experience-shell .raw,
-.experience-shell .vault,
-.experience-shell .mods-section {
-  border-color: var(--ui-border);
-  border-radius: 17px;
-  background: linear-gradient(145deg, rgba(16,26,42,.72), rgba(8,14,24,.7));
-}
 .experience-shell .profile-controls {
   gap: 10px;
   align-items: flex-end;

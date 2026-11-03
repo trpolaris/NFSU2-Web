@@ -354,7 +354,6 @@ kbd { min-width: 22px; padding: 2px 6px; border: 1px solid var(--stroke-strong);
 #shots img { width: 100%; height: auto; border-radius: 8px; }
 .profiles { display: grid; gap: 7px; list-style: none; padding: 0; }
 .profiles > li { padding: 10px 12px; border: 1px solid var(--stroke); border-radius: 9px; background: rgba(4,13,23,.35); }
-.vault, .profile-manager, .preset-panel { padding: 14px; border: 1px solid var(--stroke); border-radius: 12px; background: rgba(4,13,23,.28); }
 .profile-controls, .preset-actions { display: flex; flex-wrap: wrap; align-items: end; gap: 9px; margin-top: 10px; }
 .profile-name { display: grid; gap: 5px; flex: 1 1 180px; min-width: 0; color: #9cb4c8; font-size: .74rem; }
 .preset-button { display: inline-flex; align-items: center; gap: 7px; min-height: 39px; padding: 8px 11px; border: 1px solid var(--stroke-strong); border-radius: 9px; background: #111b28; color: #d7e6f3; font-size: .74rem; font-weight: 750; }
@@ -569,15 +568,6 @@ body[data-phase="playing"] .stage { visibility: visible; }
   background: linear-gradient(160deg, rgba(22,32,45,.98), rgba(17,26,38,.98));
   box-shadow: 0 12px 32px rgba(0,0,0,.14);
 }
-.panel .panel,
-.panel .profile-manager,
-.panel .preset-panel,
-.panel .vault,
-.panel .raw,
-.panel .vehicle-option,
-.mod-tool-card {
-  min-width: 0;
-}
 .panel-head {
   display: flex;
   align-items: flex-start;
@@ -594,12 +584,6 @@ body[data-phase="playing"] .stage { visibility: visible; }
 .app-grid .content { gap: 18px; }
 .app-grid .side > section,
 .app-grid .content > section { width: 100%; min-width: 0; }
-.profile-manager, .vault, .preset-panel, .mod-tool-card {
-  padding: 18px;
-  border-color: rgba(145,165,189,.16);
-  border-radius: 14px;
-  background: rgba(8,15,24,.34);
-}
 .btn, .preset-button, .icon-btn, .form-control, .form-select,
 input, select, textarea { max-width: 100%; min-width: 0; }
 .btn, .preset-button { border-radius: 10px; }

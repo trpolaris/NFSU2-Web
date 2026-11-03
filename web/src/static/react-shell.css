@@ -1082,3 +1082,20 @@
 /* #app is a hidden compatibility/service root. React renders the visible page above it;
    game stage, lobby, runtime overlays, and dialogs remain outside this element. */
 #app.experience-shell { display:none!important; }
+
+
+.trp-vault-react-replaced {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  flex-wrap:wrap;
+  padding:10px 12px;
+  border:1px solid rgba(167,185,214,.14);
+  border-radius:10px;
+}
+.trp-vault-react-replaced > span {
+  color:#aab9cd;
+  font-size:.64rem;
+  line-height:1.5;
+}

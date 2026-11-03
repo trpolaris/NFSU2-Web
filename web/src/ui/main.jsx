@@ -1311,7 +1311,7 @@ function VaultReactControls() {
       <div className="trp-vault-react-actions">
         {snapshot.showSync && <button type="button" disabled={snapshot.syncDisabled || action !== ''} onClick={() => void run('sync', bridge => bridge.sync())}><span data-i18n>Sync now</span></button>}
         {snapshot.showEarlier && <button type="button" disabled={snapshot.earlierDisabled || action !== ''} onClick={() => void run('earlier', bridge => bridge.goBack())}><span data-i18n>Go back</span></button>}
-        {snapshot.showReplaced && <button type="button" disabled={snapshot.putBackDisabled || action !== ''} onClick={() => void run('putback', bridge => bridge.putBack())}><span data-i18n>Put back</span></button>}
+        {snapshot.showReplaced && <div className="trp-vault-react-replaced"><span>{snapshot.replacedText}</span><button type="button" disabled={snapshot.putBackDisabled || action !== ''} onClick={() => void run('putback', bridge => bridge.putBack())}><span data-i18n>Put back</span></button></div>}
         {snapshot.showSync && <button type="button" disabled={snapshot.stopDisabled || action !== ''} onClick={() => void run('stop', bridge => bridge.stop())}><span data-i18n>Stop syncing</span></button>}
         {snapshot.showSync && <button type="button" className="is-danger" disabled={snapshot.deleteDisabled || action !== ''} onClick={() => void run('delete', bridge => bridge.remove())}><span data-i18n>Delete from cloud</span></button>}
       </div>

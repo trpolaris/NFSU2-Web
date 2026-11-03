@@ -348,8 +348,9 @@ test('Saves route is rendered by React over DOM-free OPFS and predownload servic
   assert.ok(app.includes("active === 'saves' && !gameActive && <SavesDashboard />"));
   assert.ok(html.includes('<div class="app-grid" id="app-pages" hidden>'));
   assert.doesNotMatch(html, /id="saves"|id="game-data"/);
-  assert.match(html, /id="vault-service-host" hidden/);
-  assert.match(html, /id="vault"/);
+  assert.doesNotMatch(html, /id="vault-service-host"|id="vault"/);
+  assert.match(vaultUi, /reactSnapshot\(\)/);
+  assert.doesNotMatch(vaultUi, /document\.|HTMLElement|querySelector|createElement|this\.root|this\.input/);
   assert.match(shellCss, /\.trp-saves-react-manager/);
   assert.match(shellCss, /\.trp-game-data-react/);
   assert.match(app, /function ScreenshotsReactControls\(\)/);
@@ -566,16 +567,18 @@ test('local save profiles and backup actions are React-owned through the existin
   assert.ok(html.includes('id="save-hint"'));
 });
 
-test('Screenshots are React-rendered and Cloud Vault remains in its isolated hidden service host', () => {
-  assert.ok(html.includes('id="vault-service-host" hidden'));
-  assert.ok(html.includes('id="vault"'));
+test('Screenshots and Cloud Vault are React-owned over DOM-free persistence services', () => {
+  assert.ok(!html.includes('id="vault-service-host"'));
+  assert.ok(!html.includes('id="vault"'));
   assert.ok(!html.includes('id="saves"'));
   assert.ok(!html.includes('id="shots"'));
   assert.ok(!html.includes('id="shot-view"'));
   assert.match(runtime, /new SavesPanel\(\{/);
-  assert.match(runtime, /new VaultPanel\(\$\('#vault'\)/);
-  assert.match(shotsUi, /downloadFromReact\(path: string\)/);
-  assert.match(shotsUi, /deleteFromReact\(path: string\)/);
+  assert.match(runtime, /new VaultPanel\(\{/);
+  assert.match(runtime, /window\.__trpVaultBridge = \{/);
+  assert.match(vaultUi, /reactSnapshot\(\)/);
+  assert.match(vaultUi, /askAtPlay\(\)/);
+  assert.doesNotMatch(vaultUi, /document\.|HTMLElement|querySelector|createElement|this\.root|this\.input/);
   assert.match(app, /function ScreenshotsReactControls\(\)/);
   assert.match(app, /function VaultReactControls\(\)/);
 });

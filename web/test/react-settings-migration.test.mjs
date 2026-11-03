@@ -11,6 +11,7 @@ const shell = read('src/app/shell.ts');
 const service = read('src/app/settings-service.ts');
 const saves = read('src/app/saves-ui.ts');
 const shots = read('src/app/shots.ts');
+const vault = read('src/app/vault-ui.ts');
 const compatibility = read('src/app/settings-ui.ts');
 const crew = read('src/app/crew-control.ts');
 const platform = read('src/app/platform.ts');
@@ -21,7 +22,7 @@ const react = read('src/ui/main.jsx');
 const retiredIds = [
   'saves', 'saves-title', 'saves-msg', 'export', 'import', 'profiles', 'save-hint', 'shots-info', 'shots', 'storage-note',
   'game-data', 'game-data-title', 'cache-info', 'data-bar', 'fetch-all', 'clear-cache', 'data-msg', 'shot-view',
-  'shot-title', 'shot-when', 'shot-img', 'shot-meta',
+  'shot-title', 'shot-when', 'shot-img', 'shot-meta', 'vault-service-host', 'vault', 'vault-host', 'vault-make', 'vault-when', 'vault-form', 'vault-box', 'vault-input', 'vault-mask', 'vault-file', 'vault-eye', 'vault-load', 'vault-claim', 'vault-sides', 'vault-about', 'vault-status', 'vault-conflict', 'vault-mine', 'vault-theirs', 'vault-on', 'vault-sync', 'vault-earlier', 'vault-stop', 'vault-delete', 'vault-replaced', 'vault-replaced-text', 'vault-putback', 'vault-msg',
   'settings', 'settings-title', 'settings-note', 'settings-body', 'settings-raw',
   'settings-reset-all', 'settings-text', 'settings-text-msg', 'settings-text-save',
   'online', 'online-title', 'online-note', 'online-body',
@@ -117,6 +118,9 @@ test('Saves and screenshot persistence are DOM-free services consumed by React',
   assert.match(react, /function ScreenshotsReactControls\(\)/);
   assert.match(react, /function GameDataReactPanel\(\)/);
   assert.doesNotMatch(html, /id="saves"|id="game-data"|id="shot-view"/);
-  assert.match(html, /id="vault-service-host" hidden/);
-  assert.match(html, /id="vault"/);
+  assert.doesNotMatch(html, /id="vault-service-host"|id="vault"/);
+  assert.match(vault, /export class VaultPanel/);
+  assert.doesNotMatch(vault, /document\.|HTMLElement|querySelector|createElement|this\.root|this\.input/);
+  assert.match(vault, /reactSnapshot\(\)/);
+  assert.match(vault, /askAtPlay\(\)/);
 });
