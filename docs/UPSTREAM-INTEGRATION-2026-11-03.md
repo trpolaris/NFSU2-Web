@@ -4,6 +4,14 @@ This branch selectively ports compatible changes from `th0mk/nfsu2-web` while ke
 
 ## Integrated
 
+### Race-link sender and slot authentication
+- Upstream commits: `e9177e0314a2ffe26c87fbfc7a1ce4003a12be7b` and `2efb9337568f25387ac1b7f67bbccbdaf54e7895`.
+- The Rust/wasm virtual LAN now records which remote addresses the game's UDP 3658 race link itself sent to (`vlan_race_sent_to`); receiving an arbitrary datagram no longer makes that address an accepted race peer.
+- A joiner accepts the creator's `N2PL` list only from the creator address its own race link contacted, and keeps the first authenticated creator for that race.
+- The creator sends `N2PL` only to peers that its race link actually contacted, rather than every address that sent traffic to UDP 3658.
+- Each direct `N2CS` sender is bound to one player slot for the race; a sender cannot switch slots and two senders cannot claim the same slot. The bindings reset at race boundaries.
+- Added native fallback behavior in `runtime/racehorn.c` and regression coverage in `tests/racenet_unit.c`. Tests were not run in this integration session.
+
 ### Invalid saved FreeRoam position guard
 - Upstream commit: `0f17d0a736a08913888482a0bf0b4f8a25513a21` (partial, deliberately scoped).
 - Ported the independent `runtime/carspot.c` guard, wired it into the main-loop hook in `runtime/roam.c`, and added it to `link.sh`.
@@ -68,6 +76,19 @@ This branch selectively ports compatible changes from `th0mk/nfsu2-web` while ke
 - Renderer Enhanced Contrast edge fix (`dc4354042ce0660bc1aa577464011f814e6af901`): several GPU/WGSL hunks conflict; deferred to avoid an unverified rendering-path change.
 - Country-based network RTT display and the 14,000-player server/deployment changes: require a separate Rust/server and deployment capacity review. Server memory/CPU/Cloudflare topology must not be changed blindly.
 - Separate USB pedals, car-meet capacity, weather sync, pause-menu save, photo-mode upgrades and other FreeRoam changes remain under review for their dependencies and compatibility.
+
+## Audit findings still to port
+
+### World-map and minimap crowd updates
+- TRPOLARIS already marks up to 512 other players on the world map from a one-shot `MAPREQ/MAP` snapshot.
+- The upstream crowd-map series (`53e7db8`, `dd32a0a`, `b13df68`, `7caf20d`) is not present: 2,048 world-map players, continuous/delta updates while the map is open, smooth marker movement, and extra nearby-player arrows on the minimap all require a coordinated runtime + browser/server-hub protocol port.
+- The local Rust wire protocol currently assigns message type 17 to typed FreeRoam chat. Upstream assigns type 17 to `MAPD`; copying the map protocol without an explicit message-ID migration would collide with chat. The migration must update C, TypeScript, Rust, test fixtures and compatibility/version handling together.
+- Upstream car-meet markers/GPS (`109bdcc`) depend on the same extended map protocol (parked state and height); no matching car-meet map/GPS subsystem exists in the current TRPOLARIS `roam_game.c`.
+
+### Other reviewed changes
+- The 120/240 FPS WorldTimer and front-end spinner fixes (`b21bec2`, `04a59d6`) are already represented in the current TRPOLARIS `runtime/framerate.c` implementation; no duplicate port was needed.
+- The following remain separate, coordinated reviews rather than safe isolated cherry-picks: Multiplayer career credits; Network Worker architecture; trunk/hood/door show-off; Quick Chat countdown and lobby changes; world-map/car-meet protocol expansion; renderer Enhanced Contrast/WGSL changes; country RTT and server-capacity/deployment changes.
+- A partial port is recorded explicitly where only a self-contained fix was safe; in particular the saved-position guard does not include the upstream's larger custom collision/FreeRoam contact rollback.
 
 ## Validation status
 
