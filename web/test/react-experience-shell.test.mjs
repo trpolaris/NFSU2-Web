@@ -175,3 +175,17 @@ test('React Online toggle status follows the existing UI language and does not l
   assert.match(shellCss, /\.trp-online-legacy-slot > #online #online-body \.set\[data-key="roam"\]/);
   assert.match(shellCss, /\.trp-online-legacy-slot > #online #online-body \.set\[data-key="online"\]/);
 });
+
+
+test('React Online name and room editors reuse SettingsPanel normalization and validation', () => {
+  assert.match(app, /bridge\.setValidated\(key, textValues\[key\]\)/);
+  assert.match(app, /textValues\.roam_name/);
+  assert.match(app, /textValues\.roam_room/);
+  assert.match(gameEntry, /setValidated\(key: string, value: string \| null\): Promise<void>/);
+  assert.match(shell, /setValidated: async \(key, value\) => \{ await settings\.setValidated\(key, value\)/);
+  assert.match(settingsUi, /async setValidated\(key: string, value: string \| null\)/);
+  assert.match(settingsUi, /onlineName\(next\)/);
+  assert.match(settingsUi, /checkSetting\(key, next\)/);
+  assert.match(shellCss, /data-key="roam_name"/);
+  assert.match(shellCss, /data-key="roam_room"/);
+});

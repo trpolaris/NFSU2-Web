@@ -393,6 +393,21 @@ export class SettingsPanel {
   /** One setting set as its row would set it (the language list at the top of the page). */
   set(key: string, value: string | null) { return this.put(key, value); }
 
+  /** React text fields reuse the same validation and normalization as the original setting rows. */
+  async setValidated(key: string, value: string | null) {
+    if (key !== 'roam_name' && key !== 'roam_room') throw new Error('Unsupported React settings field');
+    if (this.ro()) { this.deps.say?.(t(READ_ONLY)); return; }
+    let next = value?.trim() ?? '';
+    if (key === 'roam_name' && next) next = onlineName(next) ?? next;
+    if (next === this.current(key) && (next !== '' || !this.resolved.file[key]?.raw)) return;
+    if (next === '') { await this.put(key, null); return; }
+    const checked = checkSetting(key, next);
+    if (checked && !checked.ok) {
+      throw new Error(t('Not saved: {key} = {why}.', { key, why: tvars(checked.why, checked.v) }));
+    }
+    await this.put(key, next);
+  }
+
 
   /** A named launcher's safe snapshot: only explicitly allow-listed, validated settings. */
   profileValues(): Record<string, string> {

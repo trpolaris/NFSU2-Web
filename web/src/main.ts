@@ -14,6 +14,7 @@ declare global {
   interface TrpSettingsBridge {
     current(key: string): string;
     set(key: string, value: string | null): Promise<void>;
+    setValidated(key: string, value: string | null): Promise<void>;
     readOnly(): boolean;
     refresh(): Promise<void>;
   }

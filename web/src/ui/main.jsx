@@ -163,6 +163,7 @@ const ONLINE_FEATURES = [
 function OnlineReactControls() {
   const statusRoot = useRef(null);
   const [values, setValues] = useState({ roam: 'off', online: 'off' });
+  const [textValues, setTextValues] = useState({ roam_name: '', roam_room: '' });
   const [ready, setReady] = useState(false);
   const [readOnly, setReadOnly] = useState(true);
   const [busy, setBusy] = useState('');
@@ -181,6 +182,7 @@ function OnlineReactControls() {
     if (!bridge) return;
     try {
       setValues({ roam: bridge.current('roam'), online: bridge.current('online') });
+      setTextValues({ roam_name: bridge.current('roam_name'), roam_room: bridge.current('roam_room') });
       setReadOnly(bridge.readOnly());
       setReady(true);
     } catch { setReady(false); }
@@ -198,6 +200,21 @@ function OnlineReactControls() {
       window.removeEventListener('trp-settings-changed', onSettings);
     };
   }, [sync]);
+
+  const saveText = async key => {
+    const bridge = window.__trpSettingsBridge;
+    if (!bridge || readOnly || busy) return;
+    setBusy(key);
+    setMessage('');
+    try {
+      await bridge.setValidated(key, textValues[key]);
+      sync();
+    } catch (error) {
+      setMessage(String(error));
+    } finally {
+      setBusy('');
+    }
+  };
 
   const update = async (key, enabled) => {
     const bridge = window.__trpSettingsBridge;
@@ -240,6 +257,30 @@ function OnlineReactControls() {
         <input type="checkbox" role="switch" checked={values.online === 'on'} disabled={!ready || readOnly || !!busy}
           aria-label="Online mode" onChange={event => void update('online', event.target.checked)} />
       </label>
+      <div className="trp-online-text-grid">
+        <label className="trp-online-text-card">
+          <span className="trp-online-text-label" data-i18n>Your name</span>
+          <span className="trp-online-text-help" data-i18n>The name other drivers see above your car.</span>
+          <span className="trp-online-text-entry">
+            <input type="text" maxLength={15} autoComplete="off" value={textValues.roam_name}
+              disabled={!ready || readOnly || !!busy}
+              onChange={event => setTextValues(current => ({ ...current, roam_name: event.target.value }))}
+              onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); void saveText('roam_name'); } }} />
+            <button type="button" disabled={!ready || readOnly || !!busy} onClick={() => void saveText('roam_name')} data-i18n>Save</button>
+          </span>
+        </label>
+        <label className="trp-online-text-card">
+          <span className="trp-online-text-label" data-i18n>Room</span>
+          <span className="trp-online-text-help" data-i18n>Leave empty to drive with everyone. A room name shows only matching Free Roam players.</span>
+          <span className="trp-online-text-entry">
+            <input type="text" maxLength={32} autoComplete="off" value={textValues.roam_room}
+              disabled={!ready || readOnly || !!busy}
+              onChange={event => setTextValues(current => ({ ...current, roam_room: event.target.value }))}
+              onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); void saveText('roam_room'); } }} />
+            <button type="button" disabled={!ready || readOnly || !!busy} onClick={() => void saveText('roam_room')} data-i18n>Save</button>
+          </span>
+        </label>
+      </div>
       {message && <p className="trp-online-setting-message" role="status">{message}</p>}
     </div>
   );

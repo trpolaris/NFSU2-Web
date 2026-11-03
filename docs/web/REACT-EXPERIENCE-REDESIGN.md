@@ -116,3 +116,6 @@ Mod Library, Saves, Controls, Settings/Accessibility, System (updates, diagnosti
 ## React settings bridge
 
 Two primary Online toggles — Free Roam with others and Online mode — are now controlled by React. They read through the existing SettingsPanel current method and write through its existing set method. The bridge also exposes the current tab's read-only state and a refresh signal. This does not bypass the existing save-file ownership check or change the settings.ini format. Room/name input, crews and horn/phrase controls remain on the existing controller until their validation and complex interactions are moved into dedicated React field components.
+
+
+The Online route also now has React text editors for the driver's display name and room name. Their save action calls a dedicated SettingsPanel method that uses the same name normalization and per-key validation as the original controls. Crews, horn preview, blocked-player lists and quick-chat phrase editing remain on the legacy controller for this stage.

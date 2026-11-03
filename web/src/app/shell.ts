@@ -1677,6 +1677,7 @@ export async function boot() {
   window.__trpSettingsBridge = {
     current: key => settings.current(key),
     set: async (key, value) => { await settings.set(key, value); window.dispatchEvent(new Event('trp-settings-changed')); },
+    setValidated: async (key, value) => { await settings.setValidated(key, value); window.dispatchEvent(new Event('trp-settings-changed')); },
     readOnly: () => !instance.owner,
     refresh: async () => { await settings.refresh(); window.dispatchEvent(new Event('trp-settings-changed')); },
   };
