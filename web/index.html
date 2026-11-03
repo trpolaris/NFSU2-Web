@@ -166,72 +166,6 @@
   </div><!-- /home-page -->
 
   <div class="app-grid" id="app-pages" hidden>
-  <div class="side">
-
-
-    <section class="panel control-page" id="controls" aria-labelledby="controls-title">
-      <div class="controls-heading">
-        <div class="controls-heading-copy"><span class="controls-eyebrow" data-i18n>INPUT CONFIGURATION / 03</span><h2 id="controls-title" data-i18n>Controls</h2><p class="controls-lede" data-i18n>Keyboard + controller</p></div>
-        <div class="controls-heading-stamp" aria-hidden="true"><span>TRP</span><strong>CTRL</strong><small>NFSU2 / WEB</small></div>
-      </div>
-      <div id="keys" class="controls-workspace">
-        <div class="tabs controls-tabs nav nav-tabs" role="tablist" data-i18n-attr="aria-label" aria-label="Controls">
-          <button type="button" class="tab nav-link" role="tab" data-tab="keys"><span class="key-only" data-i18n>Keyboard</span><span class="touch-only" data-i18n>Touch</span><span class="tab-number">01</span></button>
-          <button type="button" class="tab nav-link" role="tab" data-tab="pad" data-i18n>Controller<span class="tab-number">02</span></button>
-          <button type="button" class="tab nav-link" role="tab" data-tab="site" data-i18n>Site<span class="tab-number">03</span></button>
-        </div>
-        <div class="tab-panel controls-tab-panel" role="tabpanel" data-tab="keys">
-          <div class="controls-panel-intro">
-            <div><span class="controls-panel-index" data-i18n>01 / INPUT MAP</span><h3 class="key-only" data-i18n>Keyboard</h3><h3 class="touch-only" data-i18n>Touch</h3></div>
-            <p class="hint key-only" data-i18n>In menus: arrow keys and Enter, Esc goes back. Change keys in the game's Options, Controls.</p>
-            <p class="hint touch-only" data-i18n>Tap the game's menus, or use the arrows, OK and Back beside them. While you drive, touch controls show on the game. A controller works too.</p>
-          </div>
-          <div class="touch-options-grid touch-only">
-            <div class="set touch-setting-card" data-steer><span class="set-card-index" data-i18n>A / STEERING</span><label class="set-label" data-i18n>Steering</label><p class="set-help" data-i18n>How you steer while driving. The button in the game's top right corner switches it too.</p><div class="set-control"><select></select></div></div>
-            <div class="set touch-setting-card" data-level><span class="set-card-index" data-i18n>B / HORIZON</span><label class="set-label" data-i18n>Level horizon</label><p class="set-help" data-i18n>With tilt steering, the view turns against the phone, so the road's horizon stays level.</p><div class="set-control"><span class="val" aria-hidden="true"></span><input type="checkbox" class="switch" role="switch"></div></div>
-            <div class="set touch-setting-card" data-size><span class="set-card-index" data-i18n>C / TOUCH SIZE</span><label class="set-label" data-i18n>Control size</label><p class="set-help" data-i18n>How big the touch controls on the game are. Auto sizes them for this screen.</p><div class="set-control"><select></select></div></div>
-            <div class="set touch-setting-card" data-menu-size><span class="set-card-index" data-i18n>D / MENU SIZE</span><label class="set-label" data-i18n>Menu button size</label><p class="set-help" data-i18n>How big the game's small menu buttons are: Back, Continue and the others at the bottom, and the arrows. Auto sizes them for a finger.</p><div class="set-control"><select></select></div></div>
-          </div>
-          <dl class="keys key-only keyboard-map-grid">
-            <div><dt><kbd>↑</kbd> <kbd>↓</kbd></dt><dd data-i18n>Throttle, brake and reverse</dd></div>
-            <div><dt><kbd>←</kbd> <kbd>→</kbd></dt><dd data-i18n>Steer (or W S A D)</dd></div>
-            <div><dt><kbd>Alt</kbd></dt><dd data-i18n>Nitrous</dd></div>
-            <div><dt><kbd data-i18n>Space</kbd></dt><dd data-i18n>Handbrake</dd></div>
-            <div><dt><kbd>Shift</kbd> <kbd data-i18n>Ctrl</kbd></dt><dd data-i18n>Shift up, shift down (manual)</dd></div>
-            <div><dt><kbd>C</kbd> <kbd>B</kbd></dt><dd data-i18n>Change camera, look back</dd></div>
-            <div><dt><kbd>R</kbd></dt><dd data-i18n>Respawn</dd></div>
-            <div><dt><kbd>H</kbd> <kbd>J</kbd></dt><dd data-i18n>Hydraulics (hold, then the arrows)</dd></div>
-            <div><dt><kbd>N</kbd></dt><dd data-i18n>Horn (with other players)</dd></div>
-            <div><dt><kbd>X</kbd></dt><dd data-i18n>Drift mode (in free roam)</dd></div>
-            <div><dt><kbd>1</kbd>–<kbd>4</kbd></dt><dd data-i18n>Quick chat (with other players): a group, then a phrase</dd></div>
-            <div><dt><kbd>Enter</kbd></dt><dd data-i18n>Start an event, take an outrun</dd></div>
-            <div><dt><kbd>M</kbd> <kbd>Tab</kbd></dt><dd data-i18n>Map, messages</dd></div>
-            <div><dt><kbd>Esc</kbd> <kbd>P</kbd></dt><dd data-i18n>Pause</dd></div>
-          </dl>
-        </div>
-        <div class="tab-panel controls-tab-panel controller-panel" role="tabpanel" data-tab="pad" hidden>
-          <div class="controls-panel-intro"><div><span class="controls-panel-index" data-i18n>02 / GAMEPAD MAP</span><h3 data-i18n>Controller</h3></div></div>
-          <div class="controller-visual" data-pad-mount></div>
-        </div>
-        <div class="tab-panel controls-tab-panel" role="tabpanel" data-tab="site" hidden>
-          <div class="controls-panel-intro"><div><span class="controls-panel-index" data-i18n>03 / BROWSER SHORTCUTS</span><h3 data-i18n>Site</h3></div><p class="hint" data-i18n>Menu: full screen, controls, log, quit</p></div>
-          <dl class="keys site-shortcut-grid">
-            <div class="key-only"><dt><kbd>F9</kbd></dt><dd data-i18n>Menu: full screen, controls, log, quit</dd></div>
-            <div class="touch-only"><dt><kbd>☰</kbd></dt><dd data-i18n>Menu: full screen, controls, log, quit</dd></div>
-            <div><dt data-i18n-html><kbd>Home</kbd> or both sticks pressed in</dt><dd data-i18n>The menu, on a controller</dd></div>
-            <div class="key-only"><dt><kbd>F8</kbd></dt><dd data-i18n>Frame-rate counter</dd></div>
-            <div class="key-only"><dt><kbd>F12</kbd></dt><dd data-i18n>Screenshot, shown in Saves</dd></div>
-            <div class="key-only"><dt data-i18n-html>Hold <kbd>Esc</kbd></dt><dd data-i18n>Leave full screen</dd></div>
-          </dl>
-        </div>
-      </div>
-    </section>
-
-    
-
-    
-  </div>
-
   <div class="content">
     <section class="panel card shadow-sm" id="saves" aria-labelledby="saves-title">
       <div class="panel-head">
@@ -453,6 +387,58 @@
     </section>
   </div>
   </div>
+  <template id="controls-help-template">
+        <div class="tabs controls-tabs nav nav-tabs" role="tablist" data-i18n-attr="aria-label" aria-label="Controls">
+          <button type="button" class="tab nav-link" role="tab" data-tab="keys"><span class="key-only" data-i18n>Keyboard</span><span class="touch-only" data-i18n>Touch</span><span class="tab-number">01</span></button>
+          <button type="button" class="tab nav-link" role="tab" data-tab="pad" data-i18n>Controller<span class="tab-number">02</span></button>
+          <button type="button" class="tab nav-link" role="tab" data-tab="site" data-i18n>Site<span class="tab-number">03</span></button>
+        </div>
+        <div class="tab-panel controls-tab-panel" role="tabpanel" data-tab="keys">
+          <div class="controls-panel-intro">
+            <div><span class="controls-panel-index" data-i18n>01 / INPUT MAP</span><h3 class="key-only" data-i18n>Keyboard</h3><h3 class="touch-only" data-i18n>Touch</h3></div>
+            <p class="hint key-only" data-i18n>In menus: arrow keys and Enter, Esc goes back. Change keys in the game's Options, Controls.</p>
+            <p class="hint touch-only" data-i18n>Tap the game's menus, or use the arrows, OK and Back beside them. While you drive, touch controls show on the game. A controller works too.</p>
+          </div>
+          <div class="touch-options-grid touch-only">
+            <div class="set touch-setting-card" data-steer><span class="set-card-index" data-i18n>A / STEERING</span><label class="set-label" data-i18n>Steering</label><p class="set-help" data-i18n>How you steer while driving. The button in the game's top right corner switches it too.</p><div class="set-control"><select></select></div></div>
+            <div class="set touch-setting-card" data-level><span class="set-card-index" data-i18n>B / HORIZON</span><label class="set-label" data-i18n>Level horizon</label><p class="set-help" data-i18n>With tilt steering, the view turns against the phone, so the road's horizon stays level.</p><div class="set-control"><span class="val" aria-hidden="true"></span><input type="checkbox" class="switch" role="switch"></div></div>
+            <div class="set touch-setting-card" data-size><span class="set-card-index" data-i18n>C / TOUCH SIZE</span><label class="set-label" data-i18n>Control size</label><p class="set-help" data-i18n>How big the touch controls on the game are. Auto sizes them for this screen.</p><div class="set-control"><select></select></div></div>
+            <div class="set touch-setting-card" data-menu-size><span class="set-card-index" data-i18n>D / MENU SIZE</span><label class="set-label" data-i18n>Menu button size</label><p class="set-help" data-i18n>How big the game's small menu buttons are: Back, Continue and the others at the bottom, and the arrows. Auto sizes them for a finger.</p><div class="set-control"><select></select></div></div>
+          </div>
+          <dl class="keys key-only keyboard-map-grid">
+            <div><dt><kbd>↑</kbd> <kbd>↓</kbd></dt><dd data-i18n>Throttle, brake and reverse</dd></div>
+            <div><dt><kbd>←</kbd> <kbd>→</kbd></dt><dd data-i18n>Steer (or W S A D)</dd></div>
+            <div><dt><kbd>Alt</kbd></dt><dd data-i18n>Nitrous</dd></div>
+            <div><dt><kbd data-i18n>Space</kbd></dt><dd data-i18n>Handbrake</dd></div>
+            <div><dt><kbd>Shift</kbd> <kbd data-i18n>Ctrl</kbd></dt><dd data-i18n>Shift up, shift down (manual)</dd></div>
+            <div><dt><kbd>C</kbd> <kbd>B</kbd></dt><dd data-i18n>Change camera, look back</dd></div>
+            <div><dt><kbd>R</kbd></dt><dd data-i18n>Respawn</dd></div>
+            <div><dt><kbd>H</kbd> <kbd>J</kbd></dt><dd data-i18n>Hydraulics (hold, then the arrows)</dd></div>
+            <div><dt><kbd>N</kbd></dt><dd data-i18n>Horn (with other players)</dd></div>
+            <div><dt><kbd>X</kbd></dt><dd data-i18n>Drift mode (in free roam)</dd></div>
+            <div><dt><kbd>1</kbd>–<kbd>4</kbd></dt><dd data-i18n>Quick chat (with other players): a group, then a phrase</dd></div>
+            <div><dt><kbd>Enter</kbd></dt><dd data-i18n>Start an event, take an outrun</dd></div>
+            <div><dt><kbd>M</kbd> <kbd>Tab</kbd></dt><dd data-i18n>Map, messages</dd></div>
+            <div><dt><kbd>Esc</kbd> <kbd>P</kbd></dt><dd data-i18n>Pause</dd></div>
+          </dl>
+        </div>
+        <div class="tab-panel controls-tab-panel controller-panel" role="tabpanel" data-tab="pad" hidden>
+          <div class="controls-panel-intro"><div><span class="controls-panel-index" data-i18n>02 / GAMEPAD MAP</span><h3 data-i18n>Controller</h3></div></div>
+          <div class="controller-visual" data-pad-mount></div>
+        </div>
+        <div class="tab-panel controls-tab-panel" role="tabpanel" data-tab="site" hidden>
+          <div class="controls-panel-intro"><div><span class="controls-panel-index" data-i18n>03 / BROWSER SHORTCUTS</span><h3 data-i18n>Site</h3></div><p class="hint" data-i18n>Menu: full screen, controls, log, quit</p></div>
+          <dl class="keys site-shortcut-grid">
+            <div class="key-only"><dt><kbd>F9</kbd></dt><dd data-i18n>Menu: full screen, controls, log, quit</dd></div>
+            <div class="touch-only"><dt><kbd>☰</kbd></dt><dd data-i18n>Menu: full screen, controls, log, quit</dd></div>
+            <div><dt data-i18n-html><kbd>Home</kbd> or both sticks pressed in</dt><dd data-i18n>The menu, on a controller</dd></div>
+            <div class="key-only"><dt><kbd>F8</kbd></dt><dd data-i18n>Frame-rate counter</dd></div>
+            <div class="key-only"><dt><kbd>F12</kbd></dt><dd data-i18n>Screenshot, shown in Saves</dd></div>
+            <div class="key-only"><dt data-i18n-html>Hold <kbd>Esc</kbd></dt><dd data-i18n>Leave full screen</dd></div>
+          </dl>
+        </div>
+  </template>
+
 </main>
 
 <div class="stage" id="stage" hidden>

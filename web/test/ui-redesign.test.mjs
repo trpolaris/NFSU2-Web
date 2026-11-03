@@ -66,7 +66,7 @@ test('inner pages use polished modern controls without replacing their existing 
   assert.match(polish, /#online \.group-status:not\(\[hidden\]\)/);
   assert.match(polish, /#saves \.profiles > li/);
   assert.match(polish, /#mods \.custom-mod-list > li/);
-  assert.match(polish, /#controls \.controls-tabs \.tab\[aria-selected="true"\]/);
+  assert.doesNotMatch(polish, /#controls/);
   assert.match(polish, /#accessibility \.accessibility-option/);
   assert.match(polish, /#updates \.update-row > div/);
   assert.match(polish, /\.bar-fill::after/);
@@ -98,12 +98,14 @@ test('Nightshift shell keeps the runtime anchors used by the game modules', () =
   for (const id of [
     'app','lang-pick','install-app','home-page','play-panel','play','progress','progress-fill',
     'status','status-sub','lastgame','report','newer','problems','override','retry','reload','log-btn',
-    'controls','keys','saves','online','mods','settings','diagnostics','game-data','stage','stage-menu'
+    'saves','online','mods','settings','diagnostics','game-data','stage','stage-menu'
   ]) assert.match(html, new RegExp('id="' + id + '"'), id);
   assert.match(main, /import ['"]\.\/app\/experience\.css['"]/);
 });
 
-test('controls workspace retains keyboard, controller, site and touch preference hooks', () => {
+test('React owns the Controls route while the F9 help sheet keeps its inert source template', () => {
+  assert.match(html, /<template id="controls-help-template">/);
+  assert.doesNotMatch(html, /id="controls"|id="keys"/);
   for (const tab of ['keys','pad','site']) assert.match(html, new RegExp('data-tab="' + tab + '"'));
   for (const hook of ['data-steer','data-level','data-size','data-menu-size']) assert.ok(html.includes(hook), hook);
   assert.match(html, /role="tablist"/);
@@ -112,7 +114,7 @@ test('controls workspace retains keyboard, controller, site and touch preference
   assert.match(controls, /querySelector<HTMLElement>\('\[data-pad-mount\]'\)/);
   assert.match(wheel, /querySelector<HTMLElement>\('\[data-pad-mount\]'\)/);
   assert.match(wheel, /for \(const el of mount\.children\)/, 'a connected wheel only hides the drawing area');
-  assert.match(css, /#controls \.pad/);
+  assert.doesNotMatch(css, /#controls/);
   assert.match(css, /\.keyboard-map-grid/);
 });
 

@@ -218,9 +218,14 @@ The old DOM-only motion entrance, Lucide class decoration, hero particle canvas 
 
 The React root no longer reparents the old application node. `LegacyNode` and `LegacyAppHost` are removed; the original `#app` remains in place as a hidden compatibility/service root, and its `inert` value is exposed through the typed runtime snapshot. React listens to `trp-runtime-ready` and `trp-runtime-changed` rather than observing legacy DOM nodes for the game lock and status text. The game stage, FPS overlay, lobby and game dialogs remain outside `#app`.
 
-The remaining hidden DOM-backed service roots are not visible UI. They are still read by the existing `SettingsPanel`, `SavesPanel`/`VaultPanel` and `controlsSheet` services. Their selectors and file/network behavior are intentionally retained until those services are migrated to state/command APIs and their DOM dependencies can be removed safely.
+The remaining hidden DOM-backed service roots are not visible UI. They are still read by the existing `SettingsPanel` and `SavesPanel`/`VaultPanel` services. The routed Controls page has since been separated from its in-game help sheet: React owns the page and an inert template supplies the F9 dialog only when it opens.
 
 
 ## Obsolete static About and header markup removal
 
 The duplicate static About/Changes sections and old app header have been removed from the hidden compatibility subtree. The React top bar and `AboutDashboard` remain the only visible implementations. No runtime service referenced the removed section IDs; service roots such as Settings, Saves, Controls and System remain in the hidden `#app-pages` area.
+
+
+## React Controls route and in-game help separation
+
+The routed Controls page is rendered entirely by React and no longer keeps a hidden `#controls` / `#keys` page subtree. The selected tab and Xbox/PlayStation naming preference are held by a small DOM-independent controls state adapter; live gamepad changes notify the React view through the typed bridge. The F9 in-game Controls help dialog keeps its existing sheet behavior, but its source markup is stored in an inert `controls-help-template` and instantiated only when the dialog opens. The gamepad/touch input services and their persisted settings are unchanged.

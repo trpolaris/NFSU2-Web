@@ -1,4 +1,4 @@
-// The Controls sheet: the start page's (#keys), and its copy in the menu's Controls dialog (shell.ts openHelp).
+// The Controls sheet is retained for the in-game Controls dialog (shell.ts openHelp); the routed page is React.
 // Three tabs: the keyboard (on a touch screen: touch), the controller and this site.  The controller's tab is a
 // drawing of a pad with what each button the game uses does beside it, the buttons named as Xbox or PlayStation
 // names them (the switch under it; a PlayStation controller connecting, or taking over in the game, picks those
@@ -145,6 +145,58 @@ function cap(xb: string, ps: string): string {
 }
 
 /** relabel: drawn again in the page's language (i18n.ts onLanguage) */
+/** Selected tab and controller naming shared by the React page and in-game help. */
+export interface ControlsState {
+  show(tab: Tab): void;
+  family(family: Family): void;
+  readonly tab: Tab;
+  readonly fam: Family;
+}
+
+/** Keeps page selection and gamepad-follow behavior without mounting legacy page markup. */
+export function controlsState(opts: { tab?: Tab; fam?: Family; follow?: boolean; onChange?: () => void } = {}): ControlsState {
+  let tab: Tab = opts.tab ?? 'keys';
+  let fam: Family = opts.fam ?? 'xb';
+  let picked = false;
+  const changed = () => opts.onChange?.();
+
+  const seen = (gamepad: Gamepad) => {
+    const nextFamily: Family = familyOf(gamepad.id).family === PADF_PLAYSTATION ? 'ps' : 'xb';
+    const update = fam !== nextFamily || (!picked && tab !== 'pad');
+    fam = nextFamily;
+    if (!picked) tab = 'pad';
+    if (update) changed();
+  };
+
+  if (opts.follow) {
+    window.addEventListener('gamepadconnected', event => seen((event as GamepadEvent).gamepad));
+    window.addEventListener(PAD_DRIVER_EVENT, () => {
+      const gamepad = drivingPad();
+      if (gamepad) seen(gamepad);
+    });
+    try {
+      const gamepad = navigator.getGamepads?.().find(p => p?.connected);
+      if (gamepad) seen(gamepad);
+    } catch { /* Gamepad API is unavailable in this browser. */ }
+  }
+
+  return {
+    get tab() { return tab; },
+    get fam() { return fam; },
+    show(next) {
+      picked = true;
+      if (tab === next) return;
+      tab = next;
+      changed();
+    },
+    family(next) {
+      if (fam === next) return;
+      fam = next;
+      changed();
+    },
+  };
+}
+
 export interface ControlsSheet { show(tab: Tab, focus?: boolean): void; family(f: Family): void; relabel(): void; readonly tab: Tab; readonly fam: Family }
 
 /**

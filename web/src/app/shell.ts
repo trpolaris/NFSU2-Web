@@ -30,7 +30,7 @@ import { canFullscreen, enterFullscreen, exitFullscreen, fromHomeScreen, homeScr
 import { deviceDefaults, isPhone, markTouch, noPinchZoom, padSeen, phoneScreen, touchFirst } from './device';
 import { phoneSeed, phoneUpgrade } from './phonegraphics';
 import { markPad, padPress, pageDialog } from './padnav';
-import { controlsSheet, type ControlsSheet, type Family, type Tab } from './controls';
+import { controlsSheet, controlsState as createControlsState, type ControlsSheet, type ControlsState, type Family, type Tab } from './controls';
 import { askMotion, levelHorizon, menuSize, onLevelHorizon, onSteering, setLevelHorizon, setSteering, steering, STEERING, steeringName, touchSize, type Size, type Steering, TouchControls } from './touch';
 import { PAD_DRIVER_EVENT } from '../input/gamepad';
 import { TextField } from './textentry';
@@ -1072,15 +1072,17 @@ function pageToast(msg: string | Msg) {
 
 /** the controls sheet of the start page, in a dialog (F9, Controls, while the game runs), at the page's tab and
  *  button names */
-let keySheet: ControlsSheet, helpSheet: ControlsSheet | null = null;
+let controlState: ControlsState, helpSheet: ControlsSheet | null = null;
 function openHelp() {
   const body = $('#help-body');
   if (!helpSheet) {
-    body.append(...[...$('#keys').childNodes].map(n => n.cloneNode(true)));
+    const template = document.getElementById('controls-help-template') as HTMLTemplateElement | null;
+    if (!template) throw new Error('Controls help template is missing');
+    body.append(template.content.cloneNode(true));
     helpSheet = controlsSheet(body, 'help');
   }
-  helpSheet.show(keySheet.tab);
-  helpSheet.family(keySheet.fam);
+  helpSheet.show(controlState.tab);
+  helpSheet.family(controlState.fam);
   $<HTMLDialogElement>('#help').showModal();
 }
 
@@ -1891,15 +1893,15 @@ export async function boot() {
   noPinchZoom();
   // the menu's button on the game: on a touch screen from the start, elsewhere from the first touch
   markTouch();
-  keySheet = controlsSheet($('#keys'), 'keys', { follow: true });
   const controlsChanged = () => window.dispatchEvent(new Event('trp-controls-changed'));
+  controlState = createControlsState({ follow: true, onChange: controlsChanged });
   const sizeOptions = (setting: typeof touchSize) => setting.sizes.map(value => ({
     value: String(value), label: setting.name(value),
   }));
   window.__trpControlsBridge = {
     snapshot: () => ({
-      tab: keySheet.tab,
-      family: keySheet.fam,
+      tab: controlState.tab,
+      family: controlState.fam,
       steering: steering(),
       steeringOptions: STEERING.map(value => ({ value, label: steeringName(value) })),
       levelHorizon: levelHorizon(),
@@ -1908,8 +1910,8 @@ export async function boot() {
       menuSize: String(menuSize.get()),
       menuSizeOptions: sizeOptions(menuSize),
     }),
-    showTab: (tab: Tab) => { keySheet.show(tab); controlsChanged(); },
-    setFamily: (family: Family) => { keySheet.family(family); controlsChanged(); },
+    showTab: (tab: Tab) => controlState.show(tab),
+    setFamily: (family: Family) => controlState.family(family),
     setSteering: (value: Steering) => { if (value === 'tilt') void askMotion(); setSteering(value); },
     setLevelHorizon: (value: boolean) => setLevelHorizon(value),
     setTouchSize: (value: string) => touchSize.set(value === 'auto' ? 'auto' : Number(value) as Size),
@@ -1924,7 +1926,7 @@ export async function boot() {
   window.dispatchEvent(new Event('trp-controls-ready'));
   // what the page drew itself, again in the language picked (the markup and the live texts redraw themselves)
   onLanguage(() => {
-    renderProblems(); evaluate(); settings.render(); void saves.refresh(); vault.refresh(); keySheet.relabel(); lobbyPanel.redraw(); touch.relabel();
+    renderProblems(); evaluate(); settings.render(); void saves.refresh(); vault.refresh(); controlsChanged(); lobbyPanel.redraw(); touch.relabel();
     helpSheet = null; $('#help-body').replaceChildren();
     runtimeChanged();
   });

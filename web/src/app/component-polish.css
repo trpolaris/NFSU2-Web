@@ -836,116 +836,6 @@
 .experience-shell #mods .mod-form-grid input { width: 100%; }
 .experience-shell #mods .mod-form-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 15px; }
 
-/* Controls studio: one modern segmented tab set and calmer key-map tiles. */
-.experience-shell #controls .controls-heading {
-  padding-bottom: 22px;
-  border-bottom: 1px solid var(--ui-border);
-}
-.experience-shell #controls .controls-heading h2 {
-  font-size: clamp(2.2rem,4vw,3.6rem) !important;
-  font-weight: 900;
-  letter-spacing: -.075em;
-  font-style: normal;
-}
-.experience-shell #controls .controls-tabs {
-  display: flex;
-  gap: 4px;
-  padding: 5px;
-  margin: 0 0 15px;
-  border: 1px solid rgba(164,180,204,.13);
-  border-radius: 14px;
-  background: rgba(4,9,17,.64);
-  box-shadow: inset 0 1px 3px rgba(0,0,0,.24);
-}
-.experience-shell #controls .controls-tabs .tab {
-  flex: 1 1 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  min-width: 0;
-  min-height: 43px;
-  padding: 9px 14px;
-  border: 1px solid transparent;
-  border-radius: 10px;
-  background: transparent;
-  color: #8e9db3;
-  font-size: .73rem;
-  line-height: 1.2;
-  font-weight: 720;
-  font-style: normal;
-  transition: color .18s ease, background .18s ease, border-color .18s ease, box-shadow .18s ease;
-}
-.experience-shell #controls .controls-tabs .tab:hover:not([aria-selected="true"]) {
-  color: #e4eaf5;
-  background: rgba(255,255,255,.035);
-}
-.experience-shell #controls .controls-tabs .tab[aria-selected="true"] {
-  border-color: rgba(255,105,69,.3);
-  background: linear-gradient(135deg, rgba(255,105,69,.18), rgba(255,105,69,.075));
-  color: #fff0eb;
-  box-shadow: inset 0 1px rgba(255,255,255,.05), 0 4px 13px rgba(0,0,0,.16);
-}
-.experience-shell #controls .controls-tabs .tab .tab-number {
-  color: #74839a;
-  font: 750 .55rem var(--mono);
-}
-.experience-shell #controls .controls-tabs .tab[aria-selected="true"] .tab-number { color: #ff987e; }
-.experience-shell #controls .controls-tab-panel {
-  padding: clamp(16px,2.5vw,26px);
-  border: 1px solid var(--ui-border);
-  border-radius: 17px;
-  background: linear-gradient(145deg, rgba(16,26,42,.78), rgba(8,14,24,.76));
-}
-.experience-shell #controls .controls-panel-intro { margin-bottom: 16px; }
-.experience-shell #controls .keyboard-map-grid,
-.experience-shell #controls .site-shortcut-grid {
-  display: grid;
-  grid-template-columns: repeat(2,minmax(0,1fr));
-  gap: 8px;
-}
-.experience-shell #controls .keyboard-map-grid > div,
-.experience-shell #controls .site-shortcut-grid > div {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  min-width: 0;
-  min-height: 57px;
-  padding: 11px 13px;
-  border: 1px solid rgba(164,180,204,.11);
-  border-radius: 12px;
-  background: rgba(4,10,19,.45);
-  transition: border-color .18s ease, background .18s ease, transform .18s ease;
-}
-.experience-shell #controls .keyboard-map-grid > div:hover,
-.experience-shell #controls .site-shortcut-grid > div:hover {
-  transform: translateY(-1px);
-  border-color: rgba(166,154,255,.25);
-  background: rgba(166,154,255,.045);
-}
-.experience-shell #controls .keyboard-map-grid dd,
-.experience-shell #controls .site-shortcut-grid dd {
-  color: #aab7cb;
-  font-size: .72rem;
-  line-height: 1.45;
-}
-.experience-shell #controls kbd {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 30px;
-  min-height: 27px;
-  padding: 4px 8px;
-  border: 1px solid rgba(166,154,255,.25);
-  border-bottom-width: 2px;
-  border-radius: 8px;
-  background: linear-gradient(180deg, #172237, #0c1524);
-  color: #d3cbff;
-  font: 740 .66rem var(--mono);
-  box-shadow: 0 2px 4px rgba(0,0,0,.28);
-}
-
 /* Accessibility, update metadata and diagnostics. */
 .experience-shell #accessibility .accessibility-options {
   display: grid;
@@ -1151,9 +1041,6 @@
   .experience-shell .seg .opt { min-height: 36px; }
   .experience-shell .crew-line { grid-template-columns: minmax(0,1fr); }
   .experience-shell .crew-line .crew-add { max-width: 430px; }
-  .experience-shell #controls .keyboard-map-grid,
-  .experience-shell #controls .site-shortcut-grid,
-  .experience-shell .diagnostic-list { grid-template-columns: minmax(0,1fr); }
   .experience-shell #accessibility .accessibility-options,
   .experience-shell #updates .update-row { grid-template-columns: minmax(0,1fr); }
   .experience-shell #mods .mod-form-grid { grid-template-columns: minmax(0,1fr); }
@@ -1169,7 +1056,6 @@
   .experience-shell .seg .opt { flex: 1 1 auto; min-width: 38px; padding-inline: 8px; }
   .experience-shell .profile-controls { align-items: stretch; }
   .experience-shell .profile-controls > * { min-width: 0; }
-  .experience-shell #controls .controls-tabs .tab { gap: 6px; padding-inline: 7px; font-size: .66rem; }
 }
 @media (prefers-reduced-motion: reduce) {
   .experience-shell .bar-fill::after { animation: none; }
@@ -1217,23 +1103,4 @@
 
 /* Keep the controls hero readable and inside its panel on narrow phones. */
 @media (max-width: 440px) {
-  .experience-shell #controls .controls-heading {
-    flex-direction: column;
-    align-items: flex-start;
-    justify-content: flex-start;
-    gap: 12px;
-  }
-  .experience-shell #controls .controls-heading-copy {
-    width: 100%;
-    min-width: 0;
-    max-width: 100%;
-  }
-  .experience-shell #controls .controls-heading h2 {
-    max-width: 100%;
-    font-size: clamp(1.6rem, 8vw, 2rem) !important;
-    overflow-wrap: anywhere;
-  }
-  .experience-shell #controls .controls-heading-stamp {
-    align-self: flex-start;
-  }
 }
