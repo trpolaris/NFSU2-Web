@@ -7,7 +7,7 @@ import { flushSync } from 'react-dom';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import {
   Activity, ArrowUpRight, CarFront, ChevronRight, Gamepad2, Gauge,
-  Info, LayoutDashboard, LibraryBig, MessageCircle, Save, Settings, ShieldCheck, Users,
+  LayoutDashboard, LibraryBig, MessageCircle, Save, Settings, ShieldCheck, Users,
 } from 'lucide-react';
 
 const NAV = [
@@ -768,39 +768,6 @@ function SettingsDashboard() {
         </div>
         <LegacyNode selector="#accessibility" className="trp-settings-accessibility-slot" />
       </motion.section>
-    </motion.div>
-  );
-}
-
-const LEGACY_PAGES = {
-};
-
-function LegacyRoutePage({ page }) {
-  const reduceMotion = useReducedMotion();
-  const config = LEGACY_PAGES[page];
-  if (!config) return null;
-  const Icon = config.icon;
-  const enter = reduceMotion ? false : { opacity: 0, y: 12 };
-
-  return (
-    <motion.div className={'trp-route-page trp-legacy-route experience-shell trp-route-' + page}
-      initial={enter} animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: reduceMotion ? 0 : .27, ease: [.2, .75, .25, 1] }}>
-      <motion.section className="trp-route-intro" initial={enter} animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: reduceMotion ? 0 : .25 }}>
-        <div className="trp-route-intro-icon"><Icon size={21} strokeWidth={1.8} /></div>
-        <div className="trp-route-intro-copy">
-          <div className="trp-eyebrow" data-i18n>{config.eyebrow}</div>
-          <h2 data-i18n>{config.headline}</h2>
-          <p data-i18n>{config.description}</p>
-        </div>
-        <span className="trp-route-intro-index" aria-hidden="true">TRP / {page.toUpperCase()}</span>
-      </motion.section>
-      <div className="trp-route-section-list">
-        {config.selectors.map(selector => (
-          <LegacyNode key={selector} selector={selector} className="trp-route-section-slot" />
-        ))}
-      </div>
     </motion.div>
   );
 }

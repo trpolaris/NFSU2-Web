@@ -256,63 +256,6 @@
 
 
 /* Remaining page routes: React owns their route hero and composition; existing feature controllers are mounted as DOM islands. */
-.trp-legacy-route.experience-shell {
-  display:grid!important; grid-template-columns:minmax(0,1fr)!important; grid-template-rows:auto auto!important;
-  grid-template-areas:none!important; align-items:stretch; gap:15px; width:100%!important; max-width:none!important;
-  min-width:0; min-height:0; margin:0!important; padding:0!important; background:transparent!important;
-}
-.trp-route-intro {
-  position:relative; isolation:isolate; display:flex; align-items:center; gap:16px; min-width:0;
-  min-height:126px; padding:22px 24px; overflow:hidden;
-  border:1px solid rgba(167,185,214,.13); border-radius:19px;
-  background:
-    radial-gradient(ellipse at 100% 0%,rgba(166,154,255,.14),transparent 24rem),
-    linear-gradient(115deg,rgba(19,30,48,.97),rgba(10,17,29,.97));
-  box-shadow:0 18px 44px rgba(0,0,0,.17),inset 0 1px rgba(255,255,255,.035);
-}
-.trp-route-intro::after {
-  content:""; position:absolute; z-index:-1; right:9%; top:-75%; width:220px; aspect-ratio:1;
-  border:1px solid rgba(255,105,69,.13); border-radius:50%;
-  box-shadow:0 0 0 26px rgba(255,105,69,.018),0 0 0 62px rgba(255,105,69,.012);
-}
-.trp-route-intro-icon {
-  display:grid; place-items:center; flex:0 0 48px; width:48px; height:48px;
-  border:1px solid rgba(255,105,69,.22); border-radius:14px; background:rgba(255,105,69,.075); color:#ff9074;
-}
-.trp-route-intro-copy { position:relative; z-index:1; min-width:0; }
-.trp-route-intro-copy h2 { margin:6px 0 6px; color:#f2f5fa; font-size:clamp(1.25rem,2.3vw,1.85rem); font-weight:900; line-height:1.1; letter-spacing:-.045em; }
-.trp-route-intro-copy p { max-width:720px; margin:0; color:#91a1b7; font-size:.73rem; line-height:1.6; }
-.trp-route-intro-index { position:relative; z-index:1; margin-left:auto; color:rgba(202,214,236,.42); font:800 .55rem ui-monospace,monospace; letter-spacing:.12em; white-space:nowrap; }
-.trp-route-section-list { display:grid; gap:14px; min-width:0; }
-.trp-route-section-slot { display:block; min-width:0; width:100%; }
-.trp-route-section-slot > section { width:100%; min-width:0; max-width:none; margin:0 0 14px; }
-.trp-route-section-slot > section:last-child { margin-bottom:0; }
-.trp-route-section-slot > .panel {
-  padding:clamp(18px,2.2vw,30px); border:1px solid rgba(167,185,214,.13);
-  border-radius:18px; background:linear-gradient(145deg,rgba(17,27,43,.94),rgba(9,16,28,.96));
-  box-shadow:0 16px 38px rgba(0,0,0,.16);
-}
-.trp-route-section-slot > .panel > h2:first-child {
-  margin:0 0 14px; padding:0 0 12px; border-bottom:1px solid rgba(167,185,214,.12);
-  color:#edf2f8; font-size:1.1rem; font-weight:850;
-}
-.trp-route-section-slot .panel-head { min-width:0; }
-.trp-route-section-slot input,.trp-route-section-slot select,.trp-route-section-slot textarea { max-width:100%; }
-@media (max-width:700px) {
-  .trp-legacy-route.experience-shell { gap:11px; }
-  .trp-route-intro { min-height:0; align-items:flex-start; padding:17px 15px; gap:11px; border-radius:16px; }
-  .trp-route-intro-icon { flex-basis:39px; width:39px; height:39px; border-radius:11px; }
-  .trp-route-intro-icon svg { width:18px; height:18px; }
-  .trp-route-intro-index { display:none; }
-  .trp-route-intro-copy h2 { margin-top:3px; font-size:1.25rem; }
-  .trp-route-intro-copy p { font-size:.66rem; }
-  .trp-route-section-slot > .panel { padding:15px; border-radius:15px; }
-}
-@media (prefers-reduced-motion:reduce) {
-  .trp-route-intro::after { animation:none!important; }
-}
-
-
 /* React-managed primary toggles backed by the existing validated settings.ini controller. */
 .trp-online-react-controls { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin-bottom:14px; }
 .trp-online-toggle-card {

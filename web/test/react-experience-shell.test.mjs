@@ -351,3 +351,13 @@ test('Settings route is composed in React while game settings and accessibility 
   assert.ok(runtime.includes("new SettingsPanel($('#settings')"));
   assert.ok(html.includes('id="accessibility"'));
 });
+
+
+test('all main navigation routes use dedicated React dashboards instead of the empty generic page template', () => {
+  assert.ok(!app.includes('function LegacyRoutePage'));
+  assert.ok(!app.includes('const LEGACY_PAGES'));
+  assert.ok(!shellCss.includes('.trp-legacy-route.experience-shell'));
+  for (const page of ['home','online','controls','saves','mods','settings','system','about']) {
+    assert.ok(app.includes("active === '" + page + "'"), page + ' has a dedicated route condition');
+  }
+});
