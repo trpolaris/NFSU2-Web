@@ -594,7 +594,7 @@ function AboutDashboard() {
 
 function ModLibraryLists() {
   const rootRef = useRef(null);
-  const [snapshot, setSnapshot] = useState({ packs: [], custom: [], count: 0, statusText: '' });
+  const [snapshot, setSnapshot] = useState<TrpModLibrarySnapshot>({ packs: [], custom: [], count: 0, statusText: '' });
   const [ready, setReady] = useState(false);
   const [checking, setChecking] = useState(false);
   const [search, setSearch] = useState('');
@@ -760,14 +760,6 @@ function ModLibraryDashboard() {
           <span className="trp-mod-section-mark">01</span>
         </div>
         <ModLibraryLists />
-      </motion.section>
-
-      <motion.section className="trp-mod-panel" initial={enter} animate={{ opacity: 1, y: 0 }} transition={{ ...transition, delay: reduceMotion ? 0 : .1 }}>
-        <div className="trp-mod-section-head trp-mod-collection-head">
-          <div><div className="trp-eyebrow" data-i18n>YOUR COLLECTION</div><h3 data-i18n>Saved mod links</h3><p data-i18n>The mod list stores names and links only. It does not contain mod files.</p></div>
-
-        </div>
-
       </motion.section>
 
       <motion.section className="trp-mod-add-panel" initial={enter} animate={{ opacity: 1, y: 0 }} transition={{ ...transition, delay: reduceMotion ? 0 : .14 }}>
