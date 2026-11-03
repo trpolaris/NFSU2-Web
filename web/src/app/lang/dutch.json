@@ -1494,5 +1494,7 @@
   "Your selected local playlist stays on this device.": "Je geselecteerde lokale afspeellijst blijft op dit apparaat.",
   "Toggle radio": "Radio omschakelen",
   "LOCAL FILES ONLY · NOTHING IS SENT TO THE SERVER": "ALLEEN LOKALE BESTANDEN · ER WORDT NIETS NAAR DE SERVER VERZONDEN",
-  "This browser is too old for the game: it needs iOS 26, iPadOS 26 or Safari 26. Update this device (Settings, General, Software Update).": "Deze browser is te oud voor het spel: het vraagt iOS 26, iPadOS 26 of Safari 26. Werk dit apparaat bij (Instellingen, Algemeen, Software-update)."
+  "This browser is too old for the game: it needs iOS 26, iPadOS 26 or Safari 26. Update this device (Settings, General, Software Update).": "Deze browser is te oud voor het spel: het vraagt iOS 26, iPadOS 26 of Safari 26. Werk dit apparaat bij (Instellingen, Algemeen, Software-update).",
+  "Not loading": "Laadt niet",
+  "Your antivirus or network is probably blocking the game. Allow {site} in it, then reload.": "Je antivirus of netwerk blokkeert het spel waarschijnlijk. Sta {site} toe en laad daarna opnieuw."
 }
