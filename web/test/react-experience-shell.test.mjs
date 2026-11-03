@@ -35,6 +35,17 @@ test('the main page loads its React shell before the legacy runtime boot sequenc
   assert.match(builder, /'ui\/main': 'src\/ui\/main\.jsx'/);
 });
 
+test('every icon used by main navigation is imported from lucide-react', () => {
+  const imports = /import\\s*\\{([^}]+)\\}\\s*from 'lucide-react'/s.exec(app);
+  assert.ok(imports, 'lucide-react imports are present');
+  const imported = new Set(imports[1].split(',').map(name => name.trim()).filter(Boolean));
+  const nav = /const NAV = \\[([\\s\\S]*?)\\n\\];/.exec(app)?.[1] ?? '';
+  assert.ok(nav, 'main navigation is declared');
+  for (const [, icon] of nav.matchAll(/\\bicon:\\s*(\\w+)/g)) {
+    assert.ok(imported.has(icon), 'navigation icon ' + icon + ' is imported');
+  }
+});
+
 test('React owns the main navigation, route state and motion transitions', () => {
   assert.match(app, /from 'react'/);
   assert.match(app, /from 'react-dom\/client'/);
