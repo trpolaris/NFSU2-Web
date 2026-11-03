@@ -694,6 +694,10 @@ export function setupPlatformFeatures(settings: SettingsPanel, confirm: (title: 
   renderProfilePicker();
 
   loadAccessibility(); wireAccessibility();
+  window.__trpAccessibilityBridge = {
+    current: () => currentAccessibilityPrefs(),
+    set: (key, value) => setAccessibilityPreference(key, value),
+  };
   window.dispatchEvent(new Event('trp-accessibility-ready'));
   void populateVehicleFilters();
   $<HTMLButtonElement>('#updates-check').onclick = () => void checkUpdates();

@@ -372,6 +372,7 @@ test('Accessibility switches are React-controlled through the existing browser p
   assert.ok(gameEntry.includes('__trpAccessibilityBridge?: TrpAccessibilityBridge'));
   assert.ok(platform.includes('currentAccessibilityPrefs'));
   assert.ok(platform.includes('setAccessibilityPreference'));
+  assert.ok(platform.includes('window.__trpAccessibilityBridge = {'));
   assert.ok(platform.includes('trp-accessibility-ready'));
   assert.ok(platform.includes('trp-accessibility-changed'));
   assert.ok(shellCss.includes('.trp-a11y-react-options'));
