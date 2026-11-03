@@ -23,6 +23,9 @@ declare global {
     toggleFavorite(id: string): TrpModLibrarySnapshot;
     removeCustom(id: string): TrpModLibrarySnapshot;
     checkPacks(): Promise<TrpModLibrarySnapshot>;
+    addLink(name: string, url: string, category: string, targetPath: string): { ok: boolean; message: string };
+    importList(file: File): Promise<string>;
+    exportList(): string;
   }
   interface TrpAccessibilityPrefs { largeText: boolean; reduceMotion: boolean; highContrast: boolean; }
   interface TrpAccessibilityBridge {

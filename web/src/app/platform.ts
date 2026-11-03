@@ -171,6 +171,31 @@ function getCustomMods(): CustomMod[] {
 }
 function saveCustomMods(mods: CustomMod[]) { return safeWrite(STORE.customMods, mods.slice(0, 100)); }
 function isModCategory(value: unknown): value is ModCategory { return typeof value === 'string' && (MOD_CATEGORIES as readonly string[]).includes(value); }
+
+export interface ModLinkActionResult { ok: boolean; message: string; }
+export function addCustomModLink(rawName: string, rawUrl: string, rawCategory: string, rawPath: string): ModLinkActionResult {
+  const name = rawName.trim(), url = rawUrl.trim(), targetPath = rawPath.trim();
+  const status = document.getElementById('custom-mod-status');
+  const fail = (message: string): ModLinkActionResult => {
+    if (status) status.textContent = message;
+    return { ok: false, message };
+  };
+  if (!name || name.length > 80 || /[\u0000-\u001f\u007f]/.test(name)) return fail(t('The mod name is required.'));
+  if (!validHttpUrl(url)) return fail(t('A valid HTTP or HTTPS URL is required.'));
+  if (targetPath && !validRelativeGamePath(targetPath)) return fail(t('Expected game-data path must be a safe relative path.'));
+  if (!isModCategory(rawCategory)) return fail(t('Invalid mod list file.'));
+  const mods = getCustomMods();
+  if (mods.length >= 100) return fail(t('The local mod-link list is full.'));
+  if (mods.some(mod => mod.name.toLocaleLowerCase() === name.toLocaleLowerCase() && mod.url === url)) return fail(t('This mod link is already saved.'));
+  const id = 'm-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
+  mods.push({ id, name, url, category: rawCategory, targetPath: targetPath ? normalizeGamePath(targetPath) : '', createdAt: Date.now() });
+  if (!saveCustomMods(mods)) return fail(t('Could not save the mod link.'));
+  const message = t('Saved in this browser.');
+  if (status) status.textContent = message;
+  renderGarage();
+  return { ok: true, message };
+}
+
 function normalizeGamePath(value: string): string { return value.replace(/\\/g, '/').replace(/^\/+/, '').replace(/\/{2,}/g, '/'); }
 function validRelativeGamePath(raw: string): boolean {
   if (!raw) return false;
@@ -412,7 +437,7 @@ type GarageBuildPreference = { paintHex?: string; parts?: Record<string, string>
 
 
 
-async function importModList(file: File) {
+export async function importModList(file: File): Promise<string> {
   const input = $<HTMLInputElement>('#custom-mod-import');
   const status = $('#custom-mod-status');
   try {
@@ -435,8 +460,8 @@ async function importModList(file: File) {
       merged.push({ ...incoming, id: `m-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`, createdAt: Date.now() });
     }
     if (!saveCustomMods(merged)) throw new Error('storage');
-    status.textContent = t('Mod list imported.'); renderGarage();
-  } catch { status.textContent = t('Invalid mod list file.'); }
+    status.textContent = t('Mod list imported.'); renderGarage(); return status.textContent;
+  } catch { status.textContent = t('Invalid mod list file.'); return status.textContent; }
   finally { input.value = ''; }
 }
 async function checkPacks() {
@@ -495,6 +520,18 @@ function downloadJSON(data: unknown, filename: string) {
   const blob = new Blob([JSON.stringify(data, null, 2) + '\n'], { type: 'application/json' });
   const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = filename; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
+
+export function exportModList(): string {
+  const mods = getCustomMods().map(({ name, url, category, targetPath }) => ({
+    name, url, category: category ?? 'other', targetPath: targetPath ?? '',
+  }));
+  downloadJSON({ schema: 1, mods }, 'trpolaris-mod-list.json');
+  const message = t('Mod list exported.');
+  const status = document.getElementById('custom-mod-status');
+  if (status) status.textContent = message;
+  return message;
+}
+
 async function saveCurrentProfile(settings: SettingsPanel) {
   const input = $<HTMLInputElement>('#config-profile-name'), name = input.value.trim();
   if (!name || name.length > 40 || /[\u0000-\u001f\u007f]/.test(name)) { input.setCustomValidity(t('The profile name must be 1 to 40 printable characters.')); input.reportValidity(); return; }
@@ -768,6 +805,9 @@ export function setupPlatformFeatures(settings: SettingsPanel, confirm: (title: 
     snapshot: () => getModLibrarySnapshot(),
     toggleFavorite: id => toggleModLibraryFavorite(id),
     removeCustom: id => removeModLibraryEntry(id),
+    addLink: (name, url, category, targetPath) => addCustomModLink(name, url, category, targetPath),
+    importList: async file => await importModList(file),
+    exportList: () => exportModList(),
     checkPacks: async () => await checkModLibraryPacks(),
   };
   window.dispatchEvent(new Event('trp-mod-library-ready'));

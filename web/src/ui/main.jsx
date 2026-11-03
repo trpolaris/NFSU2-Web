@@ -738,6 +738,101 @@ function ModLibraryLists() {
   );
 }
 
+
+function ModLibraryForm() {
+  const [name, setName] = useState('');
+  const [url, setUrl] = useState('');
+  const [category, setCategory] = useState('other');
+  const [targetPath, setTargetPath] = useState('');
+  const [message, setMessage] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [ready, setReady] = useState(false);
+  const rootRef = useRef(null);
+
+  useEffect(() => {
+    const onReady = () => setReady(Boolean(window.__trpModLibraryBridge));
+    window.addEventListener('trp-mod-library-ready', onReady);
+    onReady();
+    return () => window.removeEventListener('trp-mod-library-ready', onReady);
+  }, []);
+
+  useLayoutEffect(() => {
+    if (rootRef.current && typeof window.__trpTranslateReact === 'function') {
+      window.__trpTranslateReact(rootRef.current);
+    }
+  }, [message, busy, ready, category]);
+
+  const submit = event => {
+    event.preventDefault();
+    const bridge = window.__trpModLibraryBridge;
+    if (!bridge || busy) return;
+    const result = bridge.addLink(name, url, category, targetPath);
+    setMessage(result.message);
+    if (result.ok) {
+      setName(''); setUrl(''); setCategory('other'); setTargetPath('');
+    }
+  };
+
+  const importFile = async event => {
+    const file = event.target.files && event.target.files[0];
+    const bridge = window.__trpModLibraryBridge;
+    if (!file || !bridge || busy) { event.target.value = ''; return; }
+    setBusy(true);
+    setMessage('');
+    try { setMessage(await bridge.importList(file)); }
+    catch (error) { setMessage(String(error)); }
+    finally { setBusy(false); event.target.value = ''; }
+  };
+
+  const exportList = () => {
+    const bridge = window.__trpModLibraryBridge;
+    if (bridge) setMessage(bridge.exportList());
+  };
+
+  return (
+    <div ref={rootRef} className="trp-mod-react-form">
+      <form onSubmit={submit}>
+        <div className="trp-mod-react-form-grid">
+          <label><span data-i18n>Mod name</span>
+            <input type="text" maxLength={80} autoComplete="off" required value={name}
+              placeholder="Mod name" disabled={!ready || busy}
+              onChange={event => setName(event.target.value)} />
+          </label>
+          <label><span data-i18n>Mod URL</span>
+            <input type="url" maxLength={2048} inputMode="url" autoComplete="url" required value={url}
+              placeholder="https://…" disabled={!ready || busy}
+              onChange={event => setUrl(event.target.value)} />
+          </label>
+          <label><span data-i18n>Mod category</span>
+            <select value={category} disabled={!ready || busy} onChange={event => setCategory(event.target.value)}>
+              <option value="vehicle" data-i18n>Vehicle</option>
+              <option value="visual" data-i18n>Visuals</option>
+              <option value="audio" data-i18n>Audio</option>
+              <option value="translation" data-i18n>Translation</option>
+              <option value="gameplay" data-i18n>Gameplay</option>
+              <option value="other" data-i18n>Other</option>
+            </select>
+          </label>
+          <label><span data-i18n>Expected game-data path (optional)</span>
+            <input type="text" maxLength={180} autoComplete="off" value={targetPath}
+              placeholder="e.g. LANGPACKS/turkish/english.bin" disabled={!ready || busy}
+              onChange={event => setTargetPath(event.target.value)} />
+          </label>
+        </div>
+        <div className="trp-mod-react-form-actions">
+          <button type="submit" disabled={!ready || busy} className="is-primary" data-i18n>Add link</button>
+          <button type="button" disabled={!ready || busy} onClick={exportList} data-i18n>Export mod list</button>
+          <label className={'trp-mod-react-file-button' + (!ready || busy ? ' is-disabled' : '')}>
+            <span data-i18n>Import mod list</span>
+            <input type="file" accept="application/json,.json" disabled={!ready || busy} onChange={importFile} />
+          </label>
+        </div>
+      </form>
+      <p className="trp-mod-react-form-status" role="status" aria-live="polite">{message}</p>
+    </div>
+  );
+}
+
 function ModLibraryDashboard() {
   const reduceMotion = useReducedMotion();
   const enter = reduceMotion ? false : { opacity: 0, y: 12 };
@@ -767,7 +862,7 @@ function ModLibraryDashboard() {
           <div><div className="trp-eyebrow" data-i18n>PERSONAL LIBRARY</div><h3 data-i18n>Add or transfer links</h3></div>
           <span className="trp-mod-section-mark">03</span>
         </div>
-        <LegacyNode selector="#mod-link-form" className="trp-mod-form-slot" />
+        <ModLibraryForm />
       </motion.section>
     </motion.div>
   );

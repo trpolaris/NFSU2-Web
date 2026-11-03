@@ -170,3 +170,6 @@ The three browser accessibility preferences — Larger text, Reduce animations a
 ## Mod Library list migration
 
 Recommended packs and saved mod-link lists are now rendered as React cards. Search, category and favorites-only filters are React state. The bridge returns a snapshot from the existing known community packs, browser-local custom mod storage, favorites key and server manifest status map. Favorite toggles and deletion call the existing storage helpers; installed-pack checks still call the original /data-manifest validator. The add/import/export form remains on its original DOM controller for this stage.
+
+
+The Add/Import/Export form is now React-rendered too. It calls a narrow bridge into the existing platform helpers: adding still validates printable names, HTTP/HTTPS URLs, safe relative game-data paths, duplicate pairs and the 100-link cap; import still accepts only the schema-1 JSON format with a 256 KB file limit; export keeps the existing JSON schema and filename. The original handlers remain available only for hidden legacy elements and are no longer the visible form.

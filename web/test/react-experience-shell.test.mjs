@@ -404,3 +404,20 @@ test('Mod Library state is typed and saved links appear only in the React list s
   assert.ok(app.includes('YOUR COLLECTION'));
   assert.ok(!app.includes('<h3 data-i18n>Saved mod links</h3><p data-i18n>The mod list stores names and links only.'));
 });
+
+test('Mod Library add, import and export actions use existing URL, path, size and count validation helpers', () => {
+  assert.ok(app.includes('function ModLibraryForm'));
+  assert.ok(app.includes('bridge.addLink(name, url, category, targetPath)'));
+  assert.ok(app.includes('bridge.importList(file)'));
+  assert.ok(app.includes('bridge.exportList()'));
+  assert.ok(app.includes('LegacyNode selector="#mod-link-form"') === false);
+  assert.ok(gameEntry.includes('addLink(name: string, url: string, category: string, targetPath: string)'));
+  assert.ok(platform.includes('export function addCustomModLink'));
+  assert.ok(platform.includes('export async function importModList(file: File)'));
+  assert.ok(platform.includes('export function exportModList'));
+  assert.ok(platform.includes('file.size > 256 * 1024'));
+  assert.ok(platform.includes('mods.length >= 100'));
+  assert.ok(platform.includes('validHttpUrl(url)'));
+  assert.ok(platform.includes('validRelativeGamePath(targetPath)'));
+  assert.ok(shellCss.includes('.trp-mod-react-form-grid'));
+});
