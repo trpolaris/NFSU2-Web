@@ -324,3 +324,20 @@ fn letters_past_255_are_not_read() {
     assert!(blocked_name(&(x(300) + "_fag")) && blocked_name(&(x(300) + " " + &x(300) + "_fag")));
     assert!(!blocked_name(&(x(300) + "fag")));
 }
+
+
+#[test]
+fn chat_profanity_filters_swear_words_without_blocking_ordinary_words() {
+    for line in [
+        "AMK", "a m k", "siktir", "s!kt!r", "f.u.c.k", "f u c k",
+        "amina koyayim", "orospu cocugu", "kurwa", "you are a bastard",
+    ] {
+        assert!(chat_profanity(line).is_some(), "{line}");
+    }
+    for line in [
+        "sıkıntı yok", "class is ready", "rapid race", "the spice must flow",
+        "merci beaucoup", "normal FreeRoam chat", "Mustafa GS", "",
+    ] {
+        assert_eq!(chat_profanity(line), None, "{line}");
+    }
+}

@@ -503,10 +503,12 @@ function wireFirstRun(settings: SettingsService, log: (line: string) => void): (
   $<HTMLAnchorElement>('#first-run-settings').onclick = () => dialog.close('settings');
   $<HTMLAnchorElement>('#first-run-diagnostics').onclick = () => dialog.close('diagnostics');
   $<HTMLButtonElement>('#first-run-continue').onclick = async () => {
-    const pick = $('#lang-pick') as HTMLSelectElement;
     const wantedLanguage = languageSelect.value;
     const languageChanged = await setLanguage(wantedLanguage, log);
-    if (languageChanged) pick.value = wantedLanguage;
+    if (languageChanged) {
+      try { await settings.set('language', wantedLanguage); }
+      catch (error) { log(error instanceof Error ? error.message : String(error)); }
+    }
     const presetName = ($<HTMLSelectElement>('#first-run-profile')).value;
     const values: Record<string, readonly (readonly [string, string])[]> = {
       performance: [['render', 'scale:0.5'], ['fps', '60'], ['audio_latency', 'balanced']],
