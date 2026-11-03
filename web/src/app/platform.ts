@@ -303,8 +303,62 @@ function renderGarage() {
   for (const mod of KNOWN_PACKS) addModCard(mod, packStatus.get(mod.id) ?? 'unknown');
   modRoot.replaceChildren(...modCards);
   renderCustomModList();
+  window.dispatchEvent(new Event('trp-mod-library-changed'));
 }
+
 let packStatus = new Map<string, string>();
+
+export interface ModLibraryCard {
+  id: string; name: string; detail?: string; source?: string; url?: string;
+  category?: ModCategory; targetPath?: string;
+  status: 'installed' | 'missing' | 'unknown' | 'unchecked';
+  favorite: boolean;
+}
+export interface ModLibrarySnapshot {
+  packs: ModLibraryCard[];
+  custom: ModLibraryCard[];
+  count: number;
+  statusText: string;
+}
+export function getModLibrarySnapshot(): ModLibrarySnapshot {
+  const favorites = getFavorites();
+  const packs: ModLibraryCard[] = KNOWN_PACKS.map(mod => ({
+    id: mod.id, name: mod.name, detail: mod.detail, source: mod.source,
+    status: (packStatus.get(mod.id) ?? 'unknown') as ModLibraryCard['status'],
+    favorite: favorites.has(mod.id),
+  }));
+  const custom: ModLibraryCard[] = getCustomMods().map(mod => ({
+    id: 'custom:' + mod.id, name: mod.name, url: mod.url,
+    category: mod.category ?? 'other', targetPath: mod.targetPath ?? '',
+    status: (packStatus.get('custom:' + mod.id) ?? 'unchecked') as ModLibraryCard['status'],
+    favorite: favorites.has('custom:' + mod.id),
+  }));
+  const statusText = document.getElementById('custom-mod-status')?.textContent?.trim() ?? '';
+  return { packs, custom, count: custom.length, statusText };
+}
+export function toggleModLibraryFavorite(id: string): ModLibrarySnapshot {
+  const allowed = KNOWN_PACKS.some(mod => mod.id === id) || getCustomMods().some(mod => 'custom:' + mod.id === id);
+  if (allowed) { toggleFavorite(id); renderGarage(); }
+  return getModLibrarySnapshot();
+}
+export function removeModLibraryEntry(id: string): ModLibrarySnapshot {
+  if (!id.startsWith('custom:')) return getModLibrarySnapshot();
+  const rawId = id.slice('custom:'.length);
+  const current = getCustomMods();
+  if (!current.some(mod => mod.id === rawId)) return getModLibrarySnapshot();
+  saveCustomMods(current.filter(mod => mod.id !== rawId));
+  const favorites = getFavorites();
+  favorites.delete(id);
+  saveFavorites(favorites);
+  packStatus.delete(id);
+  renderGarage();
+  return getModLibrarySnapshot();
+}
+export async function checkModLibraryPacks(): Promise<ModLibrarySnapshot> {
+  await checkPacks();
+  return getModLibrarySnapshot();
+}
+
 function renderCustomModList() {
   const root = $('#custom-mod-list');
   const mods = getCustomMods();
@@ -710,6 +764,13 @@ export function setupPlatformFeatures(settings: SettingsPanel, confirm: (title: 
   });
   wireFirstRun(settings, log);
   onLanguage(() => { void populateVehicleFilters(); renderGarage(); renderProfilePicker(); syncA11yLabels(); });
+  window.__trpModLibraryBridge = {
+    snapshot: () => getModLibrarySnapshot(),
+    toggleFavorite: id => toggleModLibraryFavorite(id),
+    removeCustom: id => removeModLibraryEntry(id),
+    checkPacks: async () => await checkModLibraryPacks(),
+  };
+  window.dispatchEvent(new Event('trp-mod-library-ready'));
   renderGarage(); renderProfilePicker();
   void checkUpdates();
 }

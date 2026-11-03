@@ -591,6 +591,153 @@ function AboutDashboard() {
 }
 
 
+
+function ModLibraryLists() {
+  const rootRef = useRef(null);
+  const [snapshot, setSnapshot] = useState({ packs: [], custom: [], count: 0, statusText: '' });
+  const [ready, setReady] = useState(false);
+  const [checking, setChecking] = useState(false);
+  const [search, setSearch] = useState('');
+  const [category, setCategory] = useState('');
+  const [favoritesOnly, setFavoritesOnly] = useState(false);
+  const [message, setMessage] = useState('');
+
+  const sync = useCallback(() => {
+    const bridge = window.__trpModLibraryBridge;
+    if (!bridge) return;
+    try { setSnapshot(bridge.snapshot()); setReady(true); } catch { setReady(false); }
+  }, []);
+
+  useEffect(() => {
+    const onChange = () => sync();
+    window.addEventListener('trp-mod-library-ready', onChange);
+    window.addEventListener('trp-mod-library-changed', onChange);
+    sync();
+    return () => {
+      window.removeEventListener('trp-mod-library-ready', onChange);
+      window.removeEventListener('trp-mod-library-changed', onChange);
+    };
+  }, [sync]);
+
+  useLayoutEffect(() => {
+    if (rootRef.current && typeof window.__trpTranslateReact === 'function') {
+      window.__trpTranslateReact(rootRef.current);
+    }
+  }, [snapshot, search, category, favoritesOnly, checking, message]);
+
+  const filteredPacks = snapshot.packs.filter(item =>
+    (!favoritesOnly || item.favorite) &&
+    (!search || (item.name + ' ' + (item.detail || '')).toLocaleLowerCase().includes(search.toLocaleLowerCase())));
+  const filteredCustom = snapshot.custom.filter(item =>
+    (!favoritesOnly || item.favorite) &&
+    (!category || item.category === category) &&
+    (!search || (item.name + ' ' + (item.url || '') + ' ' + (item.category || '') + ' ' + (item.targetPath || '')).toLocaleLowerCase().includes(search.toLocaleLowerCase())));
+
+  const toggleFavorite = id => {
+    const bridge = window.__trpModLibraryBridge;
+    if (bridge) setSnapshot(bridge.toggleFavorite(id));
+  };
+  const removeCustom = id => {
+    const bridge = window.__trpModLibraryBridge;
+    if (bridge) setSnapshot(bridge.removeCustom(id));
+  };
+  const checkInstalled = async () => {
+    const bridge = window.__trpModLibraryBridge;
+    if (!bridge || checking) return;
+    setChecking(true);
+    setMessage('');
+    try {
+      const next = await bridge.checkPacks();
+      setSnapshot(next);
+      setMessage(next.statusText || 'Pack check finished.');
+    } catch (error) { setMessage(String(error)); }
+    finally { setChecking(false); }
+  };
+  const copyLink = async url => {
+    try { await navigator.clipboard.writeText(url); setMessage('Link copied.'); }
+    catch { setMessage(url); }
+  };
+  const statusLabel = status => status === 'installed'
+    ? t('Detected on server')
+    : status === 'missing' ? t('Not found on server')
+    : status === 'unchecked' ? t('Not checked')
+    : t('Manifest unavailable in this preview.');
+
+  return (
+    <div ref={rootRef} className="trp-mod-react-lists">
+      <div className="trp-mod-tools-row">
+        <label className="trp-mod-search"><span data-i18n>Search your library</span>
+          <input type="search" value={search} placeholder="Search mods and packs" onChange={event => setSearch(event.target.value)} />
+        </label>
+        <label className="trp-mod-favorites-filter"><input type="checkbox" checked={favoritesOnly} onChange={event => setFavoritesOnly(event.target.checked)} /><span data-i18n>Favorites only</span></label>
+        <div className="trp-mod-live-count" aria-live="polite"><strong>{snapshot.count}</strong><span data-i18n>Saved links</span></div>
+        <button type="button" className="trp-mod-check-button" disabled={!ready || checking} onClick={() => void checkInstalled()} data-i18n>
+          {checking ? 'Checking…' : 'Check installed packs'}
+        </button>
+      </div>
+
+      <div className="trp-mod-pack-grid">
+        {filteredPacks.map(item => (
+          <article className="trp-mod-react-card trp-mod-pack-card" key={item.id}>
+            <div className="trp-mod-card-top">
+              <span className="trp-mod-card-kicker" data-i18n>COMMUNITY PACK</span>
+              <button type="button" className="trp-mod-favorite" aria-pressed={item.favorite}
+                aria-label={item.favorite ? 'Remove from favorites' : 'Add to favorites'}
+                onClick={() => toggleFavorite(item.id)}>{item.favorite ? '★' : '☆'}</button>
+            </div>
+            <h4>{item.name}</h4>
+            <p>{item.detail}</p>
+            <div className="trp-mod-card-footer">
+              <span className={'trp-mod-status is-' + item.status}>{statusLabel(item.status)}</span>
+              {item.source && <a className="trp-mod-source-link" href={item.source} target="_blank" rel="noopener noreferrer" data-i18n>Open source page ↗</a>}
+            </div>
+          </article>
+        ))}
+        {!filteredPacks.length && <p className="trp-mod-empty" data-i18n>No recommended packs match this search.</p>}
+      </div>
+
+      <div className="trp-mod-list-heading">
+        <div><span className="trp-eyebrow" data-i18n>YOUR COLLECTION</span><strong data-i18n>Saved mod links</strong></div>
+        <label className="trp-mod-category-select"><span data-i18n>Category</span>
+          <select value={category} onChange={event => setCategory(event.target.value)}>
+            <option value="" data-i18n>All mod categories</option>
+            <option value="vehicle" data-i18n>Vehicle</option>
+            <option value="visual" data-i18n>Visuals</option>
+            <option value="audio" data-i18n>Audio</option>
+            <option value="translation" data-i18n>Translation</option>
+            <option value="gameplay" data-i18n>Gameplay</option>
+            <option value="other" data-i18n>Other</option>
+          </select>
+        </label>
+      </div>
+
+      <div className="trp-mod-saved-grid">
+        {filteredCustom.map(item => (
+          <article className="trp-mod-react-card trp-mod-saved-card" key={item.id}>
+            <div className="trp-mod-saved-main">
+              <a href={item.url} target="_blank" rel="noopener noreferrer" className="trp-mod-saved-name">{item.name}</a>
+              <div className="trp-mod-saved-meta">
+                <span className="trp-mod-category-tag">{item.category}</span>
+                {item.targetPath && <code>{item.targetPath}</code>}
+                <span className={'trp-mod-status is-' + item.status}>{statusLabel(item.status)}</span>
+              </div>
+            </div>
+            <div className="trp-mod-saved-actions">
+              <button type="button" className="trp-mod-action" onClick={() => void copyLink(item.url)} data-i18n>Copy link</button>
+              <button type="button" className="trp-mod-favorite" aria-pressed={item.favorite}
+                aria-label={item.favorite ? 'Remove from favorites' : 'Add to favorites'}
+                onClick={() => toggleFavorite(item.id)}>{item.favorite ? '★' : '☆'}</button>
+              <button type="button" className="trp-mod-action is-danger" onClick={() => removeCustom(item.id)} data-i18n>Delete</button>
+            </div>
+          </article>
+        ))}
+        {!filteredCustom.length && <p className="trp-mod-empty" data-i18n>{snapshot.custom.length ? 'No mod links match these filters.' : 'No custom mod links saved yet.'}</p>}
+      </div>
+      <div className="trp-mod-react-status" role="status" aria-live="polite">{message || snapshot.statusText}</div>
+    </div>
+  );
+}
+
 function ModLibraryDashboard() {
   const reduceMotion = useReducedMotion();
   const enter = reduceMotion ? false : { opacity: 0, y: 12 };
@@ -603,10 +750,7 @@ function ModLibraryDashboard() {
           <h2 data-i18n>Build your own Underground.</h2>
           <p data-i18n>Save mod links, track expected files, and export your mod list. The library stores links and metadata; it does not install files on the server.</p>
         </div>
-        <div className="trp-mod-hero-actions">
-          <LegacyNode selector="#custom-mod-count" className="trp-mod-count-slot" />
-          <LegacyNode selector="#packs-check" className="trp-mod-check-slot" />
-        </div>
+
         <span className="trp-mod-hero-stamp" aria-hidden="true">WORKSHOP / 04</span>
       </motion.section>
 
@@ -615,15 +759,15 @@ function ModLibraryDashboard() {
           <div><div className="trp-eyebrow" data-i18n>COMMUNITY PICKS</div><h3 data-i18n>Recommended packs</h3></div>
           <span className="trp-mod-section-mark">01</span>
         </div>
-        <div className="trp-react-pack-list" aria-live="polite"><LegacyNode selector="#pack-list" /></div>
+        <ModLibraryLists />
       </motion.section>
 
       <motion.section className="trp-mod-panel" initial={enter} animate={{ opacity: 1, y: 0 }} transition={{ ...transition, delay: reduceMotion ? 0 : .1 }}>
         <div className="trp-mod-section-head trp-mod-collection-head">
           <div><div className="trp-eyebrow" data-i18n>YOUR COLLECTION</div><h3 data-i18n>Saved mod links</h3><p data-i18n>The mod list stores names and links only. It does not contain mod files.</p></div>
-          <div className="trp-mod-filter"><label htmlFor="custom-mod-filter" data-i18n>Filter by category</label><LegacyNode selector="#custom-mod-filter" /></div>
+
         </div>
-        <div className="trp-react-custom-mod-list"><LegacyNode selector="#custom-mod-list" /></div>
+
       </motion.section>
 
       <motion.section className="trp-mod-add-panel" initial={enter} animate={{ opacity: 1, y: 0 }} transition={{ ...transition, delay: reduceMotion ? 0 : .14 }}>

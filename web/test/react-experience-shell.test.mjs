@@ -378,3 +378,23 @@ test('Accessibility switches are React-controlled through the existing browser p
   assert.ok(shellCss.includes('.trp-a11y-react-options'));
   assert.ok(shellCss.includes('.trp-settings-accessibility-legacy'));
 });
+
+test('Mod Library cards are React-owned while existing local-storage and manifest helpers remain the source of truth', () => {
+  assert.ok(app.includes('function ModLibraryLists'));
+  assert.ok(app.includes('bridge.snapshot()'));
+  assert.ok(app.includes('bridge.toggleFavorite(id)'));
+  assert.ok(app.includes('bridge.removeCustom(item.id)'));
+  assert.ok(app.includes('bridge.checkPacks()'));
+  assert.ok(app.includes('LegacyNode selector="#mod-link-form"'));
+  assert.ok(!app.includes('LegacyNode selector="#pack-list"'));
+  assert.ok(!app.includes('LegacyNode selector="#custom-mod-list"'));
+  assert.ok(gameEntry.includes('interface TrpModLibraryBridge'));
+  assert.ok(platform.includes('getModLibrarySnapshot'));
+  assert.ok(platform.includes('toggleModLibraryFavorite'));
+  assert.ok(platform.includes('removeModLibraryEntry'));
+  assert.ok(platform.includes('checkModLibraryPacks'));
+  assert.ok(platform.includes('trp-mod-library-changed'));
+  assert.ok(platform.includes('window.__trpModLibraryBridge = {'));
+  assert.ok(shellCss.includes('.trp-mod-react-card'));
+  assert.ok(shellCss.includes('.trp-mod-saved-actions'));
+});

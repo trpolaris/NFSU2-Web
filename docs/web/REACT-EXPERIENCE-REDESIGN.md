@@ -165,3 +165,8 @@ The Settings route now has a React dashboard for validated game options, configu
 ## Accessibility controls migration
 
 The three browser accessibility preferences — Larger text, Reduce animations and High contrast — now render as React-controlled switches. A narrow adapter reads and writes the existing browser preference store and keeps the original checkbox elements and document-level data attributes synchronized. The localStorage key and preference names remain unchanged.
+
+
+## Mod Library list migration
+
+Recommended packs and saved mod-link lists are now rendered as React cards. Search, category and favorites-only filters are React state. The bridge returns a snapshot from the existing known community packs, browser-local custom mod storage, favorites key and server manifest status map. Favorite toggles and deletion call the existing storage helpers; installed-pack checks still call the original /data-manifest validator. The add/import/export form remains on its original DOM controller for this stage.

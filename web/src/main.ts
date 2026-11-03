@@ -11,10 +11,36 @@ import { boot } from './app/shell';
 import { translatePage } from './app/i18n';
 
 declare global {
+  interface TrpModLibraryCard {
+    id: string; name: string; detail?: string; source?: string; url?: string;
+    category?: string; targetPath?: string; status: 'installed' | 'missing' | 'unknown' | 'unchecked'; favorite: boolean;
+  }
+  interface TrpModLibrarySnapshot {
+    packs: TrpModLibraryCard[]; custom: TrpModLibraryCard[]; count: number; statusText: string;
+  }
+  interface TrpModLibraryBridge {
+    snapshot(): TrpModLibrarySnapshot;
+    toggleFavorite(id: string): TrpModLibrarySnapshot;
+    removeCustom(id: string): TrpModLibrarySnapshot;
+    checkPacks(): Promise<TrpModLibrarySnapshot>;
+  }
   interface TrpAccessibilityPrefs { largeText: boolean; reduceMotion: boolean; highContrast: boolean; }
   interface TrpAccessibilityBridge {
     current(): TrpAccessibilityPrefs;
     set(key: 'largeText' | 'reduceMotion' | 'highContrast', value: boolean): TrpAccessibilityPrefs;
+  }
+  interface TrpModLibraryCard {
+    id: string; name: string; detail?: string; source?: string; url?: string;
+    category?: string; targetPath?: string; status: 'installed' | 'missing' | 'unknown' | 'unchecked'; favorite: boolean;
+  }
+  interface TrpModLibrarySnapshot {
+    packs: TrpModLibraryCard[]; custom: TrpModLibraryCard[]; count: number; statusText: string;
+  }
+  interface TrpModLibraryBridge {
+    snapshot(): TrpModLibrarySnapshot;
+    toggleFavorite(id: string): TrpModLibrarySnapshot;
+    removeCustom(id: string): TrpModLibrarySnapshot;
+    checkPacks(): Promise<TrpModLibrarySnapshot>;
   }
   interface TrpCrew { name: string; rgb: string; }
   interface TrpSettingsBridge {
@@ -33,6 +59,8 @@ declare global {
     __trpTranslateReact?: (root: ParentNode) => void;
     __trpSettingsBridge?: TrpSettingsBridge;
     __trpAccessibilityBridge?: TrpAccessibilityBridge;
+    __trpModLibraryBridge?: TrpModLibraryBridge;
+    __trpModLibraryBridge?: TrpModLibraryBridge;
   }
 }
 
