@@ -20,7 +20,7 @@
 
 import registryDefaults from '../../../app/registry-defaults.txt';
 import { browserName, check, checkBrowser, checkGpu, checkIsolation, checkStorage, fmtBytes, type Check } from './checks';
-import { codeOf, dateLocale, language as pageLanguage, lastLanguage, LANGUAGES, listOf, live, LOCALE, N, NATIVE, onLanguage, setLanguage, t, T, tn, tvars, type Msg } from './i18n';
+import { codeOf, dateLocale, language as pageLanguage, lastLanguage, listOf, live, N, onLanguage, setLanguage, t, T, tn, tvars, type Msg } from './i18n';
 import { loadGame, serverRev, type Loaded } from './loader';
 import { claimInstance } from './instance';
 import { LogRing, downloadBlob, stamp } from './logs';
@@ -941,18 +941,6 @@ const cap = (s: string) => s[0].toUpperCase() + s.slice(1);
  *  the player picks another, in Settings or in the list at the top.  A tab that does not own the saves follows the file. */
 function applyLanguage() {
   void setLanguage(language(resolveEnv(settingsText ?? settings.text, ENVIRONMENT, {}, DEVICE)), logLine);
-  syncPicker();
-}
-/** the list at the top shows the language the file asks for (disabled where another tab owns the saves) */
-function syncPicker() {
-  const pick = $<HTMLSelectElement>('#lang-pick');
-  pick.value = language(resolveEnv(settingsText ?? settings.text, ENVIRONMENT, {}, DEVICE));
-  pick.disabled = !instance.owner;
-  // as wide as the name shown (CSS field-sizing where the browser has it; Firefox measures it here)
-  if (!CSS.supports?.('field-sizing', 'content')) {
-    const g = document.createElement('canvas').getContext('2d'), cs = getComputedStyle(pick);
-    if (g) { g.font = cs.font; pick.style.width = `${Math.ceil(g.measureText(pick.selectedOptions[0]?.textContent ?? '').width) + 80}px`; }
-  }
 }
 
 /** the controller's share of the page while a game runs (gamepad.ts): Home, or both sticks pressed in, opens or
@@ -1764,10 +1752,6 @@ export async function boot() {
   window.dispatchEvent(new Event('trp-settings-ready'));
 
   setupPlatformFeatures(settings, confirmBox, logLine);
-  // the language picker at the top: the same setting as Settings, Game, Language
-  const pick = $<HTMLSelectElement>('#lang-pick');
-  pick.replaceChildren(...LANGUAGES.map(l => Object.assign(document.createElement('option'), { value: l, textContent: NATIVE[l], lang: LOCALE[l] })));
-  pick.onchange = () => void settings.set('language', pick.value);
   // who plays on this server now (Online): only while no game runs here; with free roam on in a room, that room too,
   // and in crews (free roam on or not: the row shows them either way), how many are in each (on the Crews row's lines)
   players = watchPlayers((line, crews) => { settings.setStatus(line); settings.setCrewCounts(crews); window.dispatchEvent(new Event('trp-settings-changed')); }, () => !session && !starting, setReach,
@@ -1938,7 +1922,6 @@ export async function boot() {
   onLanguage(() => {
     renderProblems(); evaluate(); settings.render(); void saves.refresh(); vault.refresh(); keySheet.relabel(); lobbyPanel.redraw(); touch.relabel();
     helpSheet = null; $('#help-body').replaceChildren();
-    syncPicker();
     runtimeChanged();
   });
   const stageMenu = $<HTMLButtonElement>('#stage-menu');
@@ -1976,7 +1959,7 @@ export async function boot() {
   void settings.refresh();
   void saves.refresh();
   void vault.start();
-  void instance.whenOwner.then(async () => { await loadSettings(); evaluate(); void settings.refresh(); void saves.refresh(); vault.ownerNow(); syncPicker(); });
+  void instance.whenOwner.then(async () => { await loadSettings(); evaluate(); void settings.refresh(); void saves.refresh(); vault.ownerNow(); });
   void checkGpu(lastGame?.ended?.why === 'GPU-LOST').then(c => { setCheck(c); if (c.code === 'GPU-ADAPTER-AFTER-LOST') recheckGpu(); });
   // Firefox's answer to its storage prompt comes later: the check again then
   void checkStorage().then(({ answer, ...c }) => { setCheck(c); void answer?.then(setCheck); });
