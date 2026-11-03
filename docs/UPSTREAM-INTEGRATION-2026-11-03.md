@@ -1,6 +1,6 @@
 # Upstream Integration Ledger — 2026-11-03
 
-This branch selectively ports compatible upstream changes from `th0mk/nfsu2-web` while keeping the TRPOLARIS application and React migration as the integration baseline.
+This branch selectively ports compatible changes from `th0mk/nfsu2-web` while keeping the TRPOLARIS application, React migration, Cloud services, and custom FreeRoam changes as the integration baseline.
 
 ## Integrated
 
@@ -9,26 +9,48 @@ This branch selectively ports compatible upstream changes from `th0mk/nfsu2-web`
 - Added `runtime/look.c`.
 - Ported the controller Look Back mapping into `runtime/dinput_pad.c`.
 - Ported the end-of-frame camera restore hook into `runtime/career.c`.
-- Connected the look camera to the existing camera setup wrapper in `runtime/overrides.c` without replacing the TRPOLARIS wrapper.
+- Connected the look camera to the existing TRPOLARIS camera setup wrapper in `runtime/overrides.c`; the local wrapper was not replaced.
 - Added `look` to the native/WASM source list in `link.sh`.
-- Added upstream regression script `tests/scripts/pad_look.txt`.
+- Added `tests/scripts/pad_look.txt`.
 
 ### Free-roam curve extrapolation
 - Upstream commit: `8ccb072a19d7036f49787662ce12af8dd61e8d03`
 - Ported curve-aware extrapolation into `runtime/roam_core.c`.
-- Ported its configuration declaration into `runtime/roam_core.h`.
-- Ported the corresponding cases into `tests/roam_unit.c`.
-- Kept the TRPOLARIS-specific `runtime/roam_game.c` unchanged. The new interpolation mode defaults to enabled in the core module.
+- Ported the configuration declaration into `runtime/roam_core.h`.
+- Ported the corresponding unit-test cases into `tests/roam_unit.c`.
+- Kept the TRPOLARIS-specific `runtime/roam_game.c` unchanged. The interpolation mode defaults to enabled in the core module.
+
+### Older Safari storage compatibility
+- Upstream commit: `02e8314b1f8c630f4c1c5dd9f0ff420acde617f6`
+- Added a browser capability check in `web/src/app/checks.ts` for `FileSystemFileHandle.createWritable`, which the game needs when it writes save/configuration files.
+- Added the Turkish explanation and matching translations to the available locale files (15 locale JSON files in this repository).
+- Added `web/test/checks-storage.test.mjs` as a regression test.
+- The warning is reported as `STORAGE-OLD`; it does not silently pretend that storage is usable.
+
+### Fanatec wheel-base support — limited first port
+- Upstream commit: `132d58b3bd83a4f68d30d3ec7852c440b2588a64`
+- Added Fanatec model/axis/button mappings in `web/src/input/wheel.ts`, including known CSL DD, DD1/DD2, CSL Elite, ClubSport and selected older wheel identifiers.
+- Added filtering for the duplicate all-zero HID collection that can appear alongside a Fanatec base in Windows.
+- Updated `web/src/app/wheel-setup.ts` so calibration targets the actual Gamepad index, not just the shared device name.
+- Updated `web/test/wheel.test.mjs` with Fanatec mapping coverage.
+- This is intentionally a partial port: pedals connected through the wheel base are mapped; independent USB pedal sets and their multi-device learning workflow are deferred.
 
 ## Deferred — conflicts or integration dependencies
 
-- Fanatec steering-wheel/pedal support (`132d58b3bd83a4f68d30d3ec7852c440b2588a64`): patches do not apply cleanly to the current TRPOLARIS `wheel.ts`, `gamepad.ts`, and `wheel-setup.ts`. No partial wheel implementation or tests were committed.
-- Multiplayer career credits (`0bc01cedb1768e26330e48caaaa77d67f4f08395`): the upstream feature spans race, save, and FreeRoam state. Core files including `mprace.c`, `roam.c`, and `roam_game.c` have material TRPOLARIS divergences. The feature was not partially applied.
-- Worker-hosted network link (`181a6ab73dc5818b8392816087fa95a255783aeb`): the upstream worker protocol and telemetry expect a different network interface. Not enabled until the worker, clock handling, React service adapter, and offline cache can be ported together.
-- Trunk audio rendering (`68128859237c2084afdac3a5cdab588b8ca493b7`): depends on the upstream show-off subsystem and FreeRoam hooks that are not present in the same form here. Deferred.
+- Multiplayer career credits (`0bc01cedb1768e26330e48caaaa77d67f4f08395`): spans race, save, FreeRoam, lobby protocol, server and UI. Core files such as `mprace.c` and `roam_game.c` have substantial TRPOLARIS-specific differences. Not partially applied.
+- Worker-hosted network link (`181a6ab73dc5818b8392816087fa95a255783aeb`): the worker protocol and telemetry expect a different network interface. Needs a coordinated port across the network link, clock handling, React service adapter, build entries and offline cache.
+- Trunk/hood/door show-off and trunk audio (`68128859237c2084afdac3a5cdab588b8ca493b7`): depends on upstream show-off and FreeRoam hooks not present in the same form locally.
+- Quick Chat countdown at car meets (`833d2274995a27cd20ed007b8898f975f38fbedc`): FreeRoam runtime, status transport, quick-chat UI and tests must move together; only part of the runtime patch matched.
+- Lobby grouping/focus improvements (`85c39ac14279f64204745d31f6ff20bac53001f5`): local `roam_game.c` and lobby UI differ; not partially applied.
+- Cloud-save re-prompt (`1e3ab1c1a1b03a6c296cd57e1645dcdfc435961a`): the upstream shell/playtime/vault UI was substantially rewritten by the React migration.
+- Renderer Enhanced Contrast edge fix (`dc4354042ce0660bc1aa577464011f814e6af901`): several GPU/WGSL hunks conflict; deferred to avoid an unverified rendering-path change.
+- Country-based network RTT display and the 14,000-player server/deployment changes: require a separate Rust/server and deployment capacity review. Server memory/CPU/Cloudflare topology must not be changed blindly.
+- Separate USB pedals, car-meet capacity, weather sync, pause-menu save, photo-mode upgrades and other FreeRoam changes remain under review for their dependencies and compatibility.
 
 ## Validation status
 
-- Patch-context validation: passed for every integrated hunk.
-- Automated compile, WASM build, browser regression, and multiplayer runtime tests: not run in this integration environment.
-- The integration branch is intentionally separate from `main`. Do not merge until CI and runtime checks pass.
+- Integrated patches were checked against the current TRPOLARIS file contents before writing.
+- Regression tests were added/updated, but the tests have **not** been run locally in this integration session, as requested.
+- Native build, WASM build, TypeScript check, browser tests, Rust workspace tests, and multiplayer runtime tests remain pending.
+- GitHub Actions may run automatically for the draft PR; its result must be checked before treating the branch as validated.
+- The integration branch is intentionally separate from `main`. Do not merge until the full validation pass is completed.
