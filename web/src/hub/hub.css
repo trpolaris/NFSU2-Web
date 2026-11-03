@@ -324,3 +324,66 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 @media (prefers-reduced-motion: reduce) {
   *,*::before,*::after { scroll-behavior:auto !important; animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important; }
 }
+
+
+/* Nightshift motion layer: shared lighting language with the main React experience shell. */
+.hub-app { position:relative; isolation:isolate; background:transparent; }
+.hub-app::before {
+  content:""; position:fixed; z-index:-1; inset:0; pointer-events:none;
+  background:
+    radial-gradient(ellipse at 74% 0%,rgba(166,154,255,.105),transparent 38rem),
+    radial-gradient(ellipse at 12% 82%,rgba(255,105,69,.085),transparent 32rem),
+    linear-gradient(135deg,rgba(8,12,20,.18),rgba(8,12,20,0));
+}
+.hub-atmosphere { position:fixed; z-index:-1; inset:0; overflow:hidden; pointer-events:none; }
+.hub-atmosphere-orb {
+  position:absolute; width:42rem; aspect-ratio:1; border-radius:50%;
+  filter:blur(105px); opacity:.09; animation:hubAtmosphereDrift 25s ease-in-out infinite alternate;
+}
+.hub-atmosphere-coral { top:-29rem; right:6%; background:#ff6945; }
+.hub-atmosphere-violet { bottom:-34rem; left:13%; background:#8f80ff; animation-delay:-12s; }
+.hub-atmosphere-grid {
+  position:absolute; inset:0; opacity:.1;
+  background-image:linear-gradient(rgba(167,185,214,.1) 1px,transparent 1px),linear-gradient(90deg,rgba(167,185,214,.1) 1px,transparent 1px);
+  background-size:54px 54px; mask-image:linear-gradient(180deg,#000,transparent 82%);
+}
+.hub-nav-link { isolation:isolate; overflow:hidden; }
+.hub-nav-link.is-active { border-color:rgba(255,105,69,.25); background:transparent; box-shadow:none; }
+.hub-nav-indicator {
+  position:absolute; z-index:0; inset:0; border:1px solid rgba(255,105,69,.19); border-radius:inherit;
+  background:linear-gradient(100deg,rgba(255,105,69,.15),rgba(255,105,69,.035));
+  box-shadow:inset 3px 0 var(--hub-coral),0 8px 22px rgba(0,0,0,.12); pointer-events:none;
+}
+.hub-nav-link > svg,.hub-nav-link > span:not(.hub-nav-indicator),.hub-nav-link > i { position:relative; z-index:1; }
+.hub-nav-link.is-active svg { color:var(--hub-coral); }
+.hub-connection.is-disconnected { color:#d6a7ac; }
+.hub-connection.is-disconnected .hub-live-dot { background:#d17b83; box-shadow:0 0 9px rgba(209,123,131,.45); }
+.hub-connection.is-connected .hub-live-dot { background:var(--hub-green); box-shadow:0 0 10px rgba(102,215,176,.72); }
+.hub-welcome { isolation:isolate; }
+.hub-welcome::after {
+  content:""; position:absolute; z-index:1; top:-10%; bottom:-10%; left:-28%; width:24%;
+  transform:skewX(-18deg); pointer-events:none;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.045),transparent);
+  animation:hubWelcomeSweep 9s ease-in-out infinite;
+}
+.hub-stat,.hub-panel,.hub-vehicle-card { transition:transform .22s ease,border-color .22s ease,box-shadow .22s ease,background-color .22s ease; }
+.hub-stat:hover { transform:translateY(-3px); border-color:rgba(166,154,255,.25); box-shadow:0 18px 38px rgba(0,0,0,.2),0 0 26px rgba(166,154,255,.045); }
+.hub-panel:hover { border-color:rgba(167,185,214,.2); }
+.hub-primary-button:active,.hub-secondary-button:active,.hub-icon-button:active { transform:translateY(1px) scale(.985); }
+.hub-player-row { transition:background .18s ease,border-color .18s ease,transform .18s ease; }
+.hub-player-row:hover { transform:translateX(2px); }
+.hub-topbar { background:rgba(8,13,22,.84); -webkit-backdrop-filter:blur(22px) saturate(135%); backdrop-filter:blur(22px) saturate(135%); }
+.hub-footer { letter-spacing:.13em; }
+@keyframes hubAtmosphereDrift {
+  from { transform:translate3d(-2%,0,0) scale(.94); }
+  to { transform:translate3d(3%,4%,0) scale(1.08); }
+}
+@keyframes hubWelcomeSweep {
+  0%,18% { left:-28%; opacity:0; }
+  25% { opacity:1; }
+  42%,100% { left:118%; opacity:0; }
+}
+@media (prefers-reduced-motion:reduce) {
+  .hub-atmosphere-orb,.hub-welcome::after { animation:none!important; }
+  .hub-stat:hover,.hub-player-row:hover { transform:none!important; }
+}

@@ -393,6 +393,68 @@ export class SettingsPanel {
   /** One setting set as its row would set it (the language list at the top of the page). */
   set(key: string, value: string | null) { return this.put(key, value); }
 
+  /** React text fields reuse the same validation and normalization as the original setting rows. */
+  async setValidated(key: string, value: string | null) {
+    if (!['roam_name', 'roam_room', 'roam_block', 'roam_max_cars'].includes(key)) throw new Error('Unsupported React settings field');
+    if (this.ro()) { this.deps.say?.(t(READ_ONLY)); return; }
+    let next = value?.trim() ?? '';
+    if (key === 'roam_name' && next) next = onlineName(next) ?? next;
+    if (next === this.current(key) && (next !== '' || !this.resolved.file[key]?.raw)) return;
+    if (next === '') { await this.put(key, null); return; }
+    const checked = checkSetting(key, next);
+    if (checked && !checked.ok) {
+      throw new Error(t('Not saved: {key} = {why}.', { key, why: tvars(checked.why, checked.v) }));
+    }
+    await this.put(key, next);
+  }
+
+
+  /** Save crew names and colours together to preserve their shared order. */
+  async saveCrewsFromReact(list: readonly Crew[]) {
+    if (this.ro()) { this.deps.say?.(t(READ_ONLY)); return; }
+    if (list.length > CREW_MAX) throw new Error(t('Up to 4 crews: leave one to join another.'));
+    const names = crewsValue(list.map(crew => crew.name));
+    const colours = rgbsValue(list);
+    const checkedNames = checkSetting('roam_crew', names);
+    const checkedColours = checkSetting('roam_crew_colours', colours);
+    if (checkedNames && !checkedNames.ok) {
+      throw new Error(t('Not saved: {key} = {why}.', { key: 'roam_crew', why: tvars(checkedNames.why, checkedNames.v) }));
+    }
+    if (checkedColours && !checkedColours.ok) {
+      throw new Error(t('Not saved: {key} = {why}.', { key: 'roam_crew_colours', why: tvars(checkedColours.why, checkedColours.v) }));
+    }
+    await this.put(
+      'roam_crew',
+      names ? (checkedNames && checkedNames.ok ? checkedNames.value : names) : null,
+      [['roam_crew_colours', colours ? (checkedColours && checkedColours.ok ? checkedColours.value : colours) : null]],
+    );
+  }
+
+
+
+
+  /** Save the sixteen phrase ids and four group ids together through the original settings validators. */
+  async saveQuickChatFromReact(phrases: readonly number[], groups: readonly string[]) {
+    if (this.ro()) { this.deps.say?.(t(READ_ONLY)); return; }
+    if (phrases.length !== SLOTS || groups.length !== 4) throw new Error(t('Choose four groups of four phrases.'));
+    const phraseValue = phrases.join(',');
+    const groupValue = groups.join(',');
+    const checkedPhrases = checkSetting('quick_chat_phrases', phraseValue);
+    const checkedGroups = checkSetting('quick_chat_groups', groupValue);
+    if (checkedPhrases && !checkedPhrases.ok) {
+      throw new Error(t('Not saved: {key} = {why}.', { key: 'quick_chat_phrases', why: tvars(checkedPhrases.why, checkedPhrases.v) }));
+    }
+    if (checkedGroups && !checkedGroups.ok) {
+      throw new Error(t('Not saved: {key} = {why}.', { key: 'quick_chat_groups', why: tvars(checkedGroups.why, checkedGroups.v) }));
+    }
+    const isDefault = phrases.every((value, index) => value === DEFAULT_PHRASES[index]) &&
+      groups.every((value, index) => value === DEFAULT_GROUPS[index]);
+    await this.put(
+      'quick_chat_phrases',
+      isDefault ? null : (checkedPhrases && checkedPhrases.ok ? checkedPhrases.value : phraseValue),
+      [['quick_chat_groups', isDefault ? null : (checkedGroups && checkedGroups.ok ? checkedGroups.value : groupValue)]],
+    );
+  }
 
   /** A named launcher's safe snapshot: only explicitly allow-listed, validated settings. */
   profileValues(): Record<string, string> {
@@ -517,6 +579,9 @@ export class SettingsPanel {
     this.crewCounts = counts;
     for (const r of [this.root, this.online]) showCrewCounts(r, counts);
   }
+
+  /** Live player count for a crew hash, or undefined when the /players feed has no count yet. */
+  crewCount(hash: number): number | undefined { return this.crewCounts.get(hash); }
 
   private group(g: Group): HTMLElement {
     const box = document.createElement('div'); box.className = 'group';
