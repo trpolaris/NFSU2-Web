@@ -4,6 +4,13 @@ This branch selectively ports compatible changes from `th0mk/nfsu2-web` while ke
 
 ## Integrated
 
+### Radio track completion and dual-reader synchronization
+- Upstream commit: `fbe1cef92cd70369fab83fcfc811b70e0947980a`
+- Ported the matching upstream changes to `runtime/radio.c`, `tests/radio_mixer_stub.h`, and `tests/radio_unit.c`.
+- The two music readers now use one snapshot of the page's written/total counters per mixer step and receive silence after the track ends; neither reader reports end-of-stream independently.
+- This avoids the game's mixer freeing one reader/voice while the other still consumes the shared song stream/decoder.
+- Added regression coverage for readers ending together, including a page write occurring between the two reader calls. Tests have not been run in this integration session.
+
 ### Blocked game-script startup warning
 - Upstream commit: `701f93585742474051a1514dbaa7f6db60454602`
 - Added `web/src/boot.ts`, emitted as a standalone classic `/boot.js` and loaded before the module entry points.
