@@ -459,7 +459,7 @@ export class SettingsPanel {
 
   async saveRawFromReact(raw: string): Promise<string> {
     if (this.ro()) throw new Error(t(READ_ONLY));
-    const next = raw.endsWith('\\n') ? raw : raw + '\\n';
+    const next = raw.endsWith('\n') ? raw : raw + '\n';
     const resolved = resolveEnv(next, this.deps.environment, {});
     const bad = resolved.notes.filter(note => /ignored$|only the page sets it$/.test(note) && !/is set in the environment|already set/.test(note));
     await this.write(next);
@@ -487,7 +487,7 @@ export class SettingsPanel {
     this.deps.say?.(() => t('Saved: {key} is back to its default. Applies the next time you press Play.', { key }));
   }
 
-  async setFromReact(key: string, rawValue: string) {  async setFromReact(key: string, rawValue: string) {
+  async setFromReact(key: string, rawValue: string) {
     const item = ITEMS.get(key);
     if (!item || GROUP_OF.get(key)?.own) throw new Error('Unsupported React settings field');
     if (this.ro()) throw new Error(t(READ_ONLY));
