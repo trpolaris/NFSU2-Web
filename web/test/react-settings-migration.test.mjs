@@ -31,7 +31,7 @@ const retiredIds = [
   'online', 'online-title', 'online-note', 'online-body',
   'config-profile-name', 'config-profile-pick', 'config-profile-save', 'config-profile-apply',
   'config-profile-export', 'config-profile-delete', 'config-profile-import', 'config-profile-status',
-, 'recommended-mods-title', 'saved-mods-title'];
+  'recommended-mods-title', 'saved-mods-title'];
 
 test('Settings persistence and validation live in a DOM-free SettingsService', () => {
   assert.match(service, /export class SettingsService/);
