@@ -155,7 +155,7 @@ Next, migrate screenshot viewing/deletion and the Cloud keyphrase/conflict contr
 
 ## Controls route migration
 
-The Controls route now has a React-owned responsive dashboard and layout for keyboard, gamepad and touch control sections. The complete existing #controls section is mounted as one compatibility island so the original controlsSheet can still find #keys and retain its tab keyboard navigation, Xbox/PlayStation labels, live controller-follow behavior, wheel drawing, touch steering, level-horizon, control-size and menu-size settings. The game input mappings and runtime input pipeline are unchanged.
+The Controls route now renders its keyboard map, controller map, Xbox/PlayStation selector, browser shortcuts and touch-device preferences directly in React. A typed bridge exposes the current pad family and the existing touch settings (steering, level horizon, touch size and menu-button size); updates still go through the original touch/input services. The old #controls sheet remains only as a hidden compatibility anchor for the gamepad-follow and wheel setup controllers while those services are separated from their DOM mount. Game input mappings and the runtime input pipeline are unchanged.
 
 ## System route migration
 
@@ -163,7 +163,7 @@ The System page is now composed in React with three sections: Updates & Security
 
 ## Settings route migration
 
-The Settings route now has a React dashboard for validated game options, configuration profiles, quick presets and Accessibility. The complete #settings root remains a single mounted unit for SettingsPanel; the #accessibility section is kept intact for the browser preference controller. This preserves settings.ini validation, read-only ownership checks, profile import/export, presets, raw-file editing and the device accessibility preferences.
+Game, Display and Controller option groups are now rendered by React from a serializable schema exported by SettingsPanel. React changes are written through the existing SettingsPanel validators, read-only ownership check, companion-key handling and settings.ini writer. Reset and audio-preview actions use the same settings service. The existing configuration-profile manager, quick presets and raw settings.ini editor remain mounted as compatibility controls for this slice; the legacy #settings-body is no longer the visible settings form. Accessibility switches are already React-controlled through the browser preference store.
 
 
 ## Accessibility controls migration

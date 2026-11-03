@@ -1005,6 +1005,148 @@ function SavesDashboard() {
 }
 
 
+const CONTROL_KEYS = [
+  { keys: ['↑', '↓'], action: 'Throttle, brake and reverse' },
+  { keys: ['←', '→'], action: 'Steer (or W S A D)' },
+  { keys: ['Alt'], action: 'Nitrous' },
+  { keys: ['Space'], action: 'Handbrake' },
+  { keys: ['Shift', 'Ctrl'], action: 'Shift up, shift down (manual)' },
+  { keys: ['C', 'B'], action: 'Change camera, look back' },
+  { keys: ['R'], action: 'Respawn' },
+  { keys: ['H', 'J'], action: 'Hydraulics (hold, then the arrows)' },
+  { keys: ['N'], action: 'Horn (with other players)' },
+  { keys: ['X'], action: 'Drift mode (in free roam)' },
+  { keys: ['1–4'], action: 'Quick chat (with other players): a group, then a phrase' },
+  { keys: ['Enter'], action: 'Start an event, take an outrun' },
+  { keys: ['M', 'Tab'], action: 'Map, messages' },
+  { keys: ['Esc', 'P'], action: 'Pause' },
+];
+
+const CONTROLLER_KEYS = [
+  { xb: 'LT', ps: 'L2', action: 'Brake and reverse' },
+  { xb: 'LB', ps: 'L1', action: 'Nitrous' },
+  { xb: 'LS', ps: 'L3', action: 'Steer; press in for horn' },
+  { xb: 'D-pad ↑', ps: 'D-pad ↑', action: 'Start event' },
+  { xb: 'D-pad ←', ps: 'D-pad ←', action: 'Map' },
+  { xb: 'D-pad →', ps: 'D-pad →', action: 'Messages' },
+  { xb: 'RT', ps: 'R2', action: 'Throttle' },
+  { xb: 'RB', ps: 'R1', action: 'Handbrake' },
+  { xb: 'A', ps: 'Cross', action: 'Shift up' },
+  { xb: 'X', ps: 'Square', action: 'Shift down' },
+  { xb: 'Y', ps: 'Triangle', action: 'Camera' },
+  { xb: 'B', ps: 'Circle', action: 'Look back' },
+  { xb: 'RS', ps: 'R3', action: 'Quick chat' },
+  { xb: 'View', ps: 'Create', action: 'Respawn' },
+  { xb: 'Menu', ps: 'Options', action: 'Pause' },
+];
+
+function ControlsReactPanel() {
+  const [state, setState] = useState({ tab: 'keys', family: 'xb', steering: 'buttons', steeringOptions: [], levelHorizon: true,
+    touchSize: 'auto', touchSizeOptions: [], menuSize: 'auto', menuSizeOptions: [] });
+  const rootRef = useRef(null);
+
+  useEffect(() => {
+    const update = () => {
+      const next = window.__trpControlsBridge?.snapshot();
+      if (next) setState(next);
+    };
+    window.addEventListener('trp-controls-ready', update);
+    window.addEventListener('trp-controls-changed', update);
+    update();
+    return () => {
+      window.removeEventListener('trp-controls-ready', update);
+      window.removeEventListener('trp-controls-changed', update);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (rootRef.current) window.__trpTranslateReact?.(rootRef.current);
+  }, [state]);
+
+  const setTab = tab => window.__trpControlsBridge?.showTab(tab);
+  return (
+    <section className="trp-controls-react-workbench" ref={rootRef} aria-label="Control configuration">
+      <div className="trp-controls-react-tabs" role="tablist" aria-label="Controls">
+        <button type="button" role="tab" aria-selected={state.tab === 'keys'} onClick={() => setTab('keys')}><span data-i18n>Keyboard</span><small>01</small></button>
+        <button type="button" role="tab" aria-selected={state.tab === 'pad'} onClick={() => setTab('pad')}><span data-i18n>Controller</span><small>02</small></button>
+        <button type="button" role="tab" aria-selected={state.tab === 'site'} onClick={() => setTab('site')}><span data-i18n>Site</span><small>03</small></button>
+      </div>
+
+      {state.tab === 'keys' && (
+        <div className="trp-controls-react-panel" role="tabpanel">
+          <div className="trp-controls-react-intro"><div><span className="trp-eyebrow" data-i18n>INPUT MAP / 01</span><h3 data-i18n>Keyboard controls</h3></div><p data-i18n>Change game keys in the game's Options, Controls menu.</p></div>
+          <div className="trp-control-key-grid">
+            {CONTROL_KEYS.map((item, index) => (
+              <div className="trp-control-key-row" key={index}>
+                <div className="trp-control-key-caps">{item.keys.map(key => <kbd key={key}>{key}</kbd>)}</div>
+                <span data-i18n>{item.action}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {state.tab === 'pad' && (
+        <div className="trp-controls-react-panel" role="tabpanel">
+          <div className="trp-controls-react-intro">
+            <div><span className="trp-eyebrow" data-i18n>GAMEPAD MAP / 02</span><h3 data-i18n>Controller mapping</h3></div>
+            <div className="trp-controller-family" role="group" aria-label="Button names">
+              <button type="button" aria-pressed={state.family === 'xb'} onClick={() => window.__trpControlsBridge?.setFamily('xb')}>Xbox</button>
+              <button type="button" aria-pressed={state.family === 'ps'} onClick={() => window.__trpControlsBridge?.setFamily('ps')}>PlayStation</button>
+            </div>
+          </div>
+          <div className="trp-controller-map-grid">
+            {CONTROLLER_KEYS.map((item, index) => (
+              <div className="trp-controller-map-item" key={index}>
+                <kbd>{state.family === 'ps' ? item.ps : item.xb}</kbd>
+                <span data-i18n>{item.action}</span>
+              </div>
+            ))}
+          </div>
+          <p className="trp-controls-react-note" data-i18n>Connecting or taking control with a PlayStation controller updates the selected button names automatically.</p>
+        </div>
+      )}
+
+      {state.tab === 'site' && (
+        <div className="trp-controls-react-panel" role="tabpanel">
+          <div className="trp-controls-react-intro"><div><span className="trp-eyebrow" data-i18n>BROWSER SHORTCUTS / 03</span><h3 data-i18n>Site shortcuts</h3></div><p data-i18n>Actions handled by the web page while the game is running.</p></div>
+          <div className="trp-control-key-grid">
+            {[['F9', 'Menu: full screen, controls, log, quit'], ['Home / both sticks', 'Open the menu on a controller'], ['F8', 'Frame-rate counter'], ['F12', 'Screenshot, shown in Saves'], ['Hold Esc', 'Leave full screen']].map(([key, action]) => (
+              <div className="trp-control-key-row" key={key}><div className="trp-control-key-caps"><kbd>{key}</kbd></div><span data-i18n>{action}</span></div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="trp-touch-settings-grid">
+        <div className="trp-controls-react-intro trp-touch-settings-heading"><div><span className="trp-eyebrow" data-i18n>TOUCH / DEVICE INPUT</span><h3 data-i18n>Touch controls</h3></div><p data-i18n>These preferences are saved in this browser and are applied by the existing touch input service.</p></div>
+        <label className="trp-touch-setting">
+          <span data-i18n>Steering</span><small data-i18n>Choose buttons, thumb stick or tilt steering.</small>
+          <select value={state.steering} onChange={event => window.__trpControlsBridge?.setSteering(event.target.value)}>
+            {state.steeringOptions.map(option => <option key={option.value} value={option.value} data-i18n>{option.label}</option>)}
+          </select>
+        </label>
+        <label className="trp-touch-setting trp-touch-setting-switch">
+          <span data-i18n>Level horizon</span><small data-i18n>With tilt steering, keep the road horizon level as the phone turns.</small>
+          <input type="checkbox" role="switch" checked={state.levelHorizon} onChange={event => window.__trpControlsBridge?.setLevelHorizon(event.target.checked)} />
+        </label>
+        <label className="trp-touch-setting">
+          <span data-i18n>Control size</span><small data-i18n>Size of the touch controls shown while driving.</small>
+          <select value={state.touchSize} onChange={event => window.__trpControlsBridge?.setTouchSize(event.target.value)}>
+            {state.touchSizeOptions.map(option => <option key={option.value} value={option.value} data-i18n>{option.label}</option>)}
+          </select>
+        </label>
+        <label className="trp-touch-setting">
+          <span data-i18n>Menu button size</span><small data-i18n>Size of the game's small menu buttons and arrows.</small>
+          <select value={state.menuSize} onChange={event => window.__trpControlsBridge?.setMenuSize(event.target.value)}>
+            {state.menuSizeOptions.map(option => <option key={option.value} value={option.value} data-i18n>{option.label}</option>)}
+          </select>
+        </label>
+      </div>
+    </section>
+  );
+}
+
 function ControlsDashboard() {
   const reduceMotion = useReducedMotion();
   const enter = reduceMotion ? false : { opacity: 0, y: 12 };
@@ -1015,7 +1157,7 @@ function ControlsDashboard() {
         <div className="trp-controls-hero-copy">
           <div className="trp-eyebrow"><Gamepad2 size={13} /> <span data-i18n>DRIVER INPUT / CONFIGURATION</span></div>
           <h2 data-i18n>Make every input count.</h2>
-          <p data-i18n>Keyboard, controller and touch controls in one place. The live game mapping below follows the connected controller and current device.</p>
+          <p data-i18n>Keyboard, controller and touch controls in one place. The live game launch dock and input controls remain owned by their runtime services.</p>
         </div>
         <div className="trp-controls-hero-badges">
           <span><kbd>01</kbd><b data-i18n>Keyboard</b></span>
@@ -1025,10 +1167,10 @@ function ControlsDashboard() {
       </motion.section>
       <motion.section className="trp-controls-workspace-panel" initial={enter} animate={{ opacity: 1, y: 0 }} transition={{ ...transition, delay: reduceMotion ? 0 : .06 }}>
         <div className="trp-controls-panel-heading">
-          <div><div className="trp-eyebrow" data-i18n>INPUT MAP / LIVE</div><h3 data-i18n>Control layout</h3></div>
+          <div><div className="trp-eyebrow" data-i18n>INPUT MAP / REACT</div><h3 data-i18n>Control layout</h3></div>
           <span className="trp-controls-status"><i /> <span data-i18n>Settings stay on this device</span></span>
         </div>
-        <LegacyNode selector="#controls" className="trp-controls-legacy-slot" />
+        <ControlsReactPanel />
       </motion.section>
     </motion.div>
   );
@@ -1129,6 +1271,144 @@ function AccessibilityReactControls() {
   );
 }
 
+function SettingsReactControls() {
+  const [snapshot, setSnapshot] = useState({ ready: false, readOnly: true, note: 'Loading settings…', groups: [] });
+  const [status, setStatus] = useState('');
+  const [previewing, setPreviewing] = useState('');
+  const [busyKey, setBusyKey] = useState('');
+  const [drafts, setDrafts] = useState({});
+  const rootRef = useRef(null);
+
+  useEffect(() => {
+    const update = () => setSnapshot(window.__trpSettingsBridge?.snapshot() ?? { ready: false, readOnly: true, note: 'Loading settings…', groups: [] });
+    window.addEventListener('trp-settings-ready', update);
+    window.addEventListener('trp-settings-changed', update);
+    update();
+    return () => {
+      window.removeEventListener('trp-settings-ready', update);
+      window.removeEventListener('trp-settings-changed', update);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (rootRef.current) window.__trpTranslateReact?.(rootRef.current);
+  }, [snapshot, status, previewing]);
+
+  const update = async (key, value) => {
+    const bridge = window.__trpSettingsBridge;
+    if (!bridge) return false;
+    setBusyKey(key);
+    setStatus('');
+    try {
+      await bridge.setOption(key, value);
+      setSnapshot(bridge.snapshot());
+      return true;
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : String(error));
+      return false;
+    } finally { setBusyKey(''); }
+  };
+  const reset = async key => {
+    const bridge = window.__trpSettingsBridge;
+    if (!bridge) return;
+    setBusyKey(key);
+    setStatus('');
+    try {
+      await bridge.resetOption(key);
+      setSnapshot(bridge.snapshot());
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : String(error));
+    } finally { setBusyKey(''); }
+  };
+  const preview = async (key, value) => {
+    const bridge = window.__trpSettingsBridge;
+    if (!bridge) return;
+    if (previewing === key) {
+      bridge.stopPreviewOption(key);
+      setPreviewing('');
+      return;
+    }
+    setPreviewing(key);
+    try { await bridge.previewOption(key, value); }
+    catch { /* audio preview is optional; the saved setting remains available */ }
+    finally { setPreviewing(current => current === key ? '' : current); }
+  };
+
+  const renderItem = item => {
+    const disabled = snapshot.readOnly || busyKey === item.key || !snapshot.ready;
+    const checked = (item.value === 'on') !== !!item.inverted;
+    const inputValue = Object.prototype.hasOwnProperty.call(drafts, item.key) ? drafts[item.key] : item.value;
+    return (
+      <article className="trp-settings-react-item" key={item.key}>
+        <div className="trp-settings-react-copy">
+          <strong data-i18n>{item.label}</strong>
+          <p data-i18n>{item.help}</p>
+          {item.link && <a href={item.link.href} target="_blank" rel="noopener noreferrer">{item.link.text}</a>}
+        </div>
+        <div className="trp-settings-react-control">
+          {item.control === 'switch' && (
+            <label className="trp-settings-switch">
+              <span data-i18n>{checked ? 'On' : 'Off'}</span>
+              <input type="checkbox" role="switch" checked={checked} disabled={disabled}
+                onChange={event => void update(item.key, event.target.checked !== !!item.inverted ? 'on' : 'off')} />
+            </label>
+          )}
+          {(item.control === 'seg' || item.control === 'select') && (
+            <div className="trp-settings-select-wrap">
+              <select value={item.value} disabled={disabled} onChange={event => void update(item.key, event.target.value)}>
+                {item.options.map(option => <option key={option.value} value={option.value} data-i18n>{option.label}</option>)}
+              </select>
+              {item.preview && <button type="button" className="trp-settings-preview" disabled={disabled}
+                aria-pressed={previewing === item.key} onClick={() => void preview(item.key, item.value)}>
+                <span data-i18n>{previewing === item.key ? 'Stop' : 'Listen'}</span>
+              </button>}
+            </div>
+          )}
+          {(item.control === 'text' || item.control === 'num') && (
+            <input type={item.control === 'num' ? 'number' : 'text'} value={inputValue} disabled={disabled}
+              min={item.min} max={item.max} step={item.step} placeholder={item.placeholder || ''}
+              onChange={event => setDrafts(current => ({ ...current, [item.key]: event.target.value }))}
+              onBlur={event => {
+                if (event.target.value !== item.value) {
+                  void update(item.key, event.target.value).then(ok => {
+                    if (ok) setDrafts(current => { const next = { ...current }; delete next[item.key]; return next; });
+                  });
+                } else {
+                  setDrafts(current => { const next = { ...current }; delete next[item.key]; return next; });
+                }
+              }}
+              onKeyDown={event => { if (event.key === 'Enter') event.currentTarget.blur(); }} />
+          )}
+          {item.modified && <button type="button" className="trp-settings-reset" disabled={disabled} onClick={() => void reset(item.key)}><span data-i18n>Reset</span></button>}
+        </div>
+      </article>
+    );
+  };
+
+  return (
+    <section className="trp-settings-react" ref={rootRef} aria-label="Game settings">
+      <p className="trp-settings-react-note" role="status" aria-live="polite">{snapshot.note}</p>
+      {status && <p className="trp-settings-react-error" role="alert">{status}</p>}
+      {!snapshot.ready ? <div className="trp-settings-react-loading" data-i18n>Loading settings…</div> : snapshot.groups.map((group, index) => {
+        const primary = group.items.filter(item => !item.more);
+        const extra = group.items.filter(item => item.more);
+        return (
+          <section className="trp-settings-react-group" key={group.title}>
+            <div className="trp-settings-react-group-title"><span className="trp-eyebrow">{String(index + 1).padStart(2, '0')} / GAME CONFIGURATION</span><h4 data-i18n>{group.title}</h4></div>
+            {primary.map(renderItem)}
+            {extra.length > 0 && (
+              <details className="trp-settings-react-more">
+                <summary data-i18n>{group.moreLabel}</summary>
+                {extra.map(renderItem)}
+              </details>
+            )}
+          </section>
+        );
+      })}
+    </section>
+  );
+}
+
 function SettingsDashboard() {
   const reduceMotion = useReducedMotion();
   const enter = reduceMotion ? false : { opacity: 0, y: 12 };
@@ -1149,6 +1429,7 @@ function SettingsDashboard() {
           <div><div className="trp-eyebrow" data-i18n>GAME OPTIONS / 01</div><h3 data-i18n>Game configuration</h3><p data-i18n>Validated settings, configuration profiles and quick presets.</p></div>
           <span className="trp-settings-index">01</span>
         </div>
+        <SettingsReactControls />
         <LegacyNode selector="#settings" className="trp-settings-game-slot" />
       </motion.section>
 

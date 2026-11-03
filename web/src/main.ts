@@ -28,6 +28,32 @@ declare global {
     exportList(): string;
   }
   interface TrpAccessibilityPrefs { largeText: boolean; reduceMotion: boolean; highContrast: boolean; }
+  interface TrpSettingsOption { value: string; label: string; }
+  interface TrpSettingsItem {
+    key: string; label: string; help: string; control: string; value: string; inverted: boolean;
+    options: TrpSettingsOption[]; min?: number; max?: number; step?: number; unit?: string;
+    placeholder: string; preview: boolean; modified: boolean; link: { text: string; href: string } | null;
+  }
+  interface TrpSettingsSnapshot {
+    ready: boolean; readOnly: boolean; note: string;
+    groups: { title: string; moreLabel: string; items: TrpSettingsItem[] }[];
+  }
+  interface TrpControlOption { value: string; label: string; }
+  interface TrpControlsSnapshot {
+    tab: 'keys' | 'pad' | 'site'; family: 'xb' | 'ps'; steering: string;
+    steeringOptions: TrpControlOption[]; levelHorizon: boolean;
+    touchSize: string; touchSizeOptions: TrpControlOption[];
+    menuSize: string; menuSizeOptions: TrpControlOption[];
+  }
+  interface TrpControlsBridge {
+    snapshot(): TrpControlsSnapshot;
+    showTab(tab: TrpControlsSnapshot['tab']): void;
+    setFamily(family: TrpControlsSnapshot['family']): void;
+    setSteering(value: string): void;
+    setLevelHorizon(value: boolean): void;
+    setTouchSize(value: string): void;
+    setMenuSize(value: string): void;
+  }
   interface TrpSaveProfile { name: string; mtime: number; size: number; }
   interface TrpSavesSnapshot { profiles: TrpSaveProfile[]; busy: boolean; message: string; }
   interface TrpSavesBridge {
@@ -57,6 +83,11 @@ declare global {
   interface TrpCrew { name: string; rgb: string; }
   interface TrpSettingsBridge {
     current(key: string): string;
+    snapshot(): TrpSettingsSnapshot;
+    setOption(key: string, value: string): Promise<void>;
+    resetOption(key: string): Promise<void>;
+    previewOption(key: string, value: string): Promise<void>;
+    stopPreviewOption(key: string): void;
     set(key: string, value: string | null): Promise<void>;
     setValidated(key: string, value: string | null): Promise<void>;
     crews(): TrpCrew[];
@@ -72,6 +103,7 @@ declare global {
     __trpSettingsBridge?: TrpSettingsBridge;
     __trpAccessibilityBridge?: TrpAccessibilityBridge;
     __trpSavesBridge?: TrpSavesBridge;
+    __trpControlsBridge?: TrpControlsBridge;
     __trpModLibraryBridge?: TrpModLibraryBridge;
   }
 }

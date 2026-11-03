@@ -318,16 +318,22 @@ test('Saves route keeps the complete SavesPanel root intact inside one React com
 });
 
 
-test('Controls route is React-composed while the existing controlsSheet, gamepad and touch settings stay wired', () => {
-  assert.ok(app.includes('function ControlsDashboard'));
-  assert.ok(app.includes("active === 'controls' && !gameActive && <ControlsDashboard />"));
-  assert.ok(!app.includes("selectors: ['#controls']"));
-  assert.ok(app.includes('LegacyNode selector="#controls" className="trp-controls-legacy-slot"'));
+test('Controls route is rendered in React and reads/writes the existing touch and gamepad services through a typed bridge', () => {
+  assert.ok(app.includes('function ControlsReactPanel()'));
+  assert.ok(app.includes('<ControlsReactPanel />'));
+  assert.ok(!app.includes('LegacyNode selector="#controls"'));
   assert.ok(runtime.includes("keySheet = controlsSheet($('#keys'), 'keys', { follow: true });"));
-  assert.ok(html.includes('data-pad-mount'));
-  assert.ok(shellCss.includes('.trp-controls-hero'));
-  assert.ok(shellCss.includes('.trp-controls-legacy-slot > #controls .controls-tabs'));
-  assert.ok(shellCss.includes('.trp-controls-legacy-slot > #controls .controller-visual'));
+  assert.ok(runtime.includes('window.__trpControlsBridge = {'));
+  assert.ok(runtime.includes('setSteering: (value: Steering)'));
+  assert.ok(runtime.includes('setTouchSize: (value: string)'));
+  assert.ok(runtime.includes('setMenuSize: (value: string)'));
+  assert.ok(gameEntry.includes('interface TrpControlsBridge'));
+  assert.ok(gameEntry.includes('__trpControlsBridge?: TrpControlsBridge'));
+  assert.ok(app.includes('CONTROL_KEYS.map'));
+  assert.ok(app.includes('CONTROLLER_KEYS.map'));
+  assert.ok(app.includes('trp-touch-settings-grid'));
+  assert.ok(shellCss.includes('.trp-controls-react-workbench'));
+  assert.ok(shellCss.includes('.trp-controller-map-grid'));
 });
 
 test('SavesPanel still owns all descendant profile, screenshot and message controls under #saves', () => {
@@ -463,4 +469,28 @@ test('screenshots and encrypted Cloud keep their existing mounts while profiles 
   assert.match(runtime, /new VaultPanel\(\$\('#vault'\)/);
   assert.match(savesUi, /new ScreenshotsPart\(root/);
   assert.match(shellCss, /\.trp-saves-legacy-slot > #saves #vault/);
+});
+
+
+test('Settings groups are React-rendered through the validated SettingsPanel adapter', () => {
+  assert.match(app, /function SettingsReactControls\(\)/);
+  assert.match(app, /bridge\.setOption\(item\.key, value\)/);
+  assert.match(app, /bridge\.resetOption\(item\.key\)/);
+  assert.match(runtime, /snapshot: \(\) => settings\.reactSnapshot\(\)/);
+  assert.match(runtime, /setOption: async \(key, value\) => \{ await settings\.setFromReact/);
+  assert.match(gameEntry, /interface TrpSettingsSnapshot/);
+  assert.match(settingsUi, /reactSnapshot\(\)/);
+  assert.match(settingsUi, /setFromReact\(key: string, rawValue: string\)/);
+  assert.match(settingsUi, /resetFromReact\(key: string\)/);
+  assert.match(settingsUi, /this\.put\(key, checked && checked\.ok \? checked\.value : value\)/);
+  assert.match(shellCss, /\.trp-settings-react-group/);
+  assert.match(shellCss, /\.trp-settings-react-item/);
+});
+
+test('React Settings keeps validated profiles, quick presets, and the raw settings editor in the existing compatibility area', () => {
+  assert.match(app, /LegacyNode selector="#settings" className="trp-settings-game-slot"/);
+  assert.match(html, /id="config-profiles"/);
+  assert.match(html, /class="preset-panel"/);
+  assert.match(html, /id="settings-raw"/);
+  assert.match(shellCss, /\.trp-settings-game-slot > #settings \.profile-manager/);
 });

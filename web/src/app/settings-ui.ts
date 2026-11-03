@@ -393,6 +393,96 @@ export class SettingsPanel {
   /** One setting set as its row would set it (the language list at the top of the page). */
   set(key: string, value: string | null) { return this.put(key, value); }
 
+  /** React's read-only schema: labels, choices and current values come from the existing settings catalogue. */
+  reactSnapshot() {
+    if (!this.fileOnly) return { ready: false, readOnly: true, note: t(N('Loading settings…')), groups: [] };
+    const groups = GROUPS.filter(group => !group.own).map(group => ({
+      title: t(group.title),
+      moreLabel: this.moreLabel(group),
+      items: group.items.map(item => {
+        const control = item.c;
+        const companion = COMPANION[item.key];
+        const options = control.t === 'seg' || control.t === 'select'
+          ? control.opts.map(([value, label]) => ({ value, label: optLabel(item, value, label) }))
+          : [];
+        const current = this.current(item.key);
+        if (options.length && current && !options.some(option => option.value.toLowerCase() === current.toLowerCase())) {
+          options.push({ value: current, label: current });
+        }
+        return {
+          key: item.key,
+          label: t(item.label),
+          help: t(item.help),
+          control: control.t,
+          value: current,
+          inverted: control.t === 'switch' ? !!control.inv : false,
+          options,
+          min: control.t === 'num' ? control.min : undefined,
+          max: control.t === 'num' ? control.max : undefined,
+          step: control.t === 'num' ? control.step : undefined,
+          unit: control.t === 'num' ? control.unit : undefined,
+          placeholder: control.t === 'text' && control.placeholder ? t(control.placeholder) : '',
+          preview: control.t === 'select' && !!control.preview,
+          modified: !!this.resolved.file[item.key]?.raw || (!!companion && !!this.resolved.file[companion]?.raw),
+          link: item.link ? { text: t(item.link.text), href: item.link.href } : null,
+        };
+      }),
+    }));
+    return { ready: true, readOnly: this.ro(), note: t(this.ro() ? READ_ONLY : NOTE), groups };
+  }
+
+  /** React changes use the same catalogue, ownership guard, validation and settings.ini writer. */
+  async setFromReact(key: string, rawValue: string) {
+    const item = ITEMS.get(key);
+    if (!item || GROUP_OF.get(key)?.own) throw new Error('Unsupported React settings field');
+    if (this.ro()) throw new Error(t(READ_ONLY));
+    const control = item.c;
+    const value = String(rawValue).trim();
+    if (control.t === 'switch') {
+      if (value !== 'on' && value !== 'off') throw new Error('Invalid switch value');
+      await this.put(key, value);
+      return;
+    }
+    if (control.t === 'seg' || control.t === 'select') {
+      if (!control.opts.some(([option]) => option.toLowerCase() === value.toLowerCase()) && value !== this.current(key)) {
+        throw new Error('Unsupported option');
+      }
+    } else if (control.t !== 'text' && control.t !== 'num') {
+      throw new Error('This setting is not a React field');
+    }
+    if (!value) {
+      const companion = COMPANION[key];
+      const also: [string, string | null][] = companion ? [[companion, null]] : [];
+      await this.put(key, null, also);
+      return;
+    }
+    const checked = checkSetting(key, value);
+    if (checked && !checked.ok) {
+      throw new Error(t('Not saved: {key} = {why}.', { key, why: tvars(checked.why, checked.v) }));
+    }
+    await this.put(key, checked && checked.ok ? checked.value : value);
+  }
+
+  async resetFromReact(key: string) {
+    const item = ITEMS.get(key);
+    if (!item || GROUP_OF.get(key)?.own) throw new Error('Unsupported React settings reset');
+    if (this.ro()) throw new Error(t(READ_ONLY));
+    const companion = COMPANION[key];
+    const also: [string, string | null][] = companion ? [[companion, null]] : [];
+    await this.put(key, null, also);
+  }
+
+  async previewFromReact(key: string, value: string) {
+    const item = ITEMS.get(key);
+    if (!item || item.c.t !== 'select' || !item.c.preview) return;
+    await item.c.preview.play(value);
+  }
+
+  stopPreviewFromReact(key: string) {
+    const item = ITEMS.get(key);
+    if (item?.c.t === 'select') item.c.preview?.stop();
+  }
+
   /** React text fields reuse the same validation and normalization as the original setting rows. */
   async setValidated(key: string, value: string | null) {
     if (!['roam_name', 'roam_room', 'roam_block', 'roam_max_cars'].includes(key)) throw new Error('Unsupported React settings field');

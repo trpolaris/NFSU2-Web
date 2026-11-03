@@ -30,8 +30,9 @@ import { canFullscreen, enterFullscreen, exitFullscreen, fromHomeScreen, homeScr
 import { deviceDefaults, isPhone, markTouch, noPinchZoom, padSeen, phoneScreen, touchFirst } from './device';
 import { phoneSeed, phoneUpgrade } from './phonegraphics';
 import { markPad, padPress, pageDialog } from './padnav';
-import { controlsSheet, type ControlsSheet } from './controls';
-import { TouchControls } from './touch';
+import { controlsSheet, type ControlsSheet, type Family, type Tab } from './controls';
+import { askMotion, levelHorizon, menuSize, onLevelHorizon, onSteering, setLevelHorizon, setSteering, steering, STEERING, steeringName, touchSize, type Size, type Steering, TouchControls } from './touch';
+import { PAD_DRIVER_EVENT } from '../input/gamepad';
 import { TextField } from './textentry';
 import { PauseHint } from './pausehint';
 import { DriftPanel } from './drift';
@@ -1676,6 +1677,11 @@ export async function boot() {
   }, $('#online'));
   window.__trpSettingsBridge = {
     current: key => settings.current(key),
+    snapshot: () => settings.reactSnapshot(),
+    setOption: async (key, value) => { await settings.setFromReact(key, value); window.dispatchEvent(new Event('trp-settings-changed')); },
+    resetOption: async key => { await settings.resetFromReact(key); window.dispatchEvent(new Event('trp-settings-changed')); },
+    previewOption: (key, value) => settings.previewFromReact(key, value),
+    stopPreviewOption: key => settings.stopPreviewFromReact(key),
     set: async (key, value) => { await settings.set(key, value); window.dispatchEvent(new Event('trp-settings-changed')); },
     setValidated: async (key, value) => { await settings.setValidated(key, value); window.dispatchEvent(new Event('trp-settings-changed')); },
     crews: () => crewsOf(settings.current('roam_crew'), settings.current('roam_crew_colours')),
@@ -1797,6 +1803,36 @@ export async function boot() {
   // the menu's button on the game: on a touch screen from the start, elsewhere from the first touch
   markTouch();
   keySheet = controlsSheet($('#keys'), 'keys', { follow: true });
+  const controlsChanged = () => window.dispatchEvent(new Event('trp-controls-changed'));
+  const sizeOptions = (setting: typeof touchSize) => setting.sizes.map(value => ({
+    value: String(value), label: setting.name(value),
+  }));
+  window.__trpControlsBridge = {
+    snapshot: () => ({
+      tab: keySheet.tab,
+      family: keySheet.fam,
+      steering: steering(),
+      steeringOptions: STEERING.map(value => ({ value, label: steeringName(value) })),
+      levelHorizon: levelHorizon(),
+      touchSize: String(touchSize.get()),
+      touchSizeOptions: sizeOptions(touchSize),
+      menuSize: String(menuSize.get()),
+      menuSizeOptions: sizeOptions(menuSize),
+    }),
+    showTab: (tab: Tab) => { keySheet.show(tab); controlsChanged(); },
+    setFamily: (family: Family) => { keySheet.family(family); controlsChanged(); },
+    setSteering: (value: Steering) => { if (value === 'tilt') void askMotion(); setSteering(value); },
+    setLevelHorizon: (value: boolean) => setLevelHorizon(value),
+    setTouchSize: (value: string) => touchSize.set(value === 'auto' ? 'auto' : Number(value) as Size),
+    setMenuSize: (value: string) => menuSize.set(value === 'auto' ? 'auto' : Number(value) as Size),
+  };
+  onSteering(controlsChanged);
+  onLevelHorizon(controlsChanged);
+  touchSize.on(controlsChanged);
+  menuSize.on(controlsChanged);
+  window.addEventListener(PAD_DRIVER_EVENT, controlsChanged);
+  window.addEventListener('gamepadconnected', controlsChanged);
+  window.dispatchEvent(new Event('trp-controls-ready'));
   // what the page drew itself, again in the language picked (the markup and the live texts redraw themselves)
   onLanguage(() => {
     renderProblems(); evaluate(); settings.render(); void saves.refresh(); vault.refresh(); keySheet.relabel(); lobbyPanel.redraw(); touch.relabel();
