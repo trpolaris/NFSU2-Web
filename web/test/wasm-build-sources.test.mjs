@@ -23,3 +23,11 @@ test('WASI compiler invocations quote executable paths that may contain spaces',
     assert.match(line, /"\$CC"/, 'compiler executable is quoted');
   }
 });
+
+test('WASM linker preserves object paths containing spaces', () => {
+  const link = build.slice(build.indexOf('# ---- link ----'));
+  assert.match(link, /shopt -s nullglob/);
+  assert.match(link, /OBJS=\([\s\S]*?"\$OUT"\/obj\/\*\.o[\s\S]*?"\$OUT"\/obj\/srv\/\*\.o[\s\S]*?"\$OUT"\/rt\/\*\.o[\s\S]*?\)/);
+  assert.match(link, /"\$\{OBJS\[@\]\}"/, 'linker receives each object path as a separate argument');
+  assert.doesNotMatch(link, /-o "\$OUT\/nfsu2\.wasm" \$OBJS/, 'unquoted object-list expansion must not return');
+});
