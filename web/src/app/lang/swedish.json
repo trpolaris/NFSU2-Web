@@ -1493,5 +1493,6 @@
   "Radio: off": "Radio: av",
   "Your selected local playlist stays on this device.": "Din valda lokala spellista sparas på den här enheten.",
   "Toggle radio": "Växla radio",
-  "LOCAL FILES ONLY · NOTHING IS SENT TO THE SERVER": "ENDAST LOKALA FILER · INGENTING SKICKAS TILL SERVERN"
+  "LOCAL FILES ONLY · NOTHING IS SENT TO THE SERVER": "ENDAST LOKALA FILER · INGENTING SKICKAS TILL SERVERN",
+  "This browser is too old for the game: it needs iOS 26, iPadOS 26 or Safari 26. Update this device (Settings, General, Software Update).": "Den här webbläsaren är för gammal för spelet: det kräver iOS 26, iPadOS 26 eller Safari 26. Uppdatera enheten (Inställningar, Allmänt, Programuppdatering)."
 }

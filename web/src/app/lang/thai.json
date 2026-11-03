@@ -1424,5 +1424,6 @@
   "Radio: off": "วิทยุ: ปิด",
   "Your selected local playlist stays on this device.": "เพลย์ลิสต์ในเครื่องที่เลือกจะอยู่บนอุปกรณ์นี้",
   "Toggle radio": "สลับวิทยุ",
-  "LOCAL FILES ONLY · NOTHING IS SENT TO THE SERVER": "ใช้เฉพาะไฟล์ในเครื่อง · ไม่มีการส่งข้อมูลไปยังเซิร์ฟเวอร์"
+  "LOCAL FILES ONLY · NOTHING IS SENT TO THE SERVER": "ใช้เฉพาะไฟล์ในเครื่อง · ไม่มีการส่งข้อมูลไปยังเซิร์ฟเวอร์",
+  "This browser is too old for the game: it needs iOS 26, iPadOS 26 or Safari 26. Update this device (Settings, General, Software Update).": "เบราว์เซอร์นี้เก่าเกินไปสำหรับเกม ต้องใช้ iOS 26, iPadOS 26 หรือ Safari 26 ให้อัปเดตอุปกรณ์นี้ (การตั้งค่า > ทั่วไป > รายการอัปเดตซอฟต์แวร์)"
 }
