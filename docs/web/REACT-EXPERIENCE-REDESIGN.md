@@ -212,3 +212,10 @@ The static quick-navigation bar and the legacy click-to-navigate handler have be
 ## Legacy visual enhancement cleanup
 
 The old DOM-only motion entrance, Lucide class decoration, hero particle canvas and attribute-based lazy-preview observer have been removed. React already owns visible transitions, icons, and image loading on the current screens. The browser enhancement entry now retains only the PWA install bridge and viewport/orientation stability events used by the runtime.
+
+
+## Legacy DOM transport removal and runtime state bridge
+
+The React root no longer reparents the old application node. `LegacyNode` and `LegacyAppHost` are removed; the original `#app` remains in place as a hidden compatibility/service root, and its `inert` value is exposed through the typed runtime snapshot. React listens to `trp-runtime-ready` and `trp-runtime-changed` rather than observing legacy DOM nodes for the game lock and status text. The game stage, FPS overlay, lobby and game dialogs remain outside `#app`.
+
+The remaining hidden DOM-backed service roots are not visible UI. They are still read by the existing `SettingsPanel`, `SavesPanel`/`VaultPanel` and `controlsSheet` services. Their selectors and file/network behavior are intentionally retained until those services are migrated to state/command APIs and their DOM dependencies can be removed safely.
