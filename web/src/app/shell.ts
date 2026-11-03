@@ -1705,7 +1705,16 @@ export async function boot() {
   saves = new SavesPanel($('#saves'), $('#game-data'), {
     saveDir: SAVE, busy: () => !!session || starting || !instance.owner, confirm: confirmBox,
     onRestored: () => { void loadSettings(); void settings.refresh(); }, download, onChanged: () => vault.changed(),
+    onReactUpdate: () => window.dispatchEvent(new Event('trp-saves-changed')),
   });
+  window.__trpSavesBridge = {
+    snapshot: () => saves.snapshot(),
+    rename: (from, to) => saves.renameFromReact(from, to),
+    exportBackup: () => saves.exportBackup(),
+    importBackup: file => saves.importBackup(file),
+    nameMax: saves.nameMax,
+  };
+  window.dispatchEvent(new Event('trp-saves-ready'));
   // keyphrase saves (on a server that keeps them): synced by the tab that owns the saves, once its settings are loaded
   // the claimed names: asked with the keyphrase's token (claim.ts); the line under Your name (claim-ui.ts)
   claims = new NameClaims(() => vault ? vault.token() : Promise.resolve(null));

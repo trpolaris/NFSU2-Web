@@ -9,7 +9,7 @@
 // it stays on the server.
 
 import { cacheBytes, clearCache, clearSaveDir, filesOf, isScreenshot, listFiles, listProfiles, PROFILES_DIR, readBytes, readText, writeFile, type Profile } from './savefs';
-import { AUTOSAVE_SEEN, coverOf, isProfileFile, modCars, NAME_MAX, profileName, renameProfile, sealed, type RenameFiles } from './profile';
+import { AUTOSAVE_SEEN, coverOf, isProfileFile, isProfileName, modCars, NAME_MAX, profileName, renameProfile, sealed, type RenameFiles } from './profile';
 import { listZip, unzip, zip, ZipError, type ZipEntry } from './zip';
 import { downloadBlob, stamp } from './logs';
 import { fmtBytes } from './checks';
@@ -30,6 +30,8 @@ export interface SavesDeps {
   download: Predownload;
   /** the saves here changed (a rename, a restore): a keyphrase sends them */
   onChanged?(): void;
+  /** notify the React save view when its snapshot or status message changes */
+  onReactUpdate?(): void;
 }
 
 // Limits for a restore, judged by each entry's declared size before anything is
@@ -279,6 +281,9 @@ const QUIT_TO_CHANGE = N('Quit the game (or close the other tab that runs it) to
 const QUIT_TO_RENAME = N('Quit the game (or close the other tab that runs it) to rename a profile or restore a backup.');
 
 export class SavesPanel {
+  /** the game accepts profile names made of 1 to 7 ASCII letters or digits */
+  readonly nameMax = NAME_MAX;
+
   /** root: the Saves section; dataPanel: Game data on this PC */
   constructor(private root: HTMLElement, private dataPanel: HTMLElement, private deps: SavesDeps) {
     root.querySelector<HTMLButtonElement>('#export')!.onclick = () => void this.doExport();
@@ -294,7 +299,7 @@ export class SavesPanel {
   /** the section's messages, drawn again when the page's language changes (a Msg); said: which English text each says
    *  (the "quit the game first" ones, which go once the game ended) */
   private said = { saves: '', data: '' };
-  private msg(s: string | Msg, en = '') { this.said.saves = en; live(this.root.querySelector('#saves-msg')!, typeof s === 'string' ? () => s : s); }
+  private msg(s: string | Msg, en = '') { this.said.saves = en; live(this.root.querySelector('#saves-msg')!, typeof s === 'string' ? () => s : s); this.deps.onReactUpdate?.(); }
   private dataMsg(s: string | Msg, warn = false, en = '') {
     const m = this.dataPanel.querySelector('#data-msg')!;
     this.said.data = en; live(m, typeof s === 'string' ? () => s : s); m.classList.toggle('warn', warn);
@@ -316,6 +321,55 @@ export class SavesPanel {
   settled(): Promise<void> { return this.writing.then(() => {}, () => {}); }
   private write<T>(job: Promise<T>): Promise<T> { this.writing = job; return job; }
 
+  /** A serializable snapshot for the React route; OPFS remains authoritative. */
+  snapshot() {
+    return {
+      profiles: this.profiles.map(p => ({ name: p.name, mtime: p.mtime, size: p.size })),
+      busy: this.deps.busy(),
+      message: this.root.querySelector<HTMLElement>('#saves-msg')?.textContent ?? '',
+    };
+  }
+
+  /** Delegate export and restore to the existing save validation and transaction routines. */
+  exportBackup(): Promise<void> { return this.doExport(); }
+  importBackup(file: File): Promise<void> { return this.doImport(file); }
+
+  /** Rename through the existing profile transaction, preserving game and OPFS validation. */
+  async renameFromReact(from: string, to: string): Promise<{ ok: boolean; message: string }> {
+    const next = to.replace(/[^A-Za-z0-9]/g, '').slice(0, NAME_MAX);
+    if (!isProfileName(next)) {
+      const message = t('Letters and digits, up to {n}, as in the game.', { n: NAME_MAX });
+      this.msg(message);
+      return { ok: false, message };
+    }
+    if (next === from) return { ok: true, message: '' };
+    if (this.deps.busy()) {
+      const message = t(QUIT_TO_RENAME);
+      this.msg(() => t(QUIT_TO_RENAME), QUIT_TO_RENAME);
+      return { ok: false, message };
+    }
+    let result: Awaited<ReturnType<typeof renameProfile>>;
+    try {
+      result = await this.write(renameProfile(filesOf(this.deps.saveDir), PROFILES_DIR, from, next));
+    } catch (err) {
+      const message = t('Renaming {name} stopped: {error}', { name: from, error: String(err) });
+      this.msg(message);
+      await this.refresh();
+      return { ok: false, message };
+    }
+    if ('refused' in result) {
+      this.msg(result.refused);
+      return { ok: false, message: result.refused };
+    }
+    this.renaming = null;
+    this.focusName = next;
+    const message = t('Renamed {from} to {to}.', { from, to: next });
+    this.msg(message);
+    this.deps.onChanged?.();
+    await this.refresh();
+    return { ok: true, message };
+  }
+
   /** Show the profiles, the screenshots and the downloaded game data as they are now. */
   async refresh() {
     const files = await listFiles(this.deps.saveDir);
@@ -324,6 +378,7 @@ export class SavesPanel {
     const busy = this.deps.busy();
     // a name being typed stays as it is (the list is shown again when the edit ends)
     if (!this.profiles.some(p => p.name === this.renaming)) { this.renaming = null; this.showProfiles(); }
+    this.deps.onReactUpdate?.();
     for (const b of this.root.querySelectorAll<HTMLButtonElement>('.profiles .rename-btn, .profiles .renaming [type="submit"]')) b.disabled = busy;
     this.root.querySelector<HTMLLabelElement>('.file-btn')!.toggleAttribute('aria-disabled', busy);
     this.root.querySelector<HTMLInputElement>('#import')!.disabled = busy;

@@ -207,15 +207,13 @@ function App() {
   if (booting) return <div className="hub-boot"><BrandMark /><span>TRPOLARIS PLAYER HUB</span><LoaderCircle className="hub-spinning" /></div>;
 
   return <div className="hub-app">
-    <div className="hub-atmosphere" aria-hidden="true"><span className="hub-atmosphere-orb hub-atmosphere-coral" /><span className="hub-atmosphere-orb hub-atmosphere-violet" /><span className="hub-atmosphere-grid" /></div>
-    <motion.aside initial={{ opacity: 0, x: -14 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: .34, ease: [.2, .8, .2, 1] }} className={'hub-sidebar ' + (mobileNavOpen ? 'hub-sidebar-open' : '')}>
+    <aside className={'hub-sidebar ' + (mobileNavOpen ? 'hub-sidebar-open' : '')}>
       <a className="hub-brand" href="/" aria-label="TRPOLARIS ana sayfa"><BrandMark /><span><strong>TRPOLARIS</strong><small>PLAYER HUB <i>V1</i></small></span></a>
       <div className="hub-side-label">OYUNCU MERKEZİ</div>
       <nav className="hub-nav" aria-label="Oyuncu merkezi">
         {NAV.map(item => {
           const Icon = item.icon;
           return <a key={item.id} href={'#/' + item.id} onClick={() => setMobileNavOpen(false)} className={'hub-nav-link ' + (route === item.id ? 'is-active' : '')} aria-current={route === item.id ? 'page' : undefined}>
-            {route === item.id && <motion.span className="hub-nav-indicator" layoutId="hub-nav-indicator" transition={{ type: 'spring', stiffness: 430, damping: 36 }} />}
             <Icon size={18} strokeWidth={1.8} /><span>{item.label}</span>{item.id === 'online' && <i className="hub-nav-live" />}
           </a>;
         })}
@@ -224,13 +222,13 @@ function App() {
       <div className="hub-server-card"><div className="hub-server-label"><span className="hub-live-dot" /> SUNUCU DURUMU</div><strong>{counts ? 'Çevrimiçi' : 'Bağlantı bekleniyor'}</strong><span>{liveCount} aktif oyuncu</span></div>
       <a className="hub-back-game" href="/"><Gamepad2 size={17} /> Oyuna dön <ArrowUpRight size={15} /></a>
       <div className="hub-sidebar-foot">TRPOLARIS · NFSU2 WEB</div>
-    </motion.aside>
+    </aside>
 
     <main className="hub-main">
       <header className="hub-topbar">
         <button className="hub-mobile-menu" type="button" onClick={() => setMobileNavOpen(v => !v)} aria-label="Menüyü aç"><Menu /></button>
         <div className="hub-breadcrumb"><span>TRPOLARIS</span><ChevronRight size={14} /><span>{activeNav.label.toUpperCase()}</span></div>
-        <div className="hub-top-actions"><span className={'hub-connection ' + (counts ? 'is-connected' : 'is-disconnected')}><i className="hub-live-dot" /> {counts ? 'SUNUCUYA BAĞLI' : 'BAĞLANTI BEKLENİYOR'}</span><div className="hub-user-chip"><span>{initials(displayName)}</span><strong>{displayName}</strong></div></div>
+        <div className="hub-top-actions"><span className="hub-connection"><i className="hub-live-dot" /> SUNUCUYA BAĞLI</span><div className="hub-user-chip"><span>{initials(displayName)}</span><strong>{displayName}</strong></div></div>
       </header>
 
       <div className="hub-content">

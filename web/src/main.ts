@@ -28,6 +28,15 @@ declare global {
     exportList(): string;
   }
   interface TrpAccessibilityPrefs { largeText: boolean; reduceMotion: boolean; highContrast: boolean; }
+  interface TrpSaveProfile { name: string; mtime: number; size: number; }
+  interface TrpSavesSnapshot { profiles: TrpSaveProfile[]; busy: boolean; message: string; }
+  interface TrpSavesBridge {
+    snapshot(): TrpSavesSnapshot;
+    rename(from: string, to: string): Promise<{ ok: boolean; message: string }>;
+    exportBackup(): Promise<void>;
+    importBackup(file: File): Promise<void>;
+    nameMax: number;
+  }
   interface TrpAccessibilityBridge {
     current(): TrpAccessibilityPrefs;
     set(key: 'largeText' | 'reduceMotion' | 'highContrast', value: boolean): TrpAccessibilityPrefs;
@@ -62,6 +71,7 @@ declare global {
     __trpTranslateReact?: (root: ParentNode) => void;
     __trpSettingsBridge?: TrpSettingsBridge;
     __trpAccessibilityBridge?: TrpAccessibilityBridge;
+    __trpSavesBridge?: TrpSavesBridge;
     __trpModLibraryBridge?: TrpModLibraryBridge;
   }
 }

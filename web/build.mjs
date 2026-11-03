@@ -13,7 +13,6 @@ const DIST = 'dist', DEV = 'dist-dev';
 const opts = {
   entryPoints: {
     'main': 'src/main.ts',
-    'ui/main': 'src/ui/main.jsx',
     'hub/main': 'src/hub/main.jsx',
     'host/game-worker': 'src/host/game-worker.ts',
     'host/io-worker': 'src/host/io-worker.ts',

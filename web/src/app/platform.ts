@@ -118,26 +118,6 @@ interface CustomMod { id: string; name: string; url: string; createdAt: number; 
 interface ConfigProfile { schema: 1; id: string; name: string; createdAt: number; values: Record<string, string> }
 interface AccessibilityPrefs { largeText: boolean; reduceMotion: boolean; highContrast: boolean }
 const DEFAULT_A11Y: AccessibilityPrefs = { largeText: false, reduceMotion: false, highContrast: false };
-
-/** Read current browser-local accessibility preferences without changing their storage format. */
-export function currentAccessibilityPrefs(): AccessibilityPrefs {
-  const value = safeRead<Partial<AccessibilityPrefs>>(STORE.accessibility, {});
-  return { ...DEFAULT_A11Y, ...Object.fromEntries(Object.entries(value).filter(([key, v]) =>
-    key in DEFAULT_A11Y && typeof v === 'boolean')) } as AccessibilityPrefs;
-}
-
-/** Write one accessibility preference and synchronize the legacy input and document attributes. */
-export function setAccessibilityPreference(key: keyof AccessibilityPrefs, value: boolean): AccessibilityPrefs {
-  const prefs = { ...currentAccessibilityPrefs(), [key]: value };
-  const ids: Record<keyof AccessibilityPrefs, string> = {
-    largeText: '#a11y-large-text', reduceMotion: '#a11y-reduce-motion', highContrast: '#a11y-high-contrast',
-  };
-  const input = document.querySelector<HTMLInputElement>(ids[key]);
-  if (input) input.checked = value;
-  applyAccessibility(prefs);
-  window.dispatchEvent(new Event('trp-accessibility-changed'));
-  return prefs;
-}
 const KNOWN_PACKS = [
   {
     id: 'mod:turkish', name: 'Turkish translation pack',
@@ -171,31 +151,6 @@ function getCustomMods(): CustomMod[] {
 }
 function saveCustomMods(mods: CustomMod[]) { return safeWrite(STORE.customMods, mods.slice(0, 100)); }
 function isModCategory(value: unknown): value is ModCategory { return typeof value === 'string' && (MOD_CATEGORIES as readonly string[]).includes(value); }
-
-export interface ModLinkActionResult { ok: boolean; message: string; }
-export function addCustomModLink(rawName: string, rawUrl: string, rawCategory: string, rawPath: string): ModLinkActionResult {
-  const name = rawName.trim(), url = rawUrl.trim(), targetPath = rawPath.trim();
-  const status = document.getElementById('custom-mod-status');
-  const fail = (message: string): ModLinkActionResult => {
-    if (status) status.textContent = message;
-    return { ok: false, message };
-  };
-  if (!name || name.length > 80 || /[\u0000-\u001f\u007f]/.test(name)) return fail(t('The mod name is required.'));
-  if (!validHttpUrl(url)) return fail(t('A valid HTTP or HTTPS URL is required.'));
-  if (targetPath && !validRelativeGamePath(targetPath)) return fail(t('Expected game-data path must be a safe relative path.'));
-  if (!isModCategory(rawCategory)) return fail(t('Invalid mod list file.'));
-  const mods = getCustomMods();
-  if (mods.length >= 100) return fail(t('The local mod-link list is full.'));
-  if (mods.some(mod => mod.name.toLocaleLowerCase() === name.toLocaleLowerCase() && mod.url === url)) return fail(t('This mod link is already saved.'));
-  const id = 'm-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
-  mods.push({ id, name, url, category: rawCategory, targetPath: targetPath ? normalizeGamePath(targetPath) : '', createdAt: Date.now() });
-  if (!saveCustomMods(mods)) return fail(t('Could not save the mod link.'));
-  const message = t('Saved in this browser.');
-  if (status) status.textContent = message;
-  renderGarage();
-  return { ok: true, message };
-}
-
 function normalizeGamePath(value: string): string { return value.replace(/\\/g, '/').replace(/^\/+/, '').replace(/\/{2,}/g, '/'); }
 function validRelativeGamePath(raw: string): boolean {
   if (!raw) return false;
@@ -328,62 +283,8 @@ function renderGarage() {
   for (const mod of KNOWN_PACKS) addModCard(mod, packStatus.get(mod.id) ?? 'unknown');
   modRoot.replaceChildren(...modCards);
   renderCustomModList();
-  window.dispatchEvent(new Event('trp-mod-library-changed'));
 }
-
 let packStatus = new Map<string, string>();
-
-export interface ModLibraryCard {
-  id: string; name: string; detail?: string; source?: string; url?: string;
-  category?: ModCategory; targetPath?: string;
-  status: 'installed' | 'missing' | 'unknown' | 'unchecked';
-  favorite: boolean;
-}
-export interface ModLibrarySnapshot {
-  packs: ModLibraryCard[];
-  custom: ModLibraryCard[];
-  count: number;
-  statusText: string;
-}
-export function getModLibrarySnapshot(): ModLibrarySnapshot {
-  const favorites = getFavorites();
-  const packs: ModLibraryCard[] = KNOWN_PACKS.map(mod => ({
-    id: mod.id, name: mod.name, detail: mod.detail, source: mod.source,
-    status: (packStatus.get(mod.id) ?? 'unknown') as ModLibraryCard['status'],
-    favorite: favorites.has(mod.id),
-  }));
-  const custom: ModLibraryCard[] = getCustomMods().map(mod => ({
-    id: 'custom:' + mod.id, name: mod.name, url: mod.url,
-    category: mod.category ?? 'other', targetPath: mod.targetPath ?? '',
-    status: (packStatus.get('custom:' + mod.id) ?? 'unchecked') as ModLibraryCard['status'],
-    favorite: favorites.has('custom:' + mod.id),
-  }));
-  const statusText = document.getElementById('custom-mod-status')?.textContent?.trim() ?? '';
-  return { packs, custom, count: custom.length, statusText };
-}
-export function toggleModLibraryFavorite(id: string): ModLibrarySnapshot {
-  const allowed = KNOWN_PACKS.some(mod => mod.id === id) || getCustomMods().some(mod => 'custom:' + mod.id === id);
-  if (allowed) { toggleFavorite(id); renderGarage(); }
-  return getModLibrarySnapshot();
-}
-export function removeModLibraryEntry(id: string): ModLibrarySnapshot {
-  if (!id.startsWith('custom:')) return getModLibrarySnapshot();
-  const rawId = id.slice('custom:'.length);
-  const current = getCustomMods();
-  if (!current.some(mod => mod.id === rawId)) return getModLibrarySnapshot();
-  saveCustomMods(current.filter(mod => mod.id !== rawId));
-  const favorites = getFavorites();
-  favorites.delete(id);
-  saveFavorites(favorites);
-  packStatus.delete(id);
-  renderGarage();
-  return getModLibrarySnapshot();
-}
-export async function checkModLibraryPacks(): Promise<ModLibrarySnapshot> {
-  await checkPacks();
-  return getModLibrarySnapshot();
-}
-
 function renderCustomModList() {
   const root = $('#custom-mod-list');
   const mods = getCustomMods();
@@ -437,7 +338,7 @@ type GarageBuildPreference = { paintHex?: string; parts?: Record<string, string>
 
 
 
-export async function importModList(file: File): Promise<string> {
+async function importModList(file: File) {
   const input = $<HTMLInputElement>('#custom-mod-import');
   const status = $('#custom-mod-status');
   try {
@@ -460,8 +361,8 @@ export async function importModList(file: File): Promise<string> {
       merged.push({ ...incoming, id: `m-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`, createdAt: Date.now() });
     }
     if (!saveCustomMods(merged)) throw new Error('storage');
-    status.textContent = t('Mod list imported.'); renderGarage(); return status.textContent ?? '';
-  } catch { status.textContent = t('Invalid mod list file.'); return status.textContent ?? ''; }
+    status.textContent = t('Mod list imported.'); renderGarage();
+  } catch { status.textContent = t('Invalid mod list file.'); }
   finally { input.value = ''; }
 }
 async function checkPacks() {
@@ -520,18 +421,6 @@ function downloadJSON(data: unknown, filename: string) {
   const blob = new Blob([JSON.stringify(data, null, 2) + '\n'], { type: 'application/json' });
   const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = filename; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
-
-export function exportModList(): string {
-  const mods = getCustomMods().map(({ name, url, category, targetPath }) => ({
-    name, url, category: category ?? 'other', targetPath: targetPath ?? '',
-  }));
-  downloadJSON({ schema: 1, mods }, 'trpolaris-mod-list.json');
-  const message = t('Mod list exported.');
-  const status = document.getElementById('custom-mod-status');
-  if (status) status.textContent = message;
-  return message;
-}
-
 async function saveCurrentProfile(settings: SettingsPanel) {
   const input = $<HTMLInputElement>('#config-profile-name'), name = input.value.trim();
   if (!name || name.length > 40 || /[\u0000-\u001f\u007f]/.test(name)) { input.setCustomValidity(t('The profile name must be 1 to 40 printable characters.')); input.reportValidity(); return; }
@@ -572,12 +461,12 @@ async function importProfileFile(file: File) {
 }
 
 function loadAccessibility() {
-  const prefs = currentAccessibilityPrefs();
-  ($('#a11y-large-text') as HTMLInputElement).checked = prefs.largeText;
-  ($('#a11y-reduce-motion') as HTMLInputElement).checked = prefs.reduceMotion;
-  ($('#a11y-high-contrast') as HTMLInputElement).checked = prefs.highContrast;
+  const value = safeRead<Partial<AccessibilityPrefs>>(STORE.accessibility, {});
+  const prefs = { ...DEFAULT_A11Y, ...Object.fromEntries(Object.entries(value).filter(([k, v]) => k in DEFAULT_A11Y && typeof v === 'boolean')) } as AccessibilityPrefs;
+  ($<HTMLInputElement>('#a11y-large-text')).checked = prefs.largeText;
+  ($<HTMLInputElement>('#a11y-reduce-motion')).checked = prefs.reduceMotion;
+  ($<HTMLInputElement>('#a11y-high-contrast')).checked = prefs.highContrast;
   applyAccessibility(prefs, false);
-  window.dispatchEvent(new Event('trp-accessibility-changed'));
 }
 function applyAccessibility(prefs: AccessibilityPrefs, persist = true) {
   document.documentElement.toggleAttribute('data-large-text', prefs.largeText);
@@ -785,11 +674,6 @@ export function setupPlatformFeatures(settings: SettingsPanel, confirm: (title: 
   renderProfilePicker();
 
   loadAccessibility(); wireAccessibility();
-  window.__trpAccessibilityBridge = {
-    current: () => currentAccessibilityPrefs(),
-    set: (key, value) => setAccessibilityPreference(key, value),
-  };
-  window.dispatchEvent(new Event('trp-accessibility-ready'));
   void populateVehicleFilters();
   $<HTMLButtonElement>('#updates-check').onclick = () => void checkUpdates();
   $<HTMLButtonElement>('#updates-reload').onclick = () => location.reload();
@@ -801,16 +685,6 @@ export function setupPlatformFeatures(settings: SettingsPanel, confirm: (title: 
   });
   wireFirstRun(settings, log);
   onLanguage(() => { void populateVehicleFilters(); renderGarage(); renderProfilePicker(); syncA11yLabels(); });
-  window.__trpModLibraryBridge = {
-    snapshot: () => getModLibrarySnapshot(),
-    toggleFavorite: id => toggleModLibraryFavorite(id),
-    removeCustom: id => removeModLibraryEntry(id),
-    addLink: (name, url, category, targetPath) => addCustomModLink(name, url, category, targetPath),
-    importList: async file => await importModList(file),
-    exportList: () => exportModList(),
-    checkPacks: async () => await checkModLibraryPacks(),
-  };
-  window.dispatchEvent(new Event('trp-mod-library-ready'));
   renderGarage(); renderProfilePicker();
   void checkUpdates();
 }

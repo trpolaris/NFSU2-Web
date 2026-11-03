@@ -16,6 +16,7 @@ const hubCss = read('src/hub/hub.css');
 const runtime = read('src/app/shell.ts');
 const gameEntry = read('src/main.ts');
 const settingsUi = read('src/app/settings-ui.ts');
+const savesUi = read('src/app/saves-ui.ts');
 const platform = read('src/app/platform.ts');
 const navigation = read('src/app/ui-enhancements.js');
 const settingsRuntime = read('src/app/shell.ts');
@@ -429,4 +430,37 @@ test('Mod Library add, import and export actions use existing URL, path, size an
   assert.ok(platform.includes('validHttpUrl(url)'));
   assert.ok(platform.includes('validRelativeGamePath(targetPath)'));
   assert.ok(shellCss.includes('.trp-mod-react-form-grid'));
+});
+
+
+test('local save profiles and backup actions are React-owned through the existing SavesPanel service bridge', () => {
+  assert.match(app, /function SavesReactControls\(\)/);
+  assert.match(app, /<SavesReactControls \/>/);
+  assert.match(app, /bridge\.rename\(editing, draft\)/);
+  assert.match(app, /bridge\.exportBackup\(\)/);
+  assert.match(app, /bridge\.importBackup\(file\)/);
+  assert.match(gameEntry, /interface TrpSavesBridge/);
+  assert.match(gameEntry, /__trpSavesBridge\?: TrpSavesBridge/);
+  assert.match(runtime, /window\.__trpSavesBridge = \{/);
+  assert.match(runtime, /rename: \(from, to\) => saves\.renameFromReact\(from, to\)/);
+  assert.match(runtime, /onReactUpdate: \(\) => window\.dispatchEvent\(new Event\('trp-saves-changed'\)\)/);
+  assert.match(savesUi, /snapshot\(\)/);
+  assert.match(savesUi, /renameFromReact\(from: string, to: string\)/);
+  assert.match(savesUi, /exportBackup\(\): Promise<void>/);
+  assert.match(savesUi, /importBackup\(file: File\): Promise<void>/);
+  assert.match(savesUi, /readonly nameMax = NAME_MAX/);
+  assert.match(shellCss, /\.trp-saves-react-manager/);
+  assert.match(shellCss, /#saves > #save-hint/);
+  assert.ok(html.includes('id="save-hint"'));
+});
+
+test('screenshots and encrypted Cloud keep their existing mounts while profiles and backup controls move to React', () => {
+  assert.ok(app.includes('LegacyNode selector="#saves" className="trp-saves-legacy-slot"'));
+  for (const selector of ['#shots', '#vault', '#vault-form', '#vault-conflict', '#vault-on']) {
+    assert.ok(html.includes('id="' + selector.slice(1) + '"'), selector + ' remains mounted');
+  }
+  assert.match(runtime, /new SavesPanel\(\$\('#saves'\)/);
+  assert.match(runtime, /new VaultPanel\(\$\('#vault'\)/);
+  assert.match(savesUi, /new ScreenshotsPart\(root/);
+  assert.match(shellCss, /\.trp-saves-legacy-slot > #saves #vault/);
 });

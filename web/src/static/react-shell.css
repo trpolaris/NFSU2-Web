@@ -855,3 +855,48 @@
 .trp-mod-react-file-button input { display:none; }
 .trp-mod-react-form-status { min-height:16px;margin:9px 0 0;color:#91a1b7;font-size:.63rem; }
 @media(max-width:700px) { .trp-mod-react-form { padding:12px; } .trp-mod-react-form-grid { grid-template-columns:1fr; } .trp-mod-react-form-actions { flex-direction:column;align-items:stretch; } }
+
+
+/* React-owned local profile and backup controls; OPFS and Cloud operations stay in SavesPanel. */
+.trp-saves-react-manager {
+  min-width:0;padding:16px;border:1px solid rgba(167,185,214,.13);border-radius:14px;
+  background:linear-gradient(145deg,rgba(19,29,44,.78),rgba(8,14,24,.72));
+}
+.trp-saves-react-heading { display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap; }
+.trp-saves-react-heading h3 { margin:5px 0 0;color:#f0f4fb;font-size:.96rem;font-weight:880; }
+.trp-saves-react-actions { display:flex;align-items:center;gap:8px;flex-wrap:wrap; }
+.trp-saves-action,.trp-saves-inline-button {
+  min-height:35px;display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:0 11px;
+  border:1px solid rgba(167,185,214,.2);border-radius:9px;background:rgba(6,13,22,.55);color:#e4ecf7;
+  font-family:inherit;font-size:.65rem;font-weight:800;line-height:1.2;cursor:pointer;
+  transition:border-color .16s ease,background .16s ease,transform .16s ease;
+}
+.trp-saves-action:hover,.trp-saves-inline-button:hover { border-color:rgba(102,215,176,.4);background:rgba(102,215,176,.08); }
+.trp-saves-action:disabled,.trp-saves-inline-button:disabled,.trp-saves-file-action.is-disabled { opacity:.45;cursor:not-allowed; }
+.trp-saves-file-action { position:relative;overflow:hidden; }
+.trp-saves-file-action input { position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer; }
+.trp-saves-react-description { margin:10px 0;color:#91a1b7;font-size:.65rem;line-height:1.55; }
+.trp-saves-react-status { min-height:1em;margin:8px 0;color:#8edfc5;font-size:.66rem;line-height:1.5; }
+.trp-saves-profile-list { display:grid;gap:7px;margin:0;padding:0;list-style:none; }
+.trp-saves-profile { display:flex;align-items:center;justify-content:space-between;gap:12px;min-width:0;padding:10px 11px;
+  border:1px solid rgba(167,185,214,.11);border-radius:10px;background:rgba(4,9,16,.36); }
+.trp-saves-profile-copy { display:grid;gap:4px;min-width:0; }
+.trp-saves-profile-copy strong { overflow:hidden;color:#e9eff8;font-size:.72rem;text-overflow:ellipsis; }
+.trp-saves-profile-copy span { color:#899ab2;font-size:.6rem; }
+.trp-saves-rename-form { display:flex;align-items:center;gap:7px;width:100%;flex-wrap:wrap; }
+.trp-saves-rename-form input { flex:1 1 140px;min-width:0;min-height:34px;padding:0 10px;border:1px solid rgba(166,154,255,.28);
+  border-radius:8px;background:rgba(3,8,15,.7);color:#f0f4fb;font-family:inherit;font-size:.7rem;font-weight:600; }
+.trp-saves-inline-button { min-height:31px;padding:0 9px;font-size:.6rem; }
+.trp-saves-inline-button.is-muted { color:#99a8bc; }
+.trp-saves-empty { padding:14px;border:1px dashed rgba(167,185,214,.19);border-radius:10px;color:#9baac0;font-size:.67rem; }
+.trp-saves-legacy-slot > #saves > .panel-head:first-child,
+.trp-saves-legacy-slot > #saves > #saves-msg,
+.trp-saves-legacy-slot > #saves > #profiles,
+.trp-saves-legacy-slot > #saves > #save-hint { display:none!important; }
+@media (max-width:700px) {
+  .trp-saves-react-manager { padding:13px; }
+  .trp-saves-react-heading { align-items:flex-start; }
+  .trp-saves-react-actions { width:100%; }
+  .trp-saves-action { flex:1 1 auto; }
+  .trp-saves-profile { align-items:flex-start; }
+}

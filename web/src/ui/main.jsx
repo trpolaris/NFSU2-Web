@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { checkCrew, CREW_BIG, CREW_COLOUR_NAMES, CREW_MAX, CREW_PALETTE, freeColour } from '../app/crews';
-import { t } from '../app/i18n';
+import { dateLocale, t } from '../app/i18n';
+import { fmtBytes } from '../app/checks';
 import { CATS, DEFAULT_GROUPS, DEFAULT_PHRASES, PHRASES } from '../app/phrases';
 import { flushSync } from 'react-dom';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
@@ -869,6 +870,118 @@ function ModLibraryDashboard() {
 }
 
 
+function SavesReactControls() {
+  const [snapshot, setSnapshot] = useState({ profiles: [], busy: true, message: '' });
+  const [editing, setEditing] = useState('');
+  const [draft, setDraft] = useState('');
+  const [actionBusy, setActionBusy] = useState(false);
+  const rootRef = useRef(null);
+
+  useEffect(() => {
+    const update = () => setSnapshot(window.__trpSavesBridge?.snapshot() ?? { profiles: [], busy: true, message: '' });
+    window.addEventListener('trp-saves-changed', update);
+    window.addEventListener('trp-saves-ready', update);
+    update();
+    return () => {
+      window.removeEventListener('trp-saves-changed', update);
+      window.removeEventListener('trp-saves-ready', update);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (rootRef.current) window.__trpTranslateReact?.(rootRef.current);
+  }, [snapshot.profiles, snapshot.busy, snapshot.message, editing]);
+
+  const run = async task => {
+    const bridge = window.__trpSavesBridge;
+    if (!bridge) return;
+    setActionBusy(true);
+    try {
+      await task(bridge);
+    } catch (error) {
+      console.error('[saves] React action failed:', error);
+    } finally {
+      setSnapshot(bridge.snapshot());
+      setActionBusy(false);
+    }
+  };
+
+  const rename = async event => {
+    event.preventDefault();
+    const bridge = window.__trpSavesBridge;
+    if (!bridge || !editing) return;
+    setActionBusy(true);
+    try {
+      const result = await bridge.rename(editing, draft);
+      if (result.ok) setEditing('');
+      setSnapshot(bridge.snapshot());
+    } catch (error) {
+      console.error('[saves] React rename failed:', error);
+    } finally {
+      setActionBusy(false);
+    }
+  };
+
+  return (
+    <section className="trp-saves-react-manager" ref={rootRef} aria-labelledby="trp-saves-react-title">
+      <div className="trp-saves-react-heading">
+        <div>
+          <div className="trp-eyebrow" data-i18n>LOCAL STORAGE / PROFILES</div>
+          <h3 id="trp-saves-react-title" data-i18n>Profiles in this browser</h3>
+        </div>
+        <div className="trp-saves-react-actions">
+          <button type="button" className="trp-saves-action" disabled={actionBusy} onClick={() => void run(bridge => bridge.exportBackup())}>
+            <Save size={14} /><span data-i18n>Download backup</span>
+          </button>
+          <label className={'trp-saves-action trp-saves-file-action' + (snapshot.busy || actionBusy ? ' is-disabled' : '')}>
+            <ArrowUpRight size={14} /><span data-i18n>Restore backup</span>
+            <input type="file" accept=".zip,application/zip,application/octet-stream" disabled={snapshot.busy || actionBusy}
+              onChange={event => {
+                const file = event.currentTarget.files?.[0];
+                event.currentTarget.value = '';
+                if (file) void run(bridge => bridge.importBackup(file));
+              }} />
+          </label>
+        </div>
+      </div>
+      <p className="trp-saves-react-description" data-i18n>Profile files stay in this browser. A backup includes saves, game options and settings, but not downloaded game data.</p>
+      <p className="trp-saves-react-status" role="status" aria-live="polite">{snapshot.message}</p>
+      {snapshot.profiles.length ? (
+        <ul className="trp-saves-profile-list">
+          {snapshot.profiles.map(profile => (
+            <li className="trp-saves-profile" key={profile.name}>
+              {editing === profile.name ? (
+                <form className="trp-saves-rename-form" onSubmit={rename}>
+                  <input autoFocus type="text" value={draft} maxLength={window.__trpSavesBridge?.nameMax ?? 7}
+                    autoComplete="off" spellCheck="false"
+                    aria-label={t('New name for {name}', { name: profile.name })}
+                    onChange={event => setDraft(event.target.value.replace(/[^A-Za-z0-9]/g, '').slice(0, window.__trpSavesBridge?.nameMax ?? 7))}
+                    onKeyDown={event => { if (event.key === 'Escape') setEditing(''); }} />
+                  <button type="submit" className="trp-saves-inline-button" disabled={snapshot.busy || actionBusy}><span data-i18n>Rename</span></button>
+                  <button type="button" className="trp-saves-inline-button is-muted" onClick={() => setEditing('')}><span data-i18n>Cancel</span></button>
+                </form>
+              ) : (
+                <>
+                  <div className="trp-saves-profile-copy">
+                    <strong>{profile.name}</strong>
+                    <span>{t('saved {when}, {size}', { when: new Date(profile.mtime).toLocaleString(dateLocale()), size: fmtBytes(profile.size) })}</span>
+                  </div>
+                  <button type="button" className="trp-saves-inline-button" disabled={snapshot.busy || actionBusy}
+                    onClick={() => { setEditing(profile.name); setDraft(profile.name); }}>
+                    <span data-i18n>Rename</span>
+                  </button>
+                </>
+              )}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <div className="trp-saves-empty" data-i18n>No profiles yet. Create one in the game: it is saved in this browser.</div>
+      )}
+    </section>
+  );
+}
+
 function SavesDashboard() {
   const reduceMotion = useReducedMotion();
   const enter = reduceMotion ? false : { opacity: 0, y: 12 };
@@ -881,15 +994,10 @@ function SavesDashboard() {
           <h2 data-i18n>Your progress, your way.</h2>
           <p data-i18n>Manage browser profiles and screenshots, keep a local backup, or synchronize encrypted saves with TRPOLARIS Cloud.</p>
         </div>
-
       </motion.section>
 
       <motion.section className="trp-saves-panel" initial={enter} animate={{ opacity: 1, y: 0 }} transition={{ ...transition, delay: reduceMotion ? 0 : .05 }}>
-        <div className="trp-saves-panel-head">
-          <div><div className="trp-eyebrow" data-i18n>LOCAL STORAGE / 01</div><h3 data-i18n>Profiles in this browser</h3></div>
-          <span className="trp-saves-index">01</span>
-        </div>
-        <p className="trp-saves-section-description" data-i18n>Profiles, screenshots, local backups and encrypted Cloud sync stay together in the same save manager.</p>
+        <SavesReactControls />
         <LegacyNode selector="#saves" className="trp-saves-legacy-slot" />
       </motion.section>
     </motion.div>
