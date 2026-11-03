@@ -737,14 +737,42 @@ function SystemDashboard() {
   );
 }
 
+
+function SettingsDashboard() {
+  const reduceMotion = useReducedMotion();
+  const enter = reduceMotion ? false : { opacity: 0, y: 12 };
+  const transition = { duration: reduceMotion ? 0 : .27, ease: [.2, .75, .25, 1] };
+  return (
+    <motion.div className="trp-route-page trp-settings-dashboard" initial={enter} animate={{ opacity: 1, y: 0 }} transition={transition}>
+      <motion.section className="trp-settings-hero" initial={enter} animate={{ opacity: 1, y: 0 }} transition={transition}>
+        <div className="trp-settings-hero-copy">
+          <div className="trp-eyebrow"><Settings size={13} /> <span data-i18n>CONFIGURATION / DRIVER PROFILE</span></div>
+          <h2 data-i18n>Tune your experience.</h2>
+          <p data-i18n>Choose game settings, save reusable profiles and adjust browser accessibility. Game changes take effect the next time you start Play.</p>
+        </div>
+        <div className="trp-settings-hero-stamp"><span data-i18n>PROFILE</span><strong>NFSU2 / CONFIG</strong></div>
+      </motion.section>
+
+      <motion.section className="trp-settings-panel" initial={enter} animate={{ opacity: 1, y: 0 }} transition={{ ...transition, delay: reduceMotion ? 0 : .06 }}>
+        <div className="trp-settings-panel-head">
+          <div><div className="trp-eyebrow" data-i18n>GAME OPTIONS / 01</div><h3 data-i18n>Game configuration</h3><p data-i18n>Validated settings, configuration profiles and quick presets.</p></div>
+          <span className="trp-settings-index">01</span>
+        </div>
+        <LegacyNode selector="#settings" className="trp-settings-game-slot" />
+      </motion.section>
+
+      <motion.section className="trp-settings-panel" initial={enter} animate={{ opacity: 1, y: 0 }} transition={{ ...transition, delay: reduceMotion ? 0 : .12 }}>
+        <div className="trp-settings-panel-head">
+          <div><div className="trp-eyebrow" data-i18n>DISPLAY / ACCESSIBILITY / 02</div><h3 data-i18n>Accessibility</h3><p data-i18n>Browser display preferences; these do not change the game's settings.ini.</p></div>
+          <span className="trp-settings-index">02</span>
+        </div>
+        <LegacyNode selector="#accessibility" className="trp-settings-accessibility-slot" />
+      </motion.section>
+    </motion.div>
+  );
+}
+
 const LEGACY_PAGES = {
-  settings: {
-    eyebrow: 'CONFIGURATION / 07',
-    headline: 'Tune your experience.',
-    description: 'Adjust validated game options and browser display preferences.',
-    icon: Settings,
-    selectors: ['#settings', '#accessibility'],
-  },
 };
 
 function LegacyRoutePage({ page }) {
@@ -918,7 +946,7 @@ function App({ legacyApp }) {
             transition={{ duration: reduceMotion ? 0 : .19, ease: [0.2, 0.75, 0.25, 1] }}>
             {active === 'home' && !gameActive && <HomeDashboard onNavigate={navigate} />}
             {active === 'online' && !gameActive && <OnlineDashboard />}
-            {active === 'settings' && !gameActive && <LegacyRoutePage page={active} />}
+            {active === 'settings' && !gameActive && <SettingsDashboard />}
             {active === 'system' && !gameActive && <SystemDashboard />}
             {active === 'controls' && !gameActive && <ControlsDashboard />}
             {active === 'saves' && !gameActive && <SavesDashboard />}

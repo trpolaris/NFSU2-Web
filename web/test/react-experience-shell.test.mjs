@@ -339,3 +339,15 @@ test('System route is composed in React while updates, diagnostics and game-data
   assert.ok(shellCss.includes('.trp-system-diagnostics-slot > #diagnostics'));
   assert.ok(shellCss.includes('.trp-system-game-data-slot > #game-data'));
 });
+
+test('Settings route is composed in React while game settings and accessibility roots stay intact', () => {
+  assert.ok(app.includes('function SettingsDashboard'));
+  assert.ok(app.includes("active === 'settings' && !gameActive && <SettingsDashboard />"));
+  assert.ok(!app.includes("selectors: ['#settings', '#accessibility']"));
+  assert.ok(app.includes('LegacyNode selector="#settings" className="trp-settings-game-slot"'));
+  assert.ok(app.includes('LegacyNode selector="#accessibility" className="trp-settings-accessibility-slot"'));
+  assert.ok(shellCss.includes('.trp-settings-game-slot > #settings'));
+  assert.ok(shellCss.includes('.trp-settings-accessibility-slot > #accessibility'));
+  assert.ok(runtime.includes("new SettingsPanel($('#settings')"));
+  assert.ok(html.includes('id="accessibility"'));
+});

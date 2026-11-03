@@ -749,3 +749,69 @@
   .trp-system-panel { padding:14px;border-radius:15px; }
   .trp-system-panel-head { gap:8px; }
 }
+
+/* Settings: keep the complete SettingsPanel and Accessibility roots intact for existing form controllers. */
+.trp-settings-dashboard { display:grid;gap:14px;min-width:0; }
+.trp-settings-hero {
+  position:relative;isolation:isolate;display:flex;align-items:center;justify-content:space-between;gap:22px;
+  min-height:156px;padding:clamp(22px,3vw,34px);overflow:hidden;
+  border:1px solid rgba(166,154,255,.19);border-radius:20px;
+  background:radial-gradient(ellipse at 90% 15%,rgba(166,154,255,.16),transparent 22rem),radial-gradient(ellipse at 0% 100%,rgba(255,105,69,.1),transparent 20rem),linear-gradient(118deg,#121c2e,#0c1524 68%,#171529);
+  box-shadow:0 20px 50px rgba(0,0,0,.18),inset 0 1px rgba(255,255,255,.04);
+}
+.trp-settings-hero-copy { position:relative;z-index:1;max-width:750px; }
+.trp-settings-hero-copy .trp-eyebrow { display:flex;align-items:center;gap:8px; }
+.trp-settings-hero-copy h2 { margin:9px 0 7px;color:#f4f6fb;font-size:clamp(1.55rem,3vw,2.35rem);font-weight:930;line-height:1.04;letter-spacing:-.055em; }
+.trp-settings-hero-copy p { margin:0;color:#a5b4c9;font-size:.73rem;line-height:1.65; }
+.trp-settings-hero-stamp { position:relative;z-index:1;display:grid;gap:5px;min-width:145px;padding:13px 15px;border:1px solid rgba(166,154,255,.2);border-radius:12px;background:rgba(4,10,20,.42);color:#9094b4;font:800 .54rem ui-monospace,monospace;letter-spacing:.12em; }
+.trp-settings-hero-stamp strong { color:#c4bcff;font:850 .72rem ui-monospace,monospace; }
+.trp-settings-panel { min-width:0;padding:19px;border:1px solid rgba(167,185,214,.13);border-radius:18px;background:linear-gradient(145deg,rgba(17,27,43,.94),rgba(9,16,28,.96));box-shadow:0 16px 38px rgba(0,0,0,.14); }
+.trp-settings-panel-head { display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:13px; }
+.trp-settings-panel-head h3 { margin:5px 0 0;color:#eff3fa;font-size:1rem;font-weight:870; }
+.trp-settings-panel-head p { margin:5px 0 0;color:#91a1b7;font-size:.64rem;line-height:1.55; }
+.trp-settings-index { color:rgba(166,154,255,.68);font:800 .62rem ui-monospace,monospace;letter-spacing:.12em; }
+.trp-settings-game-slot,.trp-settings-accessibility-slot { min-width:0; }
+.trp-settings-game-slot > #settings,
+.trp-settings-accessibility-slot > #accessibility {
+  display:block!important;width:100%!important;max-width:none!important;min-width:0!important;margin:0!important;padding:0!important;
+  border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;
+}
+.trp-settings-game-slot > #settings > #settings-title,
+.trp-settings-accessibility-slot > #accessibility > #accessibility-title { display:none!important; }
+.trp-settings-game-slot > #settings > #settings-note { margin:0 0 14px;color:#92a2b8;font-size:.65rem; }
+.trp-settings-game-slot > #settings .profile-manager,
+.trp-settings-game-slot > #settings .preset-panel {
+  margin:0 0 14px;padding:14px;border:1px solid rgba(167,185,214,.11);border-radius:13px;background:rgba(255,255,255,.02);
+}
+.trp-settings-game-slot > #settings .profile-manager .panel-head,
+.trp-settings-game-slot > #settings .preset-heading { margin:0 0 10px; }
+.trp-settings-game-slot > #settings .profile-manager h3,
+.trp-settings-game-slot > #settings .preset-heading h3 { margin:0;color:#edf2f8;font-size:.82rem;font-weight:840; }
+.trp-settings-game-slot > #settings .profile-controls { display:flex;flex-wrap:wrap;align-items:flex-end;gap:9px;margin:8px 0; }
+.trp-settings-game-slot > #settings .profile-name { display:grid;flex:1 1 230px;gap:5px;color:#97a8bd;font-size:.63rem; }
+.trp-settings-game-slot > #settings .profile-name input,
+.trp-settings-game-slot > #settings .profile-name select { min-height:37px;min-width:0;border:1px solid rgba(167,185,214,.16);border-radius:8px;padding:7px 9px;background:#0a1321;color:#eef2f8; }
+.trp-settings-game-slot > #settings .preset-actions { display:flex;flex-wrap:wrap;gap:8px; }
+.trp-settings-game-slot > #settings .preset-button { min-height:38px;flex:1 1 140px; }
+.trp-settings-game-slot > #settings #settings-body { display:grid;gap:13px;min-width:0; }
+.trp-settings-game-slot > #settings #settings-body .group { display:grid;gap:9px;margin:0;padding:15px;border:1px solid rgba(167,185,214,.1);border-radius:13px;background:rgba(255,255,255,.018); }
+.trp-settings-game-slot > #settings #settings-body .group > h3 { margin:0 0 3px;padding:0 0 10px;border-bottom:1px solid rgba(167,185,214,.1);color:#cbd6e6;font-size:.78rem;font-weight:830; }
+.trp-settings-game-slot > #settings #settings-body .set { border-radius:9px; }
+.trp-settings-game-slot > #settings .raw { margin-top:14px;padding-top:12px;border-top:1px solid rgba(167,185,214,.1); }
+.trp-settings-game-slot > #settings .raw details { margin-top:10px; }
+.trp-settings-accessibility-slot > #accessibility .accessibility-options { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px; }
+.trp-settings-accessibility-slot > #accessibility .accessibility-option { min-height:50px;padding:10px;border:1px solid rgba(167,185,214,.11);border-radius:10px;background:rgba(255,255,255,.02); }
+.trp-settings-accessibility-slot > #accessibility > .hint:last-child { margin:10px 0 0;color:#8596ad;font-size:.61rem; }
+@media(max-width:850px) { .trp-settings-accessibility-slot > #accessibility .accessibility-options { grid-template-columns:1fr; } }
+@media(max-width:700px) {
+  .trp-settings-dashboard { gap:10px; }
+  .trp-settings-hero { min-height:0;align-items:flex-start;padding:18px 15px;border-radius:16px; }
+  .trp-settings-hero-copy h2 { font-size:1.5rem; }
+  .trp-settings-hero-copy p { font-size:.67rem; }
+  .trp-settings-hero-stamp { min-width:0;padding:9px 10px; }
+  .trp-settings-panel { padding:14px;border-radius:15px; }
+  .trp-settings-panel-head { gap:8px; }
+  .trp-settings-game-slot > #settings .profile-controls { align-items:stretch;flex-direction:column; }
+  .trp-settings-game-slot > #settings .profile-controls > * { width:100%; }
+  .trp-settings-game-slot > #settings #settings-body .set { grid-template-columns:minmax(0,1fr); }
+}

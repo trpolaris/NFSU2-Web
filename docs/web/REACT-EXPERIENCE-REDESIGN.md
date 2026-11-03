@@ -156,3 +156,7 @@ The Controls route now has a React-owned responsive dashboard and layout for key
 ## System route migration
 
 The System page is now composed in React with three sections: Updates & Security, Browser and Runtime Diagnostics, and local Game Data. The full #updates, #diagnostics, and #game-data service roots remain individually mounted so their existing actions and progress updates continue to target the same elements. Preload/download logic, cache deletion, update checks, translation audits, privacy actions and diagnostic reporting are unchanged.
+
+## Settings route migration
+
+The Settings route now has a React dashboard for validated game options, configuration profiles, quick presets and Accessibility. The complete #settings root remains a single mounted unit for SettingsPanel; the #accessibility section is kept intact for the browser preference controller. This preserves settings.ini validation, read-only ownership checks, profile import/export, presets, raw-file editing and the device accessibility preferences.
