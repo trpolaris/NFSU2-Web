@@ -1425,5 +1425,7 @@
   "Your selected local playlist stays on this device.": "Seçtiğin yerel çalma listesi bu cihazda kalır.",
   "Toggle radio": "Radyoyu aç/kapat",
   "LOCAL FILES ONLY · NOTHING IS SENT TO THE SERVER": "YALNIZCA YEREL DOSYALAR · SUNUCUYA HİÇBİR ŞEY GÖNDERİLMEZ",
-  "This browser is too old for the game: it needs iOS 26, iPadOS 26 or Safari 26. Update this device (Settings, General, Software Update).": "Bu tarayıcı oyun için fazla eski: iOS 26, iPadOS 26 veya Safari 26 gerekiyor. Bu cihazı güncelle (Ayarlar, Genel, Yazılım Güncelleme)."
+  "This browser is too old for the game: it needs iOS 26, iPadOS 26 or Safari 26. Update this device (Settings, General, Software Update).": "Bu tarayıcı oyun için fazla eski: iOS 26, iPadOS 26 veya Safari 26 gerekiyor. Bu cihazı güncelle (Ayarlar, Genel, Yazılım Güncelleme).",
+  "Not loading": "Yüklenmiyor",
+  "Your antivirus or network is probably blocking the game. Allow {site} in it, then reload.": "Büyük olasılıkla antivirüsün ya da ağın oyunu engelliyor. {site} adresine izin ver, sonra yeniden yükle."
 }
