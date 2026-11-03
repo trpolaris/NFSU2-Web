@@ -60,9 +60,14 @@ function LegacyAppHost({ app }) {
   return <div className="trp-legacy-slot" ref={setSlot} />;
 }
 
+function pageFromHash(value) {
+  const page = value.replace(/^#\/?/, '').replace(/-page$/, '');
+  return page === 'diagnostics' ? 'system' : page;
+}
+
 function App({ legacyApp }) {
   const reduceMotion = useReducedMotion();
-  const initialHash = location.hash.replace(/^#\/?/, '').replace(/-page$/, '');
+  const initialHash = pageFromHash(location.hash);
   const [active, setActive] = useState(() => NAV.some(item => item.id === initialHash) ? initialHash : 'home');
   const [phase, setPhase] = useState(document.body.dataset.phase || 'boot');
   const [statusText, setStatusText] = useState('');
@@ -89,7 +94,7 @@ function App({ legacyApp }) {
       if (NAV.some(item => item.id === id)) setActive(id);
     };
     const onHashChange = () => {
-      const hash = location.hash.replace(/^#\/?/, '').replace(/-page$/, '');
+      const hash = pageFromHash(location.hash);
       const item = NAV.find(entry => entry.id === hash);
       if (item) setActive(item.id);
     };
@@ -120,7 +125,7 @@ function App({ legacyApp }) {
   const connectedTone = phase === 'ready' || phase === 'playing';
 
   return (
-    <div className="trp-react-shell">
+    <div className="trp-react-shell" inert={phase === 'playing' || phase === 'starting'}>
       <div className="trp-shell-atmosphere" aria-hidden="true">
         <span className="trp-atmosphere-orb trp-orb-coral" />
         <span className="trp-atmosphere-orb trp-orb-violet" />
