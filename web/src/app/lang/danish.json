@@ -1493,5 +1493,6 @@
   "Radio: off": "Radio: fra",
   "Your selected local playlist stays on this device.": "Din valgte lokale afspilningsliste bliver på denne enhed.",
   "Toggle radio": "Slå radio til/fra",
-  "LOCAL FILES ONLY · NOTHING IS SENT TO THE SERVER": "KUN LOKALE FILER · INTET SENDES TIL SERVEREN"
+  "LOCAL FILES ONLY · NOTHING IS SENT TO THE SERVER": "KUN LOKALE FILER · INTET SENDES TIL SERVEREN",
+  "This browser is too old for the game: it needs iOS 26, iPadOS 26 or Safari 26. Update this device (Settings, General, Software Update).": "Denne browser er for gammel til spillet: det kræver iOS 26, iPadOS 26 eller Safari 26. Opdater enheden (Indstillinger, Generelt, Softwareopdatering)."
 }
