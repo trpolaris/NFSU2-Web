@@ -158,13 +158,15 @@ function App({ legacyApp }) {
   const [active, setActive] = useState(() => NAV.some(item => item.id === initialHash) ? initialHash : 'home');
   const [phase, setPhase] = useState(document.body.dataset.phase || 'boot');
   const [statusText, setStatusText] = useState('');
+  const [runtimeLocked, setRuntimeLocked] = useState(() => Boolean(legacyApp?.inert));
   const [transitioning, setTransitioning] = useState(false);
   const activeItem = useMemo(() => NAV.find(item => item.id === active) || NAV[0], [active]);
 
   const syncStatus = useCallback(() => {
     setPhase(document.body.dataset.phase || 'boot');
     setStatusText(document.getElementById('status')?.textContent?.trim() || '');
-  }, []);
+    setRuntimeLocked(Boolean(legacyApp?.inert));
+  }, [legacyApp]);
 
   const navigate = useCallback((id) => {
     if (!NAV.some(item => item.id === id)) return;
@@ -192,12 +194,15 @@ function App({ legacyApp }) {
     const statusNode = document.getElementById('status');
     const statusObserver = statusNode ? new MutationObserver(syncStatus) : null;
     if (statusNode && statusObserver) statusObserver.observe(statusNode, { childList: true, subtree: true, characterData: true });
+    const runtimeObserver = legacyApp ? new MutationObserver(syncStatus) : null;
+    if (legacyApp && runtimeObserver) runtimeObserver.observe(legacyApp, { attributes: true, attributeFilter: ['inert'] });
     syncStatus();
     return () => {
       legacyApp?.removeEventListener('click', onLegacyClick, true);
       window.removeEventListener('hashchange', onHashChange);
       bodyObserver.disconnect();
       statusObserver?.disconnect();
+      runtimeObserver?.disconnect();
     };
   }, [legacyApp, syncStatus]);
 
@@ -210,7 +215,7 @@ function App({ legacyApp }) {
 
   const phaseLabel = PHASE_LABELS[phase] || 'TRPOLARIS';
   const connectedTone = phase === 'ready' || phase === 'playing';
-  const gameActive = phase === 'playing' || phase === 'starting';
+  const gameActive = runtimeLocked || Boolean(legacyApp?.inert) || phase === 'playing' || phase === 'starting';
 
   return (
     <div className={'trp-react-shell' + (active === 'home' ? ' is-home' : '')}>

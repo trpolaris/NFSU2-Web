@@ -81,4 +81,6 @@ test('the game stage is never placed inside an inert React root while page chrom
   assert.match(app, /<aside className="trp-sidebar" aria-label="Ana gezinme" inert=\{gameActive\}/);
   assert.match(app, /<header className="trp-topbar" inert=\{gameActive\}/);
   assert.ok(runtime.includes("$('#app').inert = true"), 'legacy app retains its existing game-session focus rule');
+  assert.match(app, /runtimeObserver\.observe\(legacyApp, \{ attributes: true, attributeFilter: \['inert'\] \}\)/);
+  assert.match(app, /setRuntimeLocked\(Boolean\(legacyApp\?\.inert\)\)/);
 });
