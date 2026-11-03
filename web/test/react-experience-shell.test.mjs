@@ -286,6 +286,6 @@ test('Mod Library page layout is React-owned while existing local mod handlers r
     assert.ok(app.includes('selector="' + selector + '"'), selector + ' remains connected');
   }
   assert.match(shellCss, /#app #mods \{ display:none!important; \}/);
-  assert.match(shellCss, /\.trp-mod-feature-grid/);
+  assert.match(shellCss, /\.trp-mod-panel/);
   assert.match(shellCss, /\.trp-mod-add-panel \.mod-form-grid/);
 });
