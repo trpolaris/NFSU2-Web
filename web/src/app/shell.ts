@@ -1782,6 +1782,11 @@ export async function boot() {
     gameDataSnapshot: () => saves.gameDataSnapshot(),
     togglePreload: () => saves.togglePreload(),
     clearGameData: () => saves.clearGameData(),
+    shotsSnapshot: () => saves.shotsSnapshot(),
+    shotThumbnail: path => saves.shotThumbnail(path),
+    shotImageUrl: path => saves.shotImageUrl(path),
+    downloadShot: path => saves.downloadShot(path),
+    deleteShot: path => saves.deleteShot(path),
     rename: (from, to) => saves.renameFromReact(from, to),
     exportBackup: () => saves.exportBackup(),
     importBackup: file => saves.importBackup(file),
@@ -1803,7 +1808,23 @@ export async function boot() {
     onRestored: () => { void loadSettings(); void settings.refresh(); void saves.refresh(); }, log: logLine,
     // another passphrase here (or none): the line under Your name asks again with it
     onLink: () => void nameRow.ask(),
+    onReactUpdate: () => window.dispatchEvent(new Event('trp-vault-changed')),
   });
+  window.__trpVaultBridge = {
+    snapshot: () => vault.reactSnapshot(),
+    make: () => vault.makeFromReact(),
+    load: phrase => vault.loadFromReact(phrase),
+    toggleVisibility: () => vault.toggleVisibilityFromReact(),
+    download: () => vault.downloadFromReact(),
+    sync: () => vault.syncFromReact(),
+    goBack: () => vault.goBackFromReact(),
+    stop: () => vault.stopFromReact(),
+    remove: () => vault.deleteFromReact(),
+    keepMine: () => vault.keepMineFromReact(),
+    takeTheirs: () => vault.takeTheirsFromReact(),
+    putBack: () => vault.putBackFromReact(),
+  };
+  window.dispatchEvent(new Event('trp-vault-ready'));
   $<HTMLButtonElement>('#play').onclick = () => void play();
   $<HTMLButtonElement>('#retry').onclick = () => void loadModule();
   $<HTMLButtonElement>('#reload').onclick = () => void reload();

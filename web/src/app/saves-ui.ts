@@ -331,6 +331,13 @@ export class SavesPanel {
     };
   }
 
+  /** Screenshot gallery API: decoder, thumbnail cache and OPFS store remain authoritative. */
+  shotsSnapshot() { return this.shots.snapshot(); }
+  shotThumbnail(path: string) { return this.shots.thumbnail(path); }
+  shotImageUrl(path: string) { return this.shots.imageUrl(path); }
+  downloadShot(path: string) { this.shots.downloadFromReact(path); }
+  deleteShot(path: string) { return this.shots.deleteFromReact(path); }
+
   /** Current predownload state: the existing cache and Predownload service remain authoritative. */
   gameDataSnapshot() {
     const status = this.deps.download.status;

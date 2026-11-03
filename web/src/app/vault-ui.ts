@@ -37,6 +37,7 @@ export interface VaultPanelDeps {
   onRestored(): void;
   /** the passphrase linked here changed (made, loaded, stopped, deleted): what the claimed names say of this player */
   onLink?(): void;
+  onReactUpdate?(): void;
   log(s: string): void;
 }
 
@@ -165,9 +166,59 @@ export class VaultPanel {
 
   private $<T extends HTMLElement = HTMLElement>(sel: string) { return this.root.querySelector<T>(sel)!; }
   /** the line under the buttons, drawn again when the page's language changes (a Msg); code: a failure's name */
+  private changed() { this.d.onReactUpdate?.(); }
+
+  /** React-safe view model; passphrase is exposed only in its dedicated field. */
+  reactSnapshot() {
+    const button = (id: string) => this.$<HTMLButtonElement>(id);
+    const node = (id: string) => this.$<HTMLElement>(id);
+    const text = (id: string) => node(id).textContent ?? '';
+    const state = this.sync?.state;
+    return {
+      available: !this.root.hidden, linked: !!this.sync?.link, phrase: this.input.value, revealed: !this.hidden,
+      owner: this.d.owner(), busy: this.d.busy(), working: state?.s === 'working',
+      host: text('#vault-host'), when: text('#vault-when'), whenVisible: !node('#vault-when').hidden,
+      claim: text('#vault-claim'), claimVisible: !node('#vault-claim').hidden,
+      about: text('#vault-about'), aboutVisible: !node('#vault-about').hidden,
+      sides: text('#vault-sides'), status: text('#vault-status'), message: text('#vault-msg'),
+      messageWarn: node('#vault-msg').classList.contains('warn'),
+      makeVisible: !button('#vault-make').hidden, showDownload: !button('#vault-file').hidden,
+      showLoad: !button('#vault-load').hidden, showSync: !node('#vault-on').hidden,
+      showEarlier: !button('#vault-earlier').hidden, showConflict: !node('#vault-conflict').hidden,
+      showReplaced: !node('#vault-replaced').hidden,
+      makeDisabled: button('#vault-make').disabled, loadDisabled: button('#vault-load').disabled,
+      syncDisabled: button('#vault-sync').disabled, earlierDisabled: button('#vault-earlier').disabled,
+      keepMineDisabled: button('#vault-mine').disabled, takeTheirsDisabled: button('#vault-theirs').disabled,
+      stopDisabled: button('#vault-stop').disabled, deleteDisabled: button('#vault-delete').disabled,
+      putBackDisabled: button('#vault-putback').disabled, conflictState: state?.s === 'conflict',
+    };
+  }
+
+  async makeFromReact() { return this.make(); }
+  async loadFromReact(phrase: string) {
+    this.input.value = phrase; this.holdsLink = false; this.hidden = true; this.mask();
+    await this.use(phrase);
+  }
+  toggleVisibilityFromReact() {
+    this.hidden = !this.hidden; this.mask();
+    if (!this.hidden && this.input.value && this.sync?.link) {
+      const copying = navigator.clipboard?.writeText(this.input.value);
+      if (copying) void copying.then(() => this.msg(() => t('Copied.'))).catch(() => {});
+    }
+  }
+  downloadFromReact() { this.download(); }
+  syncFromReact() { return this.syncNow(); }
+  goBackFromReact() { return this.goBack(); }
+  stopFromReact() { return this.stop(); }
+  deleteFromReact() { return this.remove(); }
+  keepMineFromReact() { return this.keepMine(); }
+  takeTheirsFromReact() { return this.takeTheirs(); }
+  putBackFromReact() { return this.putBack(); }
+
   private msg(s: string | Msg, warn = false, code?: string) {
     const m = this.$('#vault-msg');
     live(m, typeof s === 'string' ? () => s : s, code); m.classList.toggle('warn', warn);
+    this.changed();
   }
 
   /** the box's dots (or not), and its eye */
@@ -178,6 +229,7 @@ export class VaultPanel {
     m.scrollLeft = this.input.scrollLeft;
     eye.setAttribute('aria-pressed', String(!this.hidden));
     eye.setAttribute('aria-label', this.hidden ? t('Show passphrase') : t('Hide passphrase'));
+    this.changed();
   }
 
   private load(): Link | null {
@@ -201,23 +253,25 @@ export class VaultPanel {
 
   /** Shows the section when this server keeps keyphrase saves. */
   async start() {
-    if (!await vaultAvailable().finally(() => setTimeout(() => this.readyNow(), 0))) return;
+    if (!await vaultAvailable().finally(() => setTimeout(() => this.readyNow(), 0))) { this.changed(); return; }
     this.makeSync();
     this.readyNow();
     this.root.hidden = false;
     await this.loadReplaced();
     this.show();
     if (this.owned) this.check();
+    this.changed();
   }
 
   /** This tab owns the saves now and has loaded its settings: it syncs from here on. */
   async ownerNow() {
     this.owned = true;
-    if (!this.sync) return;
+    if (!this.sync) { this.changed(); return; }
     this.makeSync();
     await this.loadReplaced();
     this.show();
     this.check();
+    this.changed();
   }
 
   /** newer saves from another browser in, then these out when they changed */
@@ -383,6 +437,7 @@ export class VaultPanel {
     const p = this.$<HTMLElement>('#vault-claim');
     p.hidden = !name || !this.sync?.link;
     p.textContent = name ? t('This passphrase also holds your claim on {name}.', { name }) : '';
+    this.changed();
   }
   /** the linked keyphrase as a file */
   download() { if (this.sync?.link) downloadBlob(`${this.sync.link.phrase}\n`, 'nfsu2-passphrase.txt', 'text/plain'); }
@@ -579,6 +634,7 @@ export class VaultPanel {
       : conflict && l ? `${this.conflictText()} ${t('Cloud saves are paused until you pick.')}`
       : '';
     if (st.s === 'error' && st.code && (owner || !l)) status.append(codeOf(st.code));
+    this.changed();
   }
 
   /** a conflict in a line (the section's, Play's question) */

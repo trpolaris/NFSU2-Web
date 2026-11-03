@@ -130,6 +130,46 @@ export class ScreenshotsPart {
 
   private $<T extends HTMLElement>(sel: string): T { return this.dlg.querySelector<T>(sel)!; }
 
+  /** React receives immutable metadata; OPFS files remain the source of truth. */
+  snapshot() { return this.shots.map(({ path, size, mtime }) => ({ path, size, mtime })); }
+
+  /** Cached, resized thumbnail URL for the visible React gallery. */
+  thumbnail(path: string): Promise<string | null> {
+    const shot = this.shots.find(item => item.path === path);
+    return shot ? this.thumb(shot) : Promise.resolve(null);
+  }
+
+  /** Full-size object URL for the React lightbox; its owner revokes the URL on close. */
+  async imageUrl(path: string): Promise<string> {
+    const shot = this.shots.find(item => item.path === path);
+    if (!shot) throw new Error('Screenshot no longer exists');
+    const file = ext(path) === 'tga' ? await encode(await bitmap(this.deps.saveDir, path), 'image/png') : await fileOf(this.deps.saveDir, path);
+    return URL.createObjectURL(file);
+  }
+
+  downloadFromReact(path: string) {
+    const shot = this.shots.find(item => item.path === path);
+    if (!shot) return;
+    void fileOf(this.deps.saveDir, shot.path).then(file => downloadBlob(file, shot.path, MIME[ext(shot.path)]));
+  }
+
+  async deleteFromReact(path: string): Promise<boolean> {
+    const shot = this.shots.find(item => item.path === path);
+    if (!shot) return false;
+    if (!await this.deps.confirm(t('Delete this screenshot?'), t('{file} goes from this browser. A backup you downloaded keeps its copy.', { file: shot.path }), t('Delete'), true)) return false;
+    try { await removePath(this.deps.saveDir, shot.path); }
+    catch (error) { throw new Error(t('It was not deleted: {error}', { error: String(error) })); }
+    this.shots = this.shots.filter(item => item.path !== shot.path);
+    if (this.open === shot.path) {
+      this.open = null;
+      this.seq++;
+      if (this.url) { URL.revokeObjectURL(this.url); this.url = null; }
+    }
+    this.render();
+    this.deps.changed();
+    return true;
+  }
+
   /** The screenshots as the save folder has them now (saves-ui.ts refresh). */
   show(files: Entry[]) {
     this.shots = [...files].sort((a, b) => b.mtime - a.mtime || (a.path < b.path ? 1 : -1));

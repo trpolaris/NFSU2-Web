@@ -101,7 +101,35 @@ declare global {
     gameDataSnapshot(): TrpGameDataSnapshot;
     togglePreload(): Promise<void>;
     clearGameData(): Promise<void>;
+    shotsSnapshot(): { path: string; size: number; mtime: number }[];
+    shotThumbnail(path: string): Promise<string | null>;
+    shotImageUrl(path: string): Promise<string>;
+    downloadShot(path: string): void;
+    deleteShot(path: string): Promise<boolean>;
     nameMax: number;
+  }
+  interface TrpVaultSnapshot {
+    available: boolean; linked: boolean; phrase: string; revealed: boolean; owner: boolean; busy: boolean; working: boolean;
+    host: string; when: string; whenVisible: boolean; claim: string; claimVisible: boolean;
+    about: string; aboutVisible: boolean; sides: string; status: string; message: string; messageWarn: boolean;
+    makeVisible: boolean; showDownload: boolean; showLoad: boolean; showSync: boolean; showEarlier: boolean;
+    showConflict: boolean; showReplaced: boolean; makeDisabled: boolean; loadDisabled: boolean; syncDisabled: boolean;
+    earlierDisabled: boolean; keepMineDisabled: boolean; takeTheirsDisabled: boolean; stopDisabled: boolean;
+    deleteDisabled: boolean; putBackDisabled: boolean; conflictState: boolean;
+  }
+  interface TrpVaultBridge {
+    snapshot(): TrpVaultSnapshot;
+    make(): Promise<boolean>;
+    load(phrase: string): Promise<void>;
+    toggleVisibility(): void;
+    download(): void;
+    sync(): Promise<void>;
+    goBack(): Promise<void>;
+    stop(): Promise<void>;
+    remove(): Promise<void>;
+    keepMine(): Promise<boolean>;
+    takeTheirs(): Promise<boolean>;
+    putBack(): Promise<void>;
   }
   interface TrpAccessibilityBridge {
     current(): TrpAccessibilityPrefs;
@@ -143,6 +171,7 @@ declare global {
     __trpSettingsBridge?: TrpSettingsBridge;
     __trpAccessibilityBridge?: TrpAccessibilityBridge;
     __trpSavesBridge?: TrpSavesBridge;
+    __trpVaultBridge?: TrpVaultBridge;
     __trpControlsBridge?: TrpControlsBridge;
     __trpPlatformBridge?: TrpPlatformBridge;
     __trpDiagnosticsBridge?: TrpDiagnosticsBridge;
