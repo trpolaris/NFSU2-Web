@@ -181,7 +181,7 @@ function OnlineReactControls() {
     if (statusRoot.current && typeof window.__trpTranslateReact === 'function') {
       window.__trpTranslateReact(statusRoot.current);
     }
-  }, [values, ready, readOnly, busy, statusText]);
+  }, [values, textValues, crewList, crewDraft, quickChatDraft, message, ready, readOnly, busy, statusText]);
 
   const sync = useCallback(() => {
     const bridge = window.__trpSettingsBridge;

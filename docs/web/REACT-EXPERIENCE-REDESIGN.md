@@ -115,13 +115,13 @@ Mod Library, Saves, Controls, Settings/Accessibility, System (updates, diagnosti
 
 ## React settings bridge
 
-Two primary Online toggles — Free Roam with others and Online mode — are now controlled by React. They read through the existing SettingsPanel current method and write through its existing set method. The bridge also exposes the current tab's read-only state and a refresh signal. This does not bypass the existing save-file ownership check or change the settings.ini format. Room/name input, crews and horn/phrase controls remain on the existing controller until their validation and complex interactions are moved into dedicated React field components.
+Two primary Online toggles — Free Roam with others and Online mode — are now controlled by React. They read through the existing SettingsPanel current method and write through its existing set method. The bridge also exposes the current tab's read-only state and a refresh signal. This does not bypass the existing save-file ownership check or change the settings.ini format. Room/name and blocked-player inputs, crew/colour editing, Quick Chat switches and the 16-phrase editor are now React-owned. Horn preview and its audio control remain on the existing specialized controller.
 
 
 The Online route also now has React text editors for the driver's display name and room name. Their save action calls a dedicated SettingsPanel method that uses the same name normalization and per-key validation as the original controls. Crews, horn preview, blocked-player lists and quick-chat phrase editing remain on the legacy controller for this stage.
 
 
-Additional simple Free Roam preferences are now React-managed too: Ghost Mode (including its inverted settings-file meaning), Quick Chat enablement, the nearby-player car limit, and the blocked-player name list. The room/name/blocked-name controls use the same SettingsPanel validation path. The crew list with per-crew colour editing, horn preview and 16-phrase editor remain on the original specialized renderer while those interactions are ported deliberately.
+Additional simple Free Roam preferences are now React-managed too: Ghost Mode (including its inverted settings-file meaning), Quick Chat enablement, the nearby-player car limit, and the blocked-player name list. The room/name/blocked-name controls use the same SettingsPanel validation path. Horn preview remains on the original specialized renderer because it owns the audio preview lifecycle; crew and phrase editing now use the React controls described below.
 
 
 ## Crew editor migration

@@ -220,8 +220,8 @@ test('React Crew editor keeps crew order, palette colours, limits and atomic set
   assert.match(app, /CREW_MAX/);
   assert.match(gameEntry, /setCrews\(list: TrpCrew\[\]\): Promise<void>/);
   assert.match(shell, /crews: \(\) => crewsOf\(settings\.current\('roam_crew'\), settings\.current\('roam_crew_colours'\)\)/);
-  assert.match(shell, /setCrews: async list => \{ await settings\.setCrews\(list\)/);
-  assert.match(settingsUi, /async setCrews\(list: readonly Crew\[\]\)/);
+  assert.match(shell, /setCrews: async list => \{ await settings\.saveCrewsFromReact\(list\)/);
+  assert.match(settingsUi, /async saveCrewsFromReact\(list: readonly Crew\[\]\)/);
   assert.match(settingsUi, /rgbsValue\(list\)/);
   assert.match(settingsUi, /this\.put\([\s\S]*'roam_crew_colours'/);
   assert.match(shellCss, /trp-online-crew-palette/);
@@ -242,4 +242,11 @@ test('React Quick Chat phrase editor keeps four groups of four and saves phrase/
   assert.match(settingsUi, /DEFAULT_PHRASES/);
   assert.match(settingsUi, /DEFAULT_GROUPS/);
   assert.match(shellCss, /trp-online-phrases-grid/);
+});
+
+
+test('React Crew and Quick Chat dynamic controls are retranslated whenever their draft state changes', () => {
+  assert.match(app, /\\[values, textValues, crewList, crewDraft, quickChatDraft, message, ready, readOnly, busy, statusText\\]/);
+  assert.match(app, /data-i18n>\\{category\\.name\\}/);
+  assert.match(app, /data-i18n>\\{phrase\\.text\\}/);
 });
