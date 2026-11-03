@@ -409,6 +409,28 @@ export class SettingsPanel {
   }
 
 
+  /** Save crew names and colours together to preserve their shared order. */
+  async setCrews(list: readonly Crew[]) {
+    if (this.ro()) { this.deps.say?.(t(READ_ONLY)); return; }
+    if (list.length > CREW_MAX) throw new Error(t('Up to 4 crews: leave one to join another.'));
+    const names = crewsValue(list.map(crew => crew.name));
+    const colours = rgbsValue(list);
+    const checkedNames = checkSetting('roam_crew', names);
+    const checkedColours = checkSetting('roam_crew_colours', colours);
+    if (checkedNames && !checkedNames.ok) {
+      throw new Error(t('Not saved: {key} = {why}.', { key: 'roam_crew', why: tvars(checkedNames.why, checkedNames.v) }));
+    }
+    if (checkedColours && !checkedColours.ok) {
+      throw new Error(t('Not saved: {key} = {why}.', { key: 'roam_crew_colours', why: tvars(checkedColours.why, checkedColours.v) }));
+    }
+    await this.put(
+      'roam_crew',
+      names ? (checkedNames && checkedNames.ok ? checkedNames.value : names) : null,
+      [['roam_crew_colours', colours ? (checkedColours && checkedColours.ok ? checkedColours.value : colours) : null]],
+    );
+  }
+
+
   /** A named launcher's safe snapshot: only explicitly allow-listed, validated settings. */
   profileValues(): Record<string, string> {
     if (!this.fileOnly) this.resolve(this.text);

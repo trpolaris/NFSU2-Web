@@ -1678,6 +1678,8 @@ export async function boot() {
     current: key => settings.current(key),
     set: async (key, value) => { await settings.set(key, value); window.dispatchEvent(new Event('trp-settings-changed')); },
     setValidated: async (key, value) => { await settings.setValidated(key, value); window.dispatchEvent(new Event('trp-settings-changed')); },
+    crews: () => crewsOf(settings.current('roam_crew'), settings.current('roam_crew_colours')),
+    setCrews: async list => { await settings.setCrews(list); window.dispatchEvent(new Event('trp-settings-changed')); },
     readOnly: () => !instance.owner,
     refresh: async () => { await settings.refresh(); window.dispatchEvent(new Event('trp-settings-changed')); },
   };

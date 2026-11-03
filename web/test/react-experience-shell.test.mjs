@@ -209,3 +209,20 @@ test('React Online owns ghost mode, quick chat, blocked players and the visible 
   assert.match(settingsUi, /key !== 'roam_block'/);
   assert.match(settingsUi, /key !== 'roam_max_cars'/);
 });
+
+
+test('React Crew editor keeps crew order, palette colours, limits and atomic settings writes', () => {
+  assert.match(app, /bridge\.crews\(\)/);
+  assert.match(app, /bridge\.setCrews\(next\)/);
+  assert.match(app, /checkCrew\(crewDraft, crewList\)/);
+  assert.match(app, /freeColour\(crewList\)/);
+  assert.match(app, /CREW_PALETTE\.map/);
+  assert.match(app, /CREW_MAX/);
+  assert.match(gameEntry, /setCrews\(list: TrpCrew\[\]\): Promise<void>/);
+  assert.match(shell, /crews: \(\) => crewsOf\(settings\.current\('roam_crew'\), settings\.current\('roam_crew_colours'\)\)/);
+  assert.match(shell, /setCrews: async list => \{ await settings\.setCrews\(list\)/);
+  assert.match(settingsUi, /async setCrews\(list: readonly Crew\[\]\)/);
+  assert.match(settingsUi, /rgbsValue\(list\)/);
+  assert.match(settingsUi, /this\.put\([\s\S]*'roam_crew_colours'/);
+  assert.match(shellCss, /trp-online-crew-palette/);
+});

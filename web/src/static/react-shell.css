@@ -394,6 +394,7 @@
   padding:6px 9px; background:#0b1422; color:#f0f4fb; font-size:.72rem;
 }
 .trp-online-block-card { grid-column:1/-1; }
+.trp-online-legacy-slot > #online #online-body .set[data-key="roam_crew"],
 .trp-online-legacy-slot > #online #online-body .set[data-key="roam_block"],
 .trp-online-legacy-slot > #online #online-body .set[data-key="roam_collide"],
 .trp-online-legacy-slot > #online #online-body .set[data-key="quick_chat"],
@@ -401,4 +402,32 @@
 @media(max-width:820px) {
   .trp-online-secondary-controls { grid-template-columns:1fr; }
   .trp-online-max-cars-card { grid-column:1; }
+}
+
+.trp-online-crews-panel {
+  display:grid; gap:10px; margin:0 0 14px; padding:16px;
+  border:1px solid rgba(167,185,214,.13); border-radius:15px;
+  background:linear-gradient(145deg,rgba(18,29,46,.88),rgba(10,17,29,.96));
+}
+.trp-online-crews-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:2px; }
+.trp-online-crews-heading h3 { margin:5px 0 0; color:#edf2f8; font-size:.88rem; font-weight:850; }
+.trp-online-crews-count { color:#a69aff; font:800 .62rem ui-monospace,monospace; }
+.trp-online-crew-row { display:grid; grid-template-columns:minmax(100px,.8fr) minmax(180px,1.2fr) auto; align-items:center; gap:10px; padding:10px; border:1px solid rgba(167,185,214,.09); border-radius:11px; background:rgba(255,255,255,.025); }
+.trp-online-crew-name { display:flex; align-items:center; gap:8px; min-width:0; overflow:hidden; color:#edf2f8; font-size:.7rem; font-weight:780; text-overflow:ellipsis; }
+.trp-online-crew-name i { flex:0 0 9px; width:9px; height:9px; border-radius:50%; }
+.trp-online-crew-palette { display:flex; flex-wrap:wrap; gap:6px; }
+.trp-online-crew-swatch { width:21px; height:21px; padding:0; border:2px solid rgba(255,255,255,.2); border-radius:50%; cursor:pointer; box-shadow:0 1px 5px rgba(0,0,0,.22); }
+.trp-online-crew-swatch[aria-pressed="true"] { outline:2px solid #fff; outline-offset:2px; }
+.trp-online-crew-swatch:disabled { opacity:.45; cursor:not-allowed; }
+.trp-online-crew-leave { min-height:32px; padding:0 10px; border:1px solid rgba(255,105,69,.22); border-radius:8px; background:rgba(255,105,69,.06); color:#ffab93; font-size:.63rem; font-weight:780; }
+.trp-online-crew-add { display:flex; align-items:center; gap:8px; }
+.trp-online-crew-add input { flex:1 1 auto; min-width:0; min-height:38px; padding:8px 10px; border:1px solid rgba(167,185,214,.16); border-radius:9px; background:rgba(4,10,19,.52); color:#f0f4fb; font-size:.7rem; }
+.trp-online-crew-add button { min-height:38px; padding:0 12px; border:1px solid rgba(102,215,176,.24); border-radius:9px; background:rgba(102,215,176,.08); color:#9ae6cd; font-size:.66rem; font-weight:800; }
+.trp-online-crew-add button:disabled,.trp-online-crew-add input:disabled,.trp-online-crew-leave:disabled { opacity:.45; cursor:not-allowed; }
+.trp-online-crews-note { margin:0; color:#7f90a8; font-size:.6rem; line-height:1.5; }
+@media(max-width:700px) {
+  .trp-online-crews-panel { padding:12px 10px; }
+  .trp-online-crew-row { grid-template-columns:minmax(0,1fr) auto; gap:8px; }
+  .trp-online-crew-palette { grid-column:1/-1; grid-row:2; }
+  .trp-online-crew-leave { grid-column:2; grid-row:1; }
 }

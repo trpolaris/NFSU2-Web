@@ -11,10 +11,13 @@ import { boot } from './app/shell';
 import { translatePage } from './app/i18n';
 
 declare global {
+  interface TrpCrew { name: string; rgb: string; }
   interface TrpSettingsBridge {
     current(key: string): string;
     set(key: string, value: string | null): Promise<void>;
     setValidated(key: string, value: string | null): Promise<void>;
+    crews(): TrpCrew[];
+    setCrews(list: TrpCrew[]): Promise<void>;
     readOnly(): boolean;
     refresh(): Promise<void>;
   }

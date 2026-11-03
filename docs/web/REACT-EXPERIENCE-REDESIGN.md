@@ -122,3 +122,8 @@ The Online route also now has React text editors for the driver's display name a
 
 
 Additional simple Free Roam preferences are now React-managed too: Ghost Mode (including its inverted settings-file meaning), Quick Chat enablement, the nearby-player car limit, and the blocked-player name list. The room/name/blocked-name controls use the same SettingsPanel validation path. The crew list with per-crew colour editing, horn preview and 16-phrase editor remain on the original specialized renderer while those interactions are ported deliberately.
+
+
+## Crew editor migration
+
+The Free Roam Crew editor is now React-owned. It uses the existing pure crew rules (checkCrew, CREW_MAX, CREW_PALETTE, freeColour and crewsOf) and keeps each crew's selected colour with its name. A dedicated SettingsPanel method validates and writes roam_crew and roam_crew_colours together in one settings update, so leaving a crew or changing its colour does not desynchronize the two lists. The legacy crew editor is hidden only inside the React route; the existing /players crew counts and server visibility logic are unchanged.

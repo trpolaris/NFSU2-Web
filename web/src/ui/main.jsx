@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
+import { checkCrew, CREW_COLOUR_NAMES, CREW_MAX, CREW_PALETTE, freeColour } from '../app/crews';
+import { t } from '../app/i18n';
 import { flushSync } from 'react-dom';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import {
@@ -164,6 +166,8 @@ function OnlineReactControls() {
   const statusRoot = useRef(null);
   const [values, setValues] = useState({ roam: 'off', online: 'off', roam_collide: 'off', quick_chat: 'off', roam_max_cars: '32' });
   const [textValues, setTextValues] = useState({ roam_name: '', roam_room: '', roam_block: '' });
+  const [crewList, setCrewListState] = useState([]);
+  const [crewDraft, setCrewDraft] = useState('');
   const [ready, setReady] = useState(false);
   const [readOnly, setReadOnly] = useState(true);
   const [busy, setBusy] = useState('');
@@ -190,6 +194,7 @@ function OnlineReactControls() {
         roam_name: bridge.current('roam_name'), roam_room: bridge.current('roam_room'),
         roam_block: bridge.current('roam_block'),
       });
+      setCrewListState(bridge.crews());
       setReadOnly(bridge.readOnly());
       setReady(true);
     } catch { setReady(false); }
@@ -224,6 +229,34 @@ function OnlineReactControls() {
   };
 
   const saveText = async key => saveValidated(key, textValues[key]);
+
+  const saveCrewList = async next => {
+    const bridge = window.__trpSettingsBridge;
+    if (!bridge || readOnly || busy) return;
+    setBusy('crews');
+    setMessage('');
+    try {
+      await bridge.setCrews(next);
+      setCrewDraft('');
+      sync();
+    } catch (error) {
+      setMessage(String(error));
+    } finally {
+      setBusy('');
+    }
+  };
+
+  const joinCrew = () => {
+    const result = checkCrew(crewDraft, crewList);
+    if (!result.ok) {
+      setMessage(result.why ? t(result.why, { name: result.name || '' }) : '');
+      return;
+    }
+    void saveCrewList([...crewList, { name: result.name, rgb: freeColour(crewList) }]);
+  };
+
+  const leaveCrew = index => void saveCrewList(crewList.filter((_, i) => i !== index));
+  const setCrewColour = (index, rgb) => void saveCrewList(crewList.map((crew, i) => i === index ? { ...crew, rgb } : crew));
 
   const update = async (key, enabled) => {
     const bridge = window.__trpSettingsBridge;
@@ -295,6 +328,40 @@ function OnlineReactControls() {
           </select>
         </label>
       </div>
+      <section className="trp-online-crews-panel" aria-labelledby="trp-online-crews-title">
+        <div className="trp-online-crews-heading">
+          <div><span className="trp-eyebrow" data-i18n>DRIVER GROUPS / 02</span><h3 id="trp-online-crews-title" data-i18n>Your crews</h3></div>
+          <span className="trp-online-crews-count">{crewList.length} / {CREW_MAX}</span>
+        </div>
+        {crewList.map((crew, index) => (
+          <div className="trp-online-crew-row" key={crew.name}>
+            <span className="trp-online-crew-name"><i style={{ backgroundColor: '#' + crew.rgb }} />{crew.name}</span>
+            <div className="trp-online-crew-palette" role="group" aria-label={t('Colour of {name}', { name: crew.name })}>
+              {CREW_PALETTE.map((rgb, colourIndex) => (
+                <button key={rgb} type="button" className="trp-online-crew-swatch"
+                  style={{ backgroundColor: '#' + rgb }}
+                  aria-label={t(CREW_COLOUR_NAMES[colourIndex])}
+                  aria-pressed={crew.rgb === rgb}
+                  title={t(CREW_COLOUR_NAMES[colourIndex])}
+                  disabled={!ready || readOnly || !!busy}
+                  onClick={() => setCrewColour(index, rgb)} />
+              ))}
+            </div>
+            <button type="button" className="trp-online-crew-leave" data-i18n
+              disabled={!ready || readOnly || !!busy} onClick={() => leaveCrew(index)}>Leave</button>
+          </div>
+        ))}
+        <div className="trp-online-crew-add">
+          <input type="text" maxLength={24} autoComplete="off" spellCheck={false}
+            value={crewDraft} placeholder="Crew name"
+            disabled={!ready || readOnly || !!busy || crewList.length >= CREW_MAX}
+            onChange={event => setCrewDraft(event.target.value)}
+            onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); joinCrew(); } }} />
+          <button type="button" disabled={!ready || readOnly || !!busy || crewList.length >= CREW_MAX}
+            onClick={joinCrew} data-i18n>Join crew</button>
+        </div>
+        <p className="trp-online-crews-note" data-i18n>Players who use the same crew name are grouped together and share the crew colour. Crews are not private.</p>
+      </section>
       <div className="trp-online-text-grid">
         <label className="trp-online-text-card">
           <span className="trp-online-text-label" data-i18n>Your name</span>
