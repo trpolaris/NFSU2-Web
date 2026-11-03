@@ -101,10 +101,20 @@ done
 for p in $pids; do wait "$p" || { echo "runtime compile failed"; exit 1; }; done
 
 # ---- link ----
-OBJS="$(ls "$OUT"/obj/*.o) $(ls "$OUT"/obj/srv/*.o) $(ls "$OUT"/rt/*.o)"
+# Keep each object path as one argument, including when the repository path contains spaces.
+shopt -s nullglob
+OBJS=(
+  "$OUT"/obj/*.o
+  "$OUT"/obj/srv/*.o
+  "$OUT"/rt/*.o
+)
+if ((${#OBJS[@]} == 0)); then
+  echo "link FAILED: no object files found" >&2
+  exit 1
+fi
 PAGES=$(( INITIAL_MB * 16 ))
 rm -f "$OUT/nfsu2.wasm"
-"$CC" $TARGET $OPT $FEAT -o "$OUT/nfsu2.wasm" $OBJS \
+"$CC" $TARGET $OPT $FEAT -o "$OUT/nfsu2.wasm" "${OBJS[@]}" \
   -Wl,--import-memory,--export-memory,--shared-memory,--max-memory=4294967296 \
   -Wl,--initial-memory=$(( INITIAL_MB * 1048576 )),--global-base=$GUEST_END \
   -Wl,-z,stack-size=$(( 8 * 1048576 )) -Wl,--no-stack-first \
