@@ -7,7 +7,7 @@ import { CATS, DEFAULT_GROUPS, DEFAULT_PHRASES, PHRASES } from '../app/phrases';
 import { flushSync } from 'react-dom';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import {
-  Activity, ArrowUpRight, CarFront, ChevronRight, Gamepad2, Gauge,
+  Activity, ArrowUpRight, CarFront, ChevronRight, Gamepad2, Gauge, Info,
   LayoutDashboard, LibraryBig, MessageCircle, Save, Settings, ShieldCheck, Users,
 } from 'lucide-react';
 
