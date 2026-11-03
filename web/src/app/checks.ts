@@ -209,6 +209,10 @@ export async function checkStorage(): Promise<Check & { answer?: Promise<Check> 
   const label = N('Browser storage');
   try { await navigator.storage.getDirectory(); }
   catch { return check('storage', label, 'fail', N('This browser window cannot store files (a guest or private window?). Saves need the origin private file system.'), 'STORAGE-NONE'); }
+  // Older Safari versions expose OPFS but lack createWritable, which the game needs when it first writes files.
+  if (typeof FileSystemFileHandle === 'undefined' || !('createWritable' in FileSystemFileHandle.prototype)) {
+    return check('storage', label, 'fail', N('This browser is too old for the game: it needs iOS 26, iPadOS 26 or Safari 26. Update this device (Settings, General, Software Update).'), 'STORAGE-OLD');
+  }
   const verdict = (persisted: boolean): Check => persisted
     ? check('storage', label, 'ok', N('Saves and cached game data are kept for good.'))
     : check('storage', label, 'ok', N('Saves and cached game data are kept until the disk is nearly full, when {browser} may clear them.'), undefined, { browser: browserName() });

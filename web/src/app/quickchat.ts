@@ -1,5 +1,6 @@
-// Quick chat in free roam: set phrases the players say to each other.  Nobody types anything, so there is nothing to
-// moderate, and each player reads a phrase in their own language.  Each player picks sixteen of the library's
+// FreeRoam chat combines the original phrase picker with typed room/Crew messages, live-player mentions and
+// server-enforced moderation. Players read game phrases in their own language and can type to one another.
+// Each player picks sixteen of the library's
 // (phrases.ts) on the start page, in four groups of four (settings.ini quick_chat_phrases, quick_chat_groups).
 //   pick   keys 1-4 open a group and 1-4 again says its phrase; a controller's right stick the same (a flick up, right,
 //          down or left: the game leaves that stick unused); on a touch screen the chat button shows all sixteen and a
@@ -13,7 +14,8 @@
 //          same picture; the player's own over their car.  Also the chat log on the left, in the notices' place, and
 //          beside the player's name in a race lobby's card.
 import type { GameSession } from './game';
-import { onLanguage, t } from './i18n';
+import { N, language, onLanguage, t } from './i18n';
+import { hasChatProfanity } from './chat-filter';
 import { catName, DEFAULT_GROUPS, DEFAULT_PHRASES, PHRASES, type CatId } from './phrases';
 
 /** the picker closes this long after it opened or the last pick in it (ms) */
@@ -95,6 +97,13 @@ export class QuickChat {
   private chatBox: HTMLElement;
   private channelButton: HTMLElement;
   private chatInput: HTMLInputElement;
+  private mentionSuggestions: HTMLDivElement;
+  private mentionResults: { name: string; activity: string }[] = [];
+  private mentionRange: { start: number; end: number } | null = null;
+  private mentionIndex = 0;
+  private mentionPlayers: { name: string; activity: string }[] = [];
+  private mentionPlayersFetchedAt = 0;
+  private mentionPlayersRequest: Promise<void> | null = null;
   private crews: CrewChannel[] = [];
   private channelIndex = 0;
   private messageTimers = new Map<HTMLElement, { fade: number }>();
@@ -256,10 +265,25 @@ export class QuickChat {
     this.chatInput.maxLength = 80;
     this.chatInput.autocomplete = 'off';
     this.chatInput.spellcheck = true;
-    this.chatInput.placeholder = 'Mesaj yazın… (Tab: kanal)';
+    this.chatInput.setAttribute('aria-autocomplete', 'list');
+    this.chatInput.setAttribute('aria-controls', 'chatMentionSuggestions');
+    this.chatInput.setAttribute('aria-expanded', 'false');
+    this.chatInput.addEventListener('input', () => { void this.updateMentionSuggestions(); });
 
-    this.chatBox.append(this.channelButton, this.chatInput);
+    this.mentionSuggestions = document.createElement('div');
+    this.mentionSuggestions.className = 'chat-mention-suggestions';
+    this.mentionSuggestions.id = 'chatMentionSuggestions';
+    this.mentionSuggestions.hidden = true;
+    this.mentionSuggestions.setAttribute('role', 'listbox');
+    this.mentionSuggestions.addEventListener('pointerdown', event => event.preventDefault());
+    this.mentionSuggestions.addEventListener('click', event => {
+      const button = (event.target as HTMLElement).closest<HTMLButtonElement>('[data-mention-index]');
+      if (button) this.chooseMention(Number(button.dataset.mentionIndex));
+    });
+
+    this.chatBox.append(this.channelButton, this.chatInput, this.mentionSuggestions);
     this.chatBox.addEventListener('pointerdown', e => e.stopPropagation());
+    this.updateChatToolsLanguage();
     this.chatHud.append(this.chatMessages, this.historyButton, this.chatTools, this.mutedPanel, quick, this.chatBox);
     stage.append(this.layer, this.picker, this.chatHud);
     // caught before the game's input (attached later, at each Play): the keys the picker uses go to it alone
@@ -337,6 +361,7 @@ export class QuickChat {
     }
     this.searchInput.placeholder = t('Search chat…');
     this.searchInput.setAttribute('aria-label', t('Search chat…'));
+    this.chatInput.placeholder = t(N('Message… (@ player name)'));
     this.chatTools.querySelector('.chat-filter-group')?.setAttribute('aria-label', t('Chat filters'));
     this.renderMutedPlayers();
     this.updateChatToolStates();
@@ -438,6 +463,7 @@ export class QuickChat {
     this.messageTimers.clear(); this.chatSentAt = []; this.lastRateNoticeAt = -Infinity;
     this.chatMessages.replaceChildren(); this.historyButton.hidden = true; this.followingChat = true;
     this.chatFilter = 'all'; this.chatSearch = ''; this.searchInput.value = '';
+    this.hideMentionSuggestions();
     this.mutedPanel.hidden = true; this.updateChatToolStates();
     this.chatHud.classList.remove('active');
   }
@@ -485,6 +511,7 @@ export class QuickChat {
   }
   private closeTextChat() {
     if (!this.chatHud.classList.contains('active')) return;
+    this.hideMentionSuggestions();
     this.chatHud.classList.remove('active');
     if (document.activeElement === this.chatInput) this.chatInput.blur();
     this.resumeMessageFade();
@@ -548,6 +575,11 @@ export class QuickChat {
   private transmit(text: string): boolean {
     const s = this.session, clean = text.trim(), channel = this.currentChannel();
     if (!s?.net?.chat || !clean) return false;
+    if (hasChatProfanity(clean)) {
+      this.systemMessage(t(N('Message blocked by chat filter')));
+      this.deps.log('[chat] message blocked by the profanity filter');
+      return false;
+    }
     const now = performance.now(), wait = this.chatWaitMs(now);
     if (wait > 0) {
       const seconds = Math.max(1, Math.ceil(wait / 1000));
@@ -565,6 +597,136 @@ export class QuickChat {
     this.chatSentAt.push(now);
     return true;
   }
+
+  /** Refresh the server-backed player cache only while typed chat is in use. */
+  private async loadMentionPlayers() {
+    if (Date.now() - this.mentionPlayersFetchedAt < 5000) return;
+    if (this.mentionPlayersRequest) return this.mentionPlayersRequest;
+    this.mentionPlayersRequest = (async () => {
+      try {
+        const response = await fetch('/api/v1/live/players', {
+          method: 'GET',
+          credentials: 'same-origin',
+          cache: 'no-store',
+          headers: { Accept: 'application/json' },
+        });
+        if (!response.ok) throw new Error(`player list HTTP ${response.status}`);
+        const payload = await response.json() as { players?: unknown };
+        const rows = Array.isArray(payload.players) ? payload.players : [];
+        const seen = new Set<string>();
+        this.mentionPlayers = rows.flatMap(row => {
+          if (!row || typeof row !== 'object') return [];
+          const item = row as Record<string, unknown>;
+          const name = typeof item.name === 'string' ? item.name.trim().slice(0, 32) : '';
+          const key = normalizedPlayerName(name);
+          if (!name || !key || seen.has(key) || key === normalizedPlayerName(this.playerName)) return [];
+          seen.add(key);
+          return [{ name, activity: typeof item.activity === 'string' ? item.activity : 'menus' }];
+        });
+      } catch (error) {
+        this.mentionPlayers = [];
+        this.deps.log(`[chat] live player suggestions unavailable: ${error instanceof Error ? error.message : String(error)}`);
+      }
+      this.mentionPlayersFetchedAt = Date.now();
+    })();
+    try { await this.mentionPlayersRequest; }
+    finally { this.mentionPlayersRequest = null; }
+  }
+
+  private mentionAtCaret(): { start: number; end: number; query: string } | null {
+    const caret = this.chatInput.selectionStart ?? this.chatInput.value.length;
+    const before = this.chatInput.value.slice(0, caret);
+    const match = /(?:^|\s)@([^\s@]*)$/u.exec(before);
+    if (!match) return null;
+    return {
+      start: caret - match[0].length + match[0].lastIndexOf('@'),
+      end: caret,
+      query: match[1],
+    };
+  }
+
+  private async updateMentionSuggestions() {
+    if (!this.chatHud.classList.contains('active') || document.activeElement !== this.chatInput) {
+      this.hideMentionSuggestions();
+      return;
+    }
+    const requested = this.mentionAtCaret();
+    if (!requested) { this.hideMentionSuggestions(); return; }
+    await this.loadMentionPlayers();
+    const current = this.mentionAtCaret();
+    if (!current || current.start !== requested.start || current.query !== requested.query ||
+        document.activeElement !== this.chatInput || !this.chatHud.classList.contains('active')) return;
+    const query = normalizedPlayerName(current.query);
+    const priority: Record<string, number> = { 'free-roam': 0, online: 1, menus: 2, lan: 3 };
+    const matches = this.mentionPlayers
+      .filter(player => normalizedPlayerName(player.name).includes(query))
+      .sort((a, b) => (priority[a.activity] ?? 4) - (priority[b.activity] ?? 4) ||
+        a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }))
+      .slice(0, 8);
+    if (!matches.length) { this.hideMentionSuggestions(); return; }
+    this.mentionRange = { start: current.start, end: current.end };
+    this.mentionResults = matches;
+    this.mentionIndex = 0;
+    this.renderMentionSuggestions();
+  }
+
+  private renderMentionSuggestions() {
+    this.mentionSuggestions.replaceChildren();
+    const turkish = language() === 'turkish';
+    this.mentionResults.forEach((player, index) => {
+      const option = document.createElement('button');
+      option.type = 'button';
+      option.className = 'chat-mention-option';
+      option.dataset.mentionIndex = String(index);
+      option.setAttribute('role', 'option');
+      option.setAttribute('aria-selected', String(index === this.mentionIndex));
+      const name = document.createElement('span');
+      name.className = 'chat-mention-name';
+      name.textContent = `@${player.name}`;
+      const activity = document.createElement('small');
+      activity.className = 'chat-mention-activity';
+      activity.textContent = player.activity === 'free-roam' ? (turkish ? 'SERBEST DOLAŞIM' : 'FREE ROAM')
+        : player.activity === 'online' ? (turkish ? 'ÇEVRİMİÇİ' : 'ONLINE')
+        : player.activity === 'lan' ? 'LAN' : (turkish ? 'MENÜDE' : 'MENUS');
+      option.append(name, activity);
+      this.mentionSuggestions.append(option);
+    });
+    this.mentionSuggestions.hidden = false;
+    this.chatInput.setAttribute('aria-expanded', 'true');
+  }
+
+  private moveMentionSelection(delta: number) {
+    if (!this.mentionResults.length) return;
+    this.mentionIndex = (this.mentionIndex + delta + this.mentionResults.length) % this.mentionResults.length;
+    for (const [index, option] of [...this.mentionSuggestions.querySelectorAll<HTMLButtonElement>('[data-mention-index]')].entries()) {
+      option.setAttribute('aria-selected', String(index === this.mentionIndex));
+    }
+  }
+
+  private chooseMention(index: number): boolean {
+    const player = this.mentionResults[index];
+    const range = this.mentionRange;
+    if (!player || !range) { this.hideMentionSuggestions(); return false; }
+    const before = this.chatInput.value.slice(0, range.start);
+    const after = this.chatInput.value.slice(range.end);
+    const suffix = after.startsWith(' ') || after.startsWith('\n') ? '' : ' ';
+    const insertion = `@${player.name}${suffix}`;
+    this.chatInput.value = before + insertion + after;
+    const caret = before.length + insertion.length;
+    this.chatInput.setSelectionRange(caret, caret);
+    this.hideMentionSuggestions();
+    this.chatInput.focus();
+    return true;
+  }
+
+  private hideMentionSuggestions() {
+    this.mentionRange = null;
+    this.mentionResults = [];
+    this.mentionIndex = 0;
+    if (this.mentionSuggestions) this.mentionSuggestions.hidden = true;
+    this.chatInput?.setAttribute('aria-expanded', 'false');
+  }
+
   private sendText() {
     const text = this.chatInput.value.trim();
     if (!text) { this.closeTextChat(); return; }
@@ -598,6 +760,22 @@ export class QuickChat {
     if (!this.session || e.metaKey || e.ctrlKey || e.altKey) return;
     const el = e.target as HTMLElement | null;
     if (this.chatHud.classList.contains('active')) {
+      if (el === this.chatInput && !this.mentionSuggestions.hidden) {
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+          e.preventDefault(); e.stopImmediatePropagation();
+          this.moveMentionSelection(e.key === 'ArrowDown' ? 1 : -1);
+          return;
+        }
+        if ((e.key === 'Enter' || e.key === 'Tab') && !e.repeat) {
+          e.preventDefault(); e.stopImmediatePropagation();
+          if (this.chooseMention(this.mentionIndex)) return;
+        }
+        if (e.key === 'Escape') {
+          e.preventDefault(); e.stopImmediatePropagation();
+          this.hideMentionSuggestions();
+          return;
+        }
+      }
       if (el && (this.chatTools.contains(el) || this.mutedPanel.contains(el) || this.chatMessages.contains(el)) && el !== this.chatInput) {
         if (e.key === 'Escape') {
           e.preventDefault();

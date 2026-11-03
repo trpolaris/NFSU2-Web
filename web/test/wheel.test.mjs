@@ -32,7 +32,7 @@ test('wheels by their USB ids, in Chrome\'s and Firefox\'s ids, and by name', ()
   assert.equal(W.wheelOf('46d-c262-Logitech G920 Driving Force Racing Wheel').layout, 'xbox');
   assert.equal(W.wheelOf('Thrustmaster T300RS Racing wheel (Vendor: 044f Product: b66e)').layout, 'generic');
   assert.equal(W.wheelOf('Thrustmaster T300RS Racing wheel (Vendor: 044f Product: b66e)').axes, undefined);
-  assert.equal(W.wheelOf('FANATEC CSL Elite Wheel Base (Vendor: 0eb7 Product: 0e03)').degrees, 0);
+  assert.equal(W.wheelOf('FANATEC CSL Elite Wheel Base (Vendor: 0eb7 Product: 0e03)').degrees, 1080);
   assert.equal(W.wheelOf('Some USB Wheel (Vendor: 1234 Product: 5678)').layout, 'generic');
   assert.equal(W.wheelOf('Logitech Gamepad F310 (STANDARD GAMEPAD Vendor: 046d Product: c216)'), null);
   assert.equal(W.wheelOf('Xbox Wireless Controller (STANDARD GAMEPAD Vendor: 045e Product: 0b13)'), null);
@@ -410,4 +410,20 @@ test('a controller first seen with its left stick pushed (Chrome shows one then)
     assert.ok(logs.some(s => /read as it is: Android put it/.test(s)));
     p.dispose();
   });
+});
+
+
+test('Fanatec direct-drive bases use their wheel and pedal axes, not the generic guess', () => {
+  const id = 'FANATEC CSL DD Wheel Base (Vendor: 0eb7 Product: 0020)';
+  const info = W.wheelOf(id);
+  assert.equal(info.degrees, 2520);
+  assert.equal(info.axes.steer, 'x');
+  const axes = [0, 1, 1, 0, 0, 1, 1, 0, 0, H];
+  const m = W.guessMap(info, axes, 30);
+  assert.equal(m.placed, 'usage');
+  assert.equal(m.steer, 0);
+  assert.deepEqual(m.gas, { axis: 2, rest: 1, full: -1 });
+  assert.deepEqual(m.brake, { axis: 5, rest: 1, full: -1 });
+  assert.equal(+m.lock.toFixed(4), +(270 / 2520).toFixed(4));
+  assert.equal(W.wheelOf('FANATEC ClubSport Pedals V3 (Vendor: 0eb7 Product: 183b)'), null);
 });

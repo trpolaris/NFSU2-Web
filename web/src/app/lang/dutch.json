@@ -1493,5 +1493,16 @@
   "Radio: off": "Radio: uit",
   "Your selected local playlist stays on this device.": "Je geselecteerde lokale afspeellijst blijft op dit apparaat.",
   "Toggle radio": "Radio omschakelen",
-  "LOCAL FILES ONLY · NOTHING IS SENT TO THE SERVER": "ALLEEN LOKALE BESTANDEN · ER WORDT NIETS NAAR DE SERVER VERZONDEN"
+  "LOCAL FILES ONLY · NOTHING IS SENT TO THE SERVER": "ALLEEN LOKALE BESTANDEN · ER WORDT NIETS NAAR DE SERVER VERZONDEN",
+  "This browser is too old for the game: it needs iOS 26, iPadOS 26 or Safari 26. Update this device (Settings, General, Software Update).": "Deze browser is te oud voor het spel: het vraagt iOS 26, iPadOS 26 of Safari 26. Werk dit apparaat bij (Instellingen, Algemeen, Software-update).",
+  "Not loading": "Laadt niet",
+  "Your antivirus or network is probably blocking the game. Allow {site} in it, then reload.": "Je antivirus of netwerk blokkeert het spel waarschijnlijk. Sta {site} toe en laad daarna opnieuw.",
+  "Message… (@ player name)": "Bericht… (@ spelersnaam)",
+  "Message blocked by chat filter": "Het bericht is geblokkeerd door het chatfilter.",
+  "TEST ENVIRONMENT / TEST BUILD": "TESTOMGEVING / TESTVERSIE",
+  "Test server notice": "Melding over de testserver",
+  "This server is currently running for testing only and should not be considered a stable, production-ready service.": "Deze server draait momenteel uitsluitend voor testdoeleinden en mag niet worden beschouwd als een stabiele, productieklare dienst.",
+  "The project is still in development and testing. You may encounter bugs, interruptions, or unexpected behavior in gameplay, multiplayer connections, chat, or website features.": "Het project is nog in ontwikkeling en wordt getest. Je kunt bugs, onderbrekingen of onverwacht gedrag tegenkomen in de gameplay, multiplayerverbindingen, chat of websitefuncties.",
+  "By continuing, you acknowledge that you are using a test build.": "Door verder te gaan, erken je dat je een testversie gebruikt.",
+  "I understand, continue": "Begrepen, doorgaan"
 }

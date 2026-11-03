@@ -1424,5 +1424,16 @@
   "Radio: off": "วิทยุ: ปิด",
   "Your selected local playlist stays on this device.": "เพลย์ลิสต์ในเครื่องที่เลือกจะอยู่บนอุปกรณ์นี้",
   "Toggle radio": "สลับวิทยุ",
-  "LOCAL FILES ONLY · NOTHING IS SENT TO THE SERVER": "ใช้เฉพาะไฟล์ในเครื่อง · ไม่มีการส่งข้อมูลไปยังเซิร์ฟเวอร์"
+  "LOCAL FILES ONLY · NOTHING IS SENT TO THE SERVER": "ใช้เฉพาะไฟล์ในเครื่อง · ไม่มีการส่งข้อมูลไปยังเซิร์ฟเวอร์",
+  "This browser is too old for the game: it needs iOS 26, iPadOS 26 or Safari 26. Update this device (Settings, General, Software Update).": "เบราว์เซอร์นี้เก่าเกินไปสำหรับเกม ต้องใช้ iOS 26, iPadOS 26 หรือ Safari 26 ให้อัปเดตอุปกรณ์นี้ (การตั้งค่า > ทั่วไป > รายการอัปเดตซอฟต์แวร์)",
+  "Not loading": "โหลดไม่ได้",
+  "Your antivirus or network is probably blocking the game. Allow {site} in it, then reload.": "แอนตี้ไวรัสหรือเครือข่ายของคุณอาจบล็อกเกมอยู่ อนุญาต {site} แล้วโหลดใหม่",
+  "Message… (@ player name)": "ข้อความ… (@ ชื่อผู้เล่น)",
+  "Message blocked by chat filter": "ข้อความนี้ถูกบล็อกโดยตัวกรองแชต",
+  "TEST ENVIRONMENT / TEST BUILD": "สภาพแวดล้อมทดสอบ / รุ่นทดสอบ",
+  "Test server notice": "ประกาศเกี่ยวกับเซิร์ฟเวอร์ทดสอบ",
+  "This server is currently running for testing only and should not be considered a stable, production-ready service.": "ขณะนี้เซิร์ฟเวอร์นี้เปิดให้ใช้งานเพื่อการทดสอบเท่านั้น และไม่ควรถือว่าเป็นบริการที่เสถียรพร้อมใช้งานจริง",
+  "The project is still in development and testing. You may encounter bugs, interruptions, or unexpected behavior in gameplay, multiplayer connections, chat, or website features.": "โปรเจกต์ยังอยู่ในขั้นตอนการพัฒนาและทดสอบ คุณอาจพบข้อผิดพลาด การหยุดชะงัก หรือการทำงานที่ไม่คาดคิดในเกม การเชื่อมต่อหลายผู้เล่น แชต หรือฟีเจอร์ของเว็บไซต์",
+  "By continuing, you acknowledge that you are using a test build.": "เมื่อดำเนินการต่อ แสดงว่าคุณรับทราบว่ากำลังใช้รุ่นทดสอบ",
+  "I understand, continue": "รับทราบ ดำเนินการต่อ"
 }

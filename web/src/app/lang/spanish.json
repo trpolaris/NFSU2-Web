@@ -1516,5 +1516,16 @@
   "Radio: off": "Radio: desactivada",
   "Your selected local playlist stays on this device.": "Tu lista de reproducción local permanece en este dispositivo.",
   "Toggle radio": "Alternar radio",
-  "LOCAL FILES ONLY · NOTHING IS SENT TO THE SERVER": "SOLO ARCHIVOS LOCALES · NO SE ENVÍA NADA AL SERVIDOR"
+  "LOCAL FILES ONLY · NOTHING IS SENT TO THE SERVER": "SOLO ARCHIVOS LOCALES · NO SE ENVÍA NADA AL SERVIDOR",
+  "This browser is too old for the game: it needs iOS 26, iPadOS 26 or Safari 26. Update this device (Settings, General, Software Update).": "Este navegador es demasiado antiguo para el juego: necesita iOS 26, iPadOS 26 o Safari 26. Actualiza este dispositivo (Ajustes > General > Actualización de software).",
+  "Not loading": "No carga",
+  "Your antivirus or network is probably blocking the game. Allow {site} in it, then reload.": "Seguramente tu antivirus o tu red están bloqueando el juego. Permite {site} y recarga.",
+  "Message… (@ player name)": "Mensaje… (@ nombre del jugador)",
+  "Message blocked by chat filter": "El mensaje fue bloqueado por el filtro del chat.",
+  "TEST ENVIRONMENT / TEST BUILD": "ENTORNO DE PRUEBAS / VERSIÓN DE PRUEBA",
+  "Test server notice": "Aviso del servidor de pruebas",
+  "This server is currently running for testing only and should not be considered a stable, production-ready service.": "Este servidor está funcionando actualmente solo con fines de prueba y no debe considerarse un servicio estable y listo para producción.",
+  "The project is still in development and testing. You may encounter bugs, interruptions, or unexpected behavior in gameplay, multiplayer connections, chat, or website features.": "El proyecto sigue en desarrollo y en fase de pruebas. Puedes encontrar errores, interrupciones o comportamientos inesperados durante el juego, en las conexiones multijugador, el chat o las funciones del sitio web.",
+  "By continuing, you acknowledge that you are using a test build.": "Al continuar, reconoces que estás utilizando una versión de prueba.",
+  "I understand, continue": "Entendido, continuar"
 }

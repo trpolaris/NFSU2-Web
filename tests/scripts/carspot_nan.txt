@@ -1,0 +1,16 @@
+# A corrupted saved career position (Career +0x8744 kept, +0x8750 the saved place).
+# The first position component is made NaN while the crib is open. The main-loop
+# guard must replace all three coordinates with the career's safe starting spot.
+# Run with a stage-2-or-later career save:
+#   node web/tools/roam-pair.mjs --base <server> --solo --page play --a Spot:carspot_nan.txt
+#        --seed <that save tree> --env NFSU2_ROAM_WEBTEST=vlan --env NFSU2_ROAM_ROOM=<own>
+0     bot on
++0    waitfng UI_CareerCrib.fng 6000
++0    poke 0x863484 1
++0    poke 0x863490 0x7fc00000
++1    peekx 0x863484 6
++0    waitroam 6000
++0    bot off
++300  peekx *(*0x8900ac+4)+0x60 3
++0    dump carspot_nan
++10   quit

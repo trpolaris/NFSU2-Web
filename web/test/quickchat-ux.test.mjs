@@ -114,3 +114,41 @@ test('the client mirrors four messages per five seconds and keeps the composer o
   assert.equal(result.draft, 'fifth message', 'the unsent draft is preserved');
   assert.match(result.notice, /Wait a moment \(\d+s\)/);
 });
+
+test('typing @ in the FreeRoam composer suggests live server players and inserts the selected name', { timeout: 30_000 }, async t => {
+  const result = await browserTest(t, async bundleUrl => {
+    window.fetch = async path => {
+      if (path !== '/api/v1/live/players') throw new Error('unexpected fetch ' + path);
+      return new Response(JSON.stringify({ players: [
+        { id: 'opaque-1', name: 'AliceRacer', activity: 'free-roam' },
+        { id: 'opaque-2', name: 'Bob', activity: 'online' },
+        { id: 'opaque-3', name: 'LocalDriver', activity: 'free-roam' },
+      ] }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    };
+    const { QuickChat } = await import(bundleUrl);
+    const chat = new QuickChat(document.querySelector('#stage'), { line() {}, lobby() {}, place() {}, log() {} });
+    const session = {
+      net: { chat: () => true },
+      status: { read: () => ({ get: key => key === 'drive' ? 2 : 0 }) },
+    };
+    chat.start(session, true, [], [], [], 'LocalDriver');
+    chat.driveAt = -Infinity;
+    chat.toggle();
+    const input = document.querySelector('#chatInput');
+    input.value = '@ali';
+    input.setSelectionRange(input.value.length, input.value.length);
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    await new Promise(resolve => setTimeout(resolve, 0));
+    const suggestions = [...document.querySelectorAll('.chat-mention-option')].map(node => node.textContent);
+    const candidate = document.querySelector('.chat-mention-option');
+    if (candidate) candidate.click();
+    const output = input.value;
+    const expanded = input.getAttribute('aria-expanded');
+    chat.stop();
+    return { suggestions, output, expanded };
+  });
+  if (!result) return;
+  assert.deepEqual(result.suggestions, ['@AliceRacerFREE ROAM']);
+  assert.equal(result.output, '@AliceRacer ');
+  assert.equal(result.expanded, 'false');
+});

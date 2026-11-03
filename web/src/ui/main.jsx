@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { checkCrew, CREW_BIG, CREW_COLOUR_NAMES, CREW_MAX, CREW_PALETTE, freeColour } from '../app/crews';
-import { dateLocale, language, LANGUAGES, NATIVE, onLanguage, t } from '../app/i18n';
+import { dateLocale, language, LANGUAGES, NATIVE, onLanguage, setLanguage, t } from '../app/i18n';
 import { fmtBytes } from '../app/checks';
+import { TEST_NOTICE_TEXT } from '../app/test-notice';
 import { CATS, DEFAULT_GROUPS, DEFAULT_PHRASES, PHRASES } from '../app/phrases';
-import { flushSync } from 'react-dom';
+import { createPortal, flushSync } from 'react-dom';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import {
-  Activity, ArrowUpRight, CarFront, ChevronRight, Gamepad2, Gauge, Info,
+  Activity, AlertTriangle, ArrowRight, ArrowUpRight, CarFront, ChevronRight, Gamepad2, Gauge, Info,
   LayoutDashboard, LibraryBig, MessageCircle, Save, Settings, ShieldCheck, Users,
 } from 'lucide-react';
 
@@ -2159,9 +2160,8 @@ function SettingsDashboard() {
 
 function LanguagePickerReact() {
   const [value, setValue] = useState(language());
-  const [readOnly, setReadOnly] = useState(true);
   useEffect(() => {
-    const sync = () => { setValue(language()); setReadOnly(window.__trpSettingsBridge?.readOnly() ?? true); };
+    const sync = () => setValue(language());
     onLanguage(sync);
     window.addEventListener('trp-settings-ready', sync);
     window.addEventListener('trp-settings-changed', sync);
@@ -2172,15 +2172,19 @@ function LanguagePickerReact() {
     };
   }, []);
   const change = async next => {
+    const changed = await setLanguage(next, message => console.warn(message));
+    if (!changed) { setValue(language()); return; }
     const bridge = window.__trpSettingsBridge;
-    if (!bridge || bridge.readOnly()) return;
-    try { await bridge.set('language', next); }
-    catch (error) { window.showToast?.(error instanceof Error ? error.message : String(error)); }
+    // Page language is independent of game-save ownership; only persist to settings.ini when writable.
+    if (bridge && !bridge.readOnly()) {
+      try { await bridge.set('language', next); }
+      catch (error) { window.showToast?.(error instanceof Error ? error.message : String(error)); }
+    }
   };
   return (
     <label className="trp-language-react">
       <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9M12 3C9.5 5.6 8.2 8.6 8.2 12s1.3 6.4 3.8 9"/></svg>
-      <select aria-label={t('Language')} value={value} disabled={readOnly} onChange={event => void change(event.target.value)}>
+      <select aria-label={t('Language')} value={value} onChange={event => void change(event.target.value)}>
         {LANGUAGES.map(code => <option key={code} value={code} lang={code}>{NATIVE[code]}</option>)}
       </select>
     </label>
@@ -2221,6 +2225,63 @@ function InstallAppReact() {
   );
 }
 
+
+function TestEnvironmentNotice() {
+  const dialogRef = useRef(null);
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return undefined;
+    if (!dialog.open) dialog.showModal();
+    return () => {
+      if (dialog.open) dialog.close();
+    };
+  }, []);
+
+  const preventDismiss = event => event.preventDefault();
+
+  return createPortal(
+    <dialog
+      ref={dialogRef}
+      className="trp-test-notice-dialog"
+      aria-modal="true"
+      aria-labelledby="trp-test-notice-title"
+      aria-describedby="trp-test-notice-description"
+      data-testid="test-environment-notice"
+      onCancel={preventDismiss}
+    >
+      <div className="trp-test-notice-card">
+        <div className="trp-test-notice-header">
+          <span className="trp-test-notice-icon" aria-hidden="true">
+            <AlertTriangle size={21} strokeWidth={1.8} />
+          </span>
+          <span className="trp-test-notice-kicker">{t(TEST_NOTICE_TEXT.kicker)}</span>
+          <span className="trp-test-notice-mark">TRP / TEST</span>
+        </div>
+        <h2 id="trp-test-notice-title">{t(TEST_NOTICE_TEXT.title)}</h2>
+        <div id="trp-test-notice-description" className="trp-test-notice-copy">
+          <p>{t(TEST_NOTICE_TEXT.stability)}</p>
+          <p>{t(TEST_NOTICE_TEXT.details)}</p>
+          <p className="trp-test-notice-acknowledgement">{t(TEST_NOTICE_TEXT.acknowledgement)}</p>
+        </div>
+        <div className="trp-test-notice-footer">
+          <span className="trp-test-notice-brand">TRPOLARIS / NFSU2 WEB</span>
+          <button
+            type="button"
+            className="trp-test-notice-continue"
+            autoFocus
+            onClick={() => dialogRef.current?.close()}
+          >
+            <span>{t(TEST_NOTICE_TEXT.button)}</span>
+            <ArrowRight size={17} aria-hidden="true" />
+          </button>
+        </div>
+      </div>
+    </dialog>,
+    document.body,
+  );
+}
+
 function App() {
   const reduceMotion = useReducedMotion();
   const initialHash = pageFromHash(location.hash);
@@ -2230,6 +2291,8 @@ function App() {
   const [statusText, setStatusText] = useState(initialRuntime?.statusText || '');
   const [runtimeLocked, setRuntimeLocked] = useState(() => Boolean(initialRuntime?.locked));
   const [transitioning, setTransitioning] = useState(false);
+  // Route headings are React-owned; refresh their t() output when the page language changes.
+  const [languageRevision, setLanguageRevision] = useState(0);
   const rootRef = useRef(null);
   const activeItem = useMemo(() => NAV.find(item => item.id === active) || NAV[0], [active]);
 
@@ -2268,11 +2331,15 @@ function App() {
     };
   }, [syncStatus]);
 
+  useEffect(() => {
+    onLanguage(() => setLanguageRevision(revision => revision + 1));
+  }, []);
+
   useLayoutEffect(() => {
     if (rootRef.current && typeof window.__trpTranslateReact === 'function') {
       window.__trpTranslateReact(rootRef.current);
     }
-  }, [active, phase, statusText, runtimeLocked]);
+  }, [active, phase, statusText, runtimeLocked, languageRevision]);
 
   useEffect(() => {
     if (reduceMotion) return undefined;
@@ -2287,6 +2354,7 @@ function App() {
 
   return (
     <div ref={rootRef} className={'trp-react-shell' + (active === 'home' ? ' is-home' : '')}>
+      <TestEnvironmentNotice />
       <div className="trp-shell-atmosphere" aria-hidden="true">
         <span className="trp-atmosphere-orb trp-orb-coral" />
         <span className="trp-atmosphere-orb trp-orb-violet" />
@@ -2329,7 +2397,7 @@ function App() {
         <header className="trp-topbar" inert={gameActive}>
           <div className="trp-breadcrumb">
             <span className="trp-breadcrumb-mark"><Activity size={14} /></span>
-            <span>TRPOLARIS</span><ChevronRight size={14} /><strong key={activeItem.id} data-i18n>{activeItem.label}</strong>
+            <span>TRPOLARIS</span><ChevronRight size={14} /><strong>{t(activeItem.label)}</strong>
           </div>
           <div className="trp-topbar-actions">
             <div className="trp-build-label"><span className={'trp-live-indicator' + (connectedTone ? ' is-live' : '')} /> {phaseLabel}</div>
@@ -2341,10 +2409,10 @@ function App() {
 
         <div className="trp-content">
           <div className="trp-content-heading">
-            <div>
+            <div key={activeItem.id}>
               <div className="trp-eyebrow" data-i18n>BAYVIEW / NIGHT DRIVER SYSTEM</div>
-              <h1 key={activeItem.id}><span data-i18n>{activeItem.label}</span><span>.</span></h1>
-              <p key={activeItem.id}><span data-i18n>{activeItem.detail}</span> <span>·</span> TRPOLARIS NFSU2 Web</p>
+              <h1>{t(activeItem.label)}.</h1>
+              <p>{t(activeItem.detail)} <span>·</span> TRPOLARIS NFSU2 Web</p>
             </div>
             <div className="trp-heading-index" aria-hidden="true"><span>EXPERIENCE</span><strong>02</strong></div>
           </div>

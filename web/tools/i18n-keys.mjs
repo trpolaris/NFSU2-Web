@@ -147,6 +147,15 @@ const LOCALE = { french: 'fr', german: 'de', italian: 'it', spanish: 'es', dutch
 export const LANGUAGE_FILES = Object.keys(LOCALE);
 export const langFile = l => path.join(WEB, 'src/app/lang', `${l}.json`);
 
+/** Texts needed before the page can fetch its selected language file (src/boot.ts). */
+export function bootTexts() {
+  const keys = sourceKeys(fs.readFileSync(path.join(WEB, 'src/boot.ts'), 'utf8')).keys.map(k => k.key);
+  return Object.fromEntries(LANGUAGE_FILES.map(language => {
+    const have = JSON.parse(fs.readFileSync(langFile(language), 'utf8'));
+    return [language, Object.fromEntries(keys.filter(key => typeof have[key] === 'string').map(key => [key, have[key]]))];
+  }));
+}
+
 /** What is wrong with a language's file against the texts in use: [] when nothing. */
 export function check(lang, keys = catalog().keys) {
   const out = [];

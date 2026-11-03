@@ -129,8 +129,14 @@ let driver: { index: number; id: string } | null = null;
 export const PAD_DRIVER_EVENT = 'nfsu2-pad-driver';
 /** whether a controller may drive the pad while others are connected: the standard mapping (Chrome on Android's
  *  too), a steering wheel, or an 8BitDo pad (hidpad.ts) */
-export const mayDrive = (g: Gamepad | null) => !!g &&
-  (g.mapping === 'standard' || !!wheelOf(g.id) || !!eightBitDoFace(g.id) || androidLayout(g));
+export const mayDrive = (g: Gamepad | null, pads?: readonly (Gamepad | null)[]) => !!g &&
+  (g.mapping === 'standard' || !!wheelOf(g.id) || !!eightBitDoFace(g.id) || androidLayout(g)) && !(pads && deadTwin(g, pads));
+
+/** A Fanatec base can expose a second, same-name HID collection which reports only zero axes. */
+export function deadTwin(g: Gamepad, pads: readonly (Gamepad | null)[]): boolean {
+  return g.mapping !== 'standard' && !!wheelOf(g.id) && g.axes.length > 0 && g.axes.every(v => v === 0) &&
+    pads.some(o => !!o?.connected && o.index !== g.index && o.id === g.id);
+}
 export function drivingPad(): Gamepad | null {
   if (!driver) return null;
   try { const g = navigator.getGamepads?.()[driver.index]; return g?.connected && g.id === driver.id ? g : null; }
@@ -290,7 +296,7 @@ export class PadPoller {
     this.choose(pads);
     const c = this.chosen, cg = c && byIndex(c.index);
     let pick = cg?.connected && cg.id === c!.id ? c!.index : undefined;
-    if (pick === undefined) { this.chosen = null; pick = this.order.find(i => mayDrive(byIndex(i))); }
+    if (pick === undefined) { this.chosen = null; pick = this.order.find(i => mayDrive(byIndex(i), pads)) ?? this.order.find(i => mayDrive(byIndex(i))); }
     if (pick === undefined) pick = this.order[0];
     const g = pick === undefined ? null : byIndex(pick);
     if (g?.index !== driver?.index || g?.id !== driver?.id) {
@@ -322,7 +328,7 @@ export class PadPoller {
       const on = g.buttons.map(b => !!b && (b.pressed || b.value > 0.5));
       const was = this.down.get(g.index);
       const before = was?.id === g.id ? was.on : this.polled ? [] : on;
-      if (mayDrive(g) && on.some((v, i) => v && !before[i])) this.chosen = { index: g.index, id: g.id };
+      if (mayDrive(g, pads) && on.some((v, i) => v && !before[i])) this.chosen = { index: g.index, id: g.id };
       down.set(g.index, { id: g.id, on });
     }
     this.down = down;

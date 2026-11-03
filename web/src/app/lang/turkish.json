@@ -1424,5 +1424,16 @@
   "Radio: off": "Radyo: kapalı",
   "Your selected local playlist stays on this device.": "Seçtiğin yerel çalma listesi bu cihazda kalır.",
   "Toggle radio": "Radyoyu aç/kapat",
-  "LOCAL FILES ONLY · NOTHING IS SENT TO THE SERVER": "YALNIZCA YEREL DOSYALAR · SUNUCUYA HİÇBİR ŞEY GÖNDERİLMEZ"
+  "LOCAL FILES ONLY · NOTHING IS SENT TO THE SERVER": "YALNIZCA YEREL DOSYALAR · SUNUCUYA HİÇBİR ŞEY GÖNDERİLMEZ",
+  "This browser is too old for the game: it needs iOS 26, iPadOS 26 or Safari 26. Update this device (Settings, General, Software Update).": "Bu tarayıcı oyun için fazla eski: iOS 26, iPadOS 26 veya Safari 26 gerekiyor. Bu cihazı güncelle (Ayarlar, Genel, Yazılım Güncelleme).",
+  "Not loading": "Yüklenmiyor",
+  "Your antivirus or network is probably blocking the game. Allow {site} in it, then reload.": "Büyük olasılıkla antivirüsün ya da ağın oyunu engelliyor. {site} adresine izin ver, sonra yeniden yükle.",
+  "Message… (@ player name)": "Mesaj yazın… (@ oyuncu adı)",
+  "Message blocked by chat filter": "Mesaj küfür filtresine takıldı.",
+  "TEST ENVIRONMENT / TEST BUILD": "TEST ORTAMI / TEST SÜRÜMÜ",
+  "Test server notice": "Test sunucusu bilgilendirmesi",
+  "This server is currently running for testing only and should not be considered a stable, production-ready service.": "Bu sunucu şu anda yalnızca test amacıyla çalışmaktadır; kararlı ve genel kullanıma hazır bir hizmet olarak değerlendirilmemelidir.",
+  "The project is still in development and testing. You may encounter bugs, interruptions, or unexpected behavior in gameplay, multiplayer connections, chat, or website features.": "Proje hâlâ geliştirme ve test aşamasındadır. Oyun, çok oyunculu bağlantılar, sohbet veya web sitesi özelliklerinde hatalar, kesintiler ve beklenmeyen davranışlarla karşılaşabilirsiniz.",
+  "By continuing, you acknowledge that you are using a test build.": "Devam ederek test sürümünü kullandığınızı kabul etmiş olursunuz.",
+  "I understand, continue": "Anladım, devam et"
 }

@@ -1424,5 +1424,16 @@
   "Radio: off": "ラジオ：オフ",
   "Your selected local playlist stays on this device.": "選択したローカルプレイリストはこのデバイスに保存されます。",
   "Toggle radio": "ラジオ切り替え",
-  "LOCAL FILES ONLY · NOTHING IS SENT TO THE SERVER": "ローカルファイルのみ · サーバーには何も送信されません"
+  "LOCAL FILES ONLY · NOTHING IS SENT TO THE SERVER": "ローカルファイルのみ · サーバーには何も送信されません",
+  "This browser is too old for the game: it needs iOS 26, iPadOS 26 or Safari 26. Update this device (Settings, General, Software Update).": "このブラウザはゲームを動かすには古すぎます。iOS 26、iPadOS 26、またはSafari 26が必要です。このデバイスをアップデートしてください（「設定」>「一般」>「ソフトウェアアップデート」）。",
+  "Not loading": "読み込めません",
+  "Your antivirus or network is probably blocking the game. Allow {site} in it, then reload.": "ウイルス対策ソフトかネットワークがゲームをブロックしている可能性があります。{site} を許可してから、再読み込みしてください。",
+  "Message… (@ player name)": "メッセージ…（@ プレイヤー名）",
+  "Message blocked by chat filter": "メッセージはチャットフィルターによってブロックされました。",
+  "TEST ENVIRONMENT / TEST BUILD": "テスト環境 / テスト版",
+  "Test server notice": "テストサーバーについて",
+  "This server is currently running for testing only and should not be considered a stable, production-ready service.": "このサーバーは現在テスト目的でのみ稼働しており、安定した正式サービスではありません。",
+  "The project is still in development and testing. You may encounter bugs, interruptions, or unexpected behavior in gameplay, multiplayer connections, chat, or website features.": "このプロジェクトは現在も開発・テスト段階です。ゲームプレイ、マルチプレイヤー接続、チャット、ウェブサイト機能で不具合や中断、予期しない動作が発生する場合があります。",
+  "By continuing, you acknowledge that you are using a test build.": "続行すると、テスト版を使用していることに同意したものとみなされます。",
+  "I understand, continue": "確認して続行"
 }

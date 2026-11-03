@@ -181,6 +181,7 @@
 /* net_lan.c in the browser (racehorn.c has the stand-ins for the others) */
 int vlan_rt_send(uint16_t port, uint32_t ip_h, const void *p, int n);
 int vlan_race_peers(uint32_t *ip_h, int max, uint32_t within_ms);
+int vlan_race_sent_to(uint32_t ip_h, uint32_t within_ms);
 __attribute__((weak)) int vlan_race_links(RaceLink *o, int max, int reset){ (void)o; (void)max; (void)reset; return 0; }
 
 static int ok(uint32_t a, uint32_t n){ return a && mem_is_committed(a) && mem_is_committed(a + n); }
@@ -208,6 +209,7 @@ static struct {
     uint32_t frames, slow; uint64_t longest;
     uint64_t w0; uint32_t wframes, wslow; uint64_t wlongest;   /* since our last N2FS */
     uint32_t cs_sent, cs_came, cs_refused;           /* car states straight to and from the other joiners */
+    uint32_t pl_refused;                             /* creator lists not from the authenticated race link */
 } R;
 /* a car's jumps: a frame whose move differs from the frame before's */
 typedef struct { float p[3], d[3], step; int have, jumped; uint32_t jumps, big; float max; } Jumps;
@@ -340,6 +342,8 @@ void sub_005f8900(CPU *c){
 
 /* ---- car states straight from their games (above) ---- */
 static struct { uint32_t from, at, n, ip[NPL]; } g_pl;   /* a joiner: the creator's list (host order), when it came */
+static struct { uint32_t ip, slot; } g_bind[NPL]; static int g_nbind;   /* each joiner address may name one slot per race */
+static void direct_reset(void){ memset(&g_pl, 0, sizeof g_pl); g_nbind = 0; }
 static uint32_t g_pl_sent;                              /* the creator: when it last sent it */
 
 /* A message goes to the creator (cdecl: its kind for the game's statistics,
@@ -360,10 +364,11 @@ void sub_00585d50(CPU *c){
     }
     sub_00585d50_orig(c);
 }
-/* the creator's list to each joiner: the others (every PL_MS, racenet_frame) */
+/* the creator's list to each joiner: only addresses its race link sends to */
 static void list_send(void){
-    uint32_t peers[NPL];
-    int n = vlan_race_peers(peers, NPL, PEER_MS);
+    uint32_t all[16], peers[NPL];
+    int na = vlan_race_peers(all, 16, PEER_MS), n = 0;
+    for (int i = 0; i < na && n < NPL; i++) if (vlan_race_sent_to(all[i], PEER_MS)) peers[n++] = all[i];
     for (int i = 0; i < n; i++){
         uint8_t m[8 + 4 * NPL];
         int k = 0;
@@ -377,14 +382,11 @@ static void list_send(void){
         vlan_rt_send(HORN_PORT, peers[i], m, 8 + 4 * k);
     }
 }
-/* an N2PL from the horn's port (racehorn.c): only from the race's creator,
- * a joiner's one race peer */
+/* an N2PL from the horn's port (racehorn.c): only from the creator to whom
+ * this game's race link sends, and only the first creator seen this race */
 void racenet_list(const uint8_t *m, int n, uint32_t from){
     if (n < 8 || m[4] != 1 || m[6] > NPL || n < 8 + 4 * m[6] || is_host()) return;
-    uint32_t peers[4];
-    int np = vlan_race_peers(peers, 4, PEER_MS), creator = 0;
-    for (int i = 0; i < np; i++) creator |= peers[i] == from;
-    if (!creator) return;
+    if (!vlan_race_sent_to(from, PEER_MS) || (g_pl.from && g_pl.from != from)){ R.pl_refused++; return; }
     g_pl.from = from; g_pl.at = ms_now(); g_pl.n = 0;
     for (int k = 0; k < m[6]; k++){
         const uint8_t *q = m + 8 + 4 * k;
@@ -410,6 +412,16 @@ void racenet_carspam(CPU *c, const uint8_t *m, int n, uint32_t from){
         m[CS_HDR] != MSG_CARSPAM || nb < 1u || nb > 8u || 40u + nb > 8u * len){ R.cs_refused++; return; }
     uint32_t slot = bits_at(m + CS_HDR, 40u, nb) + rd32(G_SLOTMIN);
     if (slot >= 6u || slot == rd32(G_MYSLOT) || slot == rd32(G_HOSTSLOT)){ R.cs_refused++; return; }
+    /* Bind each sender to its first slot; no sender may change slots and no
+       second sender may impersonate a slot already claimed in this race. */
+    int b = 0;
+    while (b < g_nbind && g_bind[b].ip != from) b++;
+    if (b < g_nbind && g_bind[b].slot != slot){ R.cs_refused++; return; }
+    if (b == g_nbind){
+        for (int i = 0; i < g_nbind; i++) if (g_bind[i].slot == slot){ R.cs_refused++; return; }
+        if (g_nbind == NPL){ R.cs_refused++; return; }
+        g_bind[g_nbind].ip = from; g_bind[g_nbind].slot = slot; g_nbind++;
+    }
     R.cs_came++;
     /* the bytes below the hook's frame, the call below them */
     CPU save = *c;
@@ -553,6 +565,7 @@ static void begin(uint64_t t, uint32_t me){
     R.on = 1; R.t0 = R.w0 = t;
     R.host = (int32_t)rd32(G_NET_HOST) > 0;
     car_name(me, R.me);
+    direct_reset();
     vlan_race_links(0, 0, 1);
     fprintf(stderr, "[racenet] race begins: me %s, %s\n", R.me[0] ? R.me : "(no name)",
             R.host ? "the game's creator" : "a joiner (every car comes through the creator)");
@@ -574,8 +587,9 @@ static void end(uint64_t t){
     }
     if (!R.host)
         fprintf(stderr, "[racenet]   straight between the joiners' games: %u car states sent, %u came, %u refused; "
-                "the creator's list %s (%u other joiners)\n", R.cs_sent, R.cs_came, R.cs_refused,
-                !direct_on() ? "not used (NFSU2_RACE_DIRECT=0)" : g_pl.at ? "came" : "never came (an older version)", g_pl.n);
+                "the creator's list %s (%u other joiners), %u lists from elsewhere refused\n", R.cs_sent, R.cs_came, R.cs_refused,
+                !direct_on() ? "not used (NFSU2_RACE_DIRECT=0)" : g_pl.at ? "came" : "never came (an older version)", g_pl.n,
+                R.pl_refused);
     for (int i = 0; i < NCARS; i++){
         Car *e = &g_car[i];
         if (!e->car) continue;
@@ -627,6 +641,7 @@ void racenet_frame(CPU *c){
     /* the creator's list of the joiners, the cars drawn (also once our own
      * player is through: the others still race) */
     if (direct_on() && is_host() && in_race() && ms_now() - g_pl_sent >= PL_MS){ g_pl_sent = ms_now(); list_send(); }
+    if (!in_race() && (g_pl.from || g_nbind)) direct_reset();
     fade_frame();
     if (!R.on) return;
     /* our frames (the first one has no length) */

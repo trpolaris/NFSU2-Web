@@ -1083,3 +1083,153 @@
   font-size:.64rem;
   line-height:1.5;
 }
+
+
+/* Startup notice: a blocking, localized warning for the test-stage server. */
+.trp-test-notice-dialog {
+  box-sizing: border-box;
+  width: min(620px, calc(100vw - 28px));
+  max-width: 620px;
+  max-height: min(88dvh, 760px);
+  margin: auto;
+  padding: 0;
+  overflow: auto;
+  border: 1px solid rgba(255, 135, 95, .38);
+  border-radius: 20px;
+  color: #eef3fb;
+  background: #0b1321;
+  box-shadow: 0 32px 110px rgba(0, 0, 0, .68), 0 0 54px rgba(255, 105, 69, .12);
+}
+.trp-test-notice-dialog::backdrop {
+  background: rgba(2, 5, 12, .82);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+.trp-test-notice-card {
+  position: relative;
+  padding: clamp(22px, 4vw, 34px);
+  background:
+    radial-gradient(ellipse at 100% 0%, rgba(255, 105, 69, .13), transparent 48%),
+    radial-gradient(ellipse at 0% 100%, rgba(166, 154, 255, .09), transparent 46%),
+    linear-gradient(145deg, #111d30, #09111d 78%);
+}
+.trp-test-notice-card::before {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 3px;
+  content: "";
+  background: linear-gradient(90deg, #ff6945, #a69aff 70%, transparent);
+}
+.trp-test-notice-header {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-width: 0;
+  margin-bottom: 23px;
+}
+.trp-test-notice-icon {
+  display: grid;
+  flex: 0 0 43px;
+  width: 43px;
+  height: 43px;
+  place-items: center;
+  border: 1px solid rgba(255, 152, 105, .38);
+  border-radius: 13px;
+  color: #ffad82;
+  background: rgba(255, 105, 69, .1);
+}
+.trp-test-notice-kicker {
+  color: #ffb28e;
+  font-size: .63rem;
+  font-weight: 850;
+  letter-spacing: .14em;
+  line-height: 1.5;
+}
+.trp-test-notice-mark {
+  margin-left: auto;
+  padding: 6px 8px;
+  border: 1px solid rgba(255, 135, 95, .2);
+  border-radius: 6px;
+  color: #c4a69b;
+  font: 800 .55rem/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: .09em;
+  white-space: nowrap;
+}
+.trp-test-notice-card h2 {
+  margin: 0 0 15px;
+  color: #f6f8fc;
+  font-size: clamp(1.35rem, 4vw, 1.8rem);
+  font-weight: 850;
+  letter-spacing: -.035em;
+  line-height: 1.2;
+}
+.trp-test-notice-copy {
+  display: grid;
+  gap: 12px;
+  color: #b9c6d8;
+  font-size: .82rem;
+  line-height: 1.7;
+}
+.trp-test-notice-copy p { margin: 0; }
+.trp-test-notice-copy .trp-test-notice-acknowledgement {
+  margin-top: 3px;
+  padding: 11px 13px;
+  border-left: 2px solid #ff895f;
+  border-radius: 0 8px 8px 0;
+  color: #f1d2c5;
+  background: rgba(255, 105, 69, .07);
+}
+.trp-test-notice-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 25px;
+  padding-top: 17px;
+  border-top: 1px solid rgba(167, 185, 214, .13);
+}
+.trp-test-notice-brand {
+  color: #72829a;
+  font: 800 .56rem/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: .1em;
+}
+.trp-test-notice-continue {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 43px;
+  padding: 0 17px;
+  border: 1px solid rgba(255, 105, 69, .54);
+  border-radius: 9px;
+  color: #fff4ef;
+  background: linear-gradient(115deg, rgba(255, 105, 69, .25), rgba(166, 154, 255, .16));
+  font-family: inherit;
+  font-size: .72rem;
+  font-weight: 800;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: border-color .16s ease, background .16s ease, transform .16s ease;
+}
+.trp-test-notice-continue:hover {
+  border-color: rgba(255, 151, 117, .9);
+  background: linear-gradient(115deg, rgba(255, 105, 69, .38), rgba(166, 154, 255, .23));
+  transform: translateY(-1px);
+}
+.trp-test-notice-continue svg { flex: none; }
+.trp-test-notice-continue:focus-visible {
+  outline: 2px solid #ffad82;
+  outline-offset: 4px;
+}
+@media (max-width: 520px) {
+  .trp-test-notice-mark { display: none; }
+  .trp-test-notice-header { margin-bottom: 18px; }
+  .trp-test-notice-footer { align-items: stretch; }
+  .trp-test-notice-continue { width: 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .trp-test-notice-continue { transition: none; }
+}

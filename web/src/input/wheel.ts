@@ -36,7 +36,7 @@ export interface WheelMap {
 }
 
 /** a HID axis by its usage on the Generic Desktop page ('hat': the hat switch, the D-pad) */
-export type Usage = 'x' | 'y' | 'z' | 'rx' | 'ry' | 'rz' | 'slider' | 'hat';
+export type Usage = 'x' | 'y' | 'z' | 'rx' | 'ry' | 'rz' | 'slider' | 'dial' | 'hat';
 /** a model's axes: those of its HID report descriptor, in the descriptor's order where that is known (listed), and
  *  which is the wheel and which each pedal */
 export interface ModelAxes { axes: Usage[]; listed: boolean; steer: Usage; gas: Usage; brake: Usage; clutch?: Usage }
@@ -54,8 +54,8 @@ export interface ModelAxes { axes: Usage[]; listed: boolean; steer: Usage; gas: 
  */
 export type Placement = 'usage' | 'kernel' | 'listed' | 'tree';
 const PLACEMENTS: Placement[] = ['usage', 'kernel', 'listed', 'tree'];
-const USAGE_AT: Record<Usage, number> = { x: 0, y: 1, z: 2, rx: 3, ry: 4, rz: 5, slider: 6, hat: 9 };
-const KERNEL_CODE: Record<Usage, number> = { x: 0, y: 1, z: 2, rx: 3, ry: 4, rz: 5, slider: 6, hat: 16 };
+const USAGE_AT: Record<Usage, number> = { x: 0, y: 1, z: 2, rx: 3, ry: 4, rz: 5, slider: 6, dial: 7, hat: 9 };
+const KERNEL_CODE: Record<Usage, number> = { x: 0, y: 1, z: 2, rx: 3, ry: 4, rz: 5, slider: 6, dial: 7, hat: 16 };
 
 /** each of the model's axes' index when placed so (a hat switch read as two: its x, y after it), and how many axes
  *  the browser shows then; null for a placement in the descriptor's order where that order is not known */
@@ -66,7 +66,7 @@ export function placeAxes(m: ModelAxes, p: Placement): { at: Partial<Record<Usag
   else if (p === 'kernel') {
     for (const u of [...m.axes].sort((a, b) => KERNEL_CODE[a] - KERNEL_CODE[b])) { at[u] = length; length += u === 'hat' ? 2 : 1; }
   } else if (!m.listed) return null;
-  else for (const u of m.axes) if (u !== 'slider' && (u !== 'hat' || p === 'listed')) at[u] = length++;
+  else for (const u of m.axes) if (u !== 'slider' && u !== 'dial' && (u !== 'hat' || p === 'listed')) at[u] = length++;
   return { at, length };
 }
 
@@ -79,6 +79,13 @@ const ZRY: ModelAxes = { axes: ['hat', 'x', 'z', 'rz', 'y'], listed: true, steer
 const YZR: ModelAxes = { axes: ['x', 'y', 'z', 'rz', 'hat'], listed: false, steer: 'x', gas: 'y', brake: 'z', clutch: 'rz' };
 // The Driving Force GT's: the hat switch, X the wheel, Y the gas, Z the brake.
 const DFGT: ModelAxes = { axes: ['hat', 'x', 'y', 'z'], listed: true, steer: 'x', gas: 'y', brake: 'z' };
+// Fanatec wheel bases in PC mode. The CSL DD descriptor is known; older bases share a simpler axis layout.
+// Pedals connected through the base are supported by this first port; separate USB pedals are deferred.
+const FTEC: ModelAxes = { axes: ['hat', 'x', 'z', 'rz', 'y', 'rx', 'ry', 'slider', 'dial'], listed: true,
+  steer: 'x', gas: 'z', brake: 'rz', clutch: 'y' };
+const FTEC_LATER: ModelAxes = { ...FTEC, listed: false };
+const FTEC_V2: ModelAxes = { axes: ['hat', 'x', 'y', 'rz', 'slider'], listed: false,
+  steer: 'x', gas: 'y', brake: 'rz', clutch: 'slider' };
 
 /** a wheel model: its USB ids, its buttons' layout (G29 family: PlayStation, G920 family: Xbox), its rotation, its
  *  axes where its descriptor is known, and where its buttons are known to differ from its layout's, they (buttons:
@@ -112,15 +119,21 @@ const G25_BUTTONS = [PAD_A, PAD_B, PAD_X, PAD_Y, PAD_RB, PAD_LB, -1, -1, PAD_BAC
 // The Driving Force GT's (dfgt_report_t), a PlayStation wheel: the G29's twelve, then its sequential shifter pulled
 // back (+, up) and pushed forward (-, down), Enter, plus, the dial clockwise and back, minus, the horn, PS.
 const DFGT_BUTTONS = [...PS_BUTTONS.slice(0, 12), PAD_RB, PAD_LB, PAD_A, PAD_RB, PAD_DDOWN, PAD_DUP, PAD_LB, PAD_LS, PAD_HOME];
+const FTEC_BUTTONS = [PAD_X, PAD_A, PAD_B, PAD_Y, PAD_RB, PAD_LB, -1, -1, PAD_BACK, PAD_START, PAD_RS, PAD_LS,
+  -1, -1, -1, -1, -1, -1, -1, -1, -1, PAD_HOME, -1, -1, -1, -1, -1, -1, PAD_LB, PAD_RB];
+const FTEC_PORSCHE_BUTTONS = [-1, PAD_LS, -1, PAD_RS, PAD_X, PAD_A, PAD_Y, PAD_B, PAD_LB, PAD_RB, PAD_BACK, PAD_START];
 // the shifter's buttons, 1st to 6th gear and reverse: the G29's and G923's (PlayStation) after their first twelve;
 // the G920's one further on (Logitech's table of the Driving Force Shifter's buttons); the G25's as the G29's, the
 // G27's reverse alone at the end
 const range = (from: number) => Array.from({ length: 7 }, (_, i) => from + i);
 const PS_GEARS = range(12), G920_GEARS = range(13), G27_GEARS = [...range(12).slice(0, 6), 22];
+const FTEC_GEARS = [...range(13).slice(0, 6), 12];
 
 // the wheels SDL knows (src/joystick/SDL_joystick.c, initial_wheel_devices): vendor:product -> layout, rotation, axes
 const LOGI_PS = { layout: 'ps', degrees: 900 } as const, LOGI_XB = { layout: 'xbox', degrees: 900 } as const;
 const G29 = { ...LOGI_PS, gears: PS_GEARS }, G920 = { ...LOGI_XB, gears: G920_GEARS };
+const FTEC_BASE = { layout: 'generic', axes: FTEC_LATER, buttons: FTEC_BUTTONS, gears: FTEC_GEARS } as const;
+const FTEC_OLD = { layout: 'generic', axes: FTEC_V2, buttons: FTEC_PORSCHE_BUTTONS, degrees: 900 } as const;
 const KNOWN: Record<string, Omit<WheelInfo, 'vendor' | 'product'>> = {
   '046d:c24f': { ...G29, axes: ZRY }, '046d:c260': G29,                 // G29 (PS3 mode, PS4 mode)
   '046d:c266': { ...G29, axes: ZRY }, '046d:c267': { ...G29, axes: ZRY },   // G923 for PlayStation and PC
@@ -134,12 +147,20 @@ const KNOWN: Record<string, Omit<WheelInfo, 'vendor' | 'product'>> = {
   '046d:c299': { layout: 'generic', degrees: 900, axes: ZRY, buttons: G25_BUTTONS, gears: PS_GEARS },    // G25
   '046d:c29b': { layout: 'generic', degrees: 900, axes: ZRY, buttons: G25_BUTTONS, gears: G27_GEARS },   // G27
   '046d:c29a': { layout: 'ps', degrees: 900, axes: DFGT, buttons: DFGT_BUTTONS },                        // Driving Force GT
+  '0eb7:0020': { ...FTEC_BASE, axes: FTEC, degrees: 2520 },                         // CSL DD, Gran Turismo DD Pro, ClubSport DD
+  '0eb7:0006': { ...FTEC_BASE, degrees: 2520 }, '0eb7:0007': { ...FTEC_BASE, degrees: 2520 }, // Podium DD1, DD2
+  '0eb7:0e03': { ...FTEC_BASE, degrees: 1080 }, '0eb7:0005': { ...FTEC_BASE, degrees: 1080 }, // CSL Elite
+  '0eb7:0004': { ...FTEC_BASE, degrees: 900 },                                      // ClubSport V2.5
+  '0eb7:0001': { ...FTEC_OLD, buttons: FTEC_BUTTONS, gears: FTEC_GEARS },            // ClubSport V2
+  '0eb7:038e': { ...FTEC_OLD, buttons: FTEC_BUTTONS, gears: FTEC_GEARS },            // ClubSport V1
+  '0eb7:0197': { ...FTEC_OLD, gears: PS_GEARS }, '0eb7:0011': FTEC_OLD,               // Porsche wheels, CSR Elite
 };
 // whole vendors that make wheels and little else: Thrustmaster's wheel bases, Fanatec, Simagic, Simucube, Moza ...
 const WHEEL_IDS = new Set(['044f:b65d', '044f:b65e', '044f:b664', '044f:b669', '044f:b66d', '044f:b66e', '044f:b66f',
   '044f:b677', '044f:b67f', '044f:b691', '044f:b692', '044f:b696', '045e:02a2', '0483:0522', '0483:a355', '0079:1864',
   '11ff:0511', '1209:ffb0', '3416:0301', '3416:0302']);
-const WHEEL_VENDORS = new Set(['0eb7', '16d0', '2433', '346e']);
+const WHEEL_VENDORS = new Set(['16d0', '2433', '346e']);
+const NOT_WHEEL = /\b(pedals?|shifter|handbrake|hand brake|button ?box)\b/i;
 
 /** the USB vendor and product from Gamepad.id: Chrome writes "Name (... Vendor: 046d Product: c24f)", Firefox
  *  "046d-c24f-Name" */
@@ -156,7 +177,7 @@ export function wheelOf(id: string): WheelInfo | null {
   const u = usbIds(id), key = u ? `${u.vendor}:${u.product}` : '';
   const k = KNOWN[key];
   w = k ? { vendor: u!.vendor, product: u!.product, ...k }
-    : (u && (WHEEL_IDS.has(key) || WHEEL_VENDORS.has(u.vendor))) || /\bwheel\b|driving force|steering/i.test(id)
+    : (u && (WHEEL_IDS.has(key) || (WHEEL_VENDORS.has(u.vendor) && !NOT_WHEEL.test(id)))) || /\bwheel\b|driving force|steering/i.test(id)
     ? { vendor: u?.vendor ?? '', product: u?.product ?? '', layout: 'generic', degrees: 0 } : null;
   if (seenIds.size < 64) seenIds.set(id, w);
   return w;

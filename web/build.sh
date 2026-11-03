@@ -62,7 +62,7 @@ HDRSUM="$( (cat runtime/cpu.h runtime/web/compat/wasm_plat.h; echo "$CFLAGS $SHA
   # and flags reuses one compile
   if [ -z "$FULL" ] && [ -f "$OBJCACHE/$sum.o" ]; then ln -f "$OBJCACHE/$sum.o" "$obj" 2>/dev/null || cp "$OBJCACHE/$sum.o" "$obj"
     echo "$sum" > "$obj.sum"; exit 0; fi
-  o=$($CC $CFLAGS $SHARDFLAGS $mc -I"gen/$1" -Wno-unused-label -Wno-parentheses-equality -c -o "$obj" "$src" 2>&1); r=$?
+  o=$("$CC" $CFLAGS $SHARDFLAGS $mc -I"gen/$1" -Wno-unused-label -Wno-parentheses-equality -c -o "$obj" "$src" 2>&1); r=$?
   [ -z "$o" ] || printf "%s\n" "$o" | head -5
   [ $r -eq 0 ] || { echo "FAILED: $src" >&2; exit $r; }
   # a lookup table of guest addresses (g_guest + K in data) links as zeros
@@ -70,7 +70,7 @@ HDRSUM="$( (cat runtime/cpu.h runtime/web/compat/wasm_plat.h; echo "$CFLAGS $SHA
   guestdata() { "$OBJDUMP" -r "$obj" | awk "/^RELOCATION RECORDS FOR \\[DATA\\]/ { d = 1; next } /^RELOCATION RECORDS/ { d = 0 }
     d && \$3 ~ /^g_guest[+-]/ && \$3 != \"g_guest+0\" { f = 1 } END { exit !f }"; }
   if guestdata; then
-    $CC $CFLAGS $SHARDFLAGS $mc -fno-jump-tables -I"gen/$1" -Wno-unused-label -Wno-parentheses-equality -c -o "$obj" "$src" || { echo "FAILED: $src" >&2; exit 1; }
+    "$CC" $CFLAGS $SHARDFLAGS $mc -fno-jump-tables -I"gen/$1" -Wno-unused-label -Wno-parentheses-equality -c -o "$obj" "$src" || { echo "FAILED: $src" >&2; exit 1; }
     if guestdata; then echo "FAILED: $src has guest addresses in data, without jump tables too (cpu.h, g_guest)" >&2; exit 1; fi
     echo "  $src: without jump tables (it had a lookup table of guest addresses)"
   fi
@@ -85,26 +85,36 @@ HDRSUM="$( (cat runtime/cpu.h runtime/web/compat/wasm_plat.h; echo "$CFLAGS $SHA
 # browser's virtual-LAN backend (runtime/web/net_lan.c); module.c + modheap.c
 # load the lifted server.dll; enhance.c holds the graphics options (all off by
 # default, as on the Mac).
-RT="mem dispatch genexec heap watchdog win32 win32_ext com debug res fileio overrides d3dx_hle vsemu oracle autotest lifecycle widescreen framerate dinput_pad dikeys keyboard dinput_kbd career intro drifttest roam roam_core roam_game mprace horn hornmenu optslider tonemenu powerunits radio drift carsfx racehorn racenet winsock online netrace module modheap enhance headlights language sms sponsors lobbyclick olfilter tunegraph menusize regional garage sndlead carshadow movie photo"
+RT="mem dispatch genexec heap watchdog win32 win32_ext com debug res fileio overrides d3dx_hle vsemu oracle autotest lifecycle widescreen framerate dinput_pad dikeys keyboard dinput_kbd career intro drifttest roam roam_core roam_game mprace horn hornmenu optslider tonemenu powerunits radio drift carsfx racehorn racenet winsock online netrace module modheap enhance headlights language sms sponsors lobbyclick olfilter tunegraph menusize regional garage sndlead carshadow carspot movie photo look"
 WEB="$(cd runtime/web && ls *.c | sed 's/\.c$//')"
 pids=""
 for f in $RT; do
   src="runtime/$f.c"; [ -f "$src" ] || src="runtime/web/$f.c"
   [ -f "$src" ] || continue
   fx=""; case "$f" in roam_core|roam_game) fx="-ffp-contract=off" ;; esac
-  $CC $CFLAGS $fx -DNFS_ENHANCED=0 -c -o "$OUT/rt/$f.o" "$src" & pids="$pids $!"
+  "$CC" $CFLAGS $fx -DNFS_ENHANCED=0 -c -o "$OUT/rt/$f.o" "$src" & pids="$pids $!"
 done
 for f in $WEB; do
   case "$f" in thread_exit) fl="$TARGET $OPT $FEAT" ;; *) fl="$CFLAGS -DNFS_ENHANCED=0" ;; esac
-  $CC $fl -c -o "$OUT/rt/web_$f.o" "runtime/web/$f.c" & pids="$pids $!"
+  "$CC" $fl -c -o "$OUT/rt/web_$f.o" "runtime/web/$f.c" & pids="$pids $!"
 done
 for p in $pids; do wait "$p" || { echo "runtime compile failed"; exit 1; }; done
 
 # ---- link ----
-OBJS="$(ls "$OUT"/obj/*.o) $(ls "$OUT"/obj/srv/*.o) $(ls "$OUT"/rt/*.o)"
+# Keep each object path as one argument, including when the repository path contains spaces.
+shopt -s nullglob
+OBJS=(
+  "$OUT"/obj/*.o
+  "$OUT"/obj/srv/*.o
+  "$OUT"/rt/*.o
+)
+if ((${#OBJS[@]} == 0)); then
+  echo "link FAILED: no object files found" >&2
+  exit 1
+fi
 PAGES=$(( INITIAL_MB * 16 ))
 rm -f "$OUT/nfsu2.wasm"
-$CC $TARGET $OPT $FEAT -o "$OUT/nfsu2.wasm" $OBJS \
+"$CC" $TARGET $OPT $FEAT -o "$OUT/nfsu2.wasm" "${OBJS[@]}" \
   -Wl,--import-memory,--export-memory,--shared-memory,--max-memory=4294967296 \
   -Wl,--initial-memory=$(( INITIAL_MB * 1048576 )),--global-base=$GUEST_END \
   -Wl,-z,stack-size=$(( 8 * 1048576 )) -Wl,--no-stack-first \
