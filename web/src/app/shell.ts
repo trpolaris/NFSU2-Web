@@ -1767,7 +1767,7 @@ export async function boot() {
   window.addEventListener('resize', placeNotices);
   window.addEventListener('resize', placeLobby);
   download = new Predownload(s => saves.showData(s), logLine, () => language(), () => texpack());
-  saves = new SavesPanel($('#saves'), $('#game-data'), {
+  saves = new SavesPanel({
     saveDir: SAVE, busy: () => !!session || starting || !instance.owner, confirm: confirmBox,
     onRestored: () => { void loadSettings(); void settings.refresh(); }, download, onChanged: () => vault.changed(),
     onReactUpdate: () => window.dispatchEvent(new Event('trp-saves-changed')),

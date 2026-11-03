@@ -1,27 +1,19 @@
-// The screenshots part of the Saves section.  F12 while the game runs saves the
-// next frame as a PNG at the top of the save folder (shell.ts screenshot,
-// saveScreenshot here), so a backup carries it with the saves.  Shown newest
-// first, four to a row, the newest eight.  One opens in the #shot-view dialog
-// to page through all of them (the arrow keys too), download or delete.
-// Thumbnails are made one at a time (a 4K PNG takes about 0.1 s to decode) and
-// kept while the page lives.  TGA files (what the game's own F12 wrote before
-// the page took the key, black in this port, and the PC game's) are decoded
-// here: browsers show no TGA.
+// The screenshot storage and image decoding service. F12 captures are written into the save folder,
+// included in local backups and presented by the React gallery. Thumbnails are queued to avoid
+// decoding many large images at once; TGA files are decoded because browsers do not display TGA natively.
 
 import { exists, removePath, saveRoot, writeFile, type Entry } from './savefs';
 import { downloadBlob, stamp } from './logs';
-import { fmtBytes } from './checks';
 import { dateLocale, t } from './i18n';
 
 export interface ShotsDeps {
   saveDir: string;
-  confirm(title: string, body: Node | string, ok: string, danger?: boolean): Promise<boolean>;
+  confirm(title: string, body: string, ok: string, danger?: boolean): Promise<boolean>;
   /** a screenshot was deleted: the section lists the save folder again */
   changed(): void;
 }
 
 /** two rows of four, the newest; the dialog pages through the rest */
-const SHOWN = 8;
 const THUMB_W = 384;
 const MIME: Record<string, string> = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', bmp: 'image/bmp', tga: 'image/x-tga' };
 const ext = (name: string) => name.slice(name.lastIndexOf('.') + 1).toLowerCase();
@@ -99,60 +91,25 @@ async function encode(bmp: ImageBitmap, type: string): Promise<Blob> {
 
 export class ScreenshotsPart {
   private shots: Entry[] = [];
-  /** thumbnails: key -> object URL of a small JPEG, null when the file cannot be drawn */
   private thumbs = new Map<string, Promise<string | null>>();
   private queue: Promise<unknown> = Promise.resolve();
-  private thumbObserver: IntersectionObserver | null = null;
-  private dlg: HTMLDialogElement;
-  /** the one in the dialog, its object URL; seq: the latest open() wins */
-  private open: string | null = null;
-  private url: string | null = null;
-  private seq = 0;
-
-  constructor(private root: HTMLElement, private deps: ShotsDeps) {
-    this.dlg = root.ownerDocument.querySelector<HTMLDialogElement>('#shot-view')!;
-    this.dlg.addEventListener('click', e => {
-      const a = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-act]')?.dataset.act;
-      if (a === 'newer') this.step(-1); else if (a === 'older') this.step(1);
-      else if (a === 'download') void this.download(); else if (a === 'delete') void this.remove();
-    });
-    this.dlg.addEventListener('keydown', e => {
-      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
-      e.preventDefault();
-      this.step(e.key === 'ArrowLeft' ? -1 : 1);
-    });
-    this.dlg.addEventListener('close', () => {
-      this.open = null; this.seq++;
-      this.$<HTMLImageElement>('#shot-img').removeAttribute('src');
-      if (this.url) { URL.revokeObjectURL(this.url); this.url = null; }
-    });
-  }
-
-  private $<T extends HTMLElement>(sel: string): T { return this.dlg.querySelector<T>(sel)!; }
-
-  /** React receives immutable metadata; OPFS files remain the source of truth. */
+  constructor(private deps: ShotsDeps) {}
   snapshot() { return this.shots.map(({ path, size, mtime }) => ({ path, size, mtime })); }
-
-  /** Cached, resized thumbnail URL for the visible React gallery. */
   thumbnail(path: string): Promise<string | null> {
     const shot = this.shots.find(item => item.path === path);
     return shot ? this.thumb(shot) : Promise.resolve(null);
   }
-
-  /** Full-size object URL for the React lightbox; its owner revokes the URL on close. */
   async imageUrl(path: string): Promise<string> {
     const shot = this.shots.find(item => item.path === path);
     if (!shot) throw new Error('Screenshot no longer exists');
     const file = ext(path) === 'tga' ? await encode(await bitmap(this.deps.saveDir, path), 'image/png') : await fileOf(this.deps.saveDir, path);
     return URL.createObjectURL(file);
   }
-
   downloadFromReact(path: string) {
     const shot = this.shots.find(item => item.path === path);
     if (!shot) return;
     void fileOf(this.deps.saveDir, shot.path).then(file => downloadBlob(file, shot.path, MIME[ext(shot.path)]));
   }
-
   async deleteFromReact(path: string): Promise<boolean> {
     const shot = this.shots.find(item => item.path === path);
     if (!shot) return false;
@@ -160,146 +117,30 @@ export class ScreenshotsPart {
     try { await removePath(this.deps.saveDir, shot.path); }
     catch (error) { throw new Error(t('It was not deleted: {error}', { error: String(error) })); }
     this.shots = this.shots.filter(item => item.path !== shot.path);
-    if (this.open === shot.path) {
-      this.open = null;
-      this.seq++;
-      if (this.url) { URL.revokeObjectURL(this.url); this.url = null; }
-    }
-    this.render();
+    this.pruneThumbnails();
     this.deps.changed();
     return true;
   }
-
-  /** The screenshots as the save folder has them now (saves-ui.ts refresh). */
   show(files: Entry[]) {
     this.shots = [...files].sort((a, b) => b.mtime - a.mtime || (a.path < b.path ? 1 : -1));
+    this.pruneThumbnails();
+  }
+  private pruneThumbnails() {
     const keep = new Set(this.shots.map(key));
-    for (const [k, p] of this.thumbs) if (!keep.has(k)) { this.thumbs.delete(k); void p.then(u => u && URL.revokeObjectURL(u)); }
-    this.render();
-    if (!this.open) return;
-    if (this.at() < 0) this.dlg.close(); else this.showPlace();
-  }
-
-  private at() { return this.shots.findIndex(s => s.path === this.open); }
-
-  private render() {
-    const n = this.shots.length;
-    this.root.querySelector<HTMLElement>('#shots-info')!.hidden = n > 0;
-    const ul = this.root.querySelector<HTMLUListElement>('#shots')!;
-    const items = this.shots.slice(0, SHOWN);
-    this.thumbObserver?.disconnect();
-    this.thumbObserver = 'IntersectionObserver' in window
-      ? new IntersectionObserver(entries => {
-          for (const entry of entries) {
-            if (!entry.isIntersecting) continue;
-            const button = entry.target as HTMLButtonElement;
-            const index = Number(button.dataset.shotIndex);
-            const shot = items[index];
-            if (shot) void this.loadTile(button, shot);
-            this.thumbObserver?.unobserve(button);
-          }
-        }, { rootMargin: '280px 0px', threshold: 0.01 })
-      : null;
-    ul.replaceChildren(...items.map((s, i) => {
-      const b = this.tileShell(s, i);
-      b.setAttribute('aria-label', t('Screenshot, {when}', { when: when(s.mtime) }));
-      b.title = when(s.mtime);
-      b.onclick = () => void this.view(i);
-      if (this.thumbObserver) this.thumbObserver.observe(b); else void this.loadTile(b, s);
-      const li = document.createElement('li'); li.append(b); return li;
-    }));
-  }
-
-  private tileShell(s: Entry, i: number): HTMLButtonElement {
-    const b = document.createElement('button');
-    b.type = 'button'; b.className = 'shot'; b.dataset.shotIndex = String(i);
-    b.setAttribute('aria-label', t('Screenshot, {when}', { when: when(s.mtime) }));
-    b.append(Object.assign(document.createElement('span'), {
-      className: 'shot-placeholder',
-      textContent: ext(s.path).toUpperCase(),
-      'aria-hidden': 'true',
-    }));
-    return b;
-  }
-
-  /** Decoding/resizing and object-URL creation only happen near the visible viewport. */
-  private async loadTile(b: HTMLButtonElement, s: Entry) {
-    try {
-      const u = await this.thumb(s);
-      if (!b.isConnected) return;
-      b.replaceChildren(u
-        ? Object.assign(document.createElement('img'), { src: u, alt: '', decoding: 'async', loading: 'lazy' })
-        : Object.assign(document.createElement('span'), { className: 'kind', textContent: ext(s.path).toUpperCase() }));
-    } catch {
-      if (b.isConnected) b.replaceChildren(Object.assign(document.createElement('span'), { className: 'kind', textContent: ext(s.path).toUpperCase() }));
+    for (const [k, pending] of this.thumbs) {
+      if (keep.has(k)) continue;
+      this.thumbs.delete(k);
+      void pending.then(url => { if (url) URL.revokeObjectURL(url); });
     }
   }
-
   private thumb(s: Entry): Promise<string | null> {
-    let p = this.thumbs.get(key(s));
-    if (!p) {
-      p = this.queue.then(() => bitmap(this.deps.saveDir, s.path, THUMB_W))
-        .then(bmp => encode(bmp, 'image/jpeg')).then(b => URL.createObjectURL(b), () => null);
-      this.queue = p;
-      this.thumbs.set(key(s), p);
+    let pending = this.thumbs.get(key(s));
+    if (!pending) {
+      pending = this.queue.then(() => bitmap(this.deps.saveDir, s.path, THUMB_W))
+        .then(bmp => encode(bmp, 'image/jpeg')).then(blob => URL.createObjectURL(blob), () => null);
+      this.queue = pending;
+      this.thumbs.set(key(s), pending);
     }
-    return p;
-  }
-
-  /** open screenshot i in the dialog (or show it there in place of the one open) */
-  private async view(i: number) {
-    const s = this.shots[i], seq = ++this.seq, img = this.$<HTMLImageElement>('#shot-img');
-    this.open = s.path;
-    this.$('#shot-when').textContent = when(s.mtime);
-    this.showPlace();
-    if (!this.dlg.open) this.dlg.showModal();
-    img.removeAttribute('src');
-    let url: string;
-    try {
-      url = URL.createObjectURL(ext(s.path) === 'tga' ? await encode(await bitmap(this.deps.saveDir, s.path), 'image/png')
-        : await fileOf(this.deps.saveDir, s.path));
-    } catch (e) {
-      if (seq === this.seq) this.$('#shot-meta').textContent = t('{place}. It cannot be shown here ({error}): Download keeps it as it is.', { place: this.place(), error: e instanceof Error ? e.message : String(e) });
-      return;
-    }
-    if (seq !== this.seq) { URL.revokeObjectURL(url); return; }
-    if (this.url) URL.revokeObjectURL(this.url);
-    this.url = url;
-    img.alt = t('Screenshot, {when}', { when: when(s.mtime) });
-    img.src = url;
-    try { await img.decode(); } catch { /* shown as the browser can */ }
-    if (seq === this.seq && img.naturalWidth) this.$('#shot-meta').textContent = `${this.place()} · ${img.naturalWidth} × ${img.naturalHeight} · ${fmtBytes(s.size)}`;
-  }
-
-  private place() { return t('{n} of {total}', { n: this.at() + 1, total: this.shots.length }); }
-
-  /** the open one's place in the list, and which way the dialog can go from it */
-  private showPlace() {
-    const i = this.at(), s = this.shots[i];
-    this.$('#shot-meta').textContent = `${this.place()} · ${fmtBytes(s.size)}`;
-    this.$<HTMLButtonElement>('[data-act="newer"]').disabled = i <= 0;
-    this.$<HTMLButtonElement>('[data-act="older"]').disabled = i >= this.shots.length - 1;
-  }
-
-  private step(d: number) {
-    const i = this.at() + d;
-    if (this.open && i >= 0 && i < this.shots.length) void this.view(i);
-  }
-
-  private async download() {
-    const s = this.shots[this.at()];
-    if (s) downloadBlob(await fileOf(this.deps.saveDir, s.path), s.path, MIME[ext(s.path)]);
-  }
-
-  private async remove() {
-    const i = this.at(), s = this.shots[i];
-    if (!s || !await this.deps.confirm(t('Delete this screenshot?'), t('{file} goes from this browser. A backup you downloaded keeps its copy.', { file: s.path }), t('Delete'), true)) return;
-    try { await removePath(this.deps.saveDir, s.path); }
-    catch (e) { this.$('#shot-meta').textContent = t('It was not deleted: {error}', { error: String(e) }); return; }
-    this.shots.splice(i, 1);
-    this.render();
-    if (!this.shots.length) this.dlg.close();
-    else void this.view(Math.min(i, this.shots.length - 1));
-    this.deps.changed();
+    return pending;
   }
 }

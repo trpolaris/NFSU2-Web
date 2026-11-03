@@ -9,6 +9,8 @@ const read = file => fs.readFileSync(path.join(ROOT, file), 'utf8');
 const html = read('index.html');
 const shell = read('src/app/shell.ts');
 const service = read('src/app/settings-service.ts');
+const saves = read('src/app/saves-ui.ts');
+const shots = read('src/app/shots.ts');
 const compatibility = read('src/app/settings-ui.ts');
 const crew = read('src/app/crew-control.ts');
 const platform = read('src/app/platform.ts');
@@ -17,6 +19,9 @@ const entry = read('src/main.ts');
 const react = read('src/ui/main.jsx');
 
 const retiredIds = [
+  'saves', 'saves-title', 'saves-msg', 'export', 'import', 'profiles', 'save-hint', 'shots-info', 'shots', 'storage-note',
+  'game-data', 'game-data-title', 'cache-info', 'data-bar', 'fetch-all', 'clear-cache', 'data-msg', 'shot-view',
+  'shot-title', 'shot-when', 'shot-img', 'shot-meta',
   'settings', 'settings-title', 'settings-note', 'settings-body', 'settings-raw',
   'settings-reset-all', 'settings-text', 'settings-text-msg', 'settings-text-save',
   'online', 'online-title', 'online-note', 'online-body',
@@ -93,4 +98,25 @@ test('old page Settings and Online CSS selectors are retired while React styling
   assert.match(reactCss, /\.trp-online-react-controls/);
   assert.match(reactCss, /\.trp-online-name-claim/);
   assert.match(reactCss, /#app\.experience-shell \{ display:none!important; \}/);
+});
+
+test('Saves and screenshot persistence are DOM-free services consumed by React', () => {
+  assert.match(shell, /new SavesPanel\(\{/);
+  assert.doesNotMatch(shell, /new SavesPanel\(\$\('#saves'\)|\$\('#game-data'\)/);
+  assert.doesNotMatch(saves, /document\.|window\.|HTMLElement|querySelector|createElement|innerHTML|this\.root|this\.dataPanel|render\(/);
+  assert.match(saves, /renameProfile\(filesOf\(this\.deps\.saveDir\)/);
+  assert.match(saves, /exportSaves\(this\.deps\.saveDir\)/);
+  assert.match(saves, /readBackup\(/);
+  assert.match(saves, /restoreSaves\(this\.deps\.saveDir, r\)/);
+  assert.match(saves, /gameDataSnapshot\(\)/);
+  assert.match(saves, /this\.shots = new ScreenshotsPart\(/);
+  assert.doesNotMatch(shots, /document\.|querySelector|createElement|HTMLDialogElement|IntersectionObserver|this\.root|this\.dlg/);
+  assert.match(shots, /saveRoot\(saveDir, false\)/);
+  assert.match(shots, /decodeTga/);
+  assert.match(shots, /deleteFromReact\(path: string\)/);
+  assert.match(react, /function ScreenshotsReactControls\(\)/);
+  assert.match(react, /function GameDataReactPanel\(\)/);
+  assert.doesNotMatch(html, /id="saves"|id="game-data"|id="shot-view"/);
+  assert.match(html, /id="vault-service-host" hidden/);
+  assert.match(html, /id="vault"/);
 });

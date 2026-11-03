@@ -1081,15 +1081,10 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.64); }
 .dlg-field { display: flex; align-items: center; gap: 12px; }
 .dlg-field input[type="text"] { flex: 1; min-width: 0; }
 .dlg.help { width: min(560px, calc(100vw - 32px)); }
-/* one screenshot (shots.ts): as large as the window allows, under it its place, Download and Delete */
-.dlg.shot-view { width: min(1232px, calc(100vw - 32px)); }
-.shot-view .dlg-head .hint { margin: 0; }
 #shot-img {
   display: block; width: 100%; max-height: calc(100dvh - 216px); aspect-ratio: auto 16 / 9; object-fit: contain;
   border-radius: 8px; background: #000;
 }
-.shot-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 16px; }
-.shot-foot .hint { margin: 0 auto 0 8px; font-variant-numeric: tabular-nums; }
 .dlg-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
 .dlg-head h2 { margin: 0; }
 .menu-actions { display: grid; gap: 8px; }

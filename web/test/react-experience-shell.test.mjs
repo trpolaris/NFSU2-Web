@@ -343,23 +343,20 @@ test('Mod Library is rendered in React while its hidden platform data root remai
 });
 
 
-test('Saves route keeps the complete SavesPanel root intact inside one React compatibility island', () => {
+test('Saves route is rendered by React over DOM-free OPFS and predownload services', () => {
   assert.match(app, /function SavesDashboard/);
   assert.ok(app.includes("active === 'saves' && !gameActive && <SavesDashboard />"));
-  assert.ok(!app.includes("selectors: ['#saves']"));
   assert.ok(html.includes('<div class="app-grid" id="app-pages" hidden>'));
-  assert.ok(html.includes('id="saves"'));
-  assert.ok(shellCss.includes('#app.experience-shell { display:none!important; }'));
-  for (const selector of ['#export','#import','#saves-msg','#profiles','#storage-note','#shots-info','#shots','#vault']) {
-    assert.ok(html.includes('id="' + selector.slice(1) + '"'), selector + ' remains inside the single Saves root');
-  }
-  assert.ok(!app.includes('LegacyNode selector="#profiles"'));
-  assert.ok(!app.includes('LegacyNode selector="#vault"'));
-  assert.ok(shellCss.includes('#app #saves { display:none!important; }'));
-  assert.ok(shellCss.includes('.trp-saves-hero'));
-  assert.ok(html.includes('id="vault"'));
+  assert.doesNotMatch(html, /id="saves"|id="game-data"/);
+  assert.match(html, /id="vault-service-host" hidden/);
+  assert.match(html, /id="vault"/);
+  assert.match(shellCss, /\.trp-saves-react-manager/);
+  assert.match(shellCss, /\.trp-game-data-react/);
+  assert.match(app, /function ScreenshotsReactControls\(\)/);
+  assert.match(app, /function GameDataReactPanel\(\)/);
+  assert.doesNotMatch(savesUi, /this\.root|this\.dataPanel|document\.|querySelector|render\(/);
+  assert.doesNotMatch(shotsUi, /querySelector|createElement|HTMLDialogElement|IntersectionObserver|this\.root|this\.dlg/);
 });
-
 
 test('Controls route is rendered in React and reads/writes the existing touch and gamepad services through a typed bridge', () => {
   assert.ok(app.includes('function ControlsReactPanel()'));
@@ -416,13 +413,22 @@ test('Cloud Vault controls are React-rendered while keyphrase sync and conflict 
   assert.match(shellCss, /#app\.experience-shell \{ display:none!important; \}/);
 });
 
-test('SavesPanel still owns all descendant profile, screenshot and message controls under #saves', () => {
-  assert.match(runtime, /new SavesPanel\(\$\('#saves'\)/);
-  assert.match(savesUi, /this\.root\.querySelector\('#saves-msg'\)/);
-  assert.match(savesUi, /this\.root\.querySelector\('#profiles'\)/);
-  assert.match(savesUi, /new ScreenshotsPart\(root/);
-  assert.match(html, /id="saves"/);
-  assert.match(html, /id="app-pages" hidden/);
+test('Saves and screenshots expose DOM-free APIs for the React dashboards', () => {
+  assert.match(runtime, /new SavesPanel\(\{/);
+  assert.match(runtime, /window\.__trpSavesBridge = \{/);
+  assert.match(runtime, /rename: \(from, to\) => saves\.renameFromReact\(from, to\)/);
+  assert.match(runtime, /onReactUpdate: \(\) => window\.dispatchEvent\(new Event\('trp-saves-changed'\)\)/);
+  assert.match(savesUi, /snapshot\(\)/);
+  assert.match(savesUi, /renameFromReact\(from: string, to: string\)/);
+  assert.match(savesUi, /exportBackup\(\): Promise<void>/);
+  assert.match(savesUi, /importBackup\(file: File\): Promise<void>/);
+  assert.match(savesUi, /gameDataSnapshot\(\)/);
+  assert.doesNotMatch(savesUi, /this\.root|this\.dataPanel|document\.|querySelector|render\(/);
+  assert.doesNotMatch(shotsUi, /querySelector|createElement|HTMLDialogElement|IntersectionObserver|this\.root|this\.dlg/);
+  assert.match(shotsUi, /thumbnail\(path: string\)/);
+  assert.match(shotsUi, /imageUrl\(path: string\)/);
+  assert.doesNotMatch(html, /id="saves"|id="game-data"|id="shot-view"/);
+  assert.match(html, /id="vault-service-host" hidden/);
 });
 
 test('System update, diagnostics and game-data panels are React-owned through typed service bridges', () => {
@@ -444,7 +450,7 @@ test('System update, diagnostics and game-data panels are React-owned through ty
   assert.match(savesUi, /gameDataSnapshot\(\)/);
   assert.match(savesUi, /togglePreload\(\): Promise<void>/);
   assert.match(savesUi, /clearGameData\(\): Promise<void>/);
-  for (const id of ['updates','diagnostics','game-data']) assert.ok(html.includes('id="' + id + '"'));
+  for (const id of ['updates','diagnostics']) assert.ok(html.includes('id="' + id + '"'));
   assert.ok(shellCss.includes('.trp-system-react'));
   assert.ok(shellCss.includes('.trp-diagnostics-react-list'));
   assert.ok(shellCss.includes('.trp-game-data-progress'));
@@ -560,19 +566,19 @@ test('local save profiles and backup actions are React-owned through the existin
   assert.ok(html.includes('id="save-hint"'));
 });
 
-test('screenshots and encrypted Cloud keep their existing mounts while profiles and backup controls move to React', () => {
-  assert.ok(html.includes('<div class="app-grid" id="app-pages" hidden>'));
-  assert.ok(html.includes('id="saves"'));
-  assert.ok(shellCss.includes('#app #saves { display:none!important; }'));
-  for (const selector of ['#shots', '#vault', '#vault-form', '#vault-conflict', '#vault-on']) {
-    assert.ok(html.includes('id="' + selector.slice(1) + '"'), selector + ' remains mounted');
-  }
-  assert.match(runtime, /new SavesPanel\(\$\('#saves'\)/);
+test('Screenshots are React-rendered and Cloud Vault remains in its isolated hidden service host', () => {
+  assert.ok(html.includes('id="vault-service-host" hidden'));
+  assert.ok(html.includes('id="vault"'));
+  assert.ok(!html.includes('id="saves"'));
+  assert.ok(!html.includes('id="shots"'));
+  assert.ok(!html.includes('id="shot-view"'));
+  assert.match(runtime, /new SavesPanel\(\{/);
   assert.match(runtime, /new VaultPanel\(\$\('#vault'\)/);
-  assert.match(savesUi, /new ScreenshotsPart\(root/);
-  assert.match(runtime, /new VaultPanel\(\$\('#vault'\)/);
+  assert.match(shotsUi, /downloadFromReact\(path: string\)/);
+  assert.match(shotsUi, /deleteFromReact\(path: string\)/);
+  assert.match(app, /function ScreenshotsReactControls\(\)/);
+  assert.match(app, /function VaultReactControls\(\)/);
 });
-
 
 test('Settings groups are React-rendered through the DOM-free SettingsService', () => {
   assert.match(app, /function SettingsReactControls\(\)/);

@@ -488,7 +488,6 @@
 .trp-saves-panel-head h3 { margin:5px 0 0;color:#eff3fa;font-size:1rem;font-weight:870; }
 .trp-saves-panel-head p { margin:5px 0 0;color:#91a1b7;font-size:.65rem;line-height:1.5; }
 .trp-saves-index { color:rgba(166,154,255,.68);font:800 .62rem ui-monospace,monospace;letter-spacing:.12em; }
-.trp-saves-legacy-slot { min-width:0; }
 @media(max-width:900px) {
   .trp-saves-hero { align-items:flex-start;flex-direction:column; }
   .trp-saves-hero-actions { flex-wrap:wrap; }
@@ -572,28 +571,6 @@
   .trp-controls-legacy-slot > #controls .keyboard-map-grid,.trp-controls-legacy-slot > #controls .site-shortcut-grid,.trp-controls-legacy-slot > #controls .touch-options-grid { grid-template-columns:1fr; }
   .trp-controls-legacy-slot > #controls .controls-panel-intro { flex-direction:column;gap:8px; }
 }
-
-/* The SavesPanel owns #saves and queries descendants from that root: keep the entire section mounted together. */
-.trp-saves-legacy-slot { min-width:0; }
-.trp-saves-legacy-slot > #saves {
-  display:block!important;width:100%!important;max-width:none!important;min-width:0!important;margin:0!important;padding:0!important;
-  border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;
-}
-.trp-saves-legacy-slot > #saves > .panel-head:first-child {
-  display:flex;align-items:center;justify-content:flex-end;gap:9px;margin:0 0 14px;padding:0;
-}
-.trp-saves-legacy-slot > #saves > .panel-head:first-child > h2 { display:none!important; }
-.trp-saves-legacy-slot > #saves > .panel-head:first-child .row { display:flex;flex-wrap:wrap;gap:8px; }
-.trp-saves-legacy-slot > #saves > .panel-head:first-child #export,
-.trp-saves-legacy-slot > #saves > .panel-head:first-child #import { min-height:37px; }
-.trp-saves-legacy-slot > #saves .profiles,.trp-saves-legacy-slot > #saves .shots { display:grid;gap:8px;list-style:none;margin:0;padding:0; }
-.trp-saves-legacy-slot > #saves > .panel-head.sub { display:flex;align-items:center;justify-content:space-between;gap:12px;margin:20px 0 10px;padding:12px 0 0;border-top:1px solid rgba(167,185,214,.11); }
-.trp-saves-legacy-slot > #saves > .panel-head.sub h3 { margin:0;color:#edf2f8;font-size:.82rem;font-weight:840; }
-.trp-saves-legacy-slot > #saves #vault { width:100%;max-width:none;margin:14px 0 0; }
-.trp-saves-legacy-slot > #saves #vault .panel-head.sub { border:0;margin:0 0 12px;padding:0; }
-.trp-saves-legacy-slot > #saves #saves-msg,
-.trp-saves-legacy-slot > #saves #storage-note,
-.trp-saves-legacy-slot > #saves #shots-info { margin:0 0 10px;font-size:.66rem; }
 .trp-saves-section-description { margin:0 0 14px;color:#91a1b7;font-size:.66rem;line-height:1.6; }
 
 /* System route: three independently mounted live sections retain their existing service roots. */
@@ -616,22 +593,9 @@
 .trp-system-panel-head h3 { margin:5px 0 0;color:#eff3fa;font-size:1rem;font-weight:870; }
 .trp-system-panel-head p { margin:5px 0 0;color:#91a1b7;font-size:.64rem;line-height:1.55; }
 .trp-system-index { color:rgba(166,154,255,.68);font:800 .62rem ui-monospace,monospace;letter-spacing:.12em; }
-.trp-system-updates-slot,.trp-system-diagnostics-slot,.trp-system-game-data-slot { min-width:0; }
-.trp-system-updates-slot > #updates,
-.trp-system-diagnostics-slot > #diagnostics,
-.trp-system-game-data-slot > #game-data {
-  display:block!important;width:100%!important;max-width:none!important;min-width:0!important;margin:0!important;padding:0!important;
-  border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;
-}
-.trp-system-updates-slot > #updates > h2:first-child,
-.trp-system-diagnostics-slot > #diagnostics .panel-head h2,
-.trp-system-game-data-slot > #game-data > h2:first-child { display:none!important; }
 .trp-system-updates-slot > #updates .panel-head.sub,
 .trp-system-diagnostics-slot > #diagnostics .diagnostic-actions { flex-wrap:wrap; }
 .trp-system-diagnostics-slot > #diagnostics #diagnostic-list { display:grid;gap:8px; }
-.trp-system-game-data-slot > #game-data .bar { overflow:hidden;border-radius:999px; }
-.trp-system-game-data-slot > #game-data .bar-fill { border-radius:inherit; }
-.trp-system-game-data-slot > #game-data .row { display:flex;flex-wrap:wrap;gap:8px; }
 @media(max-width:700px) {
   .trp-system-dashboard { gap:10px; }
   .trp-system-hero { min-height:0;align-items:flex-start;padding:18px 15px;border-radius:16px; }
@@ -804,10 +768,6 @@
 .trp-saves-inline-button { min-height:31px;padding:0 9px;font-size:.6rem; }
 .trp-saves-inline-button.is-muted { color:#99a8bc; }
 .trp-saves-empty { padding:14px;border:1px dashed rgba(167,185,214,.19);border-radius:10px;color:#9baac0;font-size:.67rem; }
-.trp-saves-legacy-slot > #saves > .panel-head:first-child,
-.trp-saves-legacy-slot > #saves > #saves-msg,
-.trp-saves-legacy-slot > #saves > #profiles,
-.trp-saves-legacy-slot > #saves > #save-hint { display:none!important; }
 @media (max-width:700px) {
   .trp-saves-react-manager { padding:13px; }
   .trp-saves-react-heading { align-items:flex-start; }
@@ -971,10 +931,6 @@
 .trp-runtime-status .problems:empty { display:none; }
 .trp-runtime-status .problems li { margin:0 0 8px; }
 .trp-runtime-status .problems p { margin:3px 0 0; }
-
-
-/* React screenshots and Cloud Vault; hidden legacy subtree is a service anchor only. */
-.trp-saves-legacy-slot { display:none!important; }
 .trp-shots-react,.trp-vault-react { display:grid;gap:12px;min-width:0;margin-top:18px;padding-top:16px;border-top:1px solid rgba(167,185,214,.12); }
 .trp-shots-react-heading,.trp-vault-react-heading { display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap; }
 .trp-shots-react-heading h3,.trp-vault-react-heading h3 { margin:5px 0 0;color:#e8eef7;font-size:.85rem;font-weight:850; }

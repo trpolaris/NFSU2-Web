@@ -1641,7 +1641,7 @@ function GameDataReactPanel() {
     <div className="trp-game-data-react" ref={rootRef}>
       <p className="trp-game-data-info">{snapshot.info}</p>
       {snapshot.preloading && <div className="trp-game-data-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow={snapshot.progress}><span style={{ width: snapshot.progress + '%' }} /></div>}
-      {snapshot.message && <p className="trp-game-data-status" role="status">{snapshot.message}</p>}
+      {snapshot.message && <p className={"trp-game-data-status" + (snapshot.messageWarn ? " is-warn" : "")} role="status">{snapshot.message}</p>}
       <div className="trp-system-react-actions">
         {snapshot.showPreload && <button type="button" disabled={snapshot.busy || action !== '' || snapshot.paused} onClick={() => void run('preload', bridge => bridge.togglePreload())}><span data-i18n>{action === 'preload' ? 'Working…' : snapshot.preloadLabel}</span></button>}
         <button type="button" className="is-danger" disabled={snapshot.busy || action !== ''} onClick={() => void run('clear', bridge => bridge.clearGameData())}><span data-i18n>Delete the game data on this PC</span></button>

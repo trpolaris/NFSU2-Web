@@ -17,13 +17,13 @@ import { resolveEnv, withDevice } from './settings';
 import { gameDataKept, type DownloadState, type DownloadStatus, type Predownload } from './predownload';
 import { ScreenshotsPart } from './shots';
 import { GAMEFILE, kept } from './vault';
-import { dateLocale, listOf, live, N, t, tn, tvars, type Msg } from './i18n';
+import { listOf, N, t, tn, tvars, type Msg } from './i18n';
 
 export interface SavesDeps {
   saveDir: string;
   /** true while a game runs in this tab: no rename, no restore, no cache delete */
   busy(): boolean;
-  confirm(title: string, body: Node | string, ok: string, danger?: boolean): Promise<boolean>;
+  confirm(title: string, body: string, ok: string, danger?: boolean): Promise<boolean>;
   /** after a restore: settings.ini may have changed */
   onRestored(): void;
   /** the download of the game data (all but the movies) ahead of play */
@@ -281,270 +281,133 @@ const QUIT_TO_CHANGE = N('Quit the game (or close the other tab that runs it) to
 const QUIT_TO_RENAME = N('Quit the game (or close the other tab that runs it) to rename a profile or restore a backup.');
 
 export class SavesPanel {
-  /** the game accepts profile names made of 1 to 7 ASCII letters or digits */
   readonly nameMax = NAME_MAX;
-
-  /** root: the Saves section; dataPanel: Game data on this PC */
-  constructor(private root: HTMLElement, private dataPanel: HTMLElement, private deps: SavesDeps) {
-    root.querySelector<HTMLButtonElement>('#export')!.onclick = () => void this.doExport();
-    const inp = root.querySelector<HTMLInputElement>('#import')!;
-    inp.onchange = () => { const f = inp.files?.[0]; inp.value = ''; if (f) void this.doImport(f); };
-    dataPanel.querySelector<HTMLButtonElement>('#clear-cache')!.onclick = () => void this.doClearCache();
-    dataPanel.querySelector<HTMLButtonElement>('#fetch-all')!.onclick = () => void this.doDownload();
-    this.shots = new ScreenshotsPart(root, { saveDir: deps.saveDir, confirm: deps.confirm, changed: () => void this.refresh() });
+  constructor(private deps: SavesDeps) {
+    this.shots = new ScreenshotsPart({ saveDir: deps.saveDir, confirm: deps.confirm, changed: () => void this.refresh() });
   }
-
-  private shots: ScreenshotsPart;
-
-  /** the section's messages, drawn again when the page's language changes (a Msg); said: which English text each says
-   *  (the "quit the game first" ones, which go once the game ended) */
+  private readonly shots: ScreenshotsPart;
   private said = { saves: '', data: '' };
-  private msg(s: string | Msg, en = '') { this.said.saves = en; live(this.root.querySelector('#saves-msg')!, typeof s === 'string' ? () => s : s); this.deps.onReactUpdate?.(); }
-  private dataMsg(s: string | Msg, warn = false, en = '') {
-    const m = this.dataPanel.querySelector('#data-msg')!;
-    this.said.data = en; live(m, typeof s === 'string' ? () => s : s); m.classList.toggle('warn', warn);
-    this.deps.onReactUpdate?.();
-  }
-
-  /** the game data in this browser: of the server's files (null: their list did not load), and all that is kept */
+  private savesMessage: string | Msg = '';
+  private dataMessage: string | Msg = '';
+  private dataWarn = false;
+  private dataInfo: string | Msg = () => t('Counting…');
+  private preloadLabel = t('Preload the game data');
+  private showPreload = false;
+  private progressHidden = true;
   private data: { have: number; total: number } | null = null;
   private kept = { bytes: 0, files: 0 };
-  private counted = 0;                     // the latest count wins (one may start while the data is deleted)
+  private counted = 0;
   private shownState: DownloadState = 'idle';
   private profiles: Profile[] = [];
-  /** the profile whose name is being edited; focusName: whose Rename button gets the focus when the list is shown */
-  private renaming: string | null = null;
-  private focusName: string | null = null;
-  /** what the section is writing into the saves (a rename, a restore): settled() waits for it */
   private writing: Promise<unknown> = Promise.resolve();
-
-  /** Resolves when the section writes nothing into the saves: a game starts after that. */
+  private messageText(value: string | Msg): string { return typeof value === 'string' ? value : value(); }
+  private msg(value: string | Msg, en = '') { this.said.saves = en; this.savesMessage = value; this.deps.onReactUpdate?.(); }
+  private dataMsg(value: string | Msg, warn = false, en = '') {
+    this.said.data = en; this.dataMessage = value; this.dataWarn = warn; this.deps.onReactUpdate?.();
+  }
   settled(): Promise<void> { return this.writing.then(() => {}, () => {}); }
   private write<T>(job: Promise<T>): Promise<T> { this.writing = job; return job; }
-
-  /** A serializable snapshot for the React route; OPFS remains authoritative. */
   snapshot() {
-    return {
-      profiles: this.profiles.map(p => ({ name: p.name, mtime: p.mtime, size: p.size })),
-      busy: this.deps.busy(),
-      message: this.root.querySelector<HTMLElement>('#saves-msg')?.textContent ?? '',
-    };
+    return { profiles: this.profiles.map(profile => ({ name: profile.name, mtime: profile.mtime, size: profile.size })),
+      busy: this.deps.busy(), message: this.messageText(this.savesMessage) };
   }
-
-  /** Screenshot gallery API: decoder, thumbnail cache and OPFS store remain authoritative. */
   shotsSnapshot() { return this.shots.snapshot(); }
   shotThumbnail(path: string) { return this.shots.thumbnail(path); }
   shotImageUrl(path: string) { return this.shots.imageUrl(path); }
   downloadShot(path: string) { this.shots.downloadFromReact(path); }
   deleteShot(path: string) { return this.shots.deleteFromReact(path); }
-
-  /** Current predownload state: the existing cache and Predownload service remain authoritative. */
   gameDataSnapshot() {
     const status = this.deps.download.status;
-    const info = this.dataPanel.querySelector<HTMLElement>('#cache-info')?.textContent ?? '';
-    const message = this.dataPanel.querySelector<HTMLElement>('#data-msg')?.textContent ?? '';
-    const fetchButton = this.dataPanel.querySelector<HTMLButtonElement>('#fetch-all');
-    const bar = this.dataPanel.querySelector<HTMLElement>('#data-bar');
-    return {
-      info, message,
-      state: status.state,
-      busy: this.deps.busy(),
-      preloading: status.state === 'running' || status.state === 'paused',
-      paused: status.state === 'paused',
-      progress: status.total > 0 ? Math.floor(status.have / status.total * 100) : 0,
-      showPreload: !!fetchButton && !fetchButton.hidden,
-      preloadLabel: fetchButton?.textContent ?? t('Preload the game data'),
-      progressHidden: !!bar?.hidden,
-    };
+    return { info: this.messageText(this.dataInfo), message: this.messageText(this.dataMessage), messageWarn: this.dataWarn,
+      state: status.state, busy: this.deps.busy(), preloading: status.state === 'running' || status.state === 'paused',
+      paused: status.state === 'paused', progress: status.total > 0 ? Math.floor(status.have / status.total * 100) : 0,
+      showPreload: this.showPreload, preloadLabel: this.preloadLabel, progressHidden: this.progressHidden };
   }
-
   togglePreload(): Promise<void> { return this.doDownload(); }
   clearGameData(): Promise<void> { return this.doClearCache(); }
-
-  /** Delegate export and restore to the existing save validation and transaction routines. */
   exportBackup(): Promise<void> { return this.doExport(); }
   importBackup(file: File): Promise<void> { return this.doImport(file); }
-
-  /** Rename through the existing profile transaction, preserving game and OPFS validation. */
   async renameFromReact(from: string, to: string): Promise<{ ok: boolean; message: string }> {
     const next = to.replace(/[^A-Za-z0-9]/g, '').slice(0, NAME_MAX);
     if (!isProfileName(next)) {
       const message = t('Letters and digits, up to {n}, as in the game.', { n: NAME_MAX });
-      this.msg(message);
-      return { ok: false, message };
+      this.msg(message); return { ok: false, message };
     }
     if (next === from) return { ok: true, message: '' };
     if (this.deps.busy()) {
-      const message = t(QUIT_TO_RENAME);
-      this.msg(() => t(QUIT_TO_RENAME), QUIT_TO_RENAME);
+      const message = t(QUIT_TO_RENAME); this.msg(() => t(QUIT_TO_RENAME), QUIT_TO_RENAME);
       return { ok: false, message };
     }
     let result: Awaited<ReturnType<typeof renameProfile>>;
-    try {
-      result = await this.write(renameProfile(filesOf(this.deps.saveDir), PROFILES_DIR, from, next));
-    } catch (err) {
+    try { result = await this.write(renameProfile(filesOf(this.deps.saveDir), PROFILES_DIR, from, next)); }
+    catch (err) {
       const message = t('Renaming {name} stopped: {error}', { name: from, error: String(err) });
-      this.msg(message);
-      await this.refresh();
-      return { ok: false, message };
+      this.msg(message); await this.refresh(); return { ok: false, message };
     }
-    if ('refused' in result) {
-      this.msg(result.refused);
-      return { ok: false, message: result.refused };
-    }
-    this.renaming = null;
-    this.focusName = next;
-    const message = t('Renamed {from} to {to}.', { from, to: next });
-    this.msg(message);
-    this.deps.onChanged?.();
-    await this.refresh();
-    return { ok: true, message };
+    if ('refused' in result) { this.msg(result.refused); return { ok: false, message: result.refused }; }
+    const message = () => t('Renamed {from} to {to}.', { from, to: next });
+    this.msg(message); this.deps.onChanged?.(); await this.refresh();
+    return { ok: true, message: message() };
   }
-
-  /** Show the profiles, the screenshots and the downloaded game data as they are now. */
   async refresh() {
     const files = await listFiles(this.deps.saveDir);
     this.profiles = await listProfiles(this.deps.saveDir, files);
-    this.shots.show(files.filter(f => isScreenshot(f.path)));
-    const busy = this.deps.busy();
-    // a name being typed stays as it is (the list is shown again when the edit ends)
-    if (!this.profiles.some(p => p.name === this.renaming)) { this.renaming = null; this.showProfiles(); }
-    this.deps.onReactUpdate?.();
-    for (const b of this.root.querySelectorAll<HTMLButtonElement>('.profiles .rename-btn, .profiles .renaming [type="submit"]')) b.disabled = busy;
-    this.root.querySelector<HTMLLabelElement>('.file-btn')!.toggleAttribute('aria-disabled', busy);
-    this.root.querySelector<HTMLInputElement>('#import')!.disabled = busy;
-    this.dataPanel.querySelector<HTMLButtonElement>('#clear-cache')!.disabled = busy;
-    if (busy) { this.msg(() => t(QUIT_TO_RENAME), QUIT_TO_RENAME); this.dataMsg(() => t(QUIT_TO_CHANGE), false, QUIT_TO_CHANGE); }
-    else {
+    this.shots.show(files.filter(file => isScreenshot(file.path)));
+    const busy = this.deps.busy(); this.deps.onReactUpdate?.();
+    if (busy) {
+      this.msg(() => t(QUIT_TO_RENAME), QUIT_TO_RENAME);
+      this.dataMsg(() => t(QUIT_TO_CHANGE), false, QUIT_TO_CHANGE);
+    } else {
       if (this.said.saves === QUIT_TO_RENAME) this.msg('');
       if (this.said.data === QUIT_TO_CHANGE) this.dataMsg('');
     }
-    this.root.dataset.files = String(files.length);
-    if (this.deps.download.running) { this.showData(); return; }     // it counts as it goes
-    const n = ++this.counted;
-    const [kept, data] = await Promise.all([cacheBytes(), gameDataKept(this.deps.download.language(), this.deps.download.texpack()).catch(() => null)]);
-    if (n !== this.counted) return;
-    this.kept = kept; this.data = data;
-    this.showData();
+    if (this.deps.download.running) { this.showData(); return; }
+    const current = ++this.counted;
+    const [keptBytes, data] = await Promise.all([cacheBytes(), gameDataKept(this.deps.download.language(), this.deps.download.texpack()).catch(() => null)]);
+    if (current !== this.counted) return;
+    this.kept = keptBytes; this.data = data; this.showData();
   }
-
-  /** The download's progress (Predownload's onChange), or what is kept when none runs. */
-  showData(st: DownloadStatus = this.deps.download.status) {
-    const active = st.state === 'running' || st.state === 'paused';
-    if (active && st.total) this.data = { have: st.have, total: st.total };
-    if (st.state !== this.shownState) {
-      this.shownState = st.state;
-      if (st.state === 'done') { this.data = { have: st.have, total: st.total }; this.dataMsg(() => t('The game data is on this PC now.')); }
-      if (st.state === 'error') { const e = st.error; this.dataMsg(() => t('Preloading stopped: {error}. What it preloaded is kept.', { error: e ?? '' }), true); }
-      if (!active) void this.refresh();                         // counted again; shown now with what is known
+  showData(status: DownloadStatus = this.deps.download.status) {
+    const active = status.state === 'running' || status.state === 'paused';
+    if (active && status.total) this.data = { have: status.have, total: status.total };
+    if (status.state !== this.shownState) {
+      this.shownState = status.state;
+      if (status.state === 'done') { this.data = { have: status.have, total: status.total }; this.dataMsg(() => t('The game data is on this PC now.')); }
+      if (status.state === 'error') { const error = status.error; this.dataMsg(() => t('Preloading stopped: {error}. What it preloaded is kept.', { error: error ?? '' }), true); }
+      if (!active) void this.refresh();
     }
-    const info = this.dataPanel.querySelector('#cache-info')!, bar = this.dataPanel.querySelector<HTMLElement>('#data-bar')!;
-    const fetchBtn = this.dataPanel.querySelector<HTMLButtonElement>('#fetch-all')!;
-    const d = this.data, rest = d ? d.total - d.have : 0;
-    bar.hidden = !active;
-    fetchBtn.disabled = this.deps.busy() && !active;
+    const data = this.data, rest = data ? data.total - data.have : 0;
+    this.progressHidden = !active;
     if (active) {
-      const f = d?.total ? d.have / d.total : 0;
-      (bar.firstElementChild as HTMLElement).style.width = `${(f * 100).toFixed(1)}%`;
-      bar.setAttribute('aria-valuenow', String(Math.floor(f * 100)));
-      fetchBtn.hidden = false;
-      fetchBtn.textContent = t('Stop preloading');
-      fetchBtn.disabled = st.state === 'paused';
-      info.textContent = st.state === 'paused' ? (d ? t('Preloading paused while the game runs: {have} of {total}. It goes on when the game ends.', { have: fmtBytes(d.have), total: fmtBytes(d.total) })
+      const fraction = data?.total ? data.have / data.total : 0;
+      this.showPreload = true; this.preloadLabel = t('Stop preloading');
+      this.dataInfo = status.state === 'paused'
+        ? (data
+          ? t('Preloading paused while the game runs: {have} of {total}. It goes on when the game ends.', { have: fmtBytes(data.have), total: fmtBytes(data.total) })
           : t('Preloading paused while the game runs: counting. It goes on when the game ends.'))
-        : !d ? t('Preloading the game data: counting what is here already.')
-        : t('Preloading the game data: {have} of {total} ({pct} %){speed}. Play whenever you like: preloading pauses while the game runs and goes on after it.',
-          { have: fmtBytes(d.have), total: fmtBytes(d.total), pct: Math.floor(f * 100), speed: st.rate ? `, ${fmtBytes(st.rate)}/s, ${eta(rest / st.rate)}` : '' });
-      this.deps.onReactUpdate?.();
-      return;
+        : !data
+          ? t('Preloading the game data: counting what is here already.')
+          : t('Preloading the game data: {have} of {total} ({pct} %){speed}. Play whenever you like: preloading pauses while the game runs and goes on after it.',
+            { have: fmtBytes(data.have), total: fmtBytes(data.total), pct: Math.floor(fraction * 100), speed: status.rate ? `, ${fmtBytes(status.rate)}/s, ${eta(rest / status.rate)}` : '' });
+      this.deps.onReactUpdate?.(); return;
     }
-    fetchBtn.textContent = d && d.have ? t('Preload the rest ({size})', { size: fmtBytes(rest) }) : d ? t('Preload the game data ({size})', { size: fmtBytes(d.total) }) : t('Preload the game data');
-    fetchBtn.hidden = !!d && rest <= 0;
-    if (d && rest <= 0)
-      info.textContent = 'serviceWorker' in navigator
-        ? t('The game data ({size}) is kept in this browser: the game loads it from this PC, not the network. Only the movies stream from the server, as they play, and the game starts without the server too (offline, with the movies off). Deleting it only means loading it from the server again.', { size: fmtBytes(d.total) })
-        : t('The game data ({size}) is kept in this browser: the game loads it from this PC, not the network. Only the movies stream from the server, as they play. Deleting it only means loading it from the server again.', { size: fmtBytes(d.total) });
-    else if (d ? d.have : this.kept.bytes)
-      info.textContent = (d ? t('{have} of the game\'s {total} (without the movies) is kept in this browser, so the game loads that from this PC instead of the network.', { have: fmtBytes(d.have), total: fmtBytes(d.total) })
+    this.preloadLabel = data && data.have
+      ? t('Preload the rest ({size})', { size: fmtBytes(rest) })
+      : data ? t('Preload the game data ({size})', { size: fmtBytes(data.total) }) : t('Preload the game data');
+    this.showPreload = !(data && rest <= 0);
+    if (data && rest <= 0) {
+      this.dataInfo = 'serviceWorker' in navigator
+        ? t('The game data ({size}) is kept in this browser: the game loads it from this PC, not the network. Only the movies stream from the server, as they play, and the game starts without the server too (offline, with the movies off). Deleting it only means loading it from the server again.', { size: fmtBytes(data.total) })
+        : t('The game data ({size}) is kept in this browser: the game loads it from this PC, not the network. Only the movies stream from the server, as they play. Deleting it only means loading it from the server again.', { size: fmtBytes(data.total) });
+    } else if (data ? data.have : this.kept.bytes) {
+      this.dataInfo = (data
+        ? t('{have} of the game\'s {total} (without the movies) is kept in this browser, so the game loads that from this PC instead of the network.', { have: fmtBytes(data.have), total: fmtBytes(data.total) })
         : t('{have} is kept in this browser, so the game loads that from this PC instead of the network.', { have: fmtBytes(this.kept.bytes) })) + ' ' +
         t('Preload the rest too, and no loading screen waits on the network. Deleting it only means loading it from the server again.');
-    else
-      info.textContent = t('Nothing here yet. The game streams its data from the server as it needs it and keeps it here. Preload it now (all but the movies, compressed on the way) and no loading screen waits on the network.');
+    } else {
+      this.dataInfo = t('Nothing here yet. The game streams its data from the server as it needs it and keeps it here. Preload it now (all but the movies, compressed on the way) and no loading screen waits on the network.');
+    }
     this.deps.onReactUpdate?.();
-  }
-
-  /** The profiles, each with its Rename button, or the name being edited. */
-  private showProfiles() {
-    const ul = this.root.querySelector('#profiles')!, busy = this.deps.busy();
-    let focus: HTMLElement | null = null;
-    ul.replaceChildren();
-    if (!this.profiles.length) {
-      const li = document.createElement('li'); li.className = 'empty';
-      li.textContent = t('No profiles yet. Create one in the game: it is saved in this browser.');
-      ul.append(li);
-    }
-    for (const p of this.profiles) {
-      const li = document.createElement('li');
-      if (p.name === this.renaming) {
-        const { form, input } = this.renameForm(p.name, busy);
-        const help = document.createElement('p'); help.className = 'hint'; help.id = 'rename-help';
-        help.textContent = t('Letters and digits, up to {n}, as in the game.', { n: NAME_MAX });
-        const m = document.createElement('p'); m.className = 'msg warn'; m.id = 'rename-msg'; m.setAttribute('role', 'alert');
-        li.className = 'renaming'; li.append(form, help, m); ul.append(li);
-        focus = input;
-        continue;
-      }
-      const n = document.createElement('span'); n.className = 'name'; n.textContent = p.name;
-      const m = document.createElement('span'); m.className = 'meta';
-      m.textContent = t('saved {when}, {size}', { when: new Date(p.mtime).toLocaleString(dateLocale()), size: fmtBytes(p.size) });
-      const b = document.createElement('button'); b.type = 'button'; b.className = 'text-btn rename-btn'; b.textContent = t('Rename');
-      b.setAttribute('aria-label', t('Rename {name}', { name: p.name })); b.disabled = busy;
-      b.onclick = () => { this.renaming = p.name; this.showProfiles(); };
-      if (p.name === this.focusName) focus = b;
-      li.append(n, m, b); ul.append(li);
-    }
-    this.focusName = null;
-    if (focus) { focus.focus(); if (focus instanceof HTMLInputElement) focus.select(); }
-  }
-
-  private renameForm(name: string, busy: boolean) {
-    const form = document.createElement('form'); form.className = 'row';
-    const input = document.createElement('input');
-    input.type = 'text'; input.value = name; input.maxLength = NAME_MAX; input.spellcheck = false; input.autocomplete = 'off';
-    input.setAttribute('aria-label', t('New name for {name}', { name })); input.setAttribute('aria-describedby', 'rename-help rename-msg');
-    // what the game's field keeps: other characters never appear
-    input.oninput = () => {
-      const v = input.value, keep = (t: string) => t.replace(/[^A-Za-z0-9]/g, '');
-      if (keep(v) === v) return;
-      const at = keep(v.slice(0, input.selectionStart ?? v.length)).length;
-      input.value = keep(v); input.setSelectionRange(at, at);
-    };
-    const ok = document.createElement('button'); ok.type = 'submit'; ok.className = 'btn'; ok.textContent = t('Rename'); ok.disabled = busy;
-    const cancel = document.createElement('button'); cancel.type = 'button'; cancel.className = 'text-btn'; cancel.textContent = t('Cancel');
-    cancel.onclick = () => this.endRename(name);
-    form.append(input, ok, cancel);
-    form.onsubmit = e => { e.preventDefault(); void this.doRename(name, input.value); };
-    form.onkeydown = e => { if (e.key === 'Escape') { e.preventDefault(); this.endRename(name); } };
-    return { form, input };
-  }
-
-  private endRename(name: string) { this.renaming = null; this.focusName = name; this.showProfiles(); }
-
-  private async doRename(from: string, to: string) {
-    const say = (s: string) => { this.root.querySelector('#rename-msg')!.textContent = s; };
-    if (to === from) { this.endRename(from); return; }
-    if (this.deps.busy()) { say(t('Quit the game (or close the other tab that runs it) to rename a profile.')); return; }
-    const ok = this.root.querySelector<HTMLButtonElement>('.profiles .renaming [type="submit"]')!;
-    if (ok.disabled) return;
-    ok.disabled = true;
-    let r: Awaited<ReturnType<typeof renameProfile>>;
-    try { r = await this.write(renameProfile(filesOf(this.deps.saveDir), PROFILES_DIR, from, to)); }
-    catch (err) { this.renaming = null; this.msg(() => t('Renaming {name} stopped: {error}', { name: from, error: String(err) })); await this.refresh(); return; }
-    if ('refused' in r) { ok.disabled = this.deps.busy(); say(r.refused); return; }
-    this.renaming = null; this.focusName = to;
-    this.msg(() => t('Renamed {from} to {to}.', { from, to }));
-    this.deps.onChanged?.();
-    await this.refresh();
   }
 
   private async doDownload() {
@@ -586,13 +449,11 @@ export class SavesPanel {
       return;
     }
     const list = listOf;
-    const body = document.createElement('div');
-    const p = document.createElement('p');
     const items: string[] = [];
     const here = new Map(this.profiles.map(x => [x.name.toLowerCase(), x.name]));
     const replaced = r.profiles.map(n => here.get(n.toLowerCase())).filter((x): x is string => !!x);
     if (r.kind === 'profiles') {
-      p.textContent = tn(r.profiles.length, 'Adds the profile in {file} to this browser. The other profiles here, the game\'s options and settings.ini stay as they are.',
+      let description = tn(r.profiles.length, 'Adds the profile in {file} to this browser. The other profiles here, the game\'s options and settings.ini stay as they are.',
         'Adds the profiles in {file} to this browser. The other profiles here, the game\'s options and settings.ini stay as they are.', { file: file.name });
       items.push(t('Profiles: {names}', { names: r.profiles.map(n => {
         const covers = r.entries.filter(e => coverOf(e.path.split('/')[1])?.profile === n).length;
@@ -606,9 +467,7 @@ export class SavesPanel {
         'Restoring replaces every profile, the game\'s options and settings.ini in this browser with the {n} files in {file}.', { file: file.name });
       items.push(...backupItems(r));
     }
-    const ul = document.createElement('ul');
-    for (const t of items) { const li = document.createElement('li'); li.textContent = t; ul.append(li); }
-    body.append(p, ul);
+    const body = [description, ...items.map(item => `• ${item}`)].join('\n');
     const adding = r.kind === 'profiles';
     const many = r.profiles.length > 1, name = file.name;
     if (!await this.deps.confirm(adding ? (many ? t('Add these profiles?') : t('Add this profile?')) : t('Restore this backup?'), body,

@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
 const css = fs.readFileSync(path.join(ROOT, 'src/app/experience.css'), 'utf8');
+const reactCss = fs.readFileSync(path.join(ROOT, 'src/static/react-shell.css'), 'utf8');
 const theme = fs.readFileSync(path.join(ROOT, 'src/app/modern-theme.css'), 'utf8');
 const main = fs.readFileSync(path.join(ROOT, 'src/main.ts'), 'utf8');
 const controls = fs.readFileSync(path.join(ROOT, 'src/app/controls.ts'), 'utf8');
@@ -70,7 +71,8 @@ test('inner pages use polished modern controls without replacing their existing 
   assert.match(polish, /\.seg \.opt:has\(input:checked\)/);
   assert.doesNotMatch(polish, /(?:^|[\s,])#(?:online|settings)(?:[\s.#:[>]|$)/m);
   assert.match(reactUi, /trp-online-live-status/);
-  assert.match(polish, /#saves \.profiles > li/);
+  assert.doesNotMatch(polish, /#saves|#game-data/);
+  assert.match(reactCss, /\.trp-saves-profile/);
   assert.match(polish, /#mods \.custom-mod-list > li/);
   assert.doesNotMatch(polish, /#controls/);
   assert.doesNotMatch(polish, /#accessibility/);
@@ -164,8 +166,8 @@ test('first-run, language default, accessibility and version metadata stay align
 
 test('mod workshop, cloud keyphrase, team join and about cards have bounded responsive layouts', () => {
   assert.match(css, /#mods \.mod-tool-icon svg\{[^}]*width:21px!important/);
-  assert.match(css, /#saves \.vault-row\{display:grid/);
-  assert.match(css, /#saves \.keybox\{/);
+  assert.match(reactUi, /className="trp-vault-react-key-form"/);
+  assert.match(reactUi, /className="trp-vault-react-key-row"/);
   assert.match(css, /\.crew-line \.crew-add\{/);
   assert.match(reactUi, /className="trp-about-feature-grid"/);
   assert.match(reactUi, /className="trp-about-info-grid"/);

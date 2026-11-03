@@ -580,15 +580,6 @@ code { border-color: var(--line); background: #0a111d; color: #ff9d82; }
 .experience-shell .app-grid section.panel > h2:first-child {
   margin-bottom: 20px; padding-bottom: 17px; border-bottom: 1px solid var(--line);
 }
-.experience-shell #mods .mod-tool-card,
-.experience-shell #mods .saved-mods-section,
-.experience-shell #mods .mod-add-content,
-.experience-shell #saves .vault,
-.experience-shell #saves .profile-manager,
-.experience-shell #saves .preset-panel {
-  border: 1px solid var(--line); border-radius: 16px;
-  background: rgba(8,14,24,.48); box-shadow: none;
-}
 .experience-shell #controls .keyboard-map-grid > div,
 .experience-shell #controls .site-shortcut-grid > div {
   border: 1px solid var(--line); border-radius: 12px;
