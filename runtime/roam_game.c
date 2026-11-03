@@ -3163,7 +3163,7 @@ static void du_frame(CPU *c, int64_t host, int in_roam, int world_runs, const ui
     int free = du_free(in_roam, world_runs);
     int crowd = free ? du_crowd() : 0;
     if ((crowd >= DU_CROWD) != (g_du.crowd >= DU_CROWD) && g_du.crowd_logs++ < 20)
-        rlog("[roam] f=%ld outruns between players: %s (%d other players within %.0f m)\\n", rh_frame(),
+        rlog("[roam] f=%ld outruns between players: %s (%d other players within %.0f m)\n", rh_frame(),
              crowd >= DU_CROWD ? "none offered in a crowd" : "offered again", crowd, (double)DU_NEAR_M);
     g_du.crowd = crowd;
     g_du.busy = !free || crowd >= DU_CROWD;
