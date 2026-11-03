@@ -7,7 +7,7 @@ import * as esbuild from 'esbuild';
 import { spawn, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
-import { catalog } from './tools/i18n-keys.mjs';
+import { bootTexts, catalog } from './tools/i18n-keys.mjs';
 const watch = process.argv.includes('--watch');
 const DIST = 'dist', DEV = 'dist-dev';
 const opts = {
@@ -34,6 +34,14 @@ const opts = {
   jsxImportSource: 'react',
 };
 for (const [k, v] of Object.entries(opts.entryPoints)) if (!fs.existsSync(v)) delete opts.entryPoints[k];
+
+// A classic script runs before the page's module entry points and can report a blocked main.js.
+const bootOpts = {
+  ...opts,
+  entryPoints: { boot: 'src/boot.ts' },
+  format: 'iife',
+  define: { BOOT_TEXTS: JSON.stringify(bootTexts()) },
+};
 
 // test pages and source maps go to dist-dev (same relative path: /test/x.js, /main.js.map); the rest to dist
 const devOnly = rel => rel.startsWith('test/') || rel.endsWith('.map');
@@ -200,9 +208,10 @@ fs.writeFileSync(path.join(DIST, 'i18n-key-manifest.json'), JSON.stringify(keyMa
 // the player's page takes its address's test parameters only from a server that serves this (--dev: shell.ts)
 fs.writeFileSync(path.join(DEV, 'test', 'dev.json'), '{"dev":true}\n');
 if (watch) {
-  const ctx = await esbuild.context({ ...opts, plugins: [{ name: 'emit', setup(b) { b.onEnd(r => { if (r.outputFiles) emit(r.outputFiles); }); } }] });
-  await ctx.watch();
+  for (const options of [opts, bootOpts]) {
+    const ctx = await esbuild.context({ ...options, plugins: [{ name: 'emit', setup(b) { b.onEnd(r => { if (r.outputFiles) emit(r.outputFiles); }); } }] });
+    await ctx.watch();
+  }
 } else {
-  const r = await esbuild.build(opts);
-  emit(r.outputFiles);
+  for (const options of [opts, bootOpts]) emit((await esbuild.build(options)).outputFiles);
 }
