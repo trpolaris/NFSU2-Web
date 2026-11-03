@@ -531,6 +531,65 @@ function OnlineDashboard() {
 }
 
 
+
+function AboutDashboard() {
+  const reduceMotion = useReducedMotion();
+  const enter = reduceMotion ? false : { opacity: 0, y: 12 };
+  const transition = { duration: reduceMotion ? 0 : .28, ease: [.2, .75, .25, 1] };
+  return (
+    <motion.div className="trp-route-page trp-about-dashboard" initial={enter} animate={{ opacity: 1, y: 0 }} transition={transition}>
+      <motion.section className="trp-about-hero" initial={enter} animate={{ opacity: 1, y: 0 }} transition={transition}>
+        <div className="trp-about-brand-mark"><img src="/icon-192.png" alt="" width="54" height="54" decoding="async" /></div>
+        <div className="trp-about-hero-copy">
+          <div className="trp-eyebrow" data-i18n>TRPOLARIS / WEB EDITION</div>
+          <h2 data-i18n>Underground, reimagined for the web.</h2>
+          <p data-i18n>A community project maintained by TRPOLARIS. It brings NFSU2 to your browser and requires your own copy of the game; game files are not included.</p>
+        </div>
+        <span className="trp-about-hero-index">NFSU2 / 2004</span>
+      </motion.section>
+      <motion.section className="trp-about-section" initial={enter} animate={{ opacity: 1, y: 0 }} transition={{ ...transition, delay: reduceMotion ? 0 : .06 }}>
+        <div className="trp-about-section-head">
+          <div><div className="trp-eyebrow" data-i18n>PROJECT FEATURES / 01</div><h3 data-i18n>Changes from the original</h3></div>
+          <span className="trp-about-section-mark">01—04</span>
+        </div>
+        <p className="trp-about-lead" data-i18n>The PC game's own code, recompiled to run in Chrome and Firefox with WebGPU graphics and Web Audio sound. It runs at up to 120 fps in widescreen at your screen's resolution, with the original look at its highest settings.</p>
+        <div className="trp-about-feature-grid">
+          <article className="trp-about-feature"><span data-i18n>01 / GRAPHICS</span><strong data-i18n>WebGPU rendering</strong></article>
+          <article className="trp-about-feature"><span data-i18n>02 / MULTIPLAYER</span><strong data-i18n>Free roam + online play</strong></article>
+          <article className="trp-about-feature"><span data-i18n>03 / INPUT</span><strong data-i18n>Keyboard + controller</strong></article>
+          <article className="trp-about-feature"><span data-i18n>04 / SAVES</span><strong data-i18n>Local + cloud saves</strong></article>
+        </div>
+      </motion.section>
+      <motion.section className="trp-about-info-grid" initial={enter} animate={{ opacity: 1, y: 0 }} transition={{ ...transition, delay: reduceMotion ? 0 : .1 }}>
+        <article className="trp-about-info-card">
+          <span className="trp-eyebrow" data-i18n>SOURCE / CODE</span>
+          <h3 data-i18n>Source code</h3>
+          <p data-i18n-html>The source code and project updates are available on <a href="https://github.com/trpolaris/NFSU2-Web" target="_blank" rel="noopener noreferrer">GitHub</a>.</p>
+          <a className="trp-about-link" href="https://github.com/trpolaris/NFSU2-Web" target="_blank" rel="noopener noreferrer" data-i18n>Open repository ↗</a>
+        </article>
+        <article className="trp-about-info-card">
+          <span className="trp-eyebrow" data-i18n>SUPPORT / FEEDBACK</span>
+          <h3 data-i18n>Support and feedback</h3>
+          <p data-i18n-html>For feedback, bug reports, and feature requests, open an issue on <a href="https://github.com/trpolaris/NFSU2-Web/issues" target="_blank" rel="noopener noreferrer">GitHub</a>.</p>
+          <a className="trp-about-link" href="https://github.com/trpolaris/NFSU2-Web/issues" target="_blank" rel="noopener noreferrer" data-i18n>Report an issue ↗</a>
+        </article>
+        <article className="trp-about-info-card trp-about-notice">
+          <span className="trp-eyebrow" data-i18n>PROJECT / NOTICE</span>
+          <h3 data-i18n>Independent project</h3>
+          <p data-i18n>TRPOLARIS is an independent fan project and is not affiliated with or endorsed by Electronic Arts.</p>
+        </article>
+      </motion.section>
+      <motion.section className="trp-about-section trp-about-credits" initial={enter} animate={{ opacity: 1, y: 0 }} transition={{ ...transition, delay: reduceMotion ? 0 : .14 }}>
+        <div className="trp-about-section-head">
+          <div><div className="trp-eyebrow" data-i18n>ACKNOWLEDGEMENTS</div><h3 data-i18n>Credits</h3></div>
+          <span className="trp-about-section-mark">COMMUNITY</span>
+        </div>
+        <p data-i18n-html>The language packs are built from KyoriAsh's <a href="https://nfsmods.xyz/mod/5749" target="_blank" rel="noopener noreferrer">Multi 13 languages mod</a> (with Lee-Ryo's Thai support), from TraduMix's and MixMods' Brazilian Portuguese translation (Fyro, Beater, Kerlyston F.; Junior_Djjr, SideWinder, Elyzandro), from PLProjekt's Polish translation (Daniel Graszka, MaDeR, Marcin Piech, Nati, Mateusz Wilkowski, alter), from VileStuff's <a href="https://nfsmods.xyz/mod/5286" target="_blank" rel="noopener noreferrer">English Subtitles Fixed</a> and from muntazam's <a href="https://www.moddb.com/mods/need-for-speed-underground-2-turkish-translation-patch" target="_blank" rel="noopener noreferrer">Turkish translation</a>. The texture pack is built from LunicAura106's <a href="https://nfsmods.xyz/mod/4319" target="_blank" rel="noopener noreferrer">Upscaled HUD</a>.</p>
+      </motion.section>
+    </motion.div>
+  );
+}
+
 const LEGACY_PAGES = {
   mods: {
     eyebrow: 'COMMUNITY WORKSHOP / 04',
@@ -566,13 +625,6 @@ const LEGACY_PAGES = {
     description: 'Review browser compatibility, graphics, storage, game data and update status.',
     icon: Gauge,
     selectors: ['#updates', '#diagnostics', '#game-data'],
-  },
-  about: {
-    eyebrow: 'PROJECT / 09',
-    headline: 'Underground, reimagined for the web.',
-    description: 'Explore the project features, architecture and changes from the original PC experience.',
-    icon: Info,
-    selectors: ['#changes', '#about'],
   },
 };
 
@@ -747,7 +799,8 @@ function App({ legacyApp }) {
             transition={{ duration: reduceMotion ? 0 : .19, ease: [0.2, 0.75, 0.25, 1] }}>
             {active === 'home' && !gameActive && <HomeDashboard onNavigate={navigate} />}
             {active === 'online' && !gameActive && <OnlineDashboard />}
-            {['mods', 'saves', 'controls', 'settings', 'system', 'about'].includes(active) && !gameActive && <LegacyRoutePage page={active} />}
+            {['mods', 'saves', 'controls', 'settings', 'system'].includes(active) && !gameActive && <LegacyRoutePage page={active} />}
+            {active === 'about' && !gameActive && <AboutDashboard />}
             <LegacyAppHost app={legacyApp} />
           </motion.div>
 
