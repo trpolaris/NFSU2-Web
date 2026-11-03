@@ -11,7 +11,16 @@ import { boot } from './app/shell';
 import { translatePage } from './app/i18n';
 
 declare global {
-  interface Window { __trpTranslateReact?: (root: ParentNode) => void; }
+  interface TrpSettingsBridge {
+    current(key: string): string;
+    set(key: string, value: string | null): Promise<void>;
+    readOnly(): boolean;
+    refresh(): Promise<void>;
+  }
+  interface Window {
+    __trpTranslateReact?: (root: ParentNode) => void;
+    __trpSettingsBridge?: TrpSettingsBridge;
+  }
 }
 
 window.__trpTranslateReact = translatePage;

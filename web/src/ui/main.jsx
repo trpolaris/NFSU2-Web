@@ -159,6 +159,83 @@ const ONLINE_FEATURES = [
   { title: 'Rooms and crews', detail: 'Use room names and crews to organize who appears together in Free Roam.', icon: Users, tone: 'green' },
 ];
 
+
+function OnlineReactControls() {
+  const [values, setValues] = useState({ roam: 'off', online: 'off' });
+  const [ready, setReady] = useState(false);
+  const [readOnly, setReadOnly] = useState(true);
+  const [busy, setBusy] = useState('');
+  const [message, setMessage] = useState('');
+
+  const sync = useCallback(() => {
+    const bridge = window.__trpSettingsBridge;
+    if (!bridge) return;
+    try {
+      setValues({ roam: bridge.current('roam'), online: bridge.current('online') });
+      setReadOnly(bridge.readOnly());
+      setReady(true);
+    } catch { setReady(false); }
+  }, []);
+
+  useEffect(() => {
+    const onSettings = () => sync();
+    window.addEventListener('trp-settings-ready', onSettings);
+    window.addEventListener('trp-settings-changed', onSettings);
+    sync();
+    const bridge = window.__trpSettingsBridge;
+    if (bridge) void bridge.refresh().then(sync).catch(error => setMessage(String(error)));
+    return () => {
+      window.removeEventListener('trp-settings-ready', onSettings);
+      window.removeEventListener('trp-settings-changed', onSettings);
+    };
+  }, [sync]);
+
+  const update = async (key, enabled) => {
+    const bridge = window.__trpSettingsBridge;
+    if (!bridge || readOnly || busy) return;
+    const previous = values[key];
+    const next = enabled ? 'on' : 'off';
+    setValues(current => ({ ...current, [key]: next }));
+    setBusy(key);
+    setMessage('');
+    try {
+      await bridge.set(key, next);
+      sync();
+    } catch (error) {
+      setValues(current => ({ ...current, [key]: previous }));
+      setMessage(String(error));
+    } finally {
+      setBusy('');
+    }
+  };
+
+  return (
+    <div className="trp-online-react-controls">
+      <label className="trp-online-toggle-card">
+        <span className="trp-online-toggle-icon"><CarFront size={19} /></span>
+        <span className="trp-online-toggle-copy">
+          <strong data-i18n>Free roam with others</strong>
+          <small data-i18n>Show your car to other players and see theirs in career free roam.</small>
+          <em>{!ready ? 'Loading settings…' : readOnly ? 'Read-only in this tab' : values.roam === 'on' ? 'Enabled' : 'Disabled'}</em>
+        </span>
+        <input type="checkbox" role="switch" checked={values.roam === 'on'} disabled={!ready || readOnly || !!busy}
+          aria-label="Free roam with others" onChange={event => void update('roam', event.target.checked)} />
+      </label>
+      <label className="trp-online-toggle-card trp-online-toggle-violet">
+        <span className="trp-online-toggle-icon"><Gamepad2 size={19} /></span>
+        <span className="trp-online-toggle-copy">
+          <strong data-i18n>Online mode</strong>
+          <small data-i18n>Open the game’s Online menu for lobbies, chat and races on this server.</small>
+          <em>{!ready ? 'Loading settings…' : readOnly ? 'Read-only in this tab' : values.online === 'on' ? 'Enabled' : 'Disabled'}</em>
+        </span>
+        <input type="checkbox" role="switch" checked={values.online === 'on'} disabled={!ready || readOnly || !!busy}
+          aria-label="Online mode" onChange={event => void update('online', event.target.checked)} />
+      </label>
+      {message && <p className="trp-online-setting-message" role="status">{message}</p>}
+    </div>
+  );
+}
+
 function OnlineDashboard() {
   const reduceMotion = useReducedMotion();
   const enter = reduceMotion ? false : { opacity: 0, y: 12 };
@@ -203,6 +280,7 @@ function OnlineDashboard() {
           </div>
           <span className="trp-online-settings-icon"><Settings size={20} /></span>
         </div>
+        <OnlineReactControls />
         <LegacyNode selector="#online" className="trp-online-legacy-slot" />
       </motion.section>
     </motion.div>

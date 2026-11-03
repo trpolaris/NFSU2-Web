@@ -311,3 +311,46 @@
 @media (prefers-reduced-motion:reduce) {
   .trp-route-intro::after { animation:none!important; }
 }
+
+
+/* React-managed primary toggles backed by the existing validated settings.ini controller. */
+.trp-online-react-controls { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin-bottom:14px; }
+.trp-online-toggle-card {
+  display:grid; grid-template-columns:40px minmax(0,1fr) auto; align-items:center; gap:12px; min-width:0;
+  padding:15px; border:1px solid rgba(102,215,176,.18); border-radius:14px;
+  background:linear-gradient(120deg,rgba(102,215,176,.075),rgba(12,21,33,.68));
+  cursor:pointer; transition:border-color .18s ease,background .18s ease,transform .18s ease;
+}
+.trp-online-toggle-card:hover { transform:translateY(-2px); border-color:rgba(102,215,176,.32); }
+.trp-online-toggle-violet { border-color:rgba(166,154,255,.18); background:linear-gradient(120deg,rgba(166,154,255,.075),rgba(12,21,33,.68)); }
+.trp-online-toggle-violet:hover { border-color:rgba(166,154,255,.32); }
+.trp-online-toggle-icon { display:grid; place-items:center; width:40px; height:40px; border:1px solid rgba(102,215,176,.2); border-radius:12px; background:rgba(102,215,176,.07); color:#78dfbd; }
+.trp-online-toggle-violet .trp-online-toggle-icon { border-color:rgba(166,154,255,.2); background:rgba(166,154,255,.07); color:#b9afff; }
+.trp-online-toggle-copy { display:grid; gap:4px; min-width:0; }
+.trp-online-toggle-copy strong { color:#edf4f6; font-size:.76rem; font-weight:850; }
+.trp-online-toggle-copy small { color:#91a2b8; font-size:.62rem; line-height:1.5; }
+.trp-online-toggle-copy em { color:#7fd8b8; font:750 .54rem ui-monospace,monospace; font-style:normal; letter-spacing:.06em; text-transform:uppercase; }
+.trp-online-toggle-violet .trp-online-toggle-copy em { color:#b9afff; }
+.trp-online-toggle-card input[type="checkbox"] {
+  appearance:none; position:relative; width:42px; height:24px; margin:0; border:1px solid rgba(167,185,214,.24);
+  border-radius:999px; background:#28364a; cursor:pointer; transition:background .18s ease,border-color .18s ease;
+}
+.trp-online-toggle-card input[type="checkbox"]::after {
+  content:""; position:absolute; left:3px; top:3px; width:16px; height:16px; border-radius:50%;
+  background:#a9b6c8; box-shadow:0 1px 4px rgba(0,0,0,.24); transition:transform .18s ease,background .18s ease;
+}
+.trp-online-toggle-card input[type="checkbox"]:checked { border-color:rgba(102,215,176,.55); background:rgba(102,215,176,.32); }
+.trp-online-toggle-violet input[type="checkbox"]:checked { border-color:rgba(166,154,255,.55); background:rgba(166,154,255,.28); }
+.trp-online-toggle-card input[type="checkbox"]:checked::after { transform:translateX(18px); background:#fff; }
+.trp-online-toggle-card input[type="checkbox"]:disabled { opacity:.55; cursor:not-allowed; }
+.trp-online-toggle-card input[type="checkbox"]:focus-visible { outline:2px solid var(--trp-shell-coral); outline-offset:3px; }
+.trp-online-setting-message { grid-column:1/-1; margin:0; color:#ffb09a; font-size:.68rem; }
+.trp-online-legacy-slot > #online #online-body > .group > .set[data-key="roam"],
+.trp-online-legacy-slot > #online #online-body > .group > .set[data-key="online"] { display:none!important; }
+@media (max-width:820px) {
+  .trp-online-react-controls { grid-template-columns:1fr; }
+}
+@media (prefers-reduced-motion:reduce) {
+  .trp-online-toggle-card,.trp-online-toggle-card input[type="checkbox"],.trp-online-toggle-card input[type="checkbox"]::after { transition:none; }
+  .trp-online-toggle-card:hover { transform:none; }
+}

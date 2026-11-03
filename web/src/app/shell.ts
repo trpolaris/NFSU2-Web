@@ -1667,12 +1667,20 @@ export async function boot() {
       if (language() + '/' + texpack() !== was) void saves.refresh();
       vault?.changed(); players?.now();
       applyLanguage();
+      window.dispatchEvent(new Event('trp-settings-changed'));
     },
-    onLoaded: applyLanguage,
+    onLoaded: () => { applyLanguage(); window.dispatchEvent(new Event('trp-settings-changed')); },
     // the tab that owns the saves is the one whose Play reads the file: another tab only looks
     readOnly: () => !instance.owner, say: pageToast, confirm: confirmBox,
     nameRow: (row, input, ctl) => nameRow.attach(row, input, ctl),
   }, $('#online'));
+  window.__trpSettingsBridge = {
+    current: key => settings.current(key),
+    set: async (key, value) => { await settings.set(key, value); window.dispatchEvent(new Event('trp-settings-changed')); },
+    readOnly: () => !instance.owner,
+    refresh: async () => { await settings.refresh(); window.dispatchEvent(new Event('trp-settings-changed')); },
+  };
+  window.dispatchEvent(new Event('trp-settings-ready'));
 
   setupPlatformFeatures(settings, confirmBox, logLine);
   // the language picker at the top: the same setting as Settings, Game, Language

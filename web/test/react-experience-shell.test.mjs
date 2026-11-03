@@ -17,6 +17,7 @@ const runtime = read('src/app/shell.ts');
 const gameEntry = read('src/main.ts');
 const settingsUi = read('src/app/settings-ui.ts');
 const navigation = read('src/app/ui-enhancements.js');
+const settingsRuntime = read('src/app/shell.ts');
 
 test('the main page loads its React shell before the legacy runtime boot sequence', () => {
   assert.match(html, /id="trp-react-root"/);
@@ -142,4 +143,26 @@ test('the remaining main-page sections are presented through React route composi
   for (const id of ['mods','saves','controls','settings','accessibility','updates','diagnostics','game-data','changes','about']) {
     assert.match(html, new RegExp('id="' + id + '"'));
   }
+});
+
+
+test('Free Roam and Online toggles are React-controlled through the existing SettingsPanel bridge', () => {
+  assert.match(app, /function OnlineReactControls/);
+  assert.match(app, /window\.__trpSettingsBridge/);
+  assert.match(app, /bridge\.current\('roam'\)/);
+  assert.match(app, /bridge\.current\('online'\)/);
+  assert.match(app, /bridge\.set\(key, next\)/);
+  assert.match(gameEntry, /interface TrpSettingsBridge/);
+  assert.match(gameEntry, /__trpSettingsBridge\?: TrpSettingsBridge/);
+  assert.match(settingsRuntime, /window\.__trpSettingsBridge = \{/);
+  assert.match(settingsRuntime, /current: key => settings\.current\(key\)/);
+  assert.match(settingsRuntime, /set: async \(key, value\) => \{ await settings\.set\(key, value\)/);
+  assert.match(settingsRuntime, /readOnly: \(\) => !instance\.owner/);
+  assert.match(settingsRuntime, /trp-settings-ready/);
+  assert.match(settingsRuntime, /trp-settings-changed/);
+  assert.match(settingsUi, /current\(key: string\): string/);
+  assert.match(settingsUi, /set\(key: string, value: string \| null\)/);
+  assert.match(shellCss, /\.trp-online-react-controls/);
+  assert.match(shellCss, /data-key="roam"/);
+  assert.match(shellCss, /data-key="online"/);
 });

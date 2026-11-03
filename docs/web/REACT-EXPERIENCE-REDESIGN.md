@@ -111,3 +111,8 @@ Next, the controls inside #online-body should move from the imperative SettingsC
 ## Remaining route composition
 
 Mod Library, Saves, Controls, Settings/Accessibility, System (updates, diagnostics and game data), and About are now mounted under React route compositions. Each route gets a shared animated intro and responsive feature container. Existing section nodes are temporarily moved into those routes with placeholder-backed islands so the existing platform, settings, saves, input and diagnostics controllers retain their event handlers and DOM IDs. The compatibility host remains until those inner controls are converted to typed React components.
+
+
+## React settings bridge
+
+Two primary Online toggles — Free Roam with others and Online mode — are now controlled by React. They read through the existing SettingsPanel current method and write through its existing set method. The bridge also exposes the current tab's read-only state and a refresh signal. This does not bypass the existing save-file ownership check or change the settings.ini format. Room/name input, crews and horn/phrase controls remain on the existing controller until their validation and complex interactions are moved into dedicated React field components.
