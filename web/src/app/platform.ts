@@ -224,25 +224,6 @@ export function compareBuildVersions(a: string, b: string): number | null {
   return 0;
 }
 
-function vehicleGlyph(): SVGSVGElement {
-  const ns = 'http://www.w3.org/2000/svg';
-  const svg = document.createElementNS(ns, 'svg'); svg.setAttribute('viewBox', '0 0 120 64'); svg.setAttribute('aria-hidden', 'true');
-  const body = document.createElementNS(ns, 'path'); body.setAttribute('d', 'M12 40 19 29 Q21 26 31 24 L42 12 Q46 8 55 8 H77 Q85 8 91 18 L100 27 108 31 111 42 106 49 H99 A10 10 0 0 0 79 49 H42 A10 10 0 0 0 22 49 H15 Z'); body.setAttribute('class', 'car-glyph-body');
-  const window = document.createElementNS(ns, 'path'); window.setAttribute('d', 'M38 24 47 14 Q50 12 56 12 H75 Q81 12 85 20 L89 26 Z'); window.setAttribute('class', 'car-glyph-window');
-  const wheel1 = document.createElementNS(ns, 'circle'); wheel1.setAttribute('cx', '32'); wheel1.setAttribute('cy', '47'); wheel1.setAttribute('r', '7'); wheel1.setAttribute('class', 'car-glyph-wheel');
-  const wheel2 = document.createElementNS(ns, 'circle'); wheel2.setAttribute('cx', '89'); wheel2.setAttribute('cy', '47'); wheel2.setAttribute('r', '7'); wheel2.setAttribute('class', 'car-glyph-wheel');
-  svg.append(body, window, wheel1, wheel2); return svg;
-}
-function favoriteButton(id: string, onToggle: () => void): HTMLButtonElement {
-  const fav = getFavorites().has(id), button = document.createElement('button');
-  button.type = 'button'; button.className = 'favorite-button'; button.setAttribute('aria-pressed', String(fav));
-  button.setAttribute('aria-label', t(fav ? 'Remove from favorites' : 'Add to favorites'));
-  button.title = t(fav ? 'Remove from favorites' : 'Add to favorites');
-  const star = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); star.setAttribute('viewBox', '0 0 24 24'); star.setAttribute('aria-hidden', 'true');
-  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path'); path.setAttribute('d', 'm12 2.7 2.9 5.9 6.5.9-4.7 4.6 1.1 6.5-5.8-3.1-5.8 3.1 1.1-6.5-4.7-4.6 6.5-.9z'); star.append(path);
-  const text = document.createElement('span'); text.textContent = t(fav ? 'Remove from favorites' : 'Add to favorites'); text.className = 'visually-hidden'; button.append(star, text);
-  button.onclick = onToggle; return button;
-}
 function toggleFavorite(id: string) {
   const fav = getFavorites(); if (fav.has(id)) fav.delete(id); else fav.add(id); saveFavorites(fav);
 }
@@ -254,12 +235,8 @@ function getPreferredVehicle(): string {
 function setPreferredVehicle(id: string) {
   const current = getPreferredVehicle();
   safeWrite(STORE.preferredVehicle, current === id ? '' : id);
-  renderGarage();
-}
-async function renderGarage() {
   notifyModLibrary();
 }
-
 let packStatus = new Map<string, string>();
 
 export interface ModLibraryCard {
@@ -292,7 +269,7 @@ export function getModLibrarySnapshot(): ModLibrarySnapshot {
 }
 export function toggleModLibraryFavorite(id: string): ModLibrarySnapshot {
   const allowed = KNOWN_PACKS.some(mod => mod.id === id) || getCustomMods().some(mod => 'custom:' + mod.id === id);
-  if (allowed) { toggleFavorite(id); renderGarage(); }
+  if (allowed) { toggleFavorite(id); notifyModLibrary(); }
   return getModLibrarySnapshot();
 }
 export function removeModLibraryEntry(id: string): ModLibrarySnapshot {
@@ -305,7 +282,7 @@ export function removeModLibraryEntry(id: string): ModLibrarySnapshot {
   favorites.delete(id);
   saveFavorites(favorites);
   packStatus.delete(id);
-  renderGarage();
+  notifyModLibrary();
   return getModLibrarySnapshot();
 }
 export async function checkModLibraryPacks(): Promise<ModLibrarySnapshot> {
@@ -343,7 +320,7 @@ export async function importModList(file: File): Promise<string> {
     }
     if (!saveCustomMods(merged)) throw new Error('storage');
     setModStatus(t('Mod list imported.'));
-    renderGarage();
+    notifyModLibrary();
     return modStatusText;
   } catch {
     setModStatus(t('Invalid mod list file.'));
@@ -376,7 +353,7 @@ async function checkPacks(): Promise<void> {
     for (const mod of getCustomMods()) packStatus.set(`custom:${mod.id}`, mod.targetPath ? 'unknown' : 'unchecked');
     setModStatus(t('No server pack manifest is available in this preview.'));
   }
-  renderGarage();
+  notifyModLibrary();
 }
 
 function getProfiles(): ConfigProfile[] {
@@ -388,19 +365,16 @@ function getProfiles(): ConfigProfile[] {
     !!(p as ConfigProfile).values && typeof (p as ConfigProfile).values === 'object' && !Array.isArray((p as ConfigProfile).values)).slice(0, 30);
 }
 function saveProfiles(profiles: ConfigProfile[]) { return safeWrite(STORE.profiles, profiles.slice(0, 30)); }
-function downloadJSON(data: unknown, filename: string) {
-  const blob = new Blob([JSON.stringify(data, null, 2) + '\n'], { type: 'application/json' });
-  const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = filename; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
+export interface JsonDownloadPayload { filename: string; content: string; }
+export interface ModListExportPayload extends JsonDownloadPayload { message: string; }
 
-export function exportModList(): string {
+export function exportModList(): ModListExportPayload {
   const mods = getCustomMods().map(({ name, url, category, targetPath }) => ({
     name, url, category: category ?? 'other', targetPath: targetPath ?? '',
   }));
-  downloadJSON({ schema: 1, mods }, 'trpolaris-mod-list.json');
   const message = t('Mod list exported.');
   setModStatus(message);
-  return message;
+  return { filename: 'trpolaris-mod-list.json', content: JSON.stringify({ schema: 1, mods }, null, 2) + '\n', message };
 }
 
 async function importProfileFile(file: File): Promise<string> {
@@ -620,10 +594,10 @@ export function setupPlatformFeatures(settings: SettingsService, confirm: (title
       
       return { removed: true, profiles: getProfiles().map(({ id, name, createdAt }) => ({ id, name, createdAt })), message: t('Profile deleted.') };
     },
-    export: (id: string) => {
+    export: (id: string): JsonDownloadPayload => {
       const profile = getProfiles().find(item => item.id === id);
       if (!profile) throw new Error('Profile not found');
-      downloadJSON(profile, `trpolaris-profile-${profile.name.replace(/[^A-Za-z0-9_-]/g, '_')}.json`);
+      return { filename: `trpolaris-profile-${profile.name.replace(/[^A-Za-z0-9_-]/g, '_')}.json`, content: JSON.stringify(profile, null, 2) + '\n' };
     },
     import: async (file: File) => {
       const message = await importProfileFile(file);
@@ -648,12 +622,12 @@ export function setupPlatformFeatures(settings: SettingsService, confirm: (title
   const clearPreferences = async () => {
     if (!await confirm(t('Clear app preferences'), t('This clears favorites, mod links, saved profiles, preferred vehicle, accessibility and onboarding preferences; game saves and settings are not deleted.'), t('Clear app preferences'), true)) return false;
     for (const key of [STORE.favorites, STORE.customMods, STORE.accessibility, STORE.onboarding, STORE.profiles, STORE.preferredVehicle]) { try { localStorage.removeItem(key); } catch { /* optional */ } }
-    loadAccessibility(); renderGarage(); privacyStatus = t('App preferences cleared.');
+    loadAccessibility(); notifyModLibrary(); privacyStatus = t('App preferences cleared.');
     window.dispatchEvent(new Event('trp-platform-changed'));
     return true;
   };
   const openFirstRun = wireFirstRun(settings, log);
-  onLanguage(() => { renderGarage(); });
+  onLanguage(() => { notifyModLibrary(); });
   window.__trpModLibraryBridge = {
     snapshot: () => getModLibrarySnapshot(),
     toggleFavorite: id => toggleModLibraryFavorite(id),
@@ -664,7 +638,7 @@ export function setupPlatformFeatures(settings: SettingsService, confirm: (title
     checkPacks: async () => await checkModLibraryPacks(),
   };
   window.dispatchEvent(new Event('trp-mod-library-ready'));
-  renderGarage(); 
+  notifyModLibrary(); 
   window.__trpPlatformBridge = {
     snapshot: () => ({
       currentVersion: APP_BUILD_VERSION,

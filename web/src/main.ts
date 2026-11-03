@@ -18,6 +18,8 @@ declare global {
   interface TrpModLibrarySnapshot {
     packs: TrpModLibraryCard[]; custom: TrpModLibraryCard[]; count: number; statusText: string;
   }
+  interface TrpJsonExport { filename: string; content: string; }
+  interface TrpModListExport extends TrpJsonExport { message: string; }
   interface TrpModLibraryBridge {
     snapshot(): TrpModLibrarySnapshot;
     toggleFavorite(id: string): TrpModLibrarySnapshot;
@@ -25,7 +27,7 @@ declare global {
     checkPacks(): Promise<TrpModLibrarySnapshot>;
     addLink(name: string, url: string, category: string, targetPath: string): { ok: boolean; message: string };
     importList(file: File): Promise<string>;
-    exportList(): string;
+    exportList(): TrpModListExport;
   }
   interface TrpAccessibilityPrefs { largeText: boolean; reduceMotion: boolean; highContrast: boolean; }
   interface TrpSettingsOption { value: string; label: string; }
@@ -50,7 +52,7 @@ declare global {
     save(name: string): Promise<TrpSettingsProfilesResult>;
     apply(id: string): Promise<{ applied: boolean; message: string }>;
     remove(id: string): Promise<{ removed: boolean; profiles: TrpSettingsProfile[]; message?: string }>;
-    export(id: string): void;
+    export(id: string): TrpJsonExport;
     import(file: File): Promise<TrpSettingsProfilesResult>;
     preset(id: 'performance' | 'balanced' | 'quality'): Promise<{ applied: boolean; message: string }>;
   }

@@ -147,3 +147,16 @@ test('Mod Library, updates and diagnostics are React-owned over DOM-free service
   assert.match(react, /function UpdatesReactPanel\(\)/);
   assert.match(react, /function DiagnosticsReactPanel\(\)/);
 });
+
+test('Mod and profile export services return JSON payloads while React owns browser downloads', () => {
+  assert.match(platform, /export function exportModList\(\): ModListExportPayload/);
+  assert.match(platform, /content: JSON\.stringify\(\{ schema: 1, mods \}/);
+  assert.match(platform, /export: \(id: string\): JsonDownloadPayload/);
+  assert.match(platform, /content: JSON\.stringify\(profile, null, 2\)/);
+  assert.doesNotMatch(platform, /document\.createElement(?:NS)?|URL\.createObjectURL|downloadJSON/);
+  assert.doesNotMatch(platform, /function (?:vehicleGlyph|favoriteButton|renderGarage)/);
+  assert.match(entry, /exportList\(\): TrpModListExport/);
+  assert.match(entry, /export\(id: string\): TrpJsonExport/);
+  assert.match(react, /function downloadJsonExport\(file\)/);
+  assert.match(react, /downloadJsonExport\(file\)/);
+});

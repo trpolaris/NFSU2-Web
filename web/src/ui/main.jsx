@@ -11,6 +11,19 @@ import {
   LayoutDashboard, LibraryBig, MessageCircle, Save, Settings, ShieldCheck, Users,
 } from 'lucide-react';
 
+function downloadJsonExport(file) {
+  const blob = new Blob([file.content], { type: 'application/json;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = file.filename;
+  link.hidden = true;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 const NAV = [
   { id: 'home', label: 'Play', detail: 'Start page', icon: LayoutDashboard },
   { id: 'online', label: 'Online', detail: 'Free roam and online play', icon: Users },
@@ -905,7 +918,10 @@ function ModLibraryForm() {
 
   const exportList = () => {
     const bridge = window.__trpModLibraryBridge;
-    if (bridge) setMessage(bridge.exportList());
+    if (!bridge) return;
+    const file = bridge.exportList();
+    downloadJsonExport(file);
+    setMessage(file.message);
   };
 
   return (
@@ -1900,7 +1916,10 @@ function SettingsProfilesReactControls() {
           </select>
         </label>
         <button type="button" disabled={readOnly || !selected || busy !== ''} onClick={() => void run('apply', bridge => bridge.apply(selected))}><span data-i18n>{busy === 'apply' ? 'Applying…' : 'Apply profile'}</span></button>
-        <button type="button" disabled={!selected || busy !== ''} onClick={() => window.__trpSettingsProfilesBridge?.export(selected)}><span data-i18n>Export profile</span></button>
+        <button type="button" disabled={!selected || busy !== ''} onClick={() => {
+          const file = window.__trpSettingsProfilesBridge?.export(selected);
+          if (file) downloadJsonExport(file);
+        }}><span data-i18n>Export profile</span></button>
         <button type="button" className="is-danger" disabled={readOnly || !selected || busy !== ''} onClick={() => void run('delete', bridge => bridge.remove(selected))}><span data-i18n>Delete profile</span></button>
         <label className={'trp-settings-file-action' + (readOnly || busy !== '' ? ' is-disabled' : '')}>
           <span data-i18n>Import profile</span><input type="file" accept="application/json,.json" disabled={readOnly || busy !== ''} onChange={importFile} />
