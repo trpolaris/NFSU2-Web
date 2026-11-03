@@ -62,20 +62,11 @@
 .trp-heading-index { display:flex; align-items:center; gap:12px; color:#65758a; font:800 .52rem ui-monospace,monospace; letter-spacing:.13em; }
 .trp-heading-index strong { color:rgba(255,255,255,.11); font-size:2.9rem; line-height:.8; letter-spacing:-.08em; }
 .trp-page-frame { min-width:0; }
-.trp-legacy-slot { min-width:0; }
 .trp-shell-footer { display:flex; align-items:center; justify-content:space-between; gap:14px; margin-top:24px; padding:14px 2px 2px; border-top:1px solid rgba(167,185,214,.085); color:#5e6e84; font:700 .48rem ui-monospace,monospace; letter-spacing:.1em; }
 .trp-shell-footer span:last-child { display:flex; align-items:center; gap:8px; }
 .trp-shell-footer i { width:5px; height:5px; border-radius:50%; background:var(--trp-shell-green); }
 
 /* The React shell owns the page frame; the legacy runtime keeps its existing IDs and event hooks. */
-.trp-legacy-slot>#app.experience-shell { display:block!important; width:100%!important; max-width:none!important; min-width:0!important; min-height:0!important; margin:0!important; padding:0!important; grid-template-columns:none!important; grid-template-rows:none!important; grid-template-areas:none!important; gap:0!important; background:transparent!important; }
-.trp-legacy-slot #app>.app-topbar { display:none!important; }
-.trp-legacy-slot #app>.home-page,.trp-legacy-slot #app>.app-grid { width:100%; min-width:0; margin:0; grid-area:auto; }
-.trp-legacy-slot #app>.home-page { gap:20px; }
-.trp-legacy-slot #app .landing-hero { border-radius:22px; }
-.trp-legacy-slot #app .panel,.trp-legacy-slot #app .home-action-card,.trp-legacy-slot #app .hero-garage-link { transition:transform .22s ease,border-color .22s ease,box-shadow .22s ease,background-color .22s ease; }
-.trp-legacy-slot #app .home-action-card:hover,.trp-legacy-slot #app .hero-garage-link:hover { transform:translateY(-3px); }
-.trp-legacy-slot #app :focus-visible { outline-color:var(--trp-shell-coral); outline-offset:3px; }
 @keyframes trpAmbient { from { transform:translate3d(-2%,0,0) scale(.94); } to { transform:translate3d(3%,4%,0) scale(1.08); } }
 @keyframes trpPulse { 0%,100% { opacity:1; box-shadow:0 0 9px rgba(102,215,176,.55); } 50% { opacity:.65; box-shadow:0 0 16px rgba(102,215,176,.8); } }
 @media (max-width:1120px) {
@@ -108,7 +99,6 @@
   .trp-content { padding:20px 12px 24px; } .trp-content-heading { margin-bottom:15px; }
   .trp-content-heading h1 { font-size:1.55rem; } .trp-heading-index { display:none; }
   .trp-shell-footer { align-items:flex-start; flex-direction:column; gap:5px; font-size:.43rem; }
-  .trp-legacy-slot #app .landing-hero { border-radius:15px; } .trp-legacy-slot #app .home-page { gap:14px; }
 }
 @media (prefers-reduced-motion:reduce) {
   .trp-react-shell *,.trp-react-shell *::before,.trp-react-shell *::after { scroll-behavior:auto!important; animation-duration:.01ms!important; animation-iteration-count:1!important; transition-duration:.01ms!important; }
@@ -120,7 +110,6 @@
 .trp-react-shell.is-home .trp-content { padding-top:22px; }
 .trp-react-home { width:100%; min-width:0; gap:17px; }
 .trp-home-particles-slot,.trp-home-art-slot,.trp-home-play-slot,.trp-home-status-slot { display:contents; }
-.trp-legacy-slot #app > #home-page { display:none!important; }
 .trp-home-status-slot { min-width:0; }
 .trp-react-home .landing-hero { min-height:clamp(570px,49vw,690px); }
 .trp-react-home .landing-copy { width:min(59%,760px); }
@@ -429,9 +418,6 @@
 .trp-about-link:hover { color:#fff;text-decoration:underline; }
 .trp-about-notice { border-color:rgba(255,105,69,.17);background:linear-gradient(145deg,rgba(255,105,69,.045),rgba(10,17,29,.95)); }
 .trp-about-credits p { margin-bottom:0; }
-.trp-legacy-slot #app #changes,.trp-legacy-slot #app #about { display:none!important; }
-.trp-legacy-slot #app #saves { display:none!important; }
-.trp-legacy-slot #app #mods { display:none!important; }
 @media(max-width:980px) { .trp-about-feature-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } .trp-about-info-grid { grid-template-columns:1fr; } }
 @media(max-width:700px) {
   .trp-about-dashboard { gap:10px; }

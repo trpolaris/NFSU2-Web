@@ -116,7 +116,7 @@ test('Home Play and live status are React-owned through the game runtime adapter
   assert.match(gameEntry, /__trpRuntimeBridge\?: TrpRuntimeBridge/);
   assert.match(shellCss, /\.trp-runtime-play/);
   assert.match(shellCss, /\.trp-runtime-status/);
-  assert.match(shellCss, /\.trp-legacy-slot #app > #home-page \{ display:none!important; \}/);
+  assert.match(shellCss, /#app\.experience-shell \{ display:none!important; \}/);
   assert.match(shellCss, /trp-react-shell\.is-home \.trp-content-heading/);
 });
 
@@ -315,7 +315,7 @@ test('About and project credits are rendered directly in the React route, not le
   assert.match(app, /KyoriAsh's/);
   assert.match(app, /Lee-Ryo's Thai support/);
   assert.match(app, /Electronic Arts/);
-  assert.match(shellCss, /#changes,.trp-legacy-slot #app #about \{ display:none!important; \}/);
+  assert.match(shellCss, /#app\.experience-shell \{ display:none!important; \}/);
   assert.match(shellCss, /\.trp-about-feature-grid/);
   assert.match(shellCss, /\.trp-about-info-grid/);
 });
