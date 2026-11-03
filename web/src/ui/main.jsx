@@ -1094,6 +1094,225 @@ function SavesReactControls() {
   );
 }
 
+function ScreenshotsReactControls() {
+  const [shots, setShots] = useState([]);
+  const [thumbs, setThumbs] = useState({});
+  const [current, setCurrent] = useState(-1);
+  const [imageUrl, setImageUrl] = useState('');
+  const [error, setError] = useState('');
+  const thumbRun = useRef(0);
+  const imageRun = useRef(0);
+
+  const refresh = useCallback(() => {
+    const next = window.__trpSavesBridge?.shotsSnapshot();
+    if (next) setShots(next);
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener('trp-saves-ready', refresh);
+    window.addEventListener('trp-saves-changed', refresh);
+    refresh();
+    return () => {
+      window.removeEventListener('trp-saves-ready', refresh);
+      window.removeEventListener('trp-saves-changed', refresh);
+    };
+  }, [refresh]);
+
+  useEffect(() => {
+    const run = ++thumbRun.current;
+    const bridge = window.__trpSavesBridge;
+    if (!bridge || !shots.length) { setThumbs({}); return; }
+    void Promise.all(shots.map(async shot => [shot.path, await bridge.shotThumbnail(shot.path)]))
+      .then(entries => { if (thumbRun.current === run) setThumbs(Object.fromEntries(entries)); })
+      .catch(() => { if (thumbRun.current === run) setThumbs({}); });
+    return () => { if (thumbRun.current === run) thumbRun.current++; };
+  }, [shots]);
+
+  useEffect(() => {
+    if (!imageUrl) return undefined;
+    return () => URL.revokeObjectURL(imageUrl);
+  }, [imageUrl]);
+
+  const close = useCallback(() => {
+    imageRun.current++;
+    setCurrent(-1);
+    setError('');
+    setImageUrl('');
+  }, []);
+
+  const open = async index => {
+    const shot = shots[index];
+    if (!shot) return;
+    const run = ++imageRun.current;
+    setCurrent(index);
+    setError('');
+    setImageUrl('');
+    try {
+      const url = await window.__trpSavesBridge?.shotImageUrl(shot.path);
+      if (!url) throw new Error('Screenshot not available');
+      if (imageRun.current !== run) { URL.revokeObjectURL(url); return; }
+      setImageUrl(url);
+    } catch (reason) {
+      if (imageRun.current === run) setError(reason instanceof Error ? reason.message : String(reason));
+    }
+  };
+
+  const step = delta => {
+    const next = current + delta;
+    if (next >= 0 && next < shots.length) void open(next);
+  };
+
+  useEffect(() => {
+    if (current < 0) return undefined;
+    const key = event => {
+      if (event.key === 'Escape') { event.preventDefault(); close(); }
+      else if (event.key === 'ArrowLeft') { event.preventDefault(); step(-1); }
+      else if (event.key === 'ArrowRight') { event.preventDefault(); step(1); }
+    };
+    window.addEventListener('keydown', key);
+    return () => window.removeEventListener('keydown', key);
+  }, [current, shots, close]);
+
+  const download = path => window.__trpSavesBridge?.downloadShot(path);
+  const remove = async () => {
+    const shot = shots[current];
+    if (!shot) return;
+    try {
+      const removed = await window.__trpSavesBridge?.deleteShot(shot.path);
+      if (removed) { close(); refresh(); }
+    } catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); }
+  };
+
+  const shot = current >= 0 ? shots[current] : null;
+  return (
+    <section className="trp-shots-react" aria-labelledby="trp-shots-title">
+      <div className="trp-shots-react-heading">
+        <div><span className="trp-eyebrow" data-i18n>LOCAL GALLERY / F12</span><h3 id="trp-shots-title" data-i18n>Screenshots</h3></div>
+        <span className="trp-shots-react-count">{shots.length} <span data-i18n>images</span></span>
+      </div>
+      {shots.length ? (
+        <div className="trp-shots-react-grid">
+          {shots.map((item, index) => (
+            <article className="trp-shot-react-card" key={item.path}>
+              <button type="button" className="trp-shot-react-preview" onClick={() => void open(index)} aria-label={t('Screenshot, {when}', { when: new Date(item.mtime).toLocaleString(dateLocale()) })}>
+                {thumbs[item.path] ? <img src={thumbs[item.path]} alt="" loading="lazy" decoding="async" /> : <span className="trp-shot-placeholder">{item.path.split('.').pop()?.toUpperCase()}</span>}
+                <span className="trp-shot-open-mark"><span data-i18n>Open</span><ArrowUpRight size={14} /></span>
+              </button>
+              <div className="trp-shot-react-meta"><strong>{new Date(item.mtime).toLocaleString(dateLocale())}</strong><span>{fmtBytes(item.size)}</span></div>
+              <button type="button" className="trp-shot-react-download" onClick={() => download(item.path)}><span data-i18n>Download original</span></button>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <div className="trp-shots-react-empty"><span className="trp-shots-empty-symbol">F12</span><strong data-i18n>No screenshots yet.</strong><p data-i18n>Take a screenshot while driving. Your pictures stay in this browser and are included in local backups.</p></div>
+      )}
+      {shot && (
+        <div className="trp-shot-lightbox" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) close(); }}>
+          <section className="trp-shot-lightbox-panel" role="dialog" aria-modal="true" aria-labelledby="trp-shot-lightbox-title">
+            <header><div><span className="trp-eyebrow" data-i18n>LOCAL CAPTURE / {String(current + 1).padStart(2,'0')}</span><h3 id="trp-shot-lightbox-title" data-i18n>Screenshot</h3><p>{new Date(shot.mtime).toLocaleString(dateLocale())} · {fmtBytes(shot.size)}</p></div><button type="button" className="trp-shot-lightbox-close" onClick={close} aria-label="Close">×</button></header>
+            <div className="trp-shot-lightbox-image">{imageUrl ? <img src={imageUrl} alt={t('Screenshot, {when}', { when: new Date(shot.mtime).toLocaleString(dateLocale()) })} /> : <p role="status">{error || t('Loading screenshot…')}</p>}</div>
+            {error && <p className="trp-shot-lightbox-error" role="alert">{error}</p>}
+            <footer>
+              <button type="button" disabled={current <= 0} onClick={() => step(-1)}><span data-i18n>‹ Newer</span></button>
+              <span>{current + 1} / {shots.length}</span>
+              <button type="button" disabled={current >= shots.length - 1} onClick={() => step(1)}><span data-i18n>Older ›</span></button>
+              <button type="button" onClick={() => download(shot.path)}><span data-i18n>Download</span></button>
+              <button type="button" className="is-danger" onClick={() => void remove()}><span data-i18n>Delete</span></button>
+            </footer>
+          </section>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function VaultReactControls() {
+  const [snapshot, setSnapshot] = useState({
+    available: false, linked: false, phrase: '', revealed: false, owner: false, busy: true, working: false,
+    host: '', when: '', whenVisible: false, claim: '', claimVisible: false, about: '', aboutVisible: true,
+    sides: '', status: '', message: '', messageWarn: false, makeVisible: false, showDownload: false,
+    showLoad: false, showSync: false, showEarlier: false, showConflict: false, showReplaced: false,
+    makeDisabled: true, loadDisabled: true, syncDisabled: true, earlierDisabled: true, keepMineDisabled: true,
+    takeTheirsDisabled: true, stopDisabled: true, deleteDisabled: true, putBackDisabled: true, conflictState: false,
+  });
+  const [phrase, setPhrase] = useState('');
+  const [action, setAction] = useState('');
+  const rootRef = useRef(null);
+  const refresh = useCallback(() => {
+    const next = window.__trpVaultBridge?.snapshot();
+    if (!next) return;
+    setSnapshot(next);
+    if (next.linked) setPhrase(next.phrase);
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener('trp-vault-ready', refresh);
+    window.addEventListener('trp-vault-changed', refresh);
+    refresh();
+    return () => {
+      window.removeEventListener('trp-vault-ready', refresh);
+      window.removeEventListener('trp-vault-changed', refresh);
+    };
+  }, [refresh]);
+
+  useEffect(() => { if (rootRef.current) window.__trpTranslateReact?.(rootRef.current); }, [snapshot, action]);
+
+  const run = async (key, operation) => {
+    const bridge = window.__trpVaultBridge;
+    if (!bridge || action) return;
+    setAction(key);
+    try { await operation(bridge); }
+    finally { refresh(); setAction(''); }
+  };
+  const load = event => {
+    event.preventDefault();
+    void run('load', bridge => bridge.load(phrase));
+  };
+
+  if (!snapshot.available) return null;
+  return (
+    <section className="trp-vault-react" ref={rootRef} aria-labelledby="trp-vault-react-title">
+      <div className="trp-vault-react-heading">
+        <div><span className="trp-eyebrow">TRPOLARIS CLOUD / PRIVATE SYNC</span><h3 id="trp-vault-react-title" data-i18n>Cloud saves</h3><p>{snapshot.host}</p></div>
+        {snapshot.whenVisible && <span className="trp-vault-react-sync-state" role="status">{snapshot.when}</span>}
+      </div>
+      <div className="trp-vault-react-key-row">
+        <form className="trp-vault-react-key-form" onSubmit={load}>
+          <input type={snapshot.revealed ? 'text' : 'password'} value={snapshot.linked ? snapshot.phrase : phrase}
+            readOnly={snapshot.linked} autoComplete="off" autoCapitalize="none" spellCheck="false"
+            placeholder={t('Enter your keyphrase')} aria-label={t('Keyphrase')}
+            onChange={event => setPhrase(event.target.value)} />
+          <button type="button" className="trp-vault-icon-action" onClick={() => window.__trpVaultBridge?.toggleVisibility()} aria-label={snapshot.revealed ? t('Hide passphrase') : t('Show passphrase')} aria-pressed={snapshot.revealed}>◉</button>
+          {snapshot.showDownload && <button type="button" className="trp-vault-icon-action" onClick={() => window.__trpVaultBridge?.download()} aria-label={t('Download keyphrase')}>↓</button>}
+          {snapshot.showLoad && <button type="submit" disabled={snapshot.loadDisabled || action !== ''}><span data-i18n>{action === 'load' ? 'Loading…' : 'Load'}</span></button>}
+        </form>
+        {snapshot.makeVisible && <button type="button" className="trp-vault-primary" disabled={snapshot.makeDisabled || action !== ''} onClick={() => void run('make', bridge => bridge.make())}><span data-i18n>{action === 'make' ? 'Enabling…' : 'Enable cloud saving'}</span></button>}
+      </div>
+      {snapshot.aboutVisible && <p className="trp-vault-react-hint" data-i18n>{snapshot.about}</p>}
+      {snapshot.claimVisible && <p className="trp-vault-react-hint">{snapshot.claim}</p>}
+      {snapshot.sides && <p className="trp-vault-react-sides">{snapshot.sides}</p>}
+      {snapshot.status && <p className="trp-vault-react-status" role="status">{snapshot.status}</p>}
+      {snapshot.message && <p className={'trp-vault-react-message' + (snapshot.messageWarn ? ' is-warn' : '')} role="status" aria-live="polite">{snapshot.message}</p>}
+      {snapshot.showConflict && (
+        <div className="trp-vault-react-conflict">
+          <strong data-i18n>Resolve cloud conflict</strong><p data-i18n>Choose which save set should remain linked to this passphrase.</p>
+          <div>
+            <button type="button" disabled={snapshot.keepMineDisabled || action !== ''} onClick={() => void run('mine', bridge => bridge.keepMine())}><span data-i18n>Keep this browser's</span></button>
+            <button type="button" disabled={snapshot.takeTheirsDisabled || action !== ''} onClick={() => void run('theirs', bridge => bridge.takeTheirs())}><span data-i18n>Use the cloud's</span></button>
+          </div>
+        </div>
+      )}
+      <div className="trp-vault-react-actions">
+        {snapshot.showSync && <button type="button" disabled={snapshot.syncDisabled || action !== ''} onClick={() => void run('sync', bridge => bridge.sync())}><span data-i18n>Sync now</span></button>}
+        {snapshot.showEarlier && <button type="button" disabled={snapshot.earlierDisabled || action !== ''} onClick={() => void run('earlier', bridge => bridge.goBack())}><span data-i18n>Go back</span></button>}
+        {snapshot.showReplaced && <button type="button" disabled={snapshot.putBackDisabled || action !== ''} onClick={() => void run('putback', bridge => bridge.putBack())}><span data-i18n>Put back</span></button>}
+        {snapshot.showSync && <button type="button" disabled={snapshot.stopDisabled || action !== ''} onClick={() => void run('stop', bridge => bridge.stop())}><span data-i18n>Stop syncing</span></button>}
+        {snapshot.showSync && <button type="button" className="is-danger" disabled={snapshot.deleteDisabled || action !== ''} onClick={() => void run('delete', bridge => bridge.remove())}><span data-i18n>Delete from cloud</span></button>}
+      </div>
+    </section>
+  );
+}
+
 function SavesDashboard() {
   const reduceMotion = useReducedMotion();
   const enter = reduceMotion ? false : { opacity: 0, y: 12 };
@@ -1110,6 +1329,8 @@ function SavesDashboard() {
 
       <motion.section className="trp-saves-panel" initial={enter} animate={{ opacity: 1, y: 0 }} transition={{ ...transition, delay: reduceMotion ? 0 : .05 }}>
         <SavesReactControls />
+        <ScreenshotsReactControls />
+        <VaultReactControls />
         <LegacyNode selector="#saves" className="trp-saves-legacy-slot" />
       </motion.section>
     </motion.div>

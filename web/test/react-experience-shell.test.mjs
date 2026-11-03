@@ -17,6 +17,8 @@ const runtime = read('src/app/shell.ts');
 const gameEntry = read('src/main.ts');
 const settingsUi = read('src/app/settings-ui.ts');
 const savesUi = read('src/app/saves-ui.ts');
+const shotsUi = read('src/app/shots.ts');
+const vaultUi = read('src/app/vault-ui.ts');
 const platform = read('src/app/platform.ts');
 const navigation = read('src/app/ui-enhancements.js');
 const settingsRuntime = read('src/app/shell.ts');
@@ -344,6 +346,37 @@ test('Controls route is rendered in React and reads/writes the existing touch an
   assert.ok(app.includes('trp-touch-settings-grid'));
   assert.ok(shellCss.includes('.trp-controls-react-workbench'));
   assert.ok(shellCss.includes('.trp-controller-map-grid'));
+});
+
+test('Screenshots gallery and lightbox are React-rendered through the existing screenshot file service', () => {
+  assert.match(app, /function ScreenshotsReactControls\(\)/);
+  assert.match(app, /<ScreenshotsReactControls \/>/);
+  assert.match(app, /window\.__trpSavesBridge\?\.shotImageUrl/);
+  assert.match(app, /window\.__trpSavesBridge\?\.deleteShot/);
+  assert.match(runtime, /shotsSnapshot: \(\) => saves\.shotsSnapshot\(\)/);
+  assert.match(runtime, /shotImageUrl: path => saves\.shotImageUrl\(path\)/);
+  assert.match(savesUi, /shotsSnapshot\(\)/);
+  assert.match(shotsUi, /imageUrl\(path: string\)/);
+  assert.match(shotsUi, /thumbnail\(path: string\)/);
+  assert.match(shotsUi, /deleteFromReact\(path: string\)/);
+  assert.match(shellCss, /\.trp-shots-react-grid/);
+  assert.match(shellCss, /\.trp-shot-lightbox/);
+});
+
+test('Cloud Vault controls are React-rendered while keyphrase sync and conflict decisions remain in VaultPanel', () => {
+  assert.match(app, /function VaultReactControls\(\)/);
+  assert.match(app, /<VaultReactControls \/>/);
+  assert.match(runtime, /window\.__trpVaultBridge = \{/);
+  assert.match(runtime, /onReactUpdate: \(\) => window\.dispatchEvent\(new Event\('trp-vault-changed'\)\)/);
+  assert.match(vaultUi, /reactSnapshot\(\)/);
+  assert.match(vaultUi, /keepMineFromReact\(\)/);
+  assert.match(vaultUi, /takeTheirsFromReact\(\)/);
+  assert.match(vaultUi, /putBackFromReact\(\)/);
+  assert.match(gameEntry, /interface TrpVaultBridge/);
+  assert.match(gameEntry, /__trpVaultBridge\?: TrpVaultBridge/);
+  assert.match(shellCss, /\.trp-vault-react-key-form/);
+  assert.match(shellCss, /\.trp-vault-react-conflict/);
+  assert.match(shellCss, /\.trp-saves-legacy-slot \{ display:none!important; \}/);
 });
 
 test('SavesPanel still owns all descendant profile, screenshot and message controls under #saves', () => {

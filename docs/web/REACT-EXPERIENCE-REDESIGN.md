@@ -182,3 +182,8 @@ The Add/Import/Export form is now React-rendered too. It calls a narrow bridge i
 ## Home runtime adapter migration
 
 The Home route now renders its car artwork, Play dock, module progress and live status card in React. A typed runtime adapter exposes the current phase, progress, play readiness, startup checks, retry/reload and log-download commands. The existing game lifecycle and module loader stay in the TypeScript runtime; the WebAssembly canvas, renderer, audio, workers and input path are not rendered by React. The old #play-panel and #home-status-panel nodes remain hidden in the runtime host as temporary compatibility anchors while the remaining shell selectors are removed.
+
+
+## Saves screenshots and Cloud Vault migration
+
+The Screenshots gallery, lazy thumbnail grid, image lightbox, navigation, download and delete actions now render in React. Existing screenshot decoding (including TGA), thumbnail object-URL cache and OPFS files remain in ScreenshotsPart. The Cloud Vault keyphrase field, enable/load, sync, conflict choice, earlier-version restore, stop/delete and Put back controls now render in React through a typed VaultPanel adapter. Encryption, passphrase format, local link storage, sync timing, server routes, conflict rules and the 30-day replaced-save copy are unchanged. The complete #saves subtree remains mounted but hidden as a service anchor while remaining save selectors are removed.
