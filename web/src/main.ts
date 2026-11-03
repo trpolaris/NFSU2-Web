@@ -10,6 +10,10 @@ import { setupUIEnhancements } from './app/ui-enhancements.js';
 import { boot } from './app/shell';
 import { translatePage } from './app/i18n';
 
+declare global {
+  interface Window { __trpTranslateReact?: (root: ParentNode) => void; }
+}
+
 window.__trpTranslateReact = translatePage;
 setupUIEnhancements();
 void boot();

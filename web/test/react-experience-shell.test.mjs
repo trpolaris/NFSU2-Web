@@ -88,6 +88,7 @@ test('the game stage is never placed inside an inert React root while page chrom
 
 
 test('React-owned UI text uses the existing game language dictionaries and is translated again after remounts', () => {
+  assert.match(gameEntry, /interface Window \{ __trpTranslateReact\?: \(root: ParentNode\) => void; \}/);
   assert.match(gameEntry, /window\.__trpTranslateReact = translatePage/);
   assert.match(gameEntry, /import \{ translatePage \} from '\.\/app\/i18n'/);
   assert.match(app, /window\.__trpTranslateReact\(rootRef\.current\)/);
