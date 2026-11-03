@@ -1199,3 +1199,8 @@
   .trp-install-react { width:35px;min-width:35px;height:34px;min-height:34px;justify-content:center;padding:0;overflow:hidden;font-size:0; }
   .trp-install-react svg { width:16px;height:16px; }
 }
+
+
+/* #app is a hidden compatibility/service root. React renders the visible page above it;
+   game stage, lobby, runtime overlays, and dialogs remain outside this element. */
+#app.experience-shell { display:none!important; }
