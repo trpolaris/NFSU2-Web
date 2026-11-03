@@ -647,7 +647,7 @@ React; ana web deneyiminin sayfa, navigasyon ve UI katmanının sahibi oluyor. O
 | Varsayılan dal | `main` |
 | `main` HEAD | [`f1452ce`](https://github.com/trpolaris/NFSU2-Web/commit/f1452ce76f4f344f560ddc10b60e51ba862d531c) |
 | React çalışma dalı | [`feature/react-web-experience`](https://github.com/trpolaris/NFSU2-Web/tree/feature/react-web-experience) |
-| React dalı HEAD | [`70952b9`](https://github.com/trpolaris/NFSU2-Web/commit/70952b99d04142fc2f6823b8e7e2633c9a8e49a4) |
+| Son React uygulama kodu commit'i | [`70952b9`](https://github.com/trpolaris/NFSU2-Web/commit/70952b99d04142fc2f6823b8e7e2633c9a8e49a4) |
 | İlgili Pull Request | [PR #15 — Main experience React migration](https://github.com/trpolaris/NFSU2-Web/pull/15) |
 | PR durumu | Açık, taslak; hedef dal `main` |
 
@@ -657,11 +657,11 @@ PR #15 henüz birleştirilmemiştir. React geçiş dalındaki kodu `main` veya c
 
 | İş akışı | 3 Kasım 2026 tarihli son görünen durum | Bağlantı |
 |---|---|---|
-| `image-rs` | **Başarılı** | [Container image run](https://github.com/trpolaris/NFSU2-Web/actions/runs/41596182691) |
-| Multiplayer and Regression CI — PR | **Çalışıyor** | [PR CI run](https://github.com/trpolaris/NFSU2-Web/actions/runs/41596182724) |
-| Multiplayer and Regression CI — push | **Çalışıyor** | [Push CI run](https://github.com/trpolaris/NFSU2-Web/actions/runs/41596174778) |
+| `image-rs` — React kod commit'i | **Başarılı** | [Container image run](https://github.com/trpolaris/NFSU2-Web/actions/runs/41596182691) |
+| Multiplayer and Regression CI — PR / React kod commit'i | **Başarılı** | [PR CI run](https://github.com/trpolaris/NFSU2-Web/actions/runs/41596182724) |
+| Multiplayer and Regression CI — push / React kod commit'i | **Başarılı** | [Push CI run](https://github.com/trpolaris/NFSU2-Web/actions/runs/41596174778) |
 
-Bu, kontrol anındaki GitHub durumudur. `image-rs` başarısı Rust/web/multiplayer regresyon paketinin tamamının geçtiği anlamına gelmez. CI tamamlandığında yeniden kontrol edilmelidir.
+Yukarıdaki başarılı sonuçlar son React uygulama kodu commit'i `70952b9` içindir. Bu README yol haritası daha sonra dokümantasyon-only commit'iyle güncellenmiştir; dokümantasyon commit'i uygulama kodunu veya canlı sunucuyu değiştirmez. Yeni dal/PR durumunu [GitHub Actions](https://github.com/trpolaris/NFSU2-Web/actions) üzerinden izleyin.
 
 ### ✅ React geçişinde yapılanlar
 
