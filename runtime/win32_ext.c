@@ -1489,27 +1489,27 @@ int win32_ext_call(CPU *c, const char *n, uint32_t *out){
     else if (!strcmp(n,"GetActiveWindow")||!strcmp(n,"GetForegroundWindow")) r=0x00B00001u;
     else if (!strcmp(n,"LoadIconA")||!strcmp(n,"LoadCursorA")){
         static unsigned once=0;
-        if (!once++) fprintf(stderr,"[cursor-trace] %s called\\n",n);
+        if (!once++) fprintf(stderr,"[cursor-trace] %s called\n",n);
         r=0x00B10001u;
     }
     else if (!strcmp(n,"SetCursor")){
         static unsigned once=0;
-        if (!once++) fprintf(stderr,"[cursor-trace] SetCursor called\\n");
+        if (!once++) fprintf(stderr,"[cursor-trace] SetCursor called\n");
         r=0x00B10001u;
     }
     else if (!strcmp(n,"ShowCursor")){
         static unsigned calls=0;
-        if (calls++ < 4) fprintf(stderr,"[cursor-trace] Win32 ShowCursor(%u)\\n",A(c,0));
+        if (calls++ < 4) fprintf(stderr,"[cursor-trace] Win32 ShowCursor(%u)\n",A(c,0));
         static int cnt=0; r=(uint32_t)(A(c,0)?++cnt:--cnt);
     }
     else if (!strcmp(n,"GetCursorPos")){ uint32_t p=A(c,0);
         static unsigned once=0;
-        if (!once++) fprintf(stderr,"[cursor-trace] GetCursorPos called\\n");
+        if (!once++) fprintf(stderr,"[cursor-trace] GetCursorPos called\n");
         if(p){ int mx=0,my=0; void metal_get_cursor(int*,int*); metal_get_cursor(&mx,&my);
                mem_commit(p,8); MR32(p)=(uint32_t)mx; MR32(p+4)=(uint32_t)my; } r=1; }
     else if (!strcmp(n,"SetCursorPos")){
         static unsigned once=0;
-        if (!once++) fprintf(stderr,"[cursor-trace] SetCursorPos called\\n");
+        if (!once++) fprintf(stderr,"[cursor-trace] SetCursorPos called\n");
         r=1;
     }
     else if (!strcmp(n,"GetSystemMetrics")){
@@ -1518,7 +1518,7 @@ int win32_ext_call(CPU *c, const char *n, uint32_t *out){
         static unsigned metrics_seen[34] = {0};
         if (metric < 34u && !metrics_seen[metric]){
             metrics_seen[metric] = 1;
-            fprintf(stderr,"[cursor-trace] GetSystemMetrics(%u) called\\n",metric);
+            fprintf(stderr,"[cursor-trace] GetSystemMetrics(%u) called\n",metric);
         }
         switch(metric){
             case 0: r=gw; break; case 1: r=gh; break;
