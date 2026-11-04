@@ -1496,9 +1496,35 @@ int win32_ext_call(CPU *c, const char *n, uint32_t *out){
     else if (!strcmp(n,"SetCursorPos")) r=1;
     else if (!strcmp(n,"GetSystemMetrics")){
         unsigned gw = 1280, gh = 720; void metal_game_size(unsigned*,unsigned*); metal_game_size(&gw,&gh);
-        switch(A(c,0)){ case 0: r=gw; break; case 1: r=gh; break;
-                        case 4: r=19; break; case 5: r=1; break; case 6: r=1; break;
-                        case 32: r=4; case 33: r=4; break; default: r=0; } }
+        unsigned metric = A(c,0);
+        switch(metric){
+            case 0: r=gw; break; case 1: r=gh; break;
+            /* SM_CXCURSOR / SM_CYCURSOR.  The browser build hides the DOM
+             * cursor and relies on the game's cursor rendering path.  Returning
+             * zero here leaves that path without the Windows cursor dimensions
+             * and can make its fallback cursor oversized.  Match the backing
+             * pixel density used by the game surface (32 px at 1x / 96 DPI). */
+            case 13: case 14: {
+                double backing = 1.0;
+                void metal_screen_metrics(double*,double*);
+                metal_screen_metrics(&backing, 0);
+                if (!(backing >= 0.5 && backing <= 4.0)) backing = 1.0;
+                r = (uint32_t)(32.0 * backing + 0.5);
+                {
+                    static unsigned logged;
+                    unsigned bit = metric == 13 ? 1u : 2u;
+                    if (!(logged & bit)){
+                        fprintf(stderr, "[cursor] GetSystemMetrics(%s) = %u px (backing scale %.3f)\\n",
+                                metric == 13 ? "SM_CXCURSOR" : "SM_CYCURSOR", r, backing);
+                        logged |= bit;
+                    }
+                }
+                break;
+            }
+            case 4: r=19; break; case 5: r=1; break; case 6: r=1; break;
+            case 32: r=4; case 33: r=4; break; default: r=0;
+        }
+    }
     else if (!strcmp(n,"AdjustWindowRect")){ r=1; }
     else if (!strcmp(n,"GetClientRect")||!strcmp(n,"GetWindowRect")){
         /* The game's real resolution: the cursor mapping follows it (see
