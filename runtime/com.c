@@ -2486,7 +2486,29 @@ int com_call(CPU *c, uint32_t magic){
         else r=0;                       /* Check* -> D3D_OK */
     }
     /* --- IDirect3DDevice9 --- */
-    else if (iface==IF_DEV){if (MID(SetRenderState)){
+    else if (iface==IF_DEV){
+        /* The browser port hides the DOM cursor. Trace D3D9's separate
+         * hardware-cursor API before changing its implementation. */
+        if (MID(SetCursorProperties)){
+            static unsigned once=0;
+            if (!once++) fprintf(stderr,
+                "[cursor-trace] D3D9 SetCursorProperties hotspot=%u,%u surface=0x%08x\n",
+                A(c,1), A(c,2), A(c,3));
+            r=0;
+        }
+        else if (MID(SetCursorPosition)){
+            static unsigned once=0;
+            if (!once++) fprintf(stderr,
+                "[cursor-trace] D3D9 SetCursorPosition x=%d y=%d flags=0x%x\n",
+                (int32_t)A(c,1), (int32_t)A(c,2), A(c,3));
+            r=0;
+        }
+        else if (MID(ShowCursor)){
+            static unsigned once=0;
+            if (!once++) fprintf(stderr,"[cursor-trace] D3D9 ShowCursor(%u)\n",A(c,1));
+            r=0;
+        }
+        else if (MID(SetRenderState)){
             uint32_t st=A(c,1), val=A(c,2);
             if (st < 256u){
                 if (g_rs[st] != val){ g_rs[st] = val; g_rs_dirty = 1;
