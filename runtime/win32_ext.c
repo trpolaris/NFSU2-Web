@@ -1514,7 +1514,7 @@ int win32_ext_call(CPU *c, const char *n, uint32_t *out){
                     static unsigned logged;
                     unsigned bit = metric == 13 ? 1u : 2u;
                     if (!(logged & bit)){
-                        fprintf(stderr, "[cursor] GetSystemMetrics(%s) = %u px (backing scale %.3f)\\n",
+                        fprintf(stderr, "[cursor] GetSystemMetrics(%s) = %u px (backing scale %.3f)\n",
                                 metric == 13 ? "SM_CXCURSOR" : "SM_CYCURSOR", r, backing);
                         logged |= bit;
                     }
