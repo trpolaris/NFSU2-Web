@@ -812,7 +812,8 @@ async function startGame() {
     if (!st.status) return;
     if (!fps.reader) { fps.reader = st.status; if (session === st) statusAt = { memory: st.proc.memory, ptr: st.status.ptr }; }
     if (session === st && radioPort()) {
-      $('.menu-radio').hidden = !canPickMusic();   // the menu may have been opened before the game's status block was known
+      const radioItem = document.querySelector<HTMLElement>('#menu [data-menu-radio]');
+      if (radioItem) radioItem.hidden = !canPickMusic(); // the menu may have been opened before the game's status block was known
       if (radioWasOn()) void theRadio().resume();
     }
     if (radioLink || ++tries > 50) clearInterval(waitStatus);
