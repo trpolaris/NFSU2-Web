@@ -1068,7 +1068,7 @@ export class QuickChat {
     try { raw = JSON.parse(json); } catch { this.deps.log('[chat] invalid server message'); return; }
     if (!raw || typeof raw !== 'object' || Array.isArray(raw)) { this.deps.log('[chat] invalid server message'); return; }
     const s = raw as TypedChat;
-    if (!this.session || !this.freeRoamDriving() || !Number.isSafeInteger(s.id) || s.id <= 0 || typeof s.name !== 'string' || typeof s.text !== 'string'
+    if (!this.session || !Number.isSafeInteger(s.id) || s.id <= 0 || typeof s.name !== 'string' || typeof s.text !== 'string'
         || (s.scope !== 'room' && s.scope !== 'crew') || !Number.isSafeInteger(s.channel) || s.channel < 0 || s.channel > 0xffffffff) return;
     const name = s.name.trim(), body = s.text.trim();
     if (!name || Array.from(name).length > 32 || /[\u0000-\u001f\u007f]/.test(name)

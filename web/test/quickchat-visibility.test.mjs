@@ -66,4 +66,5 @@ test('closed CSS hides every control and keeps only the message feed', async () 
   assert.match(css, /\.racing-chat-wrapper:not\(\.active\) > \.chat-input-area/);
   assert.match(css, /\.racing-chat-wrapper:not\(\.active\) > \.chat-messages:empty/);
   assert.match(css, /\.chat-messages:not\(:has\(\.message:not\(\.fade-out\):not\(\[hidden\]\)\)\)/);
+  assert.match(css, /#menu \.menu-chat-page\[hidden\] \{ display:none !important; \}/);
 });
