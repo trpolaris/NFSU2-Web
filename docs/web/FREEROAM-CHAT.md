@@ -91,3 +91,19 @@ web/deploy/release.sh root@SUNUCU_ADRESI --undo
 Bu sohbet değişikliği modül dosyalarını değiştirmediği için eski ama geçerli `out/web/nfsu2.wasm` ve `out/web/nfsu2.json` çiftini kullanabilirsiniz. Script, modül revizyonu ile imaj revizyonunun ilişkisini kontrol eder. GHCR image workflow henüz bitmediyse script güvenli biçimde imaj yok hatası verir; yayın tamamlandıktan sonra tekrar çalıştırın.
 
 **Önemli:** Canlı VPS'ye erişim yetkisi ve SSH anahtarı sunucu sahibinin ortamındadır. Bu belge ve kod, uzaktan dağıtımın tamamlandığını iddia etmez. Yayın sonrasında `docker compose ps`, server logları ve gerçek iki/üç oyunculu All/Crew testleriyle doğrulama yapın. Kalıcı `state` volume'unu, oyun verisini, modül volume'unu veya sertifika volume'unu silmeyin.
+
+## Güncel HUD görünümü
+
+- Sohbet mevcut stage katmanında çalışır ve aynı Rust FreeRoam chat protokolünü kullanır; ikinci WebSocket servisi veya ikinci origin yoktur.
+- Mevcut yerel F9 sürücü menüsündeki **Chat HUD** sekmesi korunur. Ölçek, arka plan opaklığı, konum ve genişlik ayarları aynı `QuickChat` örneğine uygulanır; yeni HUD başlığı ve arama paneli ikinci bir ayar deposu oluşturmaz.
+- Ayrı Next.js prototipindeki geçici sohbet sunucusu ve örnek oyun verileri bu projeye taşınmaz; uygulama mevcut React/TypeScript arayüzü ve Rust FreeRoam protokolü üzerinde kalır.
+- Y, serbest dolaşım sürüşünde sohbeti açar; yazı veya arama alanına odaklanıldığında normal karakter olarak kalır. Odak metin alanı dışında ve sohbet açıkken tekrar basıldığında kapatır. ESC önce arama panelini kapatır; panel kapalıysa sohbeti kapatır.
+- Sohbet üst çubuğundaki ARA düğmesi mesaj geçmişi arama panelini açar/kapatır. Panel yalnızca açıldığında görünür; arama mevcut oturumdaki en fazla 200 mesajı filtreler.
+- Mesajlar kanal etiketi, oyuncu adı ve mesaj metni olarak kart biçiminde çizilir. Uzun mesajlar satıra sarılır; içerik metin olarak render edilir.
+- Telefon ve tabletlerde HUD güvenli ekran boşluklarını kullanır; sohbet açıldığında mesaj listesi esner ve yazma alanı ekran altına yerleşir. Mevcut dokunmatik Quick Chat düğmeleri korunur.
+
+## Yönetim arayüzü sınırı
+
+- Player Hub React uygulamasına #/admin rotasında ayrı bir Yönetim görünümü eklenir.
+- Görünüm mevcut /api/v1/live/players ve /players verisini kullanır. Gerçek admin rol doğrulaması, kick/ban/unban, ekonomi/araç düzenleme veya audit-log API'si doğrulanmadığı için yönetim eylemleri etkinmiş gibi gösterilmez.
+- Admin işlemleri eklenmeden önce roller Rust tarafında doğrulanmalı; mutasyon endpoint'leri session + CSRF + origin doğrulaması ve audit log ile korunmalıdır. Yalnızca ön yüzde menüyü saklamak yetkilendirme değildir.

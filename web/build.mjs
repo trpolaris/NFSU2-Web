@@ -15,6 +15,7 @@ const opts = {
     'main': 'src/main.ts',
     'ui/main': 'src/ui/main.jsx',
     'hub/main': 'src/hub/main.jsx',
+    'hub/chat-window': 'src/hub/chat-window.jsx',
     'host/game-worker': 'src/host/game-worker.ts',
     'host/io-worker': 'src/host/io-worker.ts',
     'host/predownload-worker': 'src/host/predownload-worker.ts',
@@ -189,6 +190,7 @@ if (watch) {
 fs.copyFileSync('index.html', path.join(DIST, 'index.html'));
 fs.mkdirSync(path.join(DIST, 'hub'), { recursive: true });
 fs.copyFileSync('src/hub/index.html', path.join(DIST, 'hub', 'index.html'));
+fs.copyFileSync('src/hub/chat.html', path.join(DIST, 'hub', 'chat.html'));
 for (const f of fs.readdirSync('src/static')) fs.copyFileSync(path.join('src/static', f), path.join(DIST, f));
 // the start page's languages (src/app/lang, i18n.ts): /lang/<language>.json, fetched once a player picks one
 fs.rmSync(path.join(DIST, 'lang'), { recursive: true, force: true });

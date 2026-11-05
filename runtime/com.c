@@ -1883,14 +1883,19 @@ static int draw_up(uint32_t pt, uint32_t nv, uint32_t vp, uint32_t stride){
     if (prog && g_cur_vs < 64u) g_v_per_vs[g_cur_vs] += nv;
     if (dd_on()){
         static int nd = 0;
-        if (nd++ < 6){
-            fprintf(stderr,"   >>> draw type=%u verts=%u stride=%u tex=%u shader=%u elements=%d\n",
-                    pt, nv, stride, g_cur_tex, g_cur_vs, nel);
+        if (nd++ < 128){
+            unsigned tw=0, th=0, rw=g_bb_w, rh=g_bb_h;
+            void metal_tex_size(unsigned, unsigned*, unsigned*);
+            if (g_cur_tex) metal_tex_size(g_cur_tex, &tw, &th);
+            if (g_cur_rt) metal_tex_size(g_cur_rt, &rw, &rh);
+            fprintf(stderr,"   >>> DRAWDUMP-UP #%d type=%u verts=%u stride=%u tex=%u(%ux%u) rt=%u(%ux%u) vs=%u ps=%d decl=%08x elements=%d\n",
+                    nd, pt, nv, stride, g_cur_tex, tw, th, g_cur_rt, rw, rh,
+                    g_cur_vs, g_cur_ps_id, g_cur_decl, nel);
             if (prog) vs_disasm(prog, stderr);
             for (int k=0;k<nel;k++)
                 fprintf(stderr,"      element: offset=%u type=%u -> v%d\n",
                         el[k].off, el[k].type, el[k].reg);
-            for (uint32_t i=0;i<nv && i<3;i++){
+            for (uint32_t i=0;i<nv && i<4;i++){
                 uint32_t o = vp + i*stride;
                 if (prog && nel){
                     float v[16][4];
@@ -1900,8 +1905,10 @@ static int draw_up(uint32_t pt, uint32_t nv, uint32_t vp, uint32_t stride){
                         fprintf(stderr,"        v%d = %g %g %g %g\n", el[k].reg,
                                 v[el[k].reg][0],v[el[k].reg][1],v[el[k].reg][2],v[el[k].reg][3]);
                 }
-                fprintf(stderr,"        -> pos=(%g %g %g %g) colour=(%.3g %.3g %.3g %.3g) uv=(%g %g)\n",
-                        tv[i].x,tv[i].y,tv[i].z,tv[i].w,
+                double nx = tv[i].w != 0.f ? (double)tv[i].x / tv[i].w : 0.0;
+                double ny = tv[i].w != 0.f ? (double)tv[i].y / tv[i].w : 0.0;
+                fprintf(stderr,"        -> clip=(%g %g %g %g) ndc=(%.6f %.6f) colour=(%.3g %.3g %.3g %.3g) uv=(%g %g)\n",
+                        tv[i].x,tv[i].y,tv[i].z,tv[i].w, nx, ny,
                         tv[i].r,tv[i].g,tv[i].b,tv[i].a, tv[i].t[0][0],tv[i].t[0][1]);
             }
             fprintf(stderr,"      last constant uploads (newest first):\n");
@@ -2489,21 +2496,21 @@ int com_call(CPU *c, uint32_t magic){
     else if (iface==IF_DEV){
         /* The browser port hides the DOM cursor. Trace D3D9's separate
          * hardware-cursor API before changing its implementation. */
-        if (MID(SetCursorProperties)){
+        if (!strcmp(nm,"SetCursorProperties")){
             static unsigned once=0;
             if (!once++) fprintf(stderr,
                 "[cursor-trace] D3D9 SetCursorProperties hotspot=%u,%u surface=0x%08x\n",
                 A(c,1), A(c,2), A(c,3));
             r=0;
         }
-        else if (MID(SetCursorPosition)){
+        else if (!strcmp(nm,"SetCursorPosition")){
             static unsigned once=0;
             if (!once++) fprintf(stderr,
                 "[cursor-trace] D3D9 SetCursorPosition x=%d y=%d flags=0x%x\n",
                 (int32_t)A(c,1), (int32_t)A(c,2), A(c,3));
             r=0;
         }
-        else if (MID(ShowCursor)){
+        else if (!strcmp(nm,"ShowCursor")){
             static unsigned once=0;
             if (!once++) fprintf(stderr,"[cursor-trace] D3D9 ShowCursor(%u)\n",A(c,1));
             r=0;
@@ -2644,17 +2651,24 @@ int com_call(CPU *c, uint32_t magic){
                     uint32_t nprim=A(c,2), vp=A(c,3);
                     uint32_t nv = prim_verts(pt, nprim);
                     if (g_cur_decl != last_decl){ last_decl = g_cur_decl; dd_decl(g_cur_decl); }
-                    if (nd++ < 40){
-                        fprintf(stderr,"   #%-3d type=%u verts=%-4u stride=%u tex=%u\n",
-                                nd, pt, nv, stride, g_cur_tex);
+                    if (nd++ < 256){
+                        unsigned tw=0, th=0, rw=g_bb_w, rh=g_bb_h;
+                        void metal_tex_size(unsigned, unsigned*, unsigned*);
+                        if (g_cur_tex) metal_tex_size(g_cur_tex, &tw, &th);
+                        if (g_cur_rt) metal_tex_size(g_cur_rt, &rw, &rh);
+                        fprintf(stderr,"   [DRAWDUMP-RAW] #%d type=%u prim=%u verts=%u stride=%u tex=%u(%ux%u) rt=%u(%ux%u) vs=%u ps=%d\n",
+                                nd, pt, nprim, nv, stride, g_cur_tex, tw, th, g_cur_rt, rw, rh,
+                                g_cur_vs, g_cur_ps_id);
+                        uint32_t words = stride / 4u;
+                        if (words > 8u) words = 8u;
                         for (uint32_t v=0; v<nv && v<4; v++){
                             uint32_t o = vp + v*stride;
-                            if (!mem_is_committed(o+31)) break;
+                            if (!words || !mem_is_committed(o + words*4u - 1u)) break;
                             fprintf(stderr,"        [%u] ", v);
-                            for (int w2=0; w2<8; w2++)
-                                fprintf(stderr,"%s%.4g", w2?" ":"", (double)MRF32(o+4*w2));
+                            for (uint32_t w2=0; w2<words; w2++)
+                                fprintf(stderr,"%s%.6g", w2?" ":"", (double)MRF32(o+4u*w2));
                             fprintf(stderr,"  | raw:");
-                            for (int w2=0; w2<8; w2++) fprintf(stderr," %08x", MR32(o+4*w2));
+                            for (uint32_t w2=0; w2<words; w2++) fprintf(stderr," %08x", MR32(o+4u*w2));
                             fprintf(stderr,"\n");
                         }
                     }

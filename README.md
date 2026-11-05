@@ -227,6 +227,7 @@ Player Hub, ana oyun arayüzünden ayrı bir React uygulamasıdır. Aynı Rust s
 | **Profilim** | Görünen ad, kısa biyografi ve favori araç etiketini düzenler. |
 | **Garajım** | Marka, model, yıl ve not alanlarıyla oyuncunun manuel eklediği araç kayıtlarını tutar. |
 | **İstatistikler** | Kariyer telemetrisi için ayrılmış alandır; gerçek oyun verisi bağlanana kadar yer tutucu gösterilir. |
+| **Yönetim** | `#/admin` rotasında canlı oyuncu ve sunucu özetini salt okunur gösterir. Kick/ban, ekonomi ve araç değişikliği gibi yetkili işlemler, Rust tarafında rol kontrollü API sağlanana kadar devre dışıdır. |
 
 ### 🔌 Player Hub API
 

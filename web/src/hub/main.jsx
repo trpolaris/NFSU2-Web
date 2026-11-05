@@ -8,6 +8,7 @@ import {
   Zap, X,
 } from 'lucide-react';
 import './hub.css';
+import AdminConsole from './admin-console.jsx';
 
 const NAV = [
   { id: 'overview', label: 'Genel bakış', icon: LayoutDashboard },
@@ -15,6 +16,7 @@ const NAV = [
   { id: 'profile', label: 'Profilim', icon: UserRound },
   { id: 'garage', label: 'Garajım', icon: CarFront },
   { id: 'stats', label: 'İstatistikler', icon: Trophy },
+  { id: 'admin', label: 'Yönetim', icon: ShieldCheck },
 ];
 
 const emptyProfile = { displayName: '', bio: '', favoriteCar: '', updatedAt: 0 };
@@ -201,10 +203,13 @@ function App() {
     profile: ['SÜRÜCÜ KİMLİĞİ', 'Profilim', 'Bu tarayıcıya özel oyuncu profilini düzenle.'],
     garage: ['ARAÇ KOLEKSİYONU', 'Garajım', 'Kendi araç koleksiyonunu oluştur. Oyun içi senkronizasyon sonraki aşamada eklenecek.'],
     stats: ['PERFORMANS / KAYIT', 'İstatistikler', 'Doğrulanmış kariyer verileri geldikçe burada toplanacak.'],
+    admin: ['TRPOLARIS CONTROL / READ ONLY', 'Sunucu yönetimi', 'Mevcut Rust API üzerinden canlı oyuncu görünümü. Yetkili moderasyon uçları henüz tanımlı değil.'],
   };
   const [eyebrow, title, subtitle] = pageTitles[route] || pageTitles.overview;
 
   if (booting) return <div className="hub-boot"><BrandMark /><span>TRPOLARIS PLAYER HUB</span><LoaderCircle className="hub-spinning" /></div>;
+
+  if (route === 'admin') return <AdminConsole players={players} counts={counts} loading={liveLoading} onRefresh={refreshLive} />;
 
   return <div className="hub-app">
     <div className="hub-atmosphere" aria-hidden="true"><span className="hub-atmosphere-orb hub-atmosphere-coral" /><span className="hub-atmosphere-orb hub-atmosphere-violet" /><span className="hub-atmosphere-grid" /></div>
@@ -310,6 +315,34 @@ function App() {
                 <StatCard icon={Gauge} label="En iyi derece" value="—" detail="Oyun verisi bekleniyor" tone="blue" />
                 <StatCard icon={CarFront} label="Sürülen araç" value="—" detail="Oyun verisi bekleniyor" tone="green" />
                 <StatCard icon={Activity} label="Toplam yarış" value="—" detail="Oyun verisi bekleniyor" tone="coral" />
+              </div>
+            </div>}
+
+            {route === 'admin' && <div className="hub-admin-page hub-admin-theme">
+              <div className="hub-admin-banner">
+                <div className="hub-admin-banner-icon"><ShieldCheck size={21} /></div>
+                <div><div className="hub-eyebrow">CONTROL PLANE / SAFE MODE</div><strong>Yönetim görünümü · Salt okunur</strong><p>Canlı Rust sunucu verileri gösterilir. Kick, ban, ekonomi ve araç değişiklikleri için rol doğrulamalı admin API'si bulunmadığından işlemler kapalıdır.</p></div>
+                <span className="hub-admin-readonly">READ ONLY</span>
+              </div>
+              <div className="hub-stats-grid">
+                <StatCard icon={Users} label="Aktif oyuncu" value={liveCount} detail="Rust live players" tone="coral" trend="LIVE" />
+                <StatCard icon={Gauge} label="Serbest dolaşım" value={roamCount ?? '—'} detail="Sunucu özeti" tone="violet" />
+                <StatCard icon={Zap} label="Online / menüler" value={onlineCount ?? '—'} detail="Sunucu özeti" tone="blue" />
+                <StatCard icon={Activity} label="Aktif bağlantı" value={players.length} detail="Gizlilik filtreli liste" tone="green" />
+              </div>
+              <section className="hub-panel hub-admin-roster">
+                <div className="hub-panel-head"><div><div className="hub-eyebrow">LIVE ROSTER / RUST SWITCH</div><h2>Bağlı oyuncular</h2><p>IP, browser ID ve özel oturum token bilgileri gösterilmez.</p></div><button className="hub-secondary-button" type="button" onClick={refreshLive}><RefreshCw size={15} className={liveLoading ? 'hub-spinning' : ''} /> Yenile</button></div>
+                <div className="hub-admin-roster-list">
+                  {liveLoading && !players.length ? <div className="hub-empty"><LoaderCircle className="hub-spinning" /> Oyuncular alınıyor…</div>
+                    : players.length ? players.map((player,index) => <div className="hub-admin-player" key={player.id}><div className="hub-player-avatar">{initials(player.name)}</div><div className="hub-player-name"><strong>{player.name || 'Oyuncu'}</strong><span>Bağlı · {duration(player.connectedSeconds)}</span></div><ActivityBadge activity={player.activity} /><span className="hub-admin-action-pending">İşlem API'si bekleniyor</span></div>)
+                    : <div className="hub-empty hub-empty-quiet"><strong>Çevrimiçi oyuncu yok</strong><span>Yeni bağlantılar burada görünür.</span></div>}
+                </div>
+                <div className="hub-panel-foot"><span><i className="hub-live-dot" /> 8 saniyede yenilenir</span><span>{players.length} oyuncu</span></div>
+              </section>
+              <div className="hub-admin-modules">
+                <article className="hub-panel"><div className="hub-admin-module-icon"><Users size={18} /></div><div className="hub-eyebrow">MODERATION</div><h3>Oyuncu moderasyonu</h3><p>Kick, ban, unban ve geçmiş kayıtları için rol kontrollü Rust endpoint'i gereklidir.</p><span className="hub-module-status">BACKEND GEREKLİ</span></article>
+                <article className="hub-panel"><div className="hub-admin-module-icon"><CarFront size={18} /></div><div className="hub-eyebrow">VEHICLE CONTROL</div><h3>Araç ve kariyer</h3><p>Oyun save verisi ve doğrulanmış WASM telemetrisiyle bağlanacak.</p><span className="hub-module-status">TELEMETRİ BEKLİYOR</span></article>
+                <article className="hub-panel"><div className="hub-admin-module-icon"><ShieldCheck size={18} /></div><div className="hub-eyebrow">AUDIT / ACCESS</div><h3>Yetki ve denetim</h3><p>Admin rolleri, audit log ve CSRF korumalı yönetim işlemleri ayrıca tasarlanmalı.</p><span className="hub-module-status">BACKEND GEREKLİ</span></article>
               </div>
             </div>}
           </motion.section>

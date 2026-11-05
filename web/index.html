@@ -261,33 +261,33 @@
   <div class="menu-shell">
     <aside class="menu-sidebar">
       <div class="menu-brand">
-        <span class="menu-kicker">TRPOLARIS // NIGHT DRIVER SYSTEM</span>
-        <h2 id="menu-title">UNDERGROUND<span>2</span></h2>
-        <span class="menu-edition">CONTROL INTERFACE / BAYVIEW</span>
+        <span class="menu-kicker">TRPOLARIS</span>
+        <h2 id="menu-title">TRPOLARIS</h2>
+        <span class="menu-edition">RACING CONTROL / V2</span>
       </div>
 
       <div class="menu-session">
-        <span class="menu-section-label" data-i18n>SESSION STATUS</span>
-        <strong><i aria-hidden="true"></i> <span data-i18n>GAME ACTIVE</span></strong>
-        <p class="hint" data-i18n>The game keeps running behind this menu.</p>
+        <span class="menu-section-label" data-i18n>OTURUM DURUMU</span>
+        <strong><i aria-hidden="true"></i> <span data-i18n>OYUN AKTİF</span></strong>
+        <p class="hint" data-i18n>Oyun bu menünün arkasında çalışmaya devam ediyor.</p>
       </div>
 
       <nav class="menu-tabs" aria-label="Driver control tabs">
         <button type="button" class="menu-tab is-active hover-glow-cyan" data-menu-tab="chat" aria-pressed="true">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v8a2.5 2.5 0 0 1-2.5 2.5H10l-5 4v-4.4a2.5 2.5 0 0 1-1-2.1z"/><path d="M8 8h8M8 11.5h5"/></svg>
-          <span data-i18n>CHAT HUD</span><small>01</small>
+          <span class="menu-tab-copy"><b>İletişim</b><small>Sohbet HUD ayarları</small></span><small class="menu-tab-number">›</small>
         </button>
         <button type="button" class="menu-tab hover-glow-green" data-menu-tab="session" aria-pressed="false">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 13.5 6 7h12l2 6.5v5h-3v-2H7v2H4z"/><path d="M7 13h10M8 10h.01M16 10h.01"/></svg>
-          <span data-i18n>GAME SESSION</span><small>02</small>
+          <span class="menu-tab-copy"><b>Oyun oturumu</b><small>Ekran ve performans</small></span><small class="menu-tab-number">›</small>
         </button>
         <button type="button" class="menu-tab hover-glow-cyan" data-menu-tab="multiplayer" aria-pressed="false">
           <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M3 20c.4-3.4 2.4-5 6-5s5.6 1.6 6 5M15 15c3.7-.1 5.7 1.5 6 4"/></svg>
-          <span data-i18n>DRIVER / ONLINE</span><small>03</small>
+          <span class="menu-tab-copy"><b>Sürücü ağı</b><small>Sürücü ve ekip</small></span><small class="menu-tab-number">›</small>
         </button>
         <button type="button" class="menu-tab hover-glow-amber" data-menu-tab="radio" aria-pressed="false">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16v13H4zM4 7l13-4M8 11h8M8 15h3"/><circle cx="17" cy="15" r="1.5"/></svg>
-          <span data-i18n>RADIO / MUSIC</span><small>04</small>
+          <span class="menu-tab-copy"><b>Müzik sistemi</b><small>Radyo ve oynatma</small></span><small class="menu-tab-number">›</small>
         </button>
       </nav>
 
@@ -295,63 +295,59 @@
         <span class="menu-section-label" data-i18n>CAREER DATA</span>
         <p class="hint" id="menu-save"></p>
       </div>
-      <button type="button" class="btn selected menu-resume" data-act="resume" data-i18n>Back to the game</button>
+      <button type="button" class="btn selected menu-resume" data-act="resume" data-i18n>OYUNA DÖN</button>
       <span class="menu-build-mark">NFSU2 WEB <b>·</b> TRPOLARIS</span>
     </aside>
 
     <section class="menu-main">
       <header class="menu-header">
         <div>
-          <span class="menu-kicker">CONTROL DECK / TRPOLARIS</span>
-          <h3 data-i18n>DRIVER OPTIONS</h3>
+          <span class="menu-kicker">CONTROL HUB / CHAT</span>
+          <h3>İletişim</h3>
         </div>
-        <span class="menu-live"><span data-i18n>LOCAL SESSION</span> <i aria-hidden="true"></i></span>
+        <div class="menu-header-actions">
+          <a class="menu-admin-link" href="/hub/#/admin" target="_blank" rel="noopener noreferrer" aria-label="Open TRPOLARIS administration panel">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 19 6v5c0 4.3-2.8 7.8-7 10-4.2-2.2-7-5.7-7-10V6z"/><path d="m9 12 2 2 4-4"/></svg>
+            <span>ADMIN</span>
+          </a>
+          <span class="menu-live"><span>ARAYÜZ HAZIR</span> <i aria-hidden="true"></i></span>
+        </div>
       </header>
 
       <div class="menu-pages">
-        <section class="menu-page" data-menu-page="chat">
-          <div class="menu-page-title">
-            <span class="menu-section-label" data-i18n>01 / CHAT PRESENTATION</span>
-            <h4 data-i18n>CHAT HUD SETTINGS</h4>
-            <p class="hint" data-i18n>Changes apply immediately to the on-screen chat and are saved in this browser.</p>
-          </div>
-          <div class="menu-setting-card">
-            <label class="menu-slider" for="menu-chat-scale">
-              <span><span data-i18n>CHAT SCALE</span><output id="menu-chat-scale-value">90%</output></span>
-              <input id="menu-chat-scale" type="range" min="75" max="115" step="1" value="90">
-              <small data-i18n>Adjust the size of the chat panel, messages and controls.</small>
-            </label>
-          </div>
-          <div class="menu-setting-card">
-            <label class="menu-slider" for="menu-chat-opacity">
-              <span><span data-i18n>CHAT BACKGROUND</span><output id="menu-chat-opacity-value">72%</output></span>
-              <input id="menu-chat-opacity" type="range" min="35" max="92" step="1" value="72">
-              <small data-i18n>Adjust the background opacity behind chat messages.</small>
-            </label>
-          </div>
-          <div class="menu-setting-card">
-            <label class="menu-slider" for="menu-chat-position">
-              <span><span data-i18n>CHAT POSITION</span></span>
-              <select id="menu-chat-position">
-                <option value="top-left" data-i18n>Top left</option>
-                <option value="top-right" data-i18n>Top right</option>
-                <option value="bottom-left" data-i18n>Bottom left</option>
-                <option value="bottom-right" data-i18n>Bottom right</option>
-              </select>
-              <small data-i18n>Choose where the chat panel stays on screen.</small>
-            </label>
-          </div>
-          <div class="menu-setting-card">
-            <label class="menu-slider" for="menu-chat-width">
-              <span><span data-i18n>CHAT WIDTH</span><output id="menu-chat-width-value">360 px</output></span>
-              <input id="menu-chat-width" type="range" min="280" max="520" step="10" value="360">
-              <small data-i18n>Adjust the chat panel width independently of its scale.</small>
-            </label>
-          </div>
-          <div class="menu-inline-note"><i aria-hidden="true"></i><span data-i18n>LOCAL PROFILE · DISPLAY SETTINGS ONLY</span></div>
-        </section>
+        <section class="menu-page menu-chat-page" data-menu-page="chat">
+  <div class="menu-chat-intro">
+    <p>Sohbet HUD ayarları <span>•</span> Kişisel kontrol alanı</p>
+    <div class="menu-chat-shortcuts"><kbd>F9</kbd><small>MENÜ</small><kbd>ESC</kbd><small>KAPAT</small></div>
+  </div>
+  <div class="menu-chat-frame">
+    <div class="menu-chat-frame-head">
+      <div><span class="menu-section-label">01 / İLETİŞİM SİSTEMİ</span><h4>SOHBET HUD</h4><p>Oyun sırasında sol üstte görünen mesaj akışını ve sohbet penceresini kişiselleştir.</p></div>
+      <button type="button" class="menu-open-chat" data-act="open-chat"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v8a2.5 2.5 0 0 1-2.5 2.5H10l-5 4v-4.4a2.5 2.5 0 0 1-1-2.1z"/></svg>TAM SOHBETİ AÇ<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 13v5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h5"/></svg></button>
+    </div>
+    <div class="menu-chat-grid">
+      <section class="menu-chat-panel">
+        <h5><span>☷</span> HUD GÖRÜNÜMÜ</h5>
+        <label class="menu-chat-slider" for="menu-chat-scale"><span>Arayüz ölçeği <output id="menu-chat-scale-value">90%</output></span><input id="menu-chat-scale" type="range" min="75" max="115" step="1" value="90"></label>
+        <label class="menu-chat-slider" for="menu-chat-opacity"><span>Panel opaklığı <output id="menu-chat-opacity-value">72%</output></span><input id="menu-chat-opacity" type="range" min="35" max="92" step="1" value="72"></label>
+        <div class="menu-chat-preview"><div><b>ÖNİZLEME / SON MESAJLAR</b><time>16:42</time></div><p><strong>Bayview_King</strong> · Sahil yolunda buluşalım.</p></div>
+        <div class="menu-chat-hidden-settings" hidden>
+          <label for="menu-chat-position"><select id="menu-chat-position"><option value="top-left">Sol üst</option><option value="top-right">Sağ üst</option><option value="bottom-left">Sol alt</option><option value="bottom-right">Sağ alt</option></select></label>
+          <label for="menu-chat-width"><output id="menu-chat-width-value">360 px</output><input id="menu-chat-width" type="range" min="280" max="520" step="10" value="360"></label>
+        </div>
+      </section>
+      <section class="menu-chat-panel menu-chat-preferences">
+        <h5><span>♧</span> MESAJ TERCİHLERİ</h5>
+        <label class="menu-chat-toggle" for="menu-chat-compact"><span><b>Kompakt mesaj akışı</b><small>HUD kapalıyken son mesajları göster</small></span><input id="menu-chat-compact" type="checkbox" checked></label>
+        <label class="menu-chat-toggle" for="menu-chat-timestamp"><span><b>Saat bilgisini göster</b><small>Mesajların yanında gönderim saatini göster</small></span><input id="menu-chat-timestamp" type="checkbox" checked></label>
+        <div class="menu-chat-key-list"><b>KISAYOLLAR</b><div><span>Sohbeti aç</span><kbd>Y</kbd></div><div><span>Sohbeti kapat</span><kbd>ESC</kbd></div><div><span>Menüyü aç</span><kbd>F9</kbd></div></div>
+      </section>
+    </div>
+    <div class="menu-chat-footnote">Bu sekme görünüm tercihlerini gösterir. Gerçek mesaj geçmişi ve kullanıcılar, aynı oyun içi HUD üzerinden mevcut Rust sohbet servisine bağlanır. Bu kontrol prototipindeki ölçek ve opaklık ayarları bu tarayıcıya kaydedilir.</div>
+  </div>
+</section>
 
-        <section class="menu-page" data-menu-page="session" hidden>
+<section class="menu-page" data-menu-page="session" hidden>
           <div class="menu-page-title">
             <span class="menu-section-label" data-i18n>02 / GAME CONTROL</span>
             <h4 data-i18n>SESSION OPTIONS</h4>
