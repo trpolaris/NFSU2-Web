@@ -149,6 +149,8 @@ export class QuickChat {
     this.chatHud.className = 'racing-chat-wrapper';
     this.chatHud.id = 'racingChat';
     this.chatHud.dataset.nfsu2Ui = '';
+    this.chatHud.dataset.gameReady = 'false';
+    this.chatHud.hidden = true;
     this.loadChatAppearance();
 
     this.chatMessages = document.createElement('div');
@@ -370,6 +372,8 @@ export class QuickChat {
   /** a game started: quick chat on (the setting) or off, with the player's sixteen (phrases.ts phrasesOf, groupsOf) */
   start(s: GameSession, on: boolean, layout: readonly number[], groups: readonly CatId[], crews: readonly CrewChannel[] = [], playerName = '') {
     this.session = s; this.on = on; this.drive = 0; this.driveAt = 0;
+    this.chatHud.dataset.gameReady = 'true';
+    this.chatHud.hidden = false;
     this.playerName = playerName.trim();
     this.layout = layout; this.groups = groups; this.setCrews(crews);
   }
@@ -501,6 +505,8 @@ export class QuickChat {
     this.mutedPanel.hidden = true; this.updateChatToolStates();
     this.chatHud.classList.remove('active', 'search-open');
     this.searchButton.setAttribute('aria-expanded', 'false');
+    this.chatHud.dataset.gameReady = 'false';
+    this.chatHud.hidden = true;
   }
 
   /** the picker's place: the notices' (shell.ts placeNotices), u: CSS px per HUD unit */
