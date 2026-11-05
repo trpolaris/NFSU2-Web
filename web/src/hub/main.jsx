@@ -8,6 +8,7 @@ import {
   Zap, X,
 } from 'lucide-react';
 import './hub.css';
+import AdminConsole from './admin-console.jsx';
 
 const NAV = [
   { id: 'overview', label: 'Genel bakış', icon: LayoutDashboard },
@@ -208,6 +209,8 @@ function App() {
 
   if (booting) return <div className="hub-boot"><BrandMark /><span>TRPOLARIS PLAYER HUB</span><LoaderCircle className="hub-spinning" /></div>;
 
+  if (route === 'admin') return <AdminConsole players={players} counts={counts} loading={liveLoading} onRefresh={refreshLive} />;
+
   return <div className="hub-app">
     <div className="hub-atmosphere" aria-hidden="true"><span className="hub-atmosphere-orb hub-atmosphere-coral" /><span className="hub-atmosphere-orb hub-atmosphere-violet" /><span className="hub-atmosphere-grid" /></div>
     <motion.aside initial={{ opacity: 0, x: -14 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: .34, ease: [.2, .8, .2, 1] }} className={'hub-sidebar ' + (mobileNavOpen ? 'hub-sidebar-open' : '')}>
@@ -315,7 +318,7 @@ function App() {
               </div>
             </div>}
 
-            {route === 'admin' && <div className="hub-admin-page">
+            {route === 'admin' && <div className="hub-admin-page hub-admin-theme">
               <div className="hub-admin-banner">
                 <div className="hub-admin-banner-icon"><ShieldCheck size={21} /></div>
                 <div><div className="hub-eyebrow">CONTROL PLANE / SAFE MODE</div><strong>Yönetim görünümü · Salt okunur</strong><p>Canlı Rust sunucu verileri gösterilir. Kick, ban, ekonomi ve araç değişiklikleri için rol doğrulamalı admin API'si bulunmadığından işlemler kapalıdır.</p></div>

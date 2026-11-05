@@ -1255,6 +1255,15 @@ function syncChatMenuAppearance() {
   $('#menu-chat-scale-value').textContent = `${scale}%`;
   $('#menu-chat-opacity-value').textContent = `${opacity}%`;
   $('#menu-chat-width-value').textContent = `${a.width} px`;
+  const prefs = quickChat.preferences();
+  $<HTMLInputElement>('#menu-chat-compact').checked = prefs.compactMessageFlow;
+  $<HTMLInputElement>('#menu-chat-timestamp').checked = prefs.showMessageTimestamps;
+}
+function updateChatMenuPreferences() {
+  quickChat.setPreferences(
+    $<HTMLInputElement>('#menu-chat-compact').checked,
+    $<HTMLInputElement>('#menu-chat-timestamp').checked,
+  );
 }
 function updateChatMenuAppearance() {
   const scale = Number($<HTMLInputElement>('#menu-chat-scale').value) / 100;
@@ -1371,6 +1380,18 @@ async function menuAction(act: string) {
   const m = $<HTMLDialogElement>('#menu');
   switch (act) {
     case 'resume': m.close(); break;
+    case 'open-chat': {
+      m.close();
+      const width = Math.min(620, window.screen.availWidth - 24);
+      const height = Math.min(820, window.screen.availHeight - 24);
+      const left = Math.max(0, Math.round((window.screen.availWidth - width) / 2));
+      const top = Math.max(0, Math.round((window.screen.availHeight - height) / 2));
+      const features = [`popup=yes`, `width=${width}`, `height=${height}`, `left=${left}`, `top=${top}`, 'resizable=yes', 'scrollbars=yes'].join(',');
+      const popup = window.open(new URL('/hub/chat.html', window.location.origin).toString(), 'trpolaris-live-chat', features);
+      if (popup) popup.focus();
+      else toast('Sohbet penceresi açılamadı. Tarayıcı açılır pencere iznini kontrol et.', 4000);
+      break;
+    }
     case 'fullscreen':
       m.close();
       toggleFullscreen();
@@ -1811,6 +1832,8 @@ export async function boot() {
   $('#menu-chat-opacity').addEventListener('input', updateChatMenuAppearance);
   $('#menu-chat-width').addEventListener('input', updateChatMenuAppearance);
   $('#menu-chat-position').addEventListener('change', updateChatMenuAppearance);
+  $('#menu-chat-compact').addEventListener('change', updateChatMenuPreferences);
+  $('#menu-chat-timestamp').addEventListener('change', updateChatMenuPreferences);
   $('#playlist-body').addEventListener('change', setTrackMode);
   $('#playlist-shuffle').addEventListener('change', setShuffle);
   $('#menu').addEventListener('close', () => {

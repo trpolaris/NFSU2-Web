@@ -40,9 +40,10 @@ const FLICK = 0.8, REST = 0.35;
 const ARROWS = ['↑', '→', '↓', '←'];
 /** The three original buttons and text payloads from the supplied racing-chat client. */
 const QUICK_CHAT = [
-  { label: 'Solundayım!', text: 'Solundayım, dikkat et! 🏎️💨' },
+  { label: 'Selam!', text: 'Selam!' },
   { label: 'GG!', text: 'Güzel yarıştı beyler! 🏁' },
-  { label: 'Sorry!', text: 'Hatalı çarpma, kusura bakma! 🛠️' },
+  { label: 'Yoldayım', text: 'Yoldayım, geliyorum!' },
+  { label: 'Hazırım', text: 'Hazırım!' },
 ] as const;
 /** a speech balloon: what marks a line as chat */
 export const ICON = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 2h10a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H8l-3.5 2.6V12H3a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z"/></svg>';
@@ -51,6 +52,10 @@ export const ICON = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 2h1
 interface Said { id: number; name: string; p: number; me?: number; lobby?: number }
 interface TypedChat { id: number; name: string; text: string; scope: 'room' | 'crew'; channel: number; me?: boolean }
 interface CrewChannel { name: string; id: number }
+type ExternalChatKind = 'GENEL' | 'EKİP' | 'OOC' | 'SİSTEM';
+interface ExternalChatLine {
+  id: string; channel: ExternalChatKind; user: string; msg: string; time: string; timestamp: number;
+}
 
 export interface QuickChatDeps {
   /** a line in the chat log (the notices' place): the name, what was said, whether it is the player's own */
@@ -123,9 +128,15 @@ export class QuickChat {
   private driveAt = 0;
   private armed = true;
   /** the HUD's local display preferences; these never alter the game's network or save data */
+  private compactMessageFlow = true;
+  private showMessageTimestamps = true;
   private chatAppearance: { scale: number; opacity: number; position: ChatPosition; width: number } = {
     scale: 0.9, opacity: 0.72, position: 'top-left', width: 360,
   };
+  /** The standalone chat popup shares this tab's live Rust session via BroadcastChannel. */
+  private externalChatBus: BroadcastChannel | null = null;
+  private externalChatLines: ExternalChatLine[] = [];
+  private externalChatReady = false;
   /** the player's sixteen: the phrase in each slot (group * 4 + place), and each group's name */
   private layout: readonly number[] = DEFAULT_PHRASES;
   private groups: readonly CatId[] = DEFAULT_GROUPS;
@@ -149,7 +160,15 @@ export class QuickChat {
     this.chatHud.className = 'racing-chat-wrapper';
     this.chatHud.id = 'racingChat';
     this.chatHud.dataset.nfsu2Ui = '';
+    this.chatHud.dataset.gameReady = 'false';
+    this.chatHud.hidden = true;
     this.loadChatAppearance();
+    if (typeof BroadcastChannel !== 'undefined') {
+      try {
+        this.externalChatBus = new BroadcastChannel('trpolaris.nfsu2.chat.v1');
+        this.externalChatBus.addEventListener('message', event => this.handleExternalChatMessage(event.data));
+      } catch { this.externalChatBus = null; }
+    }
 
     this.chatMessages = document.createElement('div');
     this.chatMessages.className = 'chat-messages';
@@ -170,7 +189,7 @@ export class QuickChat {
     this.chatHeader.className = 'chat-hud-header';
     const chatIdentity = document.createElement('div');
     chatIdentity.className = 'chat-hud-identity';
-    chatIdentity.innerHTML = '<span class="chat-hud-live-dot"></span><span><strong>FREE ROAM CHAT</strong><small>TRPOLARIS NETWORK</small></span>';
+    chatIdentity.innerHTML = '<span class="chat-hud-live-dot"></span><span><strong>TRPOLARIS CHAT</strong><small>BAYVIEW · CANLI İLETİŞİM</small></span>';
     const headerActions = document.createElement('div');
     headerActions.className = 'chat-hud-actions';
     this.searchButton = document.createElement('button');
@@ -269,6 +288,32 @@ export class QuickChat {
       this.updateChatToolsLanguage();
     });
 
+    const channelTabs = document.createElement('div');
+    channelTabs.className = 'chat-channel-tabs';
+    channelTabs.setAttribute('role', 'group');
+    channelTabs.setAttribute('aria-label', 'Sohbet kanalı');
+    for (const [id, label] of [['room', 'GENEL'], ['crew', 'EKİP'], ['ooc', 'OOC']] as const) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'chat-channel-tab';
+      button.dataset.chatChannel = id;
+      button.textContent = label;
+      button.setAttribute('aria-pressed', String(id === 'room'));
+      button.addEventListener('click', () => {
+        if (id === 'ooc') {
+          this.systemMessage('OOC kanalı mevcut Rust sohbet protokolünde henüz desteklenmiyor.');
+          return;
+        }
+        if (id === 'crew' && !this.crews.length) {
+          this.systemMessage('Ekip sohbeti için önce bir ekip oluşturmalısın.');
+          return;
+        }
+        this.channelIndex = id === 'room' ? 0 : 1;
+        this.updateChannel();
+      });
+      channelTabs.append(button);
+    }
+
     const quick = document.createElement('div');
     quick.className = 'quick-chat-panel';
     quick.id = 'quickChatPanel';
@@ -315,10 +360,16 @@ export class QuickChat {
       if (button) this.chooseMention(Number(button.dataset.mentionIndex));
     });
 
-    this.chatBox.append(this.channelButton, this.chatInput, this.mentionSuggestions);
+    const sendButton = document.createElement('button');
+    sendButton.type = 'button';
+    sendButton.className = 'chat-send-button';
+    sendButton.setAttribute('aria-label', 'Mesajı gönder');
+    sendButton.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 4 17 8-17 8 3-8zM7 12h14"/></svg>';
+    sendButton.addEventListener('click', () => this.sendText());
+    this.chatBox.append(this.channelButton, this.chatInput, this.mentionSuggestions, sendButton);
     this.chatBox.addEventListener('pointerdown', e => e.stopPropagation());
     this.updateChatToolsLanguage();
-    this.chatHud.append(this.chatHeader, this.chatMessages, this.historyButton, this.chatTools, this.mutedPanel, quick, this.chatBox);
+    this.chatHud.append(this.chatHeader, channelTabs, this.chatMessages, this.historyButton, this.chatTools, this.mutedPanel, quick, this.chatBox);
     stage.append(this.layer, this.picker, this.chatHud);
     // caught before the game's input (attached later, at each Play): the keys the picker uses go to it alone
     window.addEventListener('keydown', e => this.key(e), { capture: true });
@@ -370,21 +421,47 @@ export class QuickChat {
   /** a game started: quick chat on (the setting) or off, with the player's sixteen (phrases.ts phrasesOf, groupsOf) */
   start(s: GameSession, on: boolean, layout: readonly number[], groups: readonly CatId[], crews: readonly CrewChannel[] = [], playerName = '') {
     this.session = s; this.on = on; this.drive = 0; this.driveAt = 0;
+    // A GameSession can exist during startup/loading. Only FreeRoam driving may reveal the HUD.
+    this.chatHud.dataset.gameReady = 'false';
+    this.chatHud.hidden = true;
     this.playerName = playerName.trim();
     this.layout = layout; this.groups = groups; this.setCrews(crews);
+    this.postExternalChatSnapshot();
   }
   setCrews(crews: readonly CrewChannel[]) {
     this.crews = crews.filter(c => c.name.trim() && Number.isSafeInteger(c.id) && c.id !== 0).slice(0, 4);
     this.channelIndex = Math.min(this.channelIndex, this.crews.length);
     if (this.channelButton) this.updateChannel();
+    this.postExternalChatSnapshot();
   }
   private loadChatLocalPreferences() {
     try {
       const muted = JSON.parse(localStorage.getItem('trpolaris.nfsu2.chat-muted.v1') || '[]') as unknown;
       if (Array.isArray(muted)) this.mutedPlayers = new Set(muted.filter((x): x is string => typeof x === 'string').map(normalizedPlayerName).filter(Boolean));
       this.mentionSound = localStorage.getItem('trpolaris.nfsu2.chat-mention-sound.v1') !== '0';
+      const prefs = JSON.parse(localStorage.getItem('trpolaris.nfsu2.chat-ui.v1') || 'null') as { compact?: unknown; timestamps?: unknown } | null;
+      if (prefs && typeof prefs === 'object') {
+        if (typeof prefs.compact === 'boolean') this.compactMessageFlow = prefs.compact;
+        if (typeof prefs.timestamps === 'boolean') this.showMessageTimestamps = prefs.timestamps;
+      }
+      this.applyChatMessagePreferences();
     } catch { /* storage may be unavailable */ }
   }
+  preferences() { return { compactMessageFlow: this.compactMessageFlow, showMessageTimestamps: this.showMessageTimestamps }; }
+
+  setPreferences(compact: boolean, timestamps: boolean) {
+    this.compactMessageFlow = !!compact;
+    this.showMessageTimestamps = !!timestamps;
+    this.applyChatMessagePreferences();
+    try { localStorage.setItem('trpolaris.nfsu2.chat-ui.v1', JSON.stringify({ compact: this.compactMessageFlow, timestamps: this.showMessageTimestamps })); }
+    catch { /* The current session still uses the changed values. */ }
+  }
+
+  private applyChatMessagePreferences() {
+    this.chatHud.classList.toggle('compact-feed', this.compactMessageFlow);
+    this.chatHud.classList.toggle('show-timestamps', this.showMessageTimestamps);
+  }
+
   private updateChatToolsLanguage() {
     const labels: Record<ChatFilter, string> = {
       all: t('All messages'), room: t('Everyone'), crew: t('Crew chat'), system: t('System messages'),
@@ -501,10 +578,68 @@ export class QuickChat {
     this.mutedPanel.hidden = true; this.updateChatToolStates();
     this.chatHud.classList.remove('active', 'search-open');
     this.searchButton.setAttribute('aria-expanded', 'false');
+    this.chatHud.dataset.gameReady = 'false';
+    this.chatHud.hidden = true;
+    this.externalChatLines = [];
+    this.externalChatReady = false;
+    this.postExternalChatSnapshot();
+  }
+
+  private updateHudVisibility() {
+    const ready = !!this.session && this.freeRoamDriving();
+    this.chatHud.dataset.gameReady = String(ready);
+    this.chatHud.hidden = !ready;
+    if (ready !== this.externalChatReady) {
+      this.externalChatReady = ready;
+      this.postExternalChatSnapshot();
+    }
+    if (!ready && this.chatHud.classList.contains('active')) this.closeTextChat();
+  }
+
+  private postExternalChatSnapshot() {
+    this.externalChatBus?.postMessage({
+      type: 'snapshot', connected: this.externalChatReady,
+      messages: this.externalChatLines, channels: this.crews.map(crew => ({ id: crew.id, name: crew.name })),
+    });
+  }
+
+  private publishExternalChatLine(line: ExternalChatLine) {
+    this.externalChatLines.push(line);
+    if (this.externalChatLines.length > CHAT_HISTORY_LIMIT) this.externalChatLines.splice(0, this.externalChatLines.length - CHAT_HISTORY_LIMIT);
+    this.externalChatBus?.postMessage({ type: 'message', message: line });
+  }
+
+  private handleExternalChatMessage(value: unknown) {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return;
+    const event = value as { type?: unknown; text?: unknown; channel?: unknown };
+    if (event.type === 'hello') { this.postExternalChatSnapshot(); return; }
+    if (event.type !== 'send' || typeof event.text !== 'string' || typeof event.channel !== 'string') return;
+    const clean = event.text.trim();
+    if (!clean || Array.from(clean).length > 160) return;
+    if (!this.session || !this.freeRoamDriving()) {
+      this.externalChatBus?.postMessage({ type: 'send-result', ok: false, message: 'Sohbet için çevrimiçi serbest dolaşımda olmalısın.' });
+      return;
+    }
+    let target: { scope: 'room' | 'crew'; id: number; label: string };
+    if (event.channel === 'room') target = { scope: 'room', id: 0, label: t('All') };
+    else if (event.channel === 'crew') {
+      const crew = this.crews[this.channelIndex - 1] ?? this.crews[0];
+      if (!crew) {
+        this.externalChatBus?.postMessage({ type: 'send-result', ok: false, message: 'Ekip sohbeti için önce bir ekip oluşturmalısın.' });
+        return;
+      }
+      target = { scope: 'crew', id: crew.id, label: crew.name };
+    } else {
+      this.externalChatBus?.postMessage({ type: 'send-result', ok: false, message: 'OOC kanalı mevcut Rust sohbet protokolünde henüz desteklenmiyor.' });
+      return;
+    }
+    const sent = this.transmit(clean, target);
+    this.externalChatBus?.postMessage({ type: 'send-result', ok: sent, message: sent ? 'Mesaj Rust sohbet servisine gönderildi.' : 'Mesaj gönderilemedi; kanal bağlantısını kontrol et.' });
   }
 
   /** the picker's place: the notices' (shell.ts placeNotices), u: CSS px per HUD unit */
   place(left: number, top: number, u: number) {
+    this.updateHudVisibility();
     const s = this.picker.style;
     s.left = `${left}px`; s.top = `${top}px`;
     s.setProperty('--u', `${u}px`);
@@ -535,11 +670,17 @@ export class QuickChat {
     this.channelButton.textContent = c.scope === 'room' ? '[HERKES]' : `[${c.label}]`;
     this.channelButton.dataset.scope = c.scope;
     this.channelButton.title = c.scope === 'crew' ? c.label : t('Tab to switch channel');
+    for (const button of this.chatHud.querySelectorAll<HTMLButtonElement>('[data-chat-channel]')) {
+      const active = button.dataset.chatChannel === c.scope;
+      button.classList.toggle('is-active', active);
+      button.setAttribute('aria-pressed', String(active));
+    }
   }
   private cycleChannel() { this.channelIndex = (this.channelIndex + 1) % (this.crews.length + 1); this.updateChannel(); }
   private openTextChat(): boolean {
     const s = this.session;
     if (!s?.net?.chat || !this.freeRoamDriving()) return false;
+    this.updateHudVisibility();
     this.close(); this.chatHud.classList.remove('search-open'); this.searchButton.setAttribute('aria-expanded', 'false'); this.chatHud.classList.add('active');
     this.updateChannel(); this.holdMessageFade(); this.scrollChatToLatest(); this.deps.place(); this.chatInput.focus();
     return true;
@@ -598,6 +739,15 @@ export class QuickChat {
     else this.historyButton.hidden = false;
     if (!active) this.startMessageFade(row);
   }
+  private timestampElement(): HTMLTimeElement {
+    const now = new Date();
+    const stamp = document.createElement('time');
+    stamp.className = 'chat-timestamp';
+    stamp.dateTime = now.toISOString();
+    stamp.textContent = new Intl.DateTimeFormat('tr-TR', { hour: '2-digit', minute: '2-digit' }).format(now);
+    return stamp;
+  }
+
   private systemMessage(message: string) {
     const row = document.createElement('div');
     row.className = 'message system';
@@ -605,11 +755,16 @@ export class QuickChat {
     row.dataset.search = message.toLocaleLowerCase();
     const marker = document.createElement('span'); marker.className = 'channel'; marker.textContent = '!';
     const text = document.createElement('span'); text.className = 'text'; text.textContent = message;
-    row.append(marker, text);
+    row.append(marker, text, this.timestampElement());
     this.appendHistoryRow(row);
+    const timestamp = Date.now();
+    this.publishExternalChatLine({
+      id: `system-${timestamp}`, channel: 'SİSTEM', user: 'TRPOLARIS SYSTEM', msg: message,
+      time: new Intl.DateTimeFormat('tr-TR', { hour: '2-digit', minute: '2-digit' }).format(timestamp), timestamp,
+    });
   }
-  private transmit(text: string): boolean {
-    const s = this.session, clean = text.trim(), channel = this.currentChannel();
+  private transmit(text: string, channelOverride?: { scope: 'room' | 'crew'; id: number; label: string }): boolean {
+    const s = this.session, clean = text.trim(), channel = channelOverride ?? this.currentChannel();
     if (!s?.net?.chat || !clean) return false;
     if (hasChatProfanity(clean)) {
       this.systemMessage(t(N('Message blocked by chat filter')));
@@ -877,6 +1032,9 @@ export class QuickChat {
     this.openTextChat();
   }
 
+  /** Open the text composer from the F9 control menu without bypassing FreeRoam checks. */
+  openChat(): boolean { return this.openTextChat(); }
+
   private group(g: number, mode: Mode) {
     this.mode = mode; this.open = g;
     this.draw();
@@ -1018,15 +1176,21 @@ export class QuickChat {
     mute.title = t('Mute player'); mute.setAttribute('aria-label', t('Mute player'));
     row.setAttribute('aria-label', `${label}, ${name}: ${body}`);
     row.dataset.messageId = String(s.id);
-    row.append(channel, sender, text, mute);
+    row.append(channel, sender, text, this.timestampElement(), mute);
     // Retain the most recent 200 room/Crew lines; preserve the reader's position when they are browsing history.
     this.appendHistoryRow(row);
+    const timestamp = Date.now();
+    this.publishExternalChatLine({
+      id: String(s.id), channel: s.scope === 'crew' ? 'EKİP' : 'GENEL', user: name, msg: body,
+      time: new Intl.DateTimeFormat('tr-TR', { hour: '2-digit', minute: '2-digit' }).format(timestamp), timestamp,
+    });
     if (mentioned && !this.mutedPlayers.has(normalizedPlayerName(name))) this.playMentionSound();
     this.deps.log(`[chat] ${s.scope === 'crew' ? 'Crew ' + label : 'FreeRoam'}: ${name}: ${body}`);
   }
 
-  /** every frame drawn (the renderer's onMarks): the lines over the cars where this frame has their names */
+  /** every frame drawn (the renderer's onMarks): also gates HUD visibility on actual FreeRoam driving */
   marks(n: number, m: Float32Array, ids: Uint32Array) {
+    this.updateHudVisibility();
     if (!this.lines.size) return;
     const s = this.session, now = performance.now();
     const v = s?.viewRect();
