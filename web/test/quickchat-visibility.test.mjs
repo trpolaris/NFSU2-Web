@@ -34,11 +34,11 @@ test('chat remains hidden before gameplay, shows messages-only when closed, and 
       chat.start(session, false, [], []);
       const started = { hidden: chat.chatHud.hidden, ready: chat.chatHud.dataset.gameReady };
       drive = 2;
+      chat.driveAt = -Infinity;
       chat.marks(0, new Float32Array(0), new Uint32Array(0));
       const driving = { hidden: chat.chatHud.hidden, ready: chat.chatHud.dataset.gameReady };
       chat.chat(JSON.stringify({ id: 1, name: 'Driver', text: 'Test message', scope: 'room', channel: 0 }));
       const hasFeed = chat.chatMessages.childElementCount === 1;
-      chat.driveAt = -Infinity;
       chat.toggle();
       const opened = chat.chatHud.classList.contains('active');
       chat.toggle();
