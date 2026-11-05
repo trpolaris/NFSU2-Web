@@ -407,8 +407,9 @@ export class QuickChat {
   /** a game started: quick chat on (the setting) or off, with the player's sixteen (phrases.ts phrasesOf, groupsOf) */
   start(s: GameSession, on: boolean, layout: readonly number[], groups: readonly CatId[], crews: readonly CrewChannel[] = [], playerName = '') {
     this.session = s; this.on = on; this.drive = 0; this.driveAt = 0;
-    this.chatHud.dataset.gameReady = 'true';
-    this.chatHud.hidden = false;
+    // A GameSession can exist during startup/loading. Only FreeRoam driving may reveal the HUD.
+    this.chatHud.dataset.gameReady = 'false';
+    this.chatHud.hidden = true;
     this.playerName = playerName.trim();
     this.layout = layout; this.groups = groups; this.setCrews(crews);
   }
@@ -565,8 +566,16 @@ export class QuickChat {
     this.chatHud.hidden = true;
   }
 
+  private updateHudVisibility() {
+    const ready = !!this.session && this.freeRoamDriving();
+    this.chatHud.dataset.gameReady = String(ready);
+    this.chatHud.hidden = !ready;
+    if (!ready && this.chatHud.classList.contains('active')) this.closeTextChat();
+  }
+
   /** the picker's place: the notices' (shell.ts placeNotices), u: CSS px per HUD unit */
   place(left: number, top: number, u: number) {
+    this.updateHudVisibility();
     const s = this.picker.style;
     s.left = `${left}px`; s.top = `${top}px`;
     s.setProperty('--u', `${u}px`);
@@ -607,6 +616,7 @@ export class QuickChat {
   private openTextChat(): boolean {
     const s = this.session;
     if (!s?.net?.chat || !this.freeRoamDriving()) return false;
+    this.updateHudVisibility();
     this.close(); this.chatHud.classList.remove('search-open'); this.searchButton.setAttribute('aria-expanded', 'false'); this.chatHud.classList.add('active');
     this.updateChannel(); this.holdMessageFade(); this.scrollChatToLatest(); this.deps.place(); this.chatInput.focus();
     return true;
@@ -1058,7 +1068,7 @@ export class QuickChat {
     try { raw = JSON.parse(json); } catch { this.deps.log('[chat] invalid server message'); return; }
     if (!raw || typeof raw !== 'object' || Array.isArray(raw)) { this.deps.log('[chat] invalid server message'); return; }
     const s = raw as TypedChat;
-    if (!this.session || !Number.isSafeInteger(s.id) || s.id <= 0 || typeof s.name !== 'string' || typeof s.text !== 'string'
+    if (!this.session || !this.freeRoamDriving() || !Number.isSafeInteger(s.id) || s.id <= 0 || typeof s.name !== 'string' || typeof s.text !== 'string'
         || (s.scope !== 'room' && s.scope !== 'crew') || !Number.isSafeInteger(s.channel) || s.channel < 0 || s.channel > 0xffffffff) return;
     const name = s.name.trim(), body = s.text.trim();
     if (!name || Array.from(name).length > 32 || /[\u0000-\u001f\u007f]/.test(name)
@@ -1104,8 +1114,9 @@ export class QuickChat {
     this.deps.log(`[chat] ${s.scope === 'crew' ? 'Crew ' + label : 'FreeRoam'}: ${name}: ${body}`);
   }
 
-  /** every frame drawn (the renderer's onMarks): the lines over the cars where this frame has their names */
+  /** every frame drawn (the renderer's onMarks): also gates HUD visibility on actual FreeRoam driving */
   marks(n: number, m: Float32Array, ids: Uint32Array) {
+    this.updateHudVisibility();
     if (!this.lines.size) return;
     const s = this.session, now = performance.now();
     const v = s?.viewRect();

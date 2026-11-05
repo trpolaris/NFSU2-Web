@@ -26,12 +26,16 @@ test('chat remains hidden before gameplay, shows messages-only when closed, and 
       const { QuickChat } = await import(bundleUrl);
       const chat = new QuickChat(document.querySelector('#stage'), { line() {}, lobby() {}, place() {}, log() {} });
       const initial = { hidden: chat.chatHud.hidden, ready: chat.chatHud.dataset.gameReady };
+      let drive = 0;
       const session = {
         net: { chat: () => true },
-        status: { read: () => ({ get: key => key === 'drive' ? 2 : 0 }) },
+        status: { read: () => ({ get: key => key === 'drive' ? drive : 0 }) },
       };
       chat.start(session, false, [], []);
       const started = { hidden: chat.chatHud.hidden, ready: chat.chatHud.dataset.gameReady };
+      drive = 2;
+      chat.marks(0, new Float32Array(0), new Uint32Array(0));
+      const driving = { hidden: chat.chatHud.hidden, ready: chat.chatHud.dataset.gameReady };
       chat.chat(JSON.stringify({ id: 1, name: 'Driver', text: 'Test message', scope: 'room', channel: 0 }));
       const hasFeed = chat.chatMessages.childElementCount === 1;
       chat.driveAt = -Infinity;
@@ -41,10 +45,11 @@ test('chat remains hidden before gameplay, shows messages-only when closed, and 
       const closed = !chat.chatHud.classList.contains('active');
       chat.stop();
       const stopped = { hidden: chat.chatHud.hidden, ready: chat.chatHud.dataset.gameReady, rows: chat.chatMessages.childElementCount };
-      return { initial, started, hasFeed, opened, closed, stopped };
+      return { initial, started, driving, hasFeed, opened, closed, stopped };
     }, BUNDLE_URL);
     assert.deepEqual(result.initial, { hidden: true, ready: 'false' });
-    assert.deepEqual(result.started, { hidden: false, ready: 'true' });
+    assert.deepEqual(result.started, { hidden: true, ready: 'false' });
+    assert.deepEqual(result.driving, { hidden: false, ready: 'true' });
     assert.equal(result.hasFeed, true);
     assert.equal(result.opened, true);
     assert.equal(result.closed, true);
