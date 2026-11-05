@@ -181,6 +181,7 @@ export class QuickChat {
     this.searchButton.setAttribute('aria-label', t('Search chat history'));
     this.searchButton.innerHTML = '<svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="8.7" cy="8.7" r="5.7"></circle><path d="m13 13 4 4"></path></svg><span>ARA</span>';
     this.searchButton.addEventListener('click', () => {
+      if (!this.chatHud.classList.contains('active') && !this.openTextChat()) return;
       const open = !this.chatHud.classList.contains('search-open');
       this.chatHud.classList.toggle('search-open', open);
       this.searchButton.setAttribute('aria-expanded', String(open));
@@ -821,7 +822,11 @@ export class QuickChat {
           e.preventDefault();
           if (!this.mutedPanel.hidden) this.mutedPanel.hidden = true;
           else if (!this.chatHud.classList.contains('search-open')) this.closeTextChat();
-          else { this.chatHud.classList.remove('search-open'); this.searchButton.setAttribute('aria-expanded', 'false'); }
+          else {
+            this.chatHud.classList.remove('search-open');
+            this.searchButton.setAttribute('aria-expanded', 'false');
+            this.searchButton.focus();
+          }
         }
         e.stopImmediatePropagation();
         return;
