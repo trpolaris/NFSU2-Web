@@ -1255,6 +1255,15 @@ function syncChatMenuAppearance() {
   $('#menu-chat-scale-value').textContent = `${scale}%`;
   $('#menu-chat-opacity-value').textContent = `${opacity}%`;
   $('#menu-chat-width-value').textContent = `${a.width} px`;
+  const prefs = quickChat.preferences();
+  $<HTMLInputElement>('#menu-chat-compact').checked = prefs.compactMessageFlow;
+  $<HTMLInputElement>('#menu-chat-timestamp').checked = prefs.showMessageTimestamps;
+}
+function updateChatMenuPreferences() {
+  quickChat.setPreferences(
+    $<HTMLInputElement>('#menu-chat-compact').checked,
+    $<HTMLInputElement>('#menu-chat-timestamp').checked,
+  );
 }
 function updateChatMenuAppearance() {
   const scale = Number($<HTMLInputElement>('#menu-chat-scale').value) / 100;
@@ -1371,6 +1380,10 @@ async function menuAction(act: string) {
   const m = $<HTMLDialogElement>('#menu');
   switch (act) {
     case 'resume': m.close(); break;
+    case 'open-chat':
+      m.close();
+      if (!quickChat.openChat()) toast('Sohbet yalnızca çevrimiçi serbest dolaşım sürüşünde açılabilir.', 3500);
+      break;
     case 'fullscreen':
       m.close();
       toggleFullscreen();
@@ -1811,6 +1824,8 @@ export async function boot() {
   $('#menu-chat-opacity').addEventListener('input', updateChatMenuAppearance);
   $('#menu-chat-width').addEventListener('input', updateChatMenuAppearance);
   $('#menu-chat-position').addEventListener('change', updateChatMenuAppearance);
+  $('#menu-chat-compact').addEventListener('change', updateChatMenuPreferences);
+  $('#menu-chat-timestamp').addEventListener('change', updateChatMenuPreferences);
   $('#playlist-body').addEventListener('change', setTrackMode);
   $('#playlist-shuffle').addEventListener('change', setShuffle);
   $('#menu').addEventListener('close', () => {
