@@ -315,7 +315,7 @@ function App() {
               </div>
             </div>}
 
-            {route === 'admin' && <div className="hub-admin-page">
+            {route === 'admin' && <div className="hub-admin-page hub-admin-theme">
               <div className="hub-admin-banner">
                 <div className="hub-admin-banner-icon"><ShieldCheck size={21} /></div>
                 <div><div className="hub-eyebrow">CONTROL PLANE / SAFE MODE</div><strong>Yönetim görünümü · Salt okunur</strong><p>Canlı Rust sunucu verileri gösterilir. Kick, ban, ekonomi ve araç değişiklikleri için rol doğrulamalı admin API'si bulunmadığından işlemler kapalıdır.</p></div>
