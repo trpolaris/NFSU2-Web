@@ -779,7 +779,8 @@ input, select, textarea { max-width: 100%; min-width: 0; }
 .racing-chat-wrapper:not(.active) > .chat-muted-panel,
 .racing-chat-wrapper:not(.active) > .quick-chat-panel,
 .racing-chat-wrapper:not(.active) > .chat-input-area { display: none !important; }
-.racing-chat-wrapper:not(.active) > .chat-messages:empty { display: none !important; }
+.racing-chat-wrapper:not(.active) > .chat-messages:empty,
+.racing-chat-wrapper:not(.active) > .chat-messages:not(:has(.message:not(.fade-out):not([hidden]))) { display: none !important; }
 .racing-chat-wrapper:not(.active) > .chat-messages {
   max-height: min(22vh, 168px);
   overflow: hidden;
