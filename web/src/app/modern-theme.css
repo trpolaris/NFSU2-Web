@@ -765,3 +765,44 @@ input, select, textarea { max-width: 100%; min-width: 0; }
 @keyframes chatMessageIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
 @media(max-width:680px){.racing-chat-wrapper{top:max(8px,env(safe-area-inset-top));left:max(8px,env(safe-area-inset-left));width:min(390px,calc(100% - 16px));max-width:calc(100% - 16px);--chat-scale:.92}.racing-chat-wrapper .chat-messages{max-height:min(25vh,180px);padding:7px}.racing-chat-wrapper .message{font-size:11px;line-height:1.4;padding:6px 23px 6px 7px}.racing-chat-wrapper.active{position:fixed;top:max(8px,env(safe-area-inset-top));left:max(8px,env(safe-area-inset-left));right:max(8px,env(safe-area-inset-right));bottom:max(8px,env(safe-area-inset-bottom));width:auto;max-width:none;z-index:10000;padding:0;justify-content:flex-end;gap:7px;pointer-events:none}.racing-chat-wrapper.active .chat-hud-header,.racing-chat-wrapper.active .chat-messages,.racing-chat-wrapper.active .chat-tools,.racing-chat-wrapper.active .chat-muted-panel,.racing-chat-wrapper.active .quick-chat-panel,.racing-chat-wrapper.active .chat-input-area{pointer-events:auto}.racing-chat-wrapper.active .chat-messages{max-height:none;min-height:0;flex:1 1 auto}.racing-chat-wrapper.active .chat-input-area{margin-bottom:max(4px,env(safe-area-inset-bottom))}}
 @media(max-height:480px){.racing-chat-wrapper.active .chat-messages{max-height:calc(100dvh - 150px)}}
+
+
+/* Runtime visibility contract: the chat exists only after GameSession has started. */
+.racing-chat-wrapper[hidden],
+.racing-chat-wrapper[data-game-ready="false"] { display: none !important; }
+
+/* Closed HUD: keep only the compact live message feed; controls never reserve space. */
+.racing-chat-wrapper:not(.active) { gap: 0; pointer-events: none; }
+.racing-chat-wrapper:not(.active) > .chat-hud-header,
+.racing-chat-wrapper:not(.active) > .chat-history-latest,
+.racing-chat-wrapper:not(.active) > .chat-tools,
+.racing-chat-wrapper:not(.active) > .chat-muted-panel,
+.racing-chat-wrapper:not(.active) > .quick-chat-panel,
+.racing-chat-wrapper:not(.active) > .chat-input-area { display: none !important; }
+.racing-chat-wrapper:not(.active) > .chat-messages:empty { display: none !important; }
+.racing-chat-wrapper:not(.active) > .chat-messages {
+  max-height: min(22vh, 168px);
+  overflow: hidden;
+  pointer-events: none;
+  scrollbar-width: none;
+  box-shadow: 0 7px 22px rgba(0,0,0,.16);
+}
+.racing-chat-wrapper:not(.active) > .chat-messages::-webkit-scrollbar { display: none; }
+
+/* Opening chat reveals the header and the full controls without changing its Rust transport. */
+.racing-chat-wrapper.active > .chat-hud-header { display: flex; }
+.racing-chat-wrapper.active > .chat-messages:empty { display: flex; }
+.menu-header-actions { display: flex; align-items: center; justify-content: flex-end; gap: 12px; min-width: 0; }
+.menu-admin-link {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 32px; padding: 0 10px;
+  border: 1px solid rgba(0,255,204,.2); border-radius: 6px; color: #9debdc; background: rgba(0,255,204,.045);
+  font: 850 9px/1 ui-monospace,monospace; letter-spacing: .12em; text-decoration: none; transition: .16s ease;
+}
+.menu-admin-link svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.menu-admin-link:hover { color: #03110e; border-color: #00ffcc; background: #00ffcc; box-shadow: 0 0 18px rgba(0,255,204,.18); }
+.menu-admin-link:focus-visible { outline: 2px solid #00ffcc; outline-offset: 3px; }
+@media (max-width: 480px) {
+  .menu-header-actions { gap: 7px; }
+  .menu-admin-link { min-width: 32px; padding: 0 8px; }
+  .menu-admin-link span { display: none; }
+}
