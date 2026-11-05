@@ -795,7 +795,7 @@ export class QuickChat {
   private key(e: KeyboardEvent) {
     if (!this.session || e.metaKey || e.ctrlKey || e.altKey) return;
     const el = e.target as HTMLElement | null;
-    // Keep Y available for normal text entry in the composer and search field.
+    // Let editable controls own Y; the shortcut only closes chat when focus is outside text entry.
     if (e.code === 'KeyY' && !e.repeat && this.chatHud.classList.contains('active')
         && !el?.closest?.('input, textarea, select, [contenteditable="true"]')) {
       e.preventDefault(); e.stopImmediatePropagation(); this.closeTextChat(); return;
