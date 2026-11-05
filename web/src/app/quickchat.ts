@@ -85,6 +85,8 @@ export class QuickChat {
   private followingChat = true;
   private chatTools: HTMLElement;
   private searchInput: HTMLInputElement;
+  private searchButton: HTMLButtonElement;
+  private chatHeader: HTMLElement;
   private mentionSoundButton: HTMLButtonElement;
   private mutedButton: HTMLButtonElement;
   private mutedPanel: HTMLElement;
@@ -164,7 +166,37 @@ export class QuickChat {
     this.historyButton.hidden = true;
     this.historyButton.addEventListener('click', () => this.scrollChatToLatest(true));
 
+    this.chatHeader = document.createElement('div');
+    this.chatHeader.className = 'chat-hud-header';
+    const chatIdentity = document.createElement('div');
+    chatIdentity.className = 'chat-hud-identity';
+    chatIdentity.innerHTML = '<span class="chat-hud-live-dot"></span><span><strong>FREE ROAM CHAT</strong><small>TRPOLARIS NETWORK</small></span>';
+    const headerActions = document.createElement('div');
+    headerActions.className = 'chat-hud-actions';
+    this.searchButton = document.createElement('button');
+    this.searchButton.type = 'button';
+    this.searchButton.className = 'chat-search-toggle';
+    this.searchButton.setAttribute('aria-expanded', 'false');
+    this.searchButton.setAttribute('aria-controls', 'chatTools');
+    this.searchButton.setAttribute('aria-label', t('Search chat history'));
+    this.searchButton.innerHTML = '<svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="8.7" cy="8.7" r="5.7"></circle><path d="m13 13 4 4"></path></svg><span>ARA</span>';
+    this.searchButton.addEventListener('click', () => {
+      const open = !this.chatHud.classList.contains('search-open');
+      this.chatHud.classList.toggle('search-open', open);
+      this.searchButton.setAttribute('aria-expanded', String(open));
+      if (open) this.searchInput.focus(); else this.searchInput.blur();
+    });
+    const closeButton = document.createElement('button');
+    closeButton.type = 'button';
+    closeButton.className = 'chat-close-button';
+    closeButton.textContent = '×';
+    closeButton.setAttribute('aria-label', t('Close chat'));
+    closeButton.addEventListener('click', () => this.closeTextChat());
+    headerActions.append(this.searchButton, closeButton);
+    this.chatHeader.append(chatIdentity, headerActions);
+
     this.chatTools = document.createElement('div');
+    this.chatTools.id = 'chatTools';
     this.chatTools.className = 'chat-tools';
     const filterGroup = document.createElement('div');
     filterGroup.className = 'chat-filter-group';
@@ -193,6 +225,7 @@ export class QuickChat {
     this.searchInput.spellcheck = false;
     this.searchInput.placeholder = t('Search chat…');
     this.searchInput.setAttribute('aria-label', t('Search chat…'));
+    this.searchButton.setAttribute('aria-label', t('Search chat history'));
     this.searchInput.addEventListener('input', () => {
       this.chatSearch = this.searchInput.value.trim().toLocaleLowerCase();
       this.applyChatView();
@@ -284,7 +317,7 @@ export class QuickChat {
     this.chatBox.append(this.channelButton, this.chatInput, this.mentionSuggestions);
     this.chatBox.addEventListener('pointerdown', e => e.stopPropagation());
     this.updateChatToolsLanguage();
-    this.chatHud.append(this.chatMessages, this.historyButton, this.chatTools, this.mutedPanel, quick, this.chatBox);
+    this.chatHud.append(this.chatHeader, this.chatMessages, this.historyButton, this.chatTools, this.mutedPanel, quick, this.chatBox);
     stage.append(this.layer, this.picker, this.chatHud);
     // caught before the game's input (attached later, at each Play): the keys the picker uses go to it alone
     window.addEventListener('keydown', e => this.key(e), { capture: true });
@@ -465,7 +498,8 @@ export class QuickChat {
     this.chatFilter = 'all'; this.chatSearch = ''; this.searchInput.value = '';
     this.hideMentionSuggestions();
     this.mutedPanel.hidden = true; this.updateChatToolStates();
-    this.chatHud.classList.remove('active');
+    this.chatHud.classList.remove('active', 'search-open');
+    this.searchButton.setAttribute('aria-expanded', 'false');
   }
 
   /** the picker's place: the notices' (shell.ts placeNotices), u: CSS px per HUD unit */
@@ -505,14 +539,15 @@ export class QuickChat {
   private openTextChat(): boolean {
     const s = this.session;
     if (!s?.net?.chat || !this.freeRoamDriving()) return false;
-    this.close(); this.chatHud.classList.add('active');
+    this.close(); this.chatHud.classList.remove('search-open'); this.searchButton.setAttribute('aria-expanded', 'false'); this.chatHud.classList.add('active');
     this.updateChannel(); this.holdMessageFade(); this.scrollChatToLatest(); this.deps.place(); this.chatInput.focus();
     return true;
   }
   private closeTextChat() {
     if (!this.chatHud.classList.contains('active')) return;
     this.hideMentionSuggestions();
-    this.chatHud.classList.remove('active');
+    this.chatHud.classList.remove('active', 'search-open');
+    this.searchButton.setAttribute('aria-expanded', 'false');
     if (document.activeElement === this.chatInput) this.chatInput.blur();
     this.resumeMessageFade();
   }
@@ -759,6 +794,11 @@ export class QuickChat {
   private key(e: KeyboardEvent) {
     if (!this.session || e.metaKey || e.ctrlKey || e.altKey) return;
     const el = e.target as HTMLElement | null;
+    // Keep Y available for normal text entry in the composer and search field.
+    if (e.code === 'KeyY' && !e.repeat && this.chatHud.classList.contains('active')
+        && !el?.closest?.('input, textarea, select, [contenteditable="true"]')) {
+      e.preventDefault(); e.stopImmediatePropagation(); this.closeTextChat(); return;
+    }
     if (this.chatHud.classList.contains('active')) {
       if (el === this.chatInput && !this.mentionSuggestions.hidden) {
         if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
@@ -780,8 +820,8 @@ export class QuickChat {
         if (e.key === 'Escape') {
           e.preventDefault();
           if (!this.mutedPanel.hidden) this.mutedPanel.hidden = true;
-          else if (el === this.searchInput) { this.searchInput.value = ''; this.chatSearch = ''; this.applyChatView(); }
-          else this.closeTextChat();
+          else if (!this.chatHud.classList.contains('search-open')) this.closeTextChat();
+          else { this.chatHud.classList.remove('search-open'); this.searchButton.setAttribute('aria-expanded', 'false'); }
         }
         e.stopImmediatePropagation();
         return;
