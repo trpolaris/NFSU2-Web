@@ -68,3 +68,39 @@ test('closed CSS hides every control and keeps only the message feed', async () 
   assert.match(css, /\.chat-messages:not\(:has\(\.message:not\(\.fade-out\):not\(\[hidden\]\)\)\)/);
   assert.match(css, /#menu \.menu-chat-page\[hidden\] \{ display:none !important; \}/);
 });
+
+
+test('standalone chat popup relays messages through the existing Rust chat callback', { timeout: 30_000 }, async t => {
+  let browser;
+  try { browser = await chromium.launch({ headless: true }); }
+  catch (error) { t.skip(`no Chromium: ${String(error).split('\\n')[0]}`); return; }
+  try {
+    const page = await browser.newPage();
+    await page.setContent('<main id="stage"></main>');
+    const result = await page.evaluate(async bundleUrl => {
+      const { QuickChat } = await import(bundleUrl);
+      const sent = [];
+      const session = {
+        net: { chat: (text, scope, channel) => { sent.push({ text, scope, channel }); return true; } },
+        status: { read: () => ({ get: key => key === 'drive' ? 2 : 0 }) },
+      };
+      const chat = new QuickChat(document.querySelector('#stage'), { line() {}, lobby() {}, place() {}, log() {} });
+      chat.start(session, false, [], [], []);
+      chat.driveAt = -Infinity;
+      chat.marks(0, new Float32Array(0), new Uint32Array(0));
+      const popup = new BroadcastChannel('trpolaris.nfsu2.chat.v1');
+      const snapshotPromise = new Promise(resolve => popup.addEventListener('message', event => {
+        if (event.data?.type === 'snapshot') resolve(event.data);
+      }));
+      popup.postMessage({ type: 'hello' });
+      const snapshot = await snapshotPromise;
+      popup.postMessage({ type: 'send', channel: 'room', text: 'Popup üzerinden canlı mesaj' });
+      await new Promise(resolve => setTimeout(resolve, 40));
+      popup.close();
+      chat.stop();
+      return { connected: snapshot.connected, sent };
+    }, BUNDLE_URL);
+    assert.equal(result.connected, true);
+    assert.deepEqual(result.sent, [{ text: 'Popup üzerinden canlı mesaj', scope: 'room', channel: 0 }]);
+  } finally { await browser.close(); }
+});
