@@ -8,6 +8,7 @@ import {
   Zap, X,
 } from 'lucide-react';
 import './hub.css';
+import AdminConsole from './admin-console.jsx';
 
 const NAV = [
   { id: 'overview', label: 'Genel bakış', icon: LayoutDashboard },
@@ -207,6 +208,8 @@ function App() {
   const [eyebrow, title, subtitle] = pageTitles[route] || pageTitles.overview;
 
   if (booting) return <div className="hub-boot"><BrandMark /><span>TRPOLARIS PLAYER HUB</span><LoaderCircle className="hub-spinning" /></div>;
+
+  if (route === 'admin') return <AdminConsole players={players} counts={counts} loading={liveLoading} onRefresh={refreshLive} />;
 
   return <div className="hub-app">
     <div className="hub-atmosphere" aria-hidden="true"><span className="hub-atmosphere-orb hub-atmosphere-coral" /><span className="hub-atmosphere-orb hub-atmosphere-violet" /><span className="hub-atmosphere-grid" /></div>
