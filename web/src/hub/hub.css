@@ -394,3 +394,50 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .hub-admin-roster-list{display:grid;gap:4px}.hub-admin-player{display:flex;align-items:center;gap:11px;min-width:0;padding:9px 4px;border-bottom:1px solid rgba(167,185,214,.075)}.hub-admin-player:last-child{border-bottom:0}.hub-admin-player .hub-player-name{flex:1 1 auto}.hub-admin-action-pending{flex:0 0 auto;padding:5px 7px;border:1px solid rgba(167,185,214,.12);border-radius:7px;color:#8090a6;background:rgba(255,255,255,.025);font:700 .48rem ui-monospace,monospace}
 .hub-admin-modules{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px}.hub-admin-modules .hub-panel{min-width:0;padding:18px}.hub-admin-module-icon{width:36px;height:36px;margin-bottom:17px;color:var(--hub-lavender);border-color:rgba(166,154,255,.2);background:rgba(166,154,255,.07)}.hub-admin-modules h3{margin:6px 0;color:#eef2fa;font-size:.85rem}.hub-admin-modules p{min-height:51px;margin:0;color:#8796ac;font-size:.64rem;line-height:1.55}.hub-module-status{display:inline-flex;margin-top:12px;padding:5px 7px;border:1px solid rgba(167,185,214,.12);border-radius:6px;color:#9ba9bb;background:rgba(255,255,255,.025);font:800 .46rem ui-monospace,monospace;letter-spacing:.08em}
 @media(max-width:900px){.hub-admin-modules{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:600px){.hub-admin-banner{gap:10px;padding:13px}.hub-admin-banner-icon{flex-basis:36px;width:36px;height:36px}.hub-admin-readonly{display:none}.hub-admin-player{flex-wrap:wrap}.hub-admin-player .hub-status{margin-left:51px}.hub-admin-action-pending{margin-left:auto}.hub-admin-modules{grid-template-columns:minmax(0,1fr)}.hub-admin-modules p{min-height:0}}
+
+
+/* TRPOLARIS redesign integration: real admin data, read-only controls, cyan/emerald surfaces. */
+.hub-admin-theme .hub-admin-banner {
+  border-color: rgba(0,255,204,.2);
+  background: linear-gradient(110deg,rgba(0,255,204,.075),rgba(16,185,129,.035) 56%,rgba(8,18,24,.9));
+  box-shadow: inset 0 1px rgba(255,255,255,.025), 0 10px 28px rgba(0,0,0,.14);
+}
+.hub-admin-theme .hub-admin-banner-icon,
+.hub-admin-theme .hub-admin-module-icon {
+  border-color: rgba(0,255,204,.24); color: #00d9b3; background: rgba(0,255,204,.075);
+}
+.hub-admin-theme .hub-admin-banner strong,
+.hub-admin-theme .hub-admin-modules h3 { color: #e8fff9; }
+.hub-admin-theme .hub-admin-banner p,
+.hub-admin-theme .hub-admin-modules p { color: #91aaa7; }
+.hub-admin-theme .hub-admin-readonly {
+  border-color: rgba(0,255,204,.28); color: #70e8d0; background: rgba(0,255,204,.065);
+}
+.hub-admin-theme .hub-stat {
+  border-color: rgba(0,255,204,.13); background: linear-gradient(145deg,rgba(11,28,29,.96),rgba(9,17,24,.98));
+  box-shadow: inset 0 1px rgba(255,255,255,.025),0 10px 28px rgba(0,0,0,.12);
+}
+.hub-admin-theme .hub-stat-icon { border-color: rgba(0,255,204,.2); color: #53dfc3; background: rgba(0,255,204,.07); }
+.hub-admin-theme .hub-stat-value { color: #f0fffb; }
+.hub-admin-theme .hub-stat-label { color: #9cb4ae; }
+.hub-admin-theme .hub-panel {
+  border-color: rgba(0,255,204,.12); background: linear-gradient(155deg,rgba(13,27,29,.97),rgba(8,15,20,.98));
+}
+.hub-admin-theme .hub-panel-head h2 { color: #ecfff9; }
+.hub-admin-theme .hub-panel-head p { color: #8fa8a2; }
+.hub-admin-theme .hub-secondary-button {
+  border-color: rgba(0,255,204,.24); color: #9cebdc; background: rgba(0,255,204,.055);
+}
+.hub-admin-theme .hub-secondary-button:hover { border-color: #00ffcc; color: #041613; background: #00ffcc; }
+.hub-admin-theme .hub-player-avatar { border-color: rgba(0,255,204,.2); color: #06201b; background: linear-gradient(145deg,#76efd5,#139c84); }
+.hub-admin-theme .hub-admin-player { border-color: rgba(0,255,204,.08); }
+.hub-admin-theme .hub-admin-action-pending,
+.hub-admin-theme .hub-module-status {
+  border-color: rgba(0,255,204,.16); color: #7faea4; background: rgba(0,255,204,.035);
+}
+.hub-admin-theme .hub-admin-modules .hub-panel { box-shadow: inset 0 1px rgba(255,255,255,.02),0 10px 25px rgba(0,0,0,.12); }
+.hub-admin-theme .hub-admin-module-icon { margin-bottom: 15px; }
+.hub-admin-theme .hub-admin-modules .hub-eyebrow { color: #45bca7; }
+@media(max-width:600px) {
+  .hub-admin-theme .hub-admin-banner { background: linear-gradient(130deg,rgba(0,255,204,.07),rgba(8,18,24,.94)); }
+}
