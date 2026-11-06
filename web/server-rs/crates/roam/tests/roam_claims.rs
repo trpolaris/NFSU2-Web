@@ -107,3 +107,22 @@ fn mutual_buddies_link_first_without_named_crews_and_survive_another_page_closin
     k.step(RoamOptions::default().stale_ms + 1.0);
     assert_eq!(k.hub.whereabouts(std::slice::from_ref(&bianca)), vec![None]);
 }
+
+
+#[test]
+fn a_friend_who_enters_after_the_list_sync_gets_the_reciprocal_link() {
+    let mut k = Kit::new(RoamOptions { degree: 1, view_m: 1e-9, ..RoamOptions::default() });
+    let alex = owner('A');
+    let bianca = owner('B');
+
+    place(&mut k, 0, b"Alex", 0.0, Some('A'));
+    // The server already confirmed this is mutual, but Bianca has no Free Roam slot yet.
+    k.hub.friends(V(0), alex, vec![bianca.clone()]);
+    place(&mut k, 1, b"Nearby", 1.0, None);
+
+    // Bianca enters later; her page has not yet made another /friends request.
+    place(&mut k, 2, b"Bianca", 800.0, Some('B'));
+    k.hub.tick();
+
+    assert!(linked(&k, 0, 2) && linked(&k, 2, 0), "the arriving friend receives the reciprocal priority link");
+}
