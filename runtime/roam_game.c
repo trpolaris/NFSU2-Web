@@ -5246,7 +5246,7 @@ static uint32_t g_room_gen;
 static void room_follow(void){
     char name[64];
     uint32_t gen = roam_plat_room(name);
-    if (!gen || gen == g_room_gen || g_racing) return;
+    if (!gen || gen == g_room_gen || g_racing || !roaming()) return;
 #if DUELS
     if (g_du.st != DU_IDLE) return;
 #endif

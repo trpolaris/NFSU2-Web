@@ -95,6 +95,11 @@ jobs:
           /tmp/gpsdistance_hud_unit off
           /tmp/gpsdistance_hud_unit false
 
+      - name: Test Free Roam mailbox layout
+        run: |
+          cc -std=c11 -Wall -Wextra -Werror tests/net_mailbox_layout.c -o /tmp/net_mailbox_layout
+          /tmp/net_mailbox_layout
+
       - name: Build server binaries for Node integration tests
         run: |
           cargo build --manifest-path web/server-rs/Cargo.toml -p nfsu2-server -p nfsu2-roamload

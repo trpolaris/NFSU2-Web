@@ -110,6 +110,13 @@ This branch ports compatible changes from `th0mk/nfsu2-web` into TRPOLARIS while
 - Filtering resets to page one; the visible page is clamped after a refresh shrinks the list; the pager is hidden for 20 or fewer matches.
 - Added browser regression coverage for first/middle/last pages, filtering to one result, empty matches and page clamping after refresh.
 
+### Live friend crew invites and room changes
+- The Online Friends & Crews panel can invite a mutual friend who is currently in Free Roam to one of the sender's saved crews. The authenticated `POST /friends` operation enforces the shared invite budget, validates the crew and room names, and sends a LAN notification only to the recipient's open game pages.
+- The recipient gets an in-game card with a Join action. Acceptance writes room, crew names and crew colours together through the existing settings validator, then updates the active game's crew hashes and the room mailbox.
+- The room mailbox reuses bytes 436–503 of the existing 512-byte header: room generation at 436, sixteen little-endian UTF-8 words at 440–503. The page writes all name words before publishing the generation. The writer refuses old short mailboxes; names are capped at 63 UTF-8 bytes without splitting a character.
+- The runtime applies a new room only while the player is actually driving in Free Roam; race, duel and multiplayer-lobby states defer the change. The C and TypeScript layouts are covered by a native compile check and browser unit tests.
+- The upstream Z shortcut, waiting Join/Decline queue for delayed or full-crew cases, and bumper-contact FriendPrompt remain outstanding.
+
 ### GPS Distance HUD
 - Ported upstream's GPS destination distance label beneath the game's native direction arrow. It reports straight-line distance (not road distance) in the current Speedometer Units, updates only when the text changes, and hides when GPS is inactive or a race is running.
 - Added the gps_distance setting to the existing Game settings group and settings.ini template. It defaults off, is exposed through the current panel's existing More game settings section, and has a Turkish translation. No new page, mod catalogue or replacement UI was introduced.

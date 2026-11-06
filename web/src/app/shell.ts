@@ -1792,7 +1792,7 @@ export async function boot() {
     crews: () => crewsOf(settings.current('roam_crew'), settings.current('roam_crew_colours')),
     crewCount: (name: string) => settings.crewCount(roomHash(name)),
     setCrews: async (list: readonly Crew[]) => { await settings.saveCrewsFromReact(list); window.dispatchEvent(new Event('trp-settings-changed')); },
-    joinCrewInvite: async (name: string, room: string) => { await settings.joinCrewInvite(name, room); window.dispatchEvent(new Event('trp-settings-changed')); },
+    joinCrewInvite: async (name: string, room: string) => { const next = await settings.joinCrewInvite(name, room); window.dispatchEvent(new Event('trp-settings-changed')); return next; },
     quickChat: () => ({ phrases: phrasesOf(settings.current('quick_chat_phrases')), groups: groupsOf(settings.current('quick_chat_groups')) }),
     saveQuickChat: async (phrases: readonly number[], groups: readonly string[]) => { await settings.saveQuickChatFromReact(phrases, groups); window.dispatchEvent(new Event('trp-settings-changed')); },
     readOnly: () => !instance.owner,
