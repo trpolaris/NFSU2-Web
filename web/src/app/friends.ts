@@ -69,6 +69,9 @@ export class FriendsApi {
   discord(name: string): Promise<FriendLists | null> {
     return this.ask({ op: 'discord', name });
   }
+  send(name: string, body: string): Promise<FriendLists | null> {
+    return this.ask({ op: 'msg', name, body });
+  }
 }
 
 const el = <K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: string) => {
@@ -100,6 +103,15 @@ export class FriendsPanel {
         <form data-friends-ask><label><span>Oyuncu adına göre ekle</span><span class="friends-form-row"><input name="name" maxlength="64" autocomplete="off" placeholder="Oyuncu adı"><button class="btn menu-action" type="submit">İstek gönder</button></span></label></form>
         <label class="friends-filter"><span>Arkadaşlarda ara</span><input data-friends-filter type="search" autocomplete="off" placeholder="İsimle filtrele"></label>
       </div>
+      <form class="friends-send" data-friends-send>
+        <label><span>Arkadaşına mesaj gönder</span>
+          <span class="friends-form-row">
+            <select name="friend" aria-label="Mesaj gönderilecek arkadaş"><option value="">Arkadaş seç</option></select>
+            <input name="body" maxlength="120" autocomplete="off" placeholder="Mesajın (en fazla 120 karakter)">
+            <button class="btn menu-action" type="submit">Gönder</button>
+          </span>
+        </label>
+      </form>
       <div class="friends-panel-columns">
         <section><h6>GELEN İSTEKLER <span data-friends-asks-count>0</span></h6><ul data-friends-asks></ul></section>
         <section><h6>ARKADAŞLAR <span data-friends-count>0</span></h6><ul data-friends-list></ul></section>
@@ -116,6 +128,10 @@ export class FriendsPanel {
       } else if (form.matches('[data-friends-discord]')) {
         const input = form.elements.namedItem('discord') as HTMLInputElement;
         void this.setDiscord(input.value.trim());
+      } else if (form.matches('[data-friends-send]')) {
+        const name = (form.elements.namedItem('friend') as HTMLSelectElement).value;
+        const input = form.elements.namedItem('body') as HTMLInputElement;
+        void this.sendMessage(name, input.value.trim()).then(ok => { if (ok) input.value = ''; });
       }
     });
     root.addEventListener('click', e => {
@@ -193,6 +209,36 @@ export class FriendsPanel {
     } catch (error) {
       this.setNote('İşlem başarısız oldu.');
       this.log(`[friends] ${op} ${name}: ${error}`);
+    } finally {
+      this.busy = false;
+    }
+  }
+
+  private async sendMessage(name: string, body: string): Promise<boolean> {
+    if (!name || !body || this.busy) return false;
+    this.busy = true;
+    try {
+      const lists = await this.api.send(name, body);
+      if (!lists) {
+        this.setNote('Mesaj gönderilemedi. Bağlantıyı kontrol et.');
+        return false;
+      }
+      this.lists = lists;
+      const labels: Record<string, string> = {
+        sent: 'Mesaj arkadaşına iletildi.',
+        kept: 'Arkadaşın çevrimdışı. Mesaj teslim edilmek üzere saklandı.',
+        none: 'Bu oyuncu arkadaş listende bulunmuyor.',
+        empty: 'Mesaj boş.',
+        off: 'Mesaj gönderme bu hesap için geçici olarak kapalı.',
+        full: 'Arkadaşının mesaj kutusu dolu.',
+      };
+      this.setNote(labels[lists.done ?? ''] ?? 'Mesaj gönderme işlemi tamamlandı.');
+      this.render();
+      return lists.done === 'sent' || lists.done === 'kept';
+    } catch (error) {
+      this.setNote('Mesaj gönderilemedi.');
+      this.log(`[friends] message to ${name}: ${error}`);
+      return false;
     } finally {
       this.busy = false;
     }
@@ -283,6 +329,13 @@ export class FriendsPanel {
     if (!sent.childElementCount) sent.append(el('li', 'friends-empty', 'Gönderilmiş istek yok.'));
     this.renderFriends();
     this.renderMail();
+    const friendSelect = this.root.querySelector<HTMLSelectElement>('[name="friend"]');
+    if (friendSelect) {
+      const selected = friendSelect.value;
+      friendSelect.replaceChildren(new Option('Arkadaş seç', ''));
+      for (const friend of l?.friends ?? []) friendSelect.add(new Option(friend.name, friend.name));
+      if ([...friendSelect.options].some(o => o.value === selected)) friendSelect.value = selected;
+    }
     const discord = this.root.querySelector<HTMLInputElement>('[name="discord"]');
     if (discord && l?.contact && discord !== document.activeElement) discord.value = l.contact;
   }
