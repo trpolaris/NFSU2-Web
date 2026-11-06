@@ -64,6 +64,8 @@ export interface NetOptions extends CommonOptions {
   say?: (json: string) => void;
   /** typed FreeRoam room or Crew chat, relayed by the hub as JSON */
   chat?: (json: string) => void;
+  /** Free Roam friend notifications delivered by the server */
+  friend?: (message: Record<string, unknown>) => void;
   /** the server's LAN took this page back after the link was lost (a server restart, as for a deploy) */
   back?: () => void;
   /** the server is full: this page's place in line for one (null: not in line) */
