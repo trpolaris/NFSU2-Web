@@ -163,6 +163,8 @@ export interface NetSubsystem extends Subsystem {
   /** free roam's crews, changed while the game runs (the page menu): their hashes, in the player's order, and their
    *  colours (0x00rrggbb) */
   crews?(hashes: readonly number[], rgbs: readonly number[]): void;
+  /** Change the current Free Roam room; false when no compatible mailbox is attached. */
+  room?(name: string): boolean;
 }
 
 export type AttachRenderer = (proc: GameProcess, canvas: HTMLCanvasElement, opts: RendererOptions) => RendererSubsystem | Promise<RendererSubsystem>;
