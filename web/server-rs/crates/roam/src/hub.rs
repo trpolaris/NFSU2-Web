@@ -462,6 +462,8 @@ pub struct Hub {
     blocks: HashMap<u32, Block>,
     /// each browser's mutual Buddy friends by keyphrase; a friend gets the caller added to its reciprocal list too
     friends: HashMap<u32, Vec<Arc<str>>>,
+    /// the claimed-name owner last synced by each browser, kept even if its game has no live Free Roam slot
+    friend_owner: HashMap<u32, Arc<str>>,
     /// the room names its pages typed, for Friends' Join labels
     room_names: HashMap<u32, String>,
     /// the pairs of players kept apart at the last tick (`block_pairs`), as slots, the lower first, sorted: the world
@@ -518,6 +520,7 @@ impl Hub {
             by_key: HashMap::new(),
             blocks: HashMap::new(),
             friends: HashMap::new(),
+            friend_owner: HashMap::new(),
             room_names: HashMap::new(),
             apart: Vec::new(),
             per_vip: HashMap::new(),
@@ -1065,7 +1068,8 @@ impl Hub {
     pub fn peer_gone(&mut self, vip: u32) {
         self.blocks.remove(&vip);
         self.room_names.remove(&vip);
-        let owner = self.players().find(|p| p.vip == vip).and_then(|p| p.owner.clone());
+        let owner = self.friend_owner.remove(&vip)
+            .or_else(|| self.players().find(|p| p.vip == vip).and_then(|p| p.owner.clone()));
         if let Some(owner) = owner.as_ref() {
             for list in self.friends.values_mut() {
                 list.retain(|f| f.as_ref() != owner.as_ref());
@@ -1092,11 +1096,21 @@ impl Hub {
     /// entry so the two players can be linked first on the next tick.
     pub fn friends(&mut self, vip: u32, me: Arc<str>, owners: Vec<Arc<str>>) {
         let previous = self.friends.get(&vip).cloned().unwrap_or_default();
+        let old_owner = self.friend_owner.insert(vip, me.clone());
+        let mut touched = vec![vip];
+        if let Some(old) = old_owner.filter(|old| old.as_ref() != me.as_ref()) {
+            let other_vips: Vec<u32> = self.friends.keys().copied().collect();
+            for other_vip in other_vips {
+                if let Some(list) = self.friends.get_mut(&other_vip) {
+                    list.retain(|owner| owner.as_ref() != old.as_ref());
+                }
+                touched.push(other_vip);
+            }
+        }
         let theirs: Vec<u32> = owners.iter()
             .filter_map(|owner| self.players().find(|p| p.owner.as_ref().is_some_and(|o| o.as_ref() == owner.as_ref())).map(|p| p.vip))
             .filter(|&other_vip| other_vip != vip)
             .collect();
-        let mut touched = vec![vip];
         let removed_vips: Vec<u32> = previous.iter()
             .filter(|old| !owners.iter().any(|new| new.as_ref() == old.as_ref()))
             .filter_map(|old| self.players().find(|p| p.owner.as_ref().is_some_and(|o| o.as_ref() == old.as_ref())).map(|p| p.vip))
