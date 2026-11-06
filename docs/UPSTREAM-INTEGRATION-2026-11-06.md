@@ -83,6 +83,12 @@ This branch ports compatible changes from `th0mk/nfsu2-web` into TRPOLARIS while
 - Allowed the page's own WebHID permission in the server Permissions-Policy. Other device APIs remain disabled.
 - Added parser, mapping, connection lifecycle, focus/lizard-mode, dongle and rumble tests in web/test/steampad.test.mjs. Real controller hardware is not attached to CI, so pairing and rumble still need a browser/hardware check.
 
+### Saved-log anonymization performance
+- Replaced per-name regular-expression alternations with a single-pass token scanner for ordinary names and an indexed scan for short/ambiguous names that must be surrounded by the log's known PRE/POST context.
+- Kept the current privacy categories, player-word safeguards, IPv4/VLAN masking and stable per-browser aliases unchanged.
+- Added regression cases for names with spaces, punctuation, Unicode/emoji, adjacent names and partial-word collisions, plus a 4,000-name / 160 KiB saved-log performance test.
+- LastGameKeeper measures each saved-log copy and logs a warning once if one takes more than 50 ms.
+
 ## Not yet integrated / requires coordinated work
 
 - **Friends UI and API:** the 250-entry server capacity is in place, but start-page pagination/filtering, F9 request management, friend/crew invites, Discord names and online/offline roster UI still need to be wired to the existing Buddy service and custom React/F9 components.
@@ -95,7 +101,7 @@ This branch ports compatible changes from `th0mk/nfsu2-web` into TRPOLARIS while
 - **Co-op/split-screen:** local 2–4 player support spans renderer, memory, controls, career and race systems; it is not a safe file-level copy.
 - **Lobby/Quick Chat:** multi-lobby focus/grouping, stage eligibility, friend/crew invites and countdown messages remain to be ported with tests.
 - **Vinyls/car parts:** Art Factory 28–34, hidden Special vinyls, car-specific filters, unique unlocks and Visual Reputation Remover need their manifests/runtime modules.
-- **Other platform and game fixes:** independent USB pedals, full Steam Controller/Steam Deck support, further phone/browser fixes, synchronized weather, pause-menu save, save recovery, Last.fm/EA Trax, country RTT, and runtime collision/tire-smoke fixes remain under review.
+- **Other platform and game fixes:** independent USB pedals, further phone/browser fixes, synchronized weather, pause-menu save, save recovery, Last.fm/EA Trax, country RTT, and runtime collision/tire-smoke fixes remain under review.
 
 ## Validation status
 
