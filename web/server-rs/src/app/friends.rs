@@ -199,6 +199,16 @@ impl FriendsRoute {
                     }
                     FriendAsk::Discord(name)
                 }
+                Some("room") => {
+                    let room: String = b.get("room").and_then(Value::as_str).unwrap_or("")
+                        .chars().filter(|c| !c.is_control()).take(64).collect();
+                    if let Some(roam) = &self.roam {
+                        for vip in self.lan.vips_of_owner(&owner) {
+                            roam.room_name(vip, room.clone());
+                        }
+                    }
+                    FriendAsk::List
+                }
                 _ => return Self::json(app, q, s, 400, &json!({ "error": "invalid" })).await,
             }
         };
