@@ -62,6 +62,7 @@ export class FriendsApi {
   }
 
   list(): Promise<FriendLists | null> { return this.ask(); }
+  room(name: string): Promise<FriendLists | null> { return this.ask({ op: 'room', room: name }); }
   act(op: 'ask' | 'accept' | 'decline' | 'remove' | 'block', name: string): Promise<FriendLists | null> {
     return this.ask({ op, name });
   }
@@ -83,7 +84,7 @@ export class FriendsPanel {
   private busy = false;
   private filter = '';
 
-  constructor(private root: HTMLElement, private api: FriendsApi, private log: (line: string) => void) {
+  constructor(private root: HTMLElement, private api: FriendsApi, private log: (line: string) => void, private room: () => string = () => '') {
     root.classList.add('menu-friends-panel');
     root.innerHTML = `
       <div class="friends-panel-head">
@@ -144,7 +145,7 @@ export class FriendsPanel {
     this.busy = true;
     this.setNote('Arkadaş listesi yenileniyor…');
     try {
-      const lists = await this.api.list();
+      const lists = await this.api.room(this.room());
       this.lists = lists;
       if (lists) this.keepMail(lists.mail);
       if (!lists) this.setNote('Arkadaş listesi kullanılamıyor. İsim sahipliğini ve çevrimiçi bağlantını kontrol et.');
