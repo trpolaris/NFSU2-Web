@@ -2,7 +2,7 @@
 import { checkSetting, DEFAULTS, keyDef, resolveEnv, settingsPut, TEMPLATE, type Resolved } from './settings';
 import { readText, writeFile } from './savefs';
 import { playHorn, stopHorn } from './horn-preview';
-import { CREW_MAX, crewsValue, rgbsValue, type Crew } from './crews';
+import { CREW_MAX, checkCrew, crewsOf, crewsValue, freeColour, rgbsValue, type Crew } from './crews';
 import { onlineName } from './claim';
 import { DEFAULT_GROUPS, DEFAULT_PHRASES, groupsOf, PHRASES, phrasesOf, SLOTS } from './phrases';
 import { LANGUAGES, N, NATIVE, t, tn, tvars, type Language, type Msg } from './i18n';
@@ -389,6 +389,32 @@ export class SettingsService {
       'roam_crew',
       names ? (checkedNames && checkedNames.ok ? checkedNames.value : names) : null,
       [['roam_crew_colours', colours ? (checkedColours && checkedColours.ok ? checkedColours.value : colours) : null]],
+    );
+  }
+
+  /** Accept a live friend invite and save crew + room in one settings.ini write. */
+  async joinCrewInvite(name: string, room: string) {
+    if (this.ro()) throw new Error(t(READ_ONLY));
+    const current = crewsOf(this.current('roam_crew'), this.current('roam_crew_colours'));
+    const checkedCrew = checkCrew(name, current.map(crew => crew.name));
+    if (!checkedCrew.ok) throw new Error(checkedCrew.why ? t(checkedCrew.why, { name: checkedCrew.name ?? '' }) : t('Crew invite is not valid.'));
+    const next = [...current, { name: checkedCrew.name, rgb: freeColour(current) }];
+    const names = crewsValue(next.map(crew => crew.name));
+    const colours = rgbsValue(next);
+    const checkedNames = checkSetting('roam_crew', names);
+    const checkedColours = checkSetting('roam_crew_colours', colours);
+    const normalizedRoom = room.trim();
+    const checkedRoom = normalizedRoom ? checkSetting('roam_room', normalizedRoom) : null;
+    if (checkedNames && !checkedNames.ok) throw new Error(t('Not saved: {key} = {why}.', { key: 'roam_crew', why: tvars(checkedNames.why, checkedNames.v) }));
+    if (checkedColours && !checkedColours.ok) throw new Error(t('Not saved: {key} = {why}.', { key: 'roam_crew_colours', why: tvars(checkedColours.why, checkedColours.v) }));
+    if (checkedRoom && !checkedRoom.ok) throw new Error(t('Not saved: {key} = {why}.', { key: 'roam_room', why: tvars(checkedRoom.why, checkedRoom.v) }));
+    await this.put(
+      'roam_room',
+      normalizedRoom ? (checkedRoom && checkedRoom.ok ? checkedRoom.value : normalizedRoom) : null,
+      [
+        ['roam_crew', names ? (checkedNames && checkedNames.ok ? checkedNames.value : names) : null],
+        ['roam_crew_colours', colours ? (checkedColours && checkedColours.ok ? checkedColours.value : colours) : null],
+      ],
     );
   }
 
