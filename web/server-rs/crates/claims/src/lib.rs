@@ -19,6 +19,7 @@
 //! to a temporary file of 0600 and renamed over the old one ([`Claims::save`]).
 
 use std::collections::HashMap;
+use std::fmt::Write as _;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -40,8 +41,12 @@ pub const CHANGE_DAYS: i64 = 7;
 pub const GRACE_DAYS: i64 = 14;
 /// the names nobody claims (lower case): the game's default profile name, and its name for nobody in particular
 pub const UNCLAIMABLE: &[&str] = &["name", "player"];
-/// claims kept at most (the dead ones go first)
+/// claims kept at most (the dead ones go first). Kept at 500,000 until deployment memory is load-tested.
 pub const MAX_CLAIMS: usize = 500_000;
+/// the regular sweep: claims expire by time even between sweeps, but removing dead entries takes the lock
+const PRUNE_EVERY_MS: i64 = 3_600_000;
+/// when the store is full, allow a more frequent sweep to reclaim expired entries
+const FULL_PRUNE_MS: i64 = 60_000;
 /// a claim's `seen` moves on at most this often (each move is a write of the file)
 const SEEN_STEP_MS: i64 = 3_600_000;
 
@@ -181,6 +186,8 @@ struct Inner {
     /// lower case -> claim (dead ones too, until `prune`)
     names: HashMap<String, Claim>,
     owners: HashMap<Owner, OwnerRec>,
+    /// last full sweep in milliseconds since epoch (0: none yet)
+    pruned_at: i64,
 }
 
 impl Inner {
@@ -203,6 +210,7 @@ impl Inner {
 
     /// the dead claims go, and owners with nothing left: true when any did
     fn prune(&mut self, now: i64) -> bool {
+        self.pruned_at = now;
         let n = self.names.len();
         self.names.retain(|_, c| c.live(now));
         let names = &self.names;
@@ -344,7 +352,9 @@ impl Claims {
             r.changed = now;
         }
         if g.names.len() >= MAX_CLAIMS && !g.names.contains_key(&key) {
-            g.prune(now);
+            if now >= g.pruned_at + FULL_PRUNE_MS {
+                g.prune(now);
+            }
             if g.names.len() >= MAX_CLAIMS {
                 return Err(Refusal::Full);
             }
@@ -402,7 +412,12 @@ impl Claims {
 
     /// the dead claims go (the server's minute timer): true when any did, and their readers look again
     pub fn prune(&self, now: i64) -> bool {
-        let gone = self.inner.write().prune(now);
+        let mut inner = self.inner.write();
+        if now < inner.pruned_at + PRUNE_EVERY_MS {
+            return false;
+        }
+        let gone = inner.prune(now);
+        drop(inner);
         if gone {
             self.changed();
         }
@@ -411,9 +426,21 @@ impl Claims {
 
     /// names.json's text
     pub fn serialize(&self, now: i64) -> String {
-        let g = self.inner.read();
-        let mut names: Vec<&Claim> = g.names.values().filter(|c| c.live(now)).collect();
+        // Take a compact owned snapshot under the read lock. Sorting and JSON
+        // escaping can be relatively slow with a large store, so do that work
+        // after the server's online/hub readers can acquire the lock again.
+        let (mut names, mut owners) = {
+            let g = self.inner.read();
+            let names = g.names.values().filter(|c| c.live(now)).cloned().collect::<Vec<_>>();
+            let owners = g.owners.iter()
+                .filter(|(_, r)| r.changed > 0)
+                .map(|(o, r)| (o.clone(), r.changed, r.prev.clone()))
+                .collect::<Vec<_>>();
+            (names, owners)
+        };
         names.sort_by(|a, b| a.made.cmp(&b.made).then_with(|| a.name.cmp(&b.name)));
+        owners.sort_by(|a, b| a.0.cmp(&b.0));
+
         let mut s =
             String::from("{\"v\":1,\"note\":\"claimed names: the keyphrase hash that claimed each, when, last played\",\"claims\":[");
         for (i, c) in names.iter().enumerate() {
@@ -424,23 +451,21 @@ impl Claims {
             nfsu2_util::json::write_str(&mut s, &c.name);
             s.push_str(",\"owner\":");
             nfsu2_util::json::write_str(&mut s, &c.owner);
-            s.push_str(&format!(",\"made\":{},\"seen\":{}", c.made, c.seen));
+            let _ = write!(&mut s, ",\"made\":{},\"seen\":{}", c.made, c.seen);
             if c.until > 0 {
-                s.push_str(&format!(",\"until\":{}", c.until));
+                let _ = write!(&mut s, ",\"until\":{}", c.until);
             }
             s.push('}');
         }
         s.push_str("],\"owners\":[");
-        let mut owners: Vec<(&Owner, &OwnerRec)> = g.owners.iter().filter(|(_, r)| r.changed > 0).collect();
-        owners.sort_by(|a, b| a.0.cmp(b.0));
-        for (i, (o, r)) in owners.iter().enumerate() {
+        for (i, (o, changed, prev)) in owners.iter().enumerate() {
             if i > 0 {
                 s.push(',');
             }
             s.push_str("{\"owner\":");
             nfsu2_util::json::write_str(&mut s, o);
-            s.push_str(&format!(",\"changed\":{}", r.changed));
-            if let Some(p) = &r.prev {
+            let _ = write!(&mut s, ",\"changed\":{}", changed);
+            if let Some(p) = prev {
                 s.push_str(",\"prev\":");
                 nfsu2_util::json::write_str(&mut s, p);
             }
