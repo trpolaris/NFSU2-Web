@@ -29,9 +29,16 @@ export function touchFirst(): boolean { return matchMedia('(pointer: coarse)').m
  *  bars over the game).  Players' cars shown in free roam: 16 on phones, 24 on tablets, 32 elsewhere (an iPhone
  *  was stopped for memory as 22 friends' cars loaded at once at the new career's start, 2026-10-25). */
 export function deviceDefaults(): Record<string, string> {
-  if (isPhone()) return { render: rememberedRender() === 'backing' ? 'backing' : 'scale:0.75', fullscreen: 'on', roam_max_cars: '16' };
+  if (isPhone()) return { render: rememberedRender() === 'backing' ? 'backing' : 'scale:0.75', fullscreen: fullScreenFails() ? 'off' : 'on', roam_max_cars: '16' };
   return touchFirst() ? { roam_max_cars: '24' } : {};
 }
+
+/** Adapter name returned by the WebGPU check; held only in this tab. */
+let graphics = '';
+export function noteGraphics(info: string | undefined) { graphics = info ?? ''; }
+
+/** PowerVR B-Series adapters can run out of WebGPU memory when the game canvas fills a phone's screen. */
+export const fullScreenFails = (info = graphics): boolean => /^img-tec b-series/i.test(info);
 
 /** the render check's verdict on this phone: in this browser only, like the other device defaults (settings.ini,
  *  and with it the cloud saves, never has it) */
