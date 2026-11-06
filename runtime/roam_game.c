@@ -4835,6 +4835,90 @@ static void say_frame(int64_t host, int in_roam, uint8_t st){
     uint32_t from; uint8_t ph, sq;
     while (rc_take_say(&g_s, &from, &ph, &sq)) say_recv(from, ph, sq, host, in_roam && !g_racing);
 }
+#define BUMP_US         3000000
+#define BUMP_LAPSE_US   600000
+#define BUMP_OFF_US     1500000
+#define BUMP_NOSE_M     0.85f
+#define BUMP_DOT        (-0.5f)
+#define BUMP_SIDE_M     1.5f
+#define BUMP_GAP_M      0.45f
+#define BUMP_CORNER_M   0.9f
+#define BUMP_DEEP_M     1.2f
+static struct { uint32_t id; int64_t since, last; int on; char name[RC_NAME_MAX + 1]; } g_bump[NSLOT];
+static int g_bump_can;                       /* free roam proper at the last frame (for `mp bump`) */
+/* how far a car's nose is ahead of its place +0x60, along fx, fy (its forward, flat and of length 1) */
+static float bump_nose(uint32_t car, float fx, float fy){
+    uint32_t ph = MR32(car + 0x20u);
+    float x = ok(ph, 0xc0) ? MRF32(ph + 0x10u) : 0.f;
+    if (!(x > 0.6f && x < 2.6f)) x = 1.3f;
+    float com = (MRF32(car + 0x60u) - MRF32(car + 0x50u)) * fx + (MRF32(car + 0x64u) - MRF32(car + 0x54u)) * fy;
+    if (!(com > -1.f && com < 1.f)) com = 0.f;
+    return x - com + BUMP_NOSE_M;
+}
+/* a car's forward, flat and of length 1 (0: it points up or down) */
+static int bump_fwd(uint32_t car, float *fx, float *fy){
+    float x = MRF32(car + 0x90u), y = MRF32(car + 0x94u), l = rc_sqrtf(x * x + y * y);
+    if (!(l > 0.3f && l < 2.f)) return 0;
+    *fx = x / l; *fy = y / l;
+    return 1;
+}
+/* the player's car `me` and `car` touch nose to nose now (gap: how far apart the noses are, negative: into each
+ * other; side: how far side by side) */
+static int bump_touch(uint32_t me, uint32_t car, float *gap, float *side){
+    float f0x, f0y, f1x, f1y;
+    if (!bump_fwd(me, &f0x, &f0y) || !bump_fwd(car, &f1x, &f1y)) return 0;
+    float dot = f0x * f1x + f0y * f1y;
+    if (dot > BUMP_DOT) return 0;
+    float dx = MRF32(car + 0x60u) - MRF32(me + 0x60u), dy = MRF32(car + 0x64u) - MRF32(me + 0x64u), dz = MRF32(car + 0x68u) - MRF32(me + 0x68u);
+    if (!(dx * f0x + dy * f0y > 0.f) || -(dx * f1x + dy * f1y) <= 0.f || dz > 1.5f || dz < -1.5f) return 0;
+    /* from my nose to its, along the axis (my forward minus its: of length 2 head-on, 1.73 at 60 degrees) and across */
+    float n0 = bump_nose(me, f0x, f0y), n1 = bump_nose(car, f1x, f1y);
+    float ex = dx + f1x * n1 - f0x * n0, ey = dy + f1y * n1 - f0y * n0;
+    float ux = f0x - f1x, uy = f0y - f1y, ul = rc_sqrtf(ux * ux + uy * uy), half = 1.f + dot;
+    ux /= ul; uy /= ul;
+    *gap = ex * ux + ey * uy; *side = ex * uy - ey * ux;
+    float slack = BUMP_GAP_M + BUMP_CORNER_M * rc_sqrtf(half > 0.f ? half * 0.5f : 0.f);
+    return *gap < slack && *gap > -BUMP_DEEP_M && *side < BUMP_SIDE_M && *side > -BUMP_SIDE_M;
+}
+static void bump_page(uint32_t id, const char *name, int on){
+    char buf[96], ids[16]; MpJs j = { buf, 0, sizeof buf };
+    snprintf(ids, sizeof ids, "%u", id);
+    js_raw(&j, "{"); js_key(&j, "id"); js_raw(&j, ids); js_str(&j, "name", name); js_int(&j, "on", on); js_raw(&j, "}");
+    roam_plat_lock();
+    int r = roam_plat_friend(buf);
+    roam_plat_unlock();
+    if (r < 0) rlog("[roam] f=%ld front bumpers: the page's ring is full, a line lost\n", rh_frame());
+}
+/* every frame: `can` = free roam proper (see above) */
+static void bump_frame(int64_t host, int can){
+    uint32_t me = can ? player_car() : 0;
+    if (me && !ok(me, 0x9e0)) me = 0;
+    for (int k = 0; k < NSLOT; k++){
+        Slot *s = &g_sl[k];
+        int live = me && s->st == SL_ACTIVE && !s->hidden && !s->paused && ok(s->car, 0x9e0);   /* (co-op: player 1's links) */
+        if (live && g_bump[k].id != s->peer_id){
+            /* another friend in this slot: the one before parted */
+            if (g_bump[k].on) bump_page(g_bump[k].id, g_bump[k].name, 0);
+            g_bump[k].id = s->peer_id; g_bump[k].since = g_bump[k].last = 0; g_bump[k].on = 0;
+            snprintf(g_bump[k].name, sizeof g_bump[k].name, "%s", s->name);
+        }
+        float gap = 0.f, side = 0.f;
+            if (live && bump_touch(me, s->car, &gap, &side)){
+            if (!g_bump[k].since || host - g_bump[k].last > BUMP_LAPSE_US) g_bump[k].since = host;
+            g_bump[k].last = host;
+            if (!g_bump[k].on && host - g_bump[k].since >= BUMP_US){
+                g_bump[k].on = 1;
+                bump_page(s->peer_id, s->name, 1);
+                rlog("[roam] f=%ld front bumpers: touching %s's for 3 s (the noses %.2f m apart, %.2f m side by side)\n", rh_frame(), s->name,
+                     (double)gap, (double)side);
+            }
+        } else if (g_bump[k].on && (!live || host - g_bump[k].last > BUMP_OFF_US)){
+            g_bump[k].on = 0; g_bump[k].since = 0;
+            bump_page(g_bump[k].id, g_bump[k].name, 0);
+            rlog("[roam] f=%ld front bumpers: apart from %s's\n", rh_frame(), g_bump[k].name);
+        } else if (!g_bump[k].on && g_bump[k].since && host - g_bump[k].last > BUMP_LAPSE_US) g_bump[k].since = 0;
+    }
+}
 #endif
 static uint8_t local_status(int in_roam){
     uint32_t flow = rd32(G_FLOW);
@@ -5584,6 +5668,9 @@ void roam_game_frame(CPU *c){
 #if MPRACES
     mp_frame(c, host, in_roam, world_runs, mpfrom, mpin, nmpin);
     mp_panel(host, in_roam);
+#endif
+#if SAYS
+    bump_frame(host, world_runs && st == RC_ST_ROAM && !g_racing && g_du.st == DU_IDLE && !mp_busy());
 #endif
     sounds_update(have_ls ? &ls : 0, world_runs);
     if (g_poselog && have_ls){
