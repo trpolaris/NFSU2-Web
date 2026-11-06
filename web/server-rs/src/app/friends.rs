@@ -259,7 +259,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn friends_http_uses_the_claimed_buddy_store_and_keeps_waiting_mail_until_get() {
+    async fn friends_http_uses_the_claimed_buddy_store_and_delivers_waiting_mail_once_on_room_sync() {
         let kit = Kit::start(&["--online", "on"], |_| {}).await;
 
         assert_eq!(kit.request("GET", "/friends", &[], b"").await.status, 401);
