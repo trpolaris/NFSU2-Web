@@ -185,7 +185,7 @@ pub type Mapd = (u16, u16, u8, u8, u16, Vec<MapdEntry>);
 /// the MAPD datagram in a frame of the hub's
 pub fn mapd_of(f: &[u8]) -> Option<Mapd> {
     let d = &f[16..];
-    if d[5] != 17 {
+    if d[5] != 18 {
         return None;
     }
     let (mut o, mut e) = (25, Vec::new());
