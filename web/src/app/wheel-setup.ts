@@ -6,7 +6,7 @@
 // gamepad.ts), and a line says so while one is connected too.  For a wheel with a shifter, what the shifter does
 // (wheel.ts Shifter), kept in this browser for that model too.
 
-import { deadTwin, drivingPad, familyOf, mayDrive, PAD_DRIVER_EVENT } from '../input/gamepad';
+import { allPads, deadTwin, drivingPad, familyOf, mayDrive, PAD_DRIVER_EVENT } from '../input/gamepad';
 import {
   guessMap, loadMap, loadShifter, saveMap, saveShifter, SHIFTER_MODES, shifterOf, WheelLearn, wheelOf, type LearnStep,
   type ShifterMode,
@@ -33,7 +33,7 @@ const STEPS: Record<LearnStep, string> = {
  *  while a game runs, else the first connected one; or null */
 function connectedWheel(): Gamepad | null {
   try {
-    const pads = navigator.getGamepads?.() ?? [];
+    const pads = allPads() ?? [];
     const wheel = (g: Gamepad | null) => !!g?.connected && g.mapping !== 'standard' && !!wheelOf(g.id) && !deadTwin(g, pads);
     const d = drivingPad();
     if (d) return wheel(d) ? d : null;
@@ -44,7 +44,7 @@ function connectedWheel(): Gamepad | null {
 /** whether a controller besides the wheel at index is connected that could drive instead (gamepad.ts) */
 function otherPad(index: number): boolean {
   try {
-    const pads = navigator.getGamepads?.() ?? [];
+    const pads = allPads() ?? [];
     return pads.some(g => !!g?.connected && g.index !== index && mayDrive(g, pads));
   } catch { return false; }
 }
@@ -145,7 +145,7 @@ export function wheelSection(pad: HTMLElement, cap: (xb: string, ps: string) => 
   function tick() {
     // the tab or the dialog closed: no set-up behind the player's back
     if (!learn || !(box.checkVisibility?.() ?? box.offsetParent !== null)) { stop(); return; }
-    const g = navigator.getGamepads?.().find(p => !!p?.connected && p.id === id && p.index === index);
+    const g = allPads().find(p => !!p?.connected && p.id === id && p.index === index);
     if (!g) { stop(N('The wheel went away before its set-up was done.')); return; }
     if (learn.feed(Array.from(g.axes), performance.now())) { stepText = STEPS[learn.step]; step.textContent = t(stepText); }
     fill.style.width = `${Math.round(learn.progress * 100)}%`;
