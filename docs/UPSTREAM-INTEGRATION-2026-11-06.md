@@ -32,6 +32,12 @@ This branch ports compatible changes from `th0mk/nfsu2-web` into TRPOLARIS while
 - Scoped Xbox/PlayStation button-family radio handling to its own controls panel so wheel controls cannot change the selected controller family.
 - Added a first-crew creation hint to the existing Crew control without changing its layout.
 
+### Career free-roam marker recovery
+- Added a small runtime frame hook that watches the career's settled Free Roam HUD while the game's Engage manager is idle.
+- If the career's `+0x7138` engaging flag or showcase-preview flag remains set for 120 frames (2 seconds at 60 fps), clear only the stale flag and log the recovery. Normal transitions, active races, menus and loading screens are left alone.
+- Added `tests/scripts/engage_stuck.txt`, which sets both flags, checks that they clear, then confirms a shop marker opens.
+- Added the opt-in `engagestuck` scenario to `web/tools/run-suite.mjs`. It requires a career save via `NFSU2_SAVE_SEED`; it is not part of the default no-save suite.
+
 ## Not yet integrated / requires coordinated work
 
 - **Friends UI and API:** the 250-entry server capacity is in place, but start-page pagination/filtering, F9 request management, friend/crew invites, Discord names and online/offline roster UI still need to be wired to the existing Buddy service and custom React/F9 components.
