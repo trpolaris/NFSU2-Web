@@ -4845,7 +4845,6 @@ static void say_frame(int64_t host, int in_roam, uint8_t st){
 #define BUMP_CORNER_M   0.9f
 #define BUMP_DEEP_M     1.2f
 static struct { uint32_t id; int64_t since, last; int on; char name[RC_NAME_MAX + 1]; } g_bump[NSLOT];
-static int g_bump_can;                       /* free roam proper at the last frame (for `mp bump`) */
 /* how far a car's nose is ahead of its place +0x60, along fx, fy (its forward, flat and of length 1) */
 static float bump_nose(uint32_t car, float fx, float fy){
     uint32_t ph = MR32(car + 0x20u);
@@ -4903,7 +4902,7 @@ static void bump_frame(int64_t host, int can){
             snprintf(g_bump[k].name, sizeof g_bump[k].name, "%s", s->name);
         }
         float gap = 0.f, side = 0.f;
-            if (live && bump_touch(me, s->car, &gap, &side)){
+        if (live && bump_touch(me, s->car, &gap, &side)){
             if (!g_bump[k].since || host - g_bump[k].last > BUMP_LAPSE_US) g_bump[k].since = host;
             g_bump[k].last = host;
             if (!g_bump[k].on && host - g_bump[k].since >= BUMP_US){
