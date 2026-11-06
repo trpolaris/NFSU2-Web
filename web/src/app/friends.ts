@@ -72,6 +72,11 @@ export class FriendsApi {
   send(name: string, body: string): Promise<FriendLists | null> {
     return this.ask({ op: 'msg', name, body });
   }
+
+  /** Invite a mutual friend who is currently in Free Roam to one of our crews. */
+  crew(name: string, crew: string, room: string): Promise<FriendLists | null> {
+    return this.ask({ op: 'crew', name, crew, room });
+  }
 }
 
 const FRIEND_PAGE_LINES = 20;
