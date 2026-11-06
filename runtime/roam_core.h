@@ -66,6 +66,8 @@
 #define RC_MAPD_PLACE    9          /* slot, x, y, heading, velocity x, y */
 #define RC_MAPD_BYTES    1152       /* entry bytes per MAPD datagram */
 #define RC_MAPD_PARTS    16         /* MAPD datagrams per answer at most */
+#define RC_NEAR_MAX      128        /* NEARD entries per answer at most: one datagram */
+#define RC_NEAR_M        1000       /* a NEARREQ's radius at most (m) */
 #define RC_LOBBY_MAX     6          /* players in a race lobby: the game's network race takes 6 */
 #define RC_LOBBY_INBOX   16         /* LOBBY messages held for the game side */
 #define RC_LOBBIES_ENTRY 11         /* a LOBBIES entry: x, y (int16, m), race (u32), n, max, state (u8) */
@@ -112,7 +114,7 @@ enum { RC_MSG_HELLO = 1, RC_MSG_PEERS = 2, RC_MSG_SNAP = 3, RC_MSG_CFG = 4, RC_M
         * racer's place in them, by its player's id, its time and how far it came.  The server compares the players'
         * games' results for a racer far ahead of the others (a teleport to the finish, a speed hack).  A hub before it
         * ignores the type, and no player is sent one */
-       RC_MSG_RACERES = 16 };
+       RC_MSG_RACERES = 16,\n       /* the minimap's nearby players: NEARREQ to hub; NEARD is laid out as a MAPD */\n       RC_MSG_NEARREQ = 19, RC_MSG_NEARD = 20 };
 /* RACEREP flags */
 #define RC_RR_HOST       0x01       /* the reporter hosted the race */
 #define RC_RR_QUIT       0x02       /* ...left it with its pause menu's Quit */
@@ -333,7 +335,7 @@ typedef struct {
         struct { uint8_t reason; } bye;
         struct { uint8_t op, arg; uint32_t to, duel; } duel;      /* to: the player it is for */
         struct { uint16_t req, max, base; } mapreq;
-        struct { uint16_t req, base, total, len; uint8_t part, nparts, n; const uint8_t *data; } mapd;
+        struct { uint16_t req, base, total, len; uint8_t part, nparts, n; const uint8_t *data; } mapd;\n        struct { uint16_t req, max, base, radius; } nearreq;
         struct { uint16_t req, total; uint8_t part, nparts, n; const uint8_t *data; } map;   /* data: n entries */
         rc_lobby lobby;
         struct { uint16_t req; uint8_t n; const uint8_t *data; } lobbies;   /* data: n entries */
@@ -567,6 +569,10 @@ typedef struct {
     uint16_t  map_held;
     uint32_t  map_gen;  int map_n;  uint16_t map_total;
     rc_mapent map_e[RC_MAP_MAX], map_tmp[RC_MAP_MAX];
+    /* The minimap's nearby players, as of the last complete NEARD answer. */
+    uint16_t near_req, near_held; int64_t near_asked_us;
+    uint32_t near_gen; int near_n; uint16_t near_total;
+    rc_mapent near_e[RC_NEAR_MAX], near_tmp[RC_NEAR_MAX];
     /* LOBBY messages for us (to our id) from established peers, oldest
      * first, until the game side takes them (rc_take_lobby) */
     struct { uint32_t from; rc_lobby l; } lobby_in[RC_LOBBY_INBOX];
@@ -618,6 +624,8 @@ int  rc_take_duel(rc_session *s, uint32_t *from, uint8_t *op, uint8_t *arg, uint
 /* asks the hub (while it answers) for the world map's other players; 1 when
  * asked.  The answer is in map_e[0 .. map_n) once map_gen changes */
 int  rc_ask_map(rc_session *s, int64_t now_us, int max);
+/* Ask for nearby minimap players within radius_m (capped by RC_NEAR_M). */
+int  rc_ask_near(rc_session *s, int64_t now_us, int max, int radius_m);
 /* a LOBBY message to the established peer with id l->to, if its HELLO said
  * it takes them, or (to 0) to the hub while it answers; 1 when sent */
 int  rc_send_lobby(rc_session *s, const rc_lobby *l);
