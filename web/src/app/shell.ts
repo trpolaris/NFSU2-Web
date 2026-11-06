@@ -1829,7 +1829,7 @@ export async function boot() {
     putBack: () => vault.putBackFromReact(),
   };
   window.dispatchEvent(new Event('trp-vault-ready'));
-  friendsPanel = new FriendsPanel($('#friends-panel'), new FriendsApi(() => vault ? vault.token() : Promise.resolve(null)), logLine);
+  friendsPanel = new FriendsPanel($('#friends-panel'), new FriendsApi(() => vault ? vault.token() : Promise.resolve(null)), logLine, () => resolved().env.NFSU2_ROAM_ROOM ?? '');
   $<HTMLButtonElement>('#play').onclick = () => void play();
   $<HTMLButtonElement>('#retry').onclick = () => void loadModule();
   $<HTMLButtonElement>('#reload').onclick = () => void reload();
