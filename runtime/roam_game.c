@@ -5919,6 +5919,30 @@ int roam_game_cmd(CPU *c, const char *args, long *wait_start){
         if (tmo && f - *wait_start >= tmo){ rlog("[roam] f=%ld mp waitfar %s %.0f TIMEOUT (%ld m)\n", f, a1, (double)m, d); *wait_start = -1; return 1; }
         return 0;
     }
+    if (!strcasecmp(sub, "waitsmoke")){
+        /* "mp waitsmoke K ON [TMO]": native tyre emission on remote slot K,
+         * not merely slip values received over the network. */
+        long tmo = 3000;
+        sscanf(args + used, "%*s %*s %*s %ld", &tmo);
+        int k = atoi(a1), want = atoi(a2) != 0, have = 0;
+        uint32_t car = k >= 0 && k < NSLOT ? g_sl[k].car : 0;
+        int active = car && g_sl[k].st == SL_ACTIVE && !g_sl[k].hidden && ok(car, 0x9e0u);
+        if (active) for (uint32_t w = 0; w < 4; w++){
+            if (MR8(car + CAR_GROUND + w) &&
+                MRF32(car + 0x99cu + 4u * w) > 0.f &&
+                MRF32(car + 0x3e4u + 4u * w) > 0.f) have = 1;
+        }
+        if (*wait_start < 0) *wait_start = f;
+        if (active && have == want){
+            rlog("[expect] PASS f=%ld mp waitsmoke %d %d (unindexed=%d)\\n", f, k, want, g_sl[k].unindexed);
+            *wait_start = -1; return 1;
+        }
+        if (f - *wait_start >= tmo){
+            rlog("[expect] FAIL f=%ld mp waitsmoke %d %d: active=%d smoke=%d\\n", f, k, want, active, have);
+            *wait_start = -1; return 1;
+        }
+        return 0;
+    }
     if (!strcasecmp(sub, "waitpeers") || !strcasecmp(sub, "waitcars") || !strcasecmp(sub, "waitsolid") || !strcasecmp(sub, "waithidden")){
         /* friends established / friends' cars shown / of those, solid (no longer ghosts) / friends' cars hidden or parked */
         int want = atoi(a1); long tmo = a2[0] ? atol(a2) : 0;
