@@ -578,6 +578,23 @@ static float balance_race(uint32_t ours, int mode){
     g_bal.check_at = clk() + 60;                                               /* (balance_hold's clock) */
     return our_f;
 }
+/* A lobby's ratings as its race would even the cars out. Remote cars have no
+ * physics block in this game, so this mirrors balance_race from their ratings. */
+void mprace_even_ratings(float *r, int n, int net_mode, float part){
+    Balance b = balance_conf();
+    float logs = 0.f, best = 0.f; int k = 0;
+    if (!r || n <= 0 || !b.on || !balanced_mode(net_mode)) return;
+    for (int i = 0; i < n; i++) if (r[i] > 0.f){ logs += logf(r[i]); k++; if (r[i] > best) best = r[i]; }
+    if (k < 2) return;
+    float target = expf((1.f - b.share) * logs / (float)k + b.share * logf(best));
+    float close = (net_mode == 2 ? b.close_drag : b.close) * (part < 0.f ? 0.f : part > 1.f ? 1.f : part);
+    for (int i = 0; i < n; i++){
+        if (!(r[i] > 0.f)) continue;
+        float f = powf(powf(target / r[i], close), 1.f / 1.16f);
+        f = f < 1.f - b.down ? 1.f - b.down : f > 1.f + b.up ? 1.f + b.up : f;
+        r[i] *= powf(f, 1.16f);
+    }
+}
 /* (test aid) the car's numbers for working out by hand: rating, mass, drag, speed limit, the engine's curves
  * (+0x230 its torque, +0x254 and +0x278 its others), and the push table */
 static void perf_table(const char *who, uint32_t car){
