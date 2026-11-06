@@ -1,5 +1,8 @@
 import { t } from './i18n';
 import type { FriendsApi } from './friends';
+import type { GameSession } from './game';
+import { gameHas, KEY_FRIEND } from './gamekeys';
+import { pageDialog } from './padnav';
 import { parseFriendBump, type FriendBump } from './friend-bump';
 
 interface FriendPromptDeps {
@@ -15,6 +18,8 @@ export class FriendPrompt {
   private readonly copy: HTMLSpanElement;
   private readonly button: HTMLButtonElement;
   private enabled = false;
+  private session: GameSession | null = null;
+  private readonly onKeyDown = (event: KeyboardEvent) => this.key(event);
   private target: FriendBump | null = null;
   private busy = false;
 
@@ -30,9 +35,11 @@ export class FriendPrompt {
     this.button.onclick = () => void this.ask();
     this.root.append(this.copy, this.button);
     (stage.querySelector<HTMLElement>('.toasts') ?? stage).prepend(this.root);
+    window.addEventListener('keydown', this.onKeyDown, { capture: true });
   }
 
-  start(enabled: boolean) {
+  start(session: GameSession, enabled: boolean) {
+    this.session = session;
     this.enabled = enabled;
     this.target = null;
     this.busy = false;
@@ -40,10 +47,20 @@ export class FriendPrompt {
   }
 
   stop() {
+    this.session = null;
     this.enabled = false;
     this.target = null;
     this.busy = false;
     this.render();
+  }
+
+  private key(event: KeyboardEvent) {
+    if (event.code !== 'KeyF' || !this.enabled || !this.target || event.metaKey || event.ctrlKey || event.altKey || event.isComposing) return;
+    const target = event.target as HTMLElement | null;
+    if (target?.closest?.('input, textarea, select, [contenteditable="true"]') || pageDialog() || gameHas(this.session, KEY_FRIEND)) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    if (!event.repeat) void this.ask();
   }
 
   bump(json: string) {

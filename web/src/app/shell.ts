@@ -780,7 +780,6 @@ async function startGame() {
     // longer than the game), and a closure from this function would keep its
     // scope, and with it this game, reachable
     pendingCrewInvites = []; // invitations belong to this running game, not the next one
-    friendPrompt.start(net && r.env.NFSU2_ROAM === '1');
     session = await GameSession.start({
       module: loaded!.module, info: loaded!.info, saveDir: SAVE, env: r.env, canvas, stage, audio, displayHz, netName, notice, lobby, say, bump: friendBump, chat, friend: friendMessage, networkReady: friendsNetworkReady, marks,
       netBack, netQueue, onSaved,
@@ -789,6 +788,7 @@ async function startGame() {
       artifacts: q.get('artifacts') ?? undefined, dumpScale: q.get('dumpscale') ? +q.get('dumpscale')! : undefined,
       toggleFullscreen, padPage: PAD_PAGE, log: logLine, onFatal: stopFatal, onOtherBuild: otherBuild,
     });
+    friendPrompt.start(session, net && r.env.NFSU2_ROAM === '1');
   } catch (e) {
     friendPrompt?.stop();
     log.add(`[app] the game could not start: ${e}`);
