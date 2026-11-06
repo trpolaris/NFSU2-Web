@@ -33,8 +33,8 @@
 +0    roam mp carpeek 0 99c 5
 +0    roam mp carpeek 0 3e4 4
 +# A has finished its handbrake turns and is braking to a stop.
-++840  roam mp follow 0 8 2.5
-++0    roam mp waitsmoke 0 0 3000
-++60   dump remote_smoke_stopped
-++0    roam mp status
-++10   quit
++840  roam mp follow 0 8 2.5
++0    roam mp waitsmoke 0 0 3000
++60   dump remote_smoke_stopped
++0    roam mp status
++10   quit
