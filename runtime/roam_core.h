@@ -55,6 +55,7 @@
 #define RC_PERF_BYTES    52         /* car-look record extension 1 */
 #define RC_EXT_PERF      1
 #define RC_EXT_HORN      2          /* car-look record extension 2: the player's horn, 1 byte */
+#define RC_EXT_RATING    3          /* car-look record extension 3: class and rounded performance rating */
 #define RC_DUEL_INBOX    16         /* DUEL messages held for the game side */
 #define RC_MAP_ENTRY     5          /* a MAP entry: x, y (int16, m), heading (u8, 256 a turn) */
 #define RC_MAP_PER       230        /* entries per MAP datagram at most */
@@ -361,6 +362,9 @@ typedef struct {
     /* extension 2 (1 byte): the horn the player picked (horn.h's kinds; a
      * record without it, from an older core: theirs is the dual horn) */
     uint8_t  has_horn, horn;
+    /* extension 3 (3 bytes): game-rated class and performance rating.
+     * Remote rides lack the physics block needed to calculate these. */
+    uint8_t  has_rating; int8_t rating_cls; uint16_t rating;
 } rc_carcfg;
 int rc_carcfg_encode(const rc_carcfg *c, uint8_t *out, int cap);   /* bytes, or -1 */
 int rc_carcfg_decode(const uint8_t *p, int len, rc_carcfg *c);     /* RC_OK / RC_E_* */
