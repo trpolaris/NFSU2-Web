@@ -1278,3 +1278,12 @@
 @media (prefers-reduced-motion: reduce) {
   .trp-test-notice-continue { transition: none; }
 }
+
+
+@media (max-width:700px) {
+  .trp-friends-dashboard-panel { padding:14px; border-radius:16px; }
+  .trp-friends-dashboard-heading { align-items:flex-start; flex-direction:column; }
+  .trp-friends-dashboard-actions { width:100%; justify-content:space-between; }
+  .trp-friends-tools { grid-template-columns:1fr; }
+  .trp-friends-dashboard-columns { grid-template-columns:1fr; }
+}
