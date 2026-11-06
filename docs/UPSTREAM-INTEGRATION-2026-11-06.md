@@ -85,6 +85,12 @@ This branch ports compatible changes from `th0mk/nfsu2-web` into TRPOLARIS while
 - Allowed the page's own WebHID permission in the server Permissions-Policy. Other device APIs remain disabled.
 - Added parser, mapping, connection lifecycle, focus/lizard-mode, dongle and rumble tests in web/test/steampad.test.mjs. Real controller hardware is not attached to CI, so pairing and rumble still need a browser/hardware check.
 
+### Touch Reset safety at speed
+- The native status block now publishes a hysteretic `fast` flag: it turns on above 30 km/h and turns off below 25 km/h. The thresholds avoid rapid show/hide flicker at the boundary.
+- The existing Reset touch control is hidden with CSS `visibility`, preserving its exact layout slot rather than shifting the neighbouring controls.
+- When speed stows Reset, any captured finger, pending tap timer and held `KeyR` are released immediately. Older/no-speed status blocks leave Reset visible.
+- Added fake-page/fake-clock regression tests for the hide/restore transition, in-flight finger release, and missing-status compatibility. A real phone/game pass is still required.
+
 ### Saved-log anonymization performance
 - Replaced per-name regular-expression alternations with a single-pass token scanner for ordinary names and an indexed scan for short/ambiguous names that must be surrounded by the log's known PRE/POST context.
 - Kept the current privacy categories, player-word safeguards, IPv4/VLAN masking and stable per-browser aliases unchanged.
