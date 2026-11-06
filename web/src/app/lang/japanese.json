@@ -12,6 +12,8 @@
   "This address is not secure, so {browser} turns off what the game needs. Open the server's https:// address instead.": "このアドレスは安全ではないため、{browser}がゲームに必要な機能をオフにしています。代わりにサーバーの https:// アドレスを開いてください。",
   "The page is not cross-origin isolated (no SharedArrayBuffer). Open it from the NFSU2 web server, not another server.": "このページはクロスオリジン分離されていません（SharedArrayBufferがありません）。別のサーバーではなく、NFSU2 Webサーバーから開いてください。",
   "Shared WebAssembly memory is not available: {error}": "共有WebAssemblyメモリを利用できません: {error}",
+  "The JavaScript optimizer is off for this site, and the game can't run without it. In Chrome: Settings, Privacy and security, JavaScript optimization and security, allow this site (Android's Advanced Protection turns it off). In Edge: add this site as an exception to Enhanced security.": "このサイトでは JavaScript の最適化がオフになっていて、ゲームはそれなしでは動きません。Chrome：「設定」>「プライバシーとセキュリティ」>「JavaScript の最適化とセキュリティ」でこのサイトを許可してください（Android の高度な保護機能はこれをオフにします）。Edge：このサイトを「強化されたセキュリティ」の例外に追加してください。",
+  "Chrome gave the game its software graphics, which run on the processor, so the game will be very slow. Turn on chrome://flags/#enable-vulkan and chrome://flags/#default-angle-vulkan, then restart Chrome.": "Chrome がゲームに渡したのはプロセッサーで動くソフトウェア描画のため、ゲームはとても遅くなります。chrome://flags/#enable-vulkan と chrome://flags/#default-angle-vulkan をオンにして、Chrome を再起動してください。",
   "This browser is too old for the game (no Atomics.waitAsync). Update {browser}.": "このブラウザはゲームを動かすには古すぎます（Atomics.waitAsyncがありません）。{browser}を更新してください。",
   "HTTPS or localhost, cross-origin isolated, threads and shared memory available.": "HTTPSまたはlocalhost、クロスオリジン分離済みで、スレッドと共有メモリを利用できます。",
   "Graphics (WebGPU)": "グラフィック（WebGPU）",
