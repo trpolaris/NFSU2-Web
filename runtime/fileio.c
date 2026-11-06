@@ -846,7 +846,12 @@ int fileio_call(CPU *c, const char *n, uint32_t *out){
             /* WASI has no birth time: the status-change time stands in */
             const struct timespec *ts[3] = { &st.st_ctim, &st.st_atim, &st.st_mtim };
 #else
+#if defined(__APPLE__)
             const struct timespec *ts[3] = { &st.st_birthtimespec, &st.st_atimespec, &st.st_mtimespec };
+#else
+            /* POSIX hosts without birthtime: ctime is the closest stable creation/change marker. */
+            const struct timespec *ts[3] = { &st.st_ctim, &st.st_atim, &st.st_mtim };
+#endif
 #endif
             for (int k = 0; k < 3; k++){ uint32_t p=A(c,1+k); if(!p) continue;
                 uint64_t ft = ((uint64_t)ts[k]->tv_sec + 11644473600ull) * 10000000ull + (uint64_t)ts[k]->tv_nsec / 100u;
