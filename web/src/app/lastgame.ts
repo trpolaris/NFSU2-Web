@@ -32,6 +32,7 @@ export class LastGameKeeper {
   private timer: ReturnType<typeof setInterval> | undefined;
   private written = -1;
   private failed = false;
+  private slow = false;
   private held: () => string = () => '';
   /** scrub: the log as it may leave the browser (privacy.ts) */
   constructor(private save: string, private log: LogRing, private note: (s: string) => void, private scrub?: (text: string) => string) {}
@@ -59,7 +60,7 @@ export class LastGameKeeper {
   }
 
   private write() {
-    const r = this.rec!;
+    const r = this.rec!, t0 = performance.now();
     r.saved = Date.now(); this.written = this.log.added;
     r.log = this.log.snapshot(BUDGET);
     if (this.scrub) { r.log = this.scrub(r.log); r.scrubbed = true; }
@@ -70,6 +71,8 @@ export class LastGameKeeper {
       // storage off or full: the log stays in memory as before
       if (!this.failed) { this.failed = true; this.note(`[app] the log's copy for a stopped page could not be kept: ${e}`); }
     }
+    const ms = performance.now() - t0;
+    if (ms > 50 && !this.slow) { this.slow = true; this.note(`[app] the log's copy for a stopped page took ${ms.toFixed(0)} ms`); }
   }
 }
 
