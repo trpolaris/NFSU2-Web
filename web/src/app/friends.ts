@@ -78,7 +78,6 @@ const el = <K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: 
 export class FriendsPanel {
   private lists: FriendLists | null = null;
   private busy = false;
-  private note = '';
   private filter = '';
 
   constructor(private root: HTMLElement, private api: FriendsApi, private log: (line: string) => void) {
@@ -149,7 +148,6 @@ export class FriendsPanel {
   }
 
   private setNote(text: string) {
-    this.note = text;
     const node = this.root.querySelector<HTMLElement>('[data-friends-note]');
     if (node) node.textContent = text;
   }
