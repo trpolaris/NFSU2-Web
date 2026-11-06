@@ -385,4 +385,48 @@ mod tests {
         let final_list = kit.request("GET", "/friends", &[A], b"").await;
         assert_eq!(j(&final_list.body)["friends"], json!([]));
     }
+
+    #[tokio::test]
+    async fn crew_invites_require_a_mutual_friend_and_valid_crew_and_room_names() {
+        let kit = Kit::start(&["--online", "on"], |_| {}).await;
+        claim(&kit, A, "Alex").await;
+        claim(&kit, B, "Bianca").await;
+
+        let not_friends = post(&kit, A, json!({
+            "op": "crew", "name": "Bianca", "crew": "Night Owls", "room": "Blue Room"
+        })).await;
+        assert_eq!(not_friends["done"], "none");
+
+        post(&kit, A, json!({ "op": "ask", "name": "Bianca" })).await;
+        post(&kit, B, json!({ "op": "accept", "name": "Alex" })).await;
+
+        let blocked_crew = post(&kit, A, json!({
+            "op": "crew", "name": "Bianca", "crew": "x_fag_x", "room": ""
+        })).await;
+        assert_eq!(blocked_crew["done"], "name");
+
+        let long_crew = post(&kit, A, json!({
+            "op": "crew", "name": "Bianca", "crew": "x".repeat(25), "room": ""
+        })).await;
+        assert_eq!(long_crew["done"], "name");
+
+        let long_room = post(&kit, A, json!({
+            "op": "crew", "name": "Bianca", "crew": "Night Owls", "room": "x".repeat(64)
+        })).await;
+        assert_eq!(long_room["done"], "name");
+
+        // A valid mutual invite without an active Free Roam page must not be delivered.
+        let away = post(&kit, A, json!({
+            "op": "crew", "name": "Bianca", "crew": "  Night   Owls ", "room": "Blue  Room"
+        })).await;
+        assert_eq!(away["done"], "away");
+    }
+
+    #[test]
+    fn crew_invite_names_strip_format_controls_and_preserve_the_empty_default_room() {
+        assert_eq!(tidy_invite_name("  Night\\u{200b}   Owls "), "Night Owls");
+        assert_eq!(tidy_invite_name("Blue\\nRoom"), "Blue Room");
+        assert_eq!(tidy_invite_name("   "), "");
+    }
+
 }
