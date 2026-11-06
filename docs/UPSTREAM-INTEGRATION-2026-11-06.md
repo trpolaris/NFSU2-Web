@@ -10,12 +10,12 @@ This branch ports compatible changes from `th0mk/nfsu2-web` into TRPOLARIS while
 - The lobby calculates the fastest other car against the local car after applying the race's engine-balancing rules (85% of the adjustment) and displays a compact gauge inside the existing lobby card.
 - Added car-record round-trip, unknown-extension and out-of-range tests.
 
-### Friends capacity
-- Increased the existing EA Messenger Buddy friend list from 50 to 250.
-- Kept blocked and recently-met lists at 50.
-- Updated JSON load limits and mutual-friend/request capacity checks.
-- Expanded the load fixture to 300 entries and verifies the 250-friend limit.
-- This raises the EA Messenger Buddy roster limit only. The TRPOLARIS Rust server does not yet expose the upstream `/friends` HTTP API / OnlineHost bridge, and the current Free Roam hub does not yet prioritize buddy links; start-page paging/filtering and F9 friend-request screens therefore remain unintegrated.
+### Friends capacity and web bridge
+- Increased the existing EA Messenger Buddy friend list from 50 to 250; blocked and recently-met lists remain at 50.
+- Ported upstream page-level Buddy operations through `OnlineHost` and the existing per-persona EA Messenger store; no separate browser-side friend database was introduced.
+- Added authenticated, same-origin `GET/POST /friends` endpoints using the existing claimed-name/keyphrase token. Supported operations: list and retrieve waiting messages, request by name, accept/decline, remove, block and update the Discord username.
+- Added a Friends panel inside the existing F9 **Sürücü ağı** tab: incoming/outgoing requests, friend list, Online/offline state, name filter, add-by-name, remove/block and Discord username.
+- The current endpoint reports Online lobby presence only. Free Roam room/position, buddy-priority peer links, live page-to-page mail, race/crew invitations and the separate start-page Friends tab still need the RoamHub/LAN bridge.
 
 ### Keyboard and controllers
 - Ported the learned Windows AltGr handling: on browsers which synthesize Left Ctrl before Right Alt/AltGraph, the synthetic Ctrl no longer triggers the game's Ctrl binding.
@@ -99,7 +99,7 @@ This branch ports compatible changes from `th0mk/nfsu2-web` into TRPOLARIS while
 
 ## Not yet integrated / requires coordinated work
 
-- **Friends UI and API:** the 250-entry server capacity is in place, but start-page pagination/filtering, F9 request management, friend/crew invites, Discord names and online/offline roster UI still need to be wired to the existing Buddy service and custom React/F9 components.
+- **Friends Free Roam completion:** buddy-priority links, room/position presence, live page-mail notifications through LAN, race/crew invitations and the separate start-page Friends & crews tab still need the RoamHub/LAN bridge. The authenticated `/friends` route and initial F9 Friends panel are now integrated.
 - **Mods/Mod Packs:** built-in catalogue, Blitz rims, maker details, mod toggles, OEM stand-ins and the Shown/Original remote-car view need the runtime modpack module, manifests and save compatibility.
 - **World map/minimap:** current TRPOLARIS map uses a 512-player snapshot. Upstream's 2,048-player live map deltas, smooth markers and car-meet markers/GPS require a coordinated C/TypeScript/Rust protocol change. Upstream uses message type 17 for MAPD while TRPOLARIS uses 17 for typed FreeRoam chat; do not reuse it without an explicit message-ID/version migration.
 - **Multiplayer career credits:** requires race eligibility, friend/crew credit masks, career save/result accounting, lobby protocol and UI changes.
