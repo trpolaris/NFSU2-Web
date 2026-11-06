@@ -40,6 +40,29 @@ struct HubLobby {
     ids: [u32; wire::LOBBY_PLAYERS],
 }
 
+/// A page before MAPD gets one full world-map answer per second at most.
+const MAP_V2_GAP_MS: f64 = 1000.0;
+const MAP_TOL_M: f64 = 8.0;
+const MAP_TOL_H: u8 = 32;
+const MAP_KEEP_MS: f64 = 10_000.0;
+const MAP_LOBBIES_GAP_MS: f64 = 1000.0;
+const MAPD_MAX: usize = wire::MAPD_PARTS * (wire::MAPD_BYTES / wire::MAPD_PLACE);
+
+#[derive(Clone, Copy)]
+struct MapCand {
+    slot: u32, id: u32, p: [f64; 3], x: i16, y: i16, heading: u8, vx: i8, vy: i8,
+}
+#[derive(Clone, Copy)]
+struct MapSent {
+    slot: u32, id: u32, x: i16, y: i16, heading: u8, vx: i8, vy: i8, t: f64,
+}
+#[derive(Default)]
+struct MapHeld {
+    held: Option<(u16, Vec<MapSent>)>,
+    sent: Option<(u16, Vec<MapSent>)>,
+    at: f64,
+}
+
 /// an advert older than this is a lobby gone (its host sends one every second)
 const LOBBY_STALE_MS: f64 = 3000.0;
 /// A lobby's host is linked with the players in free roam this near its start before any other link (the nearest
@@ -482,6 +505,10 @@ pub struct Hub {
     /// at once (the second security audit, 2026-10-22: a map walks every player on the hub's one thread, and a few
     /// clients asking that way kept it busy); dropped at each tick once older than map_gap_ms
     map_at: HashMap<u32, f64>,
+    /// MAPD state per browser virtual address and cached room candidates for the current tick.
+    maps: HashMap<u32, MapHeld>,
+    lobbies_at: HashMap<u32, f64>,
+    map_cands: HashMap<u32, Vec<MapCand>>,
     s: Scratch,
     /// the claimed names (nfsu2-claims): a player under another keyphrase's name plays alone; None: any name is anyone's
     claims: Option<Arc<nfsu2_claims::Claims>>,
@@ -528,6 +555,9 @@ impl Hub {
             kept: HashMap::new(),
             results: Results::default(),
             map_at: HashMap::new(),
+            maps: HashMap::new(),
+            lobbies_at: HashMap::new(),
+            map_cands: HashMap::new(),
             s: Scratch::default(),
             claims: None,
         }
@@ -765,7 +795,7 @@ impl Hub {
         let Some(Some(p)) = self.slots.get_mut(slot as usize) else { return };
         p.seen = now;
         p.hub_port = dport;
-        let mut ask = None;
+        let mut ask: Option<(u16,u16,Option<u16>)> = None;
         let mut chat = None;
         let mut report = None;
         let mut seen = [None, None];
@@ -818,7 +848,7 @@ impl Hub {
                     p.watch.reset();
                 }
             }
-            Msg::MapReq { req } if sender == p.id => ask = Some(req),
+            Msg::MapReq { req, max, base } if sender == p.id => ask = Some((req,max,base)),
             Msg::Chat { scope, channel, text } if sender == p.id => chat = Some((scope, channel, text.to_string())),
             Msg::Lobby { op, to: 0, lobby, race, x, y, n, max, state, ids } if sender == p.id => match op {
                 wire::LOBBY_ADVERT => p.lobby = Some((HubLobby { id: lobby, race, x, y, n, max, state, ids }, now)),
@@ -852,8 +882,10 @@ impl Hub {
             results.add(now, by, r, &|id| self.who(id));
             self.results = results;
         }
-        if let Some(req) = ask {
-            self.map(slot, req, now);
+        match ask {
+            Some((req, max, Some(base))) => self.mapd(slot, req, max, base, now),
+            Some((req, max, None)) => self.map(slot, req, max, now),
+            None => {}
         }
         if let Some((scope, channel, text)) = chat {
             self.chat(slot, scope, channel, &text, now);
@@ -984,7 +1016,7 @@ impl Hub {
     fn map(&mut self, slot: u32, req: u16, now: f64) {
         let (gap, fresh, max) = (self.o.map_gap_ms, self.o.map_fresh_ms, self.o.map_max);
         let Some(p) = self.player(slot) else { return };
-        if self.map_at.get(&p.vip).is_some_and(|&t| now - t < gap) {
+        if self.map_at.get(&p.vip).is_some_and(|&t| now < t) {
             return;
         }
         if p.impostor {
@@ -1028,7 +1060,7 @@ impl Hub {
             self.seq = self.seq.wrapping_add(1);
             (self.send)(vip, Bytes::from(f));
         }
-        self.map_at.insert(vip, now);
+        self.map_at.insert(vip, now + gap);
         self.lobbies(slot, req, now);
     }
 
