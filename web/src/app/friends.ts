@@ -77,6 +77,7 @@ const el = <K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: 
 
 export class FriendsPanel {
   private lists: FriendLists | null = null;
+  private received: FriendLists['mail'] = [];
   private busy = false;
   private filter = '';
 
@@ -88,6 +89,10 @@ export class FriendsPanel {
         <button type="button" class="btn menu-action" data-friends-refresh>Yenile</button>
       </div>
       <p class="friends-panel-note" data-friends-note aria-live="polite">Arkadaş listesi yükleniyor…</p>
+      <section class="friends-mailbox" data-friends-mailbox hidden>
+        <div class="friends-mailbox-head"><h6>BEKLEYEN MESAJLAR <span data-friends-mail-count>0</span></h6><button type="button" class="friends-row-action" data-friends-mail-clear>Okundu</button></div>
+        <ul data-friends-mail></ul>
+      </section>
       <div class="friends-panel-tools">
         <form data-friends-ask><label><span>Oyuncu adına göre ekle</span><span class="friends-form-row"><input name="name" maxlength="64" autocomplete="off" placeholder="Oyuncu adı"><button class="btn menu-action" type="submit">İstek gönder</button></span></label></form>
         <label class="friends-filter"><span>Arkadaşlarda ara</span><input data-friends-filter type="search" autocomplete="off" placeholder="İsimle filtrele"></label>
@@ -114,6 +119,10 @@ export class FriendsPanel {
       const button = (e.target as HTMLElement).closest<HTMLButtonElement>('button');
       if (!button) return;
       if (button.matches('[data-friends-refresh]')) void this.refresh();
+      if (button.matches('[data-friends-mail-clear]')) {
+        this.received = [];
+        this.renderMail();
+      }
       const op = button.dataset.friendOp as 'accept' | 'decline' | 'remove' | 'block' | undefined;
       const name = button.dataset.friendName;
       if (op && name) void this.perform(op, name);
@@ -135,6 +144,7 @@ export class FriendsPanel {
     try {
       const lists = await this.api.list();
       this.lists = lists;
+      if (lists) this.keepMail(lists.mail);
       if (!lists) this.setNote('Arkadaş listesi kullanılamıyor. İsim sahipliğini ve çevrimiçi bağlantını kontrol et.');
       else if (!lists.me) this.setNote('Arkadaş eklemek için önce bulut kayıtlarından bir oyuncu adı sahiplenmelisin.');
       else this.setNote(`${lists.me} hesabı · ${lists.mail.length} bekleyen mesaj`);
@@ -160,6 +170,7 @@ export class FriendsPanel {
       const lists = await this.api.act(op, name);
       if (lists) {
         this.lists = lists;
+        this.keepMail(lists.mail);
         const labels: Record<string, string> = {
           asked: 'Arkadaşlık isteği gönderildi.',
           friends: 'Artık arkadaşsınız.',
@@ -220,6 +231,29 @@ export class FriendsPanel {
     return li;
   }
 
+  private keepMail(mail: FriendLists['mail']) {
+    for (const item of mail) {
+      const key = `${item.from.toLowerCase()}|${item.t}|${item.body}`;
+      if (!this.received.some(x => `${x.from.toLowerCase()}|${x.t}|${x.body}` === key)) this.received.push(item);
+    }
+    this.renderMail();
+  }
+
+  private renderMail() {
+    const box = this.root.querySelector<HTMLElement>('[data-friends-mailbox]');
+    const list = this.root.querySelector<HTMLElement>('[data-friends-mail]');
+    const count = this.root.querySelector<HTMLElement>('[data-friends-mail-count]');
+    if (!box || !list || !count) return;
+    list.replaceChildren();
+    count.textContent = String(this.received.length);
+    box.hidden = !this.received.length;
+    for (const mail of this.received) {
+      const row = el('li', 'friends-mail-row');
+      row.append(el('b', '', mail.from), el('p', '', mail.body));
+      list.append(row);
+    }
+  }
+
   private render() {
     const l = this.lists;
     this.root.querySelector<HTMLElement>('[data-friends-title]')!.textContent = l?.me ? `Arkadaşlar · ${l.friends.length}/250` : 'Arkadaşlar';
@@ -237,6 +271,7 @@ export class FriendsPanel {
     for (const name of l?.sent ?? []) sent.append(this.item(name, 'Yanıt bekleniyor', [this.action('remove', name, 'Geri al')]));
     if (!sent.childElementCount) sent.append(el('li', 'friends-empty', 'Gönderilmiş istek yok.'));
     this.renderFriends();
+    this.renderMail();
     const discord = this.root.querySelector<HTMLInputElement>('[name="discord"]');
     if (discord && l?.contact && discord !== document.activeElement) discord.value = l.contact;
   }
