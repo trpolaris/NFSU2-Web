@@ -103,6 +103,8 @@ static int manual_gearbox(int race){
     return g == 1u || g == 3u;
 }
 
+#define PL_CAR      4u
+#define CAR_SPEED   0x430u
 /* Hysteresis for the touch Reset button: hide above 30 km/h, bring it back
  * only below 25 km/h. Its slot stays fixed in the page so the other buttons
  * never slide under a thumb. */
