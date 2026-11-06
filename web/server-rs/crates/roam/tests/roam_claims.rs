@@ -102,4 +102,8 @@ fn mutual_buddies_link_first_without_named_crews_and_survive_another_page_closin
     k.clear();
     k.hub.tick();
     assert!(linked(&k, 1, 2) && linked(&k, 2, 1), "the remaining Alex page keeps the mutual link");
+
+    // A stale vehicle position must stop appearing in Friends' Free Roam presence.
+    k.step(RoamOptions::default().stale_ms + 1.0);
+    assert_eq!(k.hub.whereabouts(std::slice::from_ref(&bianca)), vec![None]);
 }
