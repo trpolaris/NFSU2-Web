@@ -308,6 +308,7 @@ fn sanitize(o: RoamOptions) -> RoamOptions {
         map_max: n(o.map_max, d.map_max).min(MAPD_MAX),
         map_gap_ms: f(o.map_gap_ms, d.map_gap_ms),
         map_fresh_ms: f(o.map_fresh_ms, d.map_fresh_ms),
+        near_gap_ms: f(o.near_gap_ms, d.near_gap_ms),
     }
 }
 
@@ -331,6 +332,8 @@ struct Stats {
     race_reports: u64,
     /// `[cheat]` lines logged
     cheat_lines: u64,
+    /// the minimap's answers (NEARD) sent
+    nears: u64,
 }
 
 /// one pair of a room weighed (every pair of a room of at most `exact_room` players): since when it is linked; a and b
@@ -471,6 +474,8 @@ pub struct Hub {
     /// the cap on every player's links (its degree at most), and when it last changed
     cap: usize,
     cap_at: f64,
+    /// how busy the hub's own thread was over the last second, 0 to 1 (`set_thread_busy`)
+    thread_busy: f64,
     st: Stats,
     slots: Vec<Option<Player>>,
     free: Vec<u32>,
@@ -530,6 +535,7 @@ impl Hub {
         Hub {
             cap: o.degree,
             cap_at: f64::NEG_INFINITY,
+            thread_busy: 0.0,
             o,
             now,
             busy,
@@ -558,6 +564,10 @@ impl Hub {
             maps: HashMap::new(),
             lobbies_at: HashMap::new(),
             map_cands: HashMap::new(),
+            near_at: HashMap::new(),
+            nears: HashMap::new(),
+            near_grid: None,
+            near_found: Vec::new(),
             s: Scratch::default(),
             claims: None,
         }
@@ -1503,6 +1513,12 @@ impl Hub {
         ));
     }
 
+    /// how busy the hub's own thread was over the last second (its ticks and frames), 0 to 1: the minimap's answers come
+    /// less often while it is busy (NEAR_BUSY_LOW, NEAR_BUSY_HIGH)
+    pub fn set_thread_busy(&mut self, busy: f64) {
+        self.thread_busy = if busy.is_finite() { busy.clamp(0.0, 1.0) } else { 0.0 };
+    }
+
     /// free roam is busy: the cap is under `ask_cap` (the start page does not ask new players then)
     pub fn crowded(&self) -> bool {
         self.cap < self.o.ask_cap
@@ -1591,6 +1607,8 @@ impl Hub {
             "crewSkips": st.crew_skips,
             "raceReports": st.race_reports,
             "cheatLines": st.cheat_lines,
+            "nears": st.nears,
+            "threadBusy": num(self.thread_busy),
             "watchesKept": self.kept.len(),
             "blocking": self.blocks.len(),
             "keptApart": self.apart.len(),
