@@ -331,7 +331,7 @@ static void t_roundtrip(void){
 
 /* ---- 3. hostile datagrams ----------------------------------------------------------------- */
 static void t_fuzz(long iters){
-    uint8_t b[1600], base[16][RC_MAX_DGRAM]; int bn[16];
+    uint8_t b[1600], base[17][RC_MAX_DGRAM]; int bn[17];
     rc_msg m;
     /* one valid datagram of each type, to mutate */
     for (int t = 1; t <= 16; t++){
@@ -354,6 +354,12 @@ static void t_fuzz(long iters){
                                   m.u.raceres.row[0].done = 2.f; m.u.raceres.row[1].id = 10; m.u.raceres.row[1].done = 1.5f; }
         bn[t - 1] = rc_encode(&m, base[t - 1], RC_MAX_DGRAM);
     }
+    /* MAPD has type 18 because type 17 is used by the TRPOLARIS typed chat bridge. */
+    static const uint8_t me[RC_MAPD_PLACE + 2] = { 3, 0, 10, 0, 20, 0, 64, 5, 0xfb, 4, 0x80 };
+    memset(&m,0,sizeof m);m.h.type=RC_MSG_MAPD;m.h.sender=9;
+    m.u.mapd.req=1;m.u.mapd.base=0;m.u.mapd.part=0;m.u.mapd.nparts=1;m.u.mapd.total=2;m.u.mapd.n=2;
+    m.u.mapd.data=me;m.u.mapd.len=sizeof me;
+    bn[16]=rc_encode(&m,base[16],RC_MAX_DGRAM);
     rc_session s; rc_config cf; memset(&cf, 0, sizeof cf); cf.self_id = 1; cf.port = 1; cf.max_players = 8; cf.rate_hz = 20; cf.test_mode = 1;
     cf.duels = 1; cf.lobbies = 1; cf.say = 1;
     rc_io io = { 0, 0, 0, 0 };
@@ -364,7 +370,7 @@ static void t_fuzz(long iters){
         int kind = (int)(rnd() % 4);
         if (kind == 0){ len = (int)(rnd() % 1300); for (int i = 0; i < len; i++) b[i] = (uint8_t)rnd(); }
         else {
-            int t = (int)(rnd() % 16); len = bn[t]; memcpy(b, base[t], (size_t)len);
+            int t = (int)(rnd() % 17); len = bn[t]; memcpy(b, base[t], (size_t)len);
             int nm = 1 + (int)(rnd() % 6);
             for (int k = 0; k < nm; k++) b[rnd() % (uint32_t)len] = (uint8_t)rnd();
             if (kind == 2) len = (int)(rnd() % (uint32_t)(len + 1));
