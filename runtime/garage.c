@@ -629,7 +629,7 @@ void sub_005344d0(CPU *c){
         slot_of(CARS0, garage_find(CARS0, h)) < 0 &&
         (to = first_car(CARS0, SLOTS))){
         gcall(c, FN_SET_CAR, CAREER, 1, &to);
-        fprintf(stderr, "[garage] the career's car 0x%08x was in none of the slots: now the one in slot %d (0x%08x)\\n",
+        fprintf(stderr, "[garage] the career's car 0x%08x was in none of the slots: now the one in slot %d (0x%08x)\n",
                 h, slot_of(CARS0, garage_find(CARS0, to)) + 1, MR32(CAREER + K_CAR));
     }
 }
