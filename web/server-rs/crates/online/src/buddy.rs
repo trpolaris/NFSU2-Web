@@ -51,7 +51,7 @@
 //!
 //! Without claims (OnlineOptions::claims None) every list is kept for its name, as before.  The blocked list was the
 //! session's own until 2026-10-23 (the Online audit's ONL-6).  Invites are passed on and forgotten (to a persona
-//! online now).  Limits: 50 friends, 50 blocked, `MAX_ASKED` requests waiting from one persona, `MAX_MAIL` messages
+//! online now).  Limits: `MAX_FRIENDS` friends, `MAX_LIST` blocked and met players, `MAX_ASKED` requests waiting from one persona, `MAX_MAIL` messages
 //! waiting for one (the oldest goes) and `ALL_MAIL` in all; `lists` lists, the least recently seen going first, new
 //! ones `list_rate` an hour per client; messages `msg_rate` a second (burst 3 x), the lists and the search
 //! `heavy_rate` a second (burst 4), over that: closed (the Online audit's ONL-1, ONL-3); chat messages 2 a second
@@ -77,6 +77,7 @@ use crate::omap::OrderedMap;
 use crate::timers::{Action, TimerId};
 use crate::vhost::{ConnId, Svc};
 
+const MAX_FRIENDS: usize = 250;
 const MAX_LIST: usize = 50;
 /// friend requests one persona has waiting, and the days one waits for its answer
 const MAX_ASKED: usize = 20;
@@ -227,10 +228,10 @@ fn when(v: &Value) -> Option<f64> {
 }
 
 /// names of a list in buddies.json (`B`, `I`) onto a list's map: the later spelling of a name in the earlier one's
-/// place, MAX_LIST at most
-fn read_names(v: Option<&Value>, into: &mut IndexMap<String, String>) {
+/// place, `limit` at most (friends: MAX_FRIENDS; blocked: MAX_LIST)
+fn read_names(v: Option<&Value>, into: &mut IndexMap<String, String>, limit: usize) {
     if let Some(Value::Array(a)) = v {
-        for n in a.iter().take(MAX_LIST) {
+        for n in a.iter().take(limit) {
             if let Some(n) = n.as_str().filter(|n| valid_name(n)) {
                 into.insert(lower(n), n.to_string());
             }
@@ -323,9 +324,9 @@ impl Buddies {
                 .and_then(Value::as_str)
                 .filter(|o| o.len() == 22 && o.bytes().all(|c| c.is_ascii_alphanumeric() || c == b'-' || c == b'_'))
                 .map(Arc::from);
-            read_names(r.get("B"), &mut l.b);
+            read_names(r.get("B"), &mut l.b, MAX_FRIENDS);
             if v3 {
-                read_names(r.get("I"), &mut l.i);
+                read_names(r.get("I"), &mut l.i, MAX_LIST);
                 if let Some(Value::Array(a)) = r.get("R") {
                     for e in a.iter().take(MAX_ASKED) {
                         if let Some([n, t]) = e.as_array().map(Vec::as_slice)
@@ -1023,7 +1024,7 @@ impl Core {
         if self.buddies.unask(&k, &me) | self.buddies.unask(&me, &k) {
             self.touch_lists();
         }
-        let full_without = |l: Option<&FriendsList>, n: &str| l.is_some_and(|l| l.b.len() >= MAX_LIST && !l.b.contains_key(n));
+        let full_without = |l: Option<&FriendsList>, n: &str| l.is_some_and(|l| l.b.len() >= MAX_FRIENDS && !l.b.contains_key(n));
         if full_without(self.buddies.list(&bp), &k) || full_without(self.buddies.list(who), &me) {
             return Ok(());
         }
@@ -1291,7 +1292,7 @@ impl Core {
                     return self.unfriend(&bp, &who);
                 }
                 let cur = self.buddies.list(&bp);
-                if cur.is_some_and(|l| l.b.len() >= MAX_LIST && !l.b.contains_key(&k)) {
+                if cur.is_some_and(|l| l.b.len() >= MAX_FRIENDS && !l.b.contains_key(&k)) {
                     return self.bsend(b, kind, &with_id, "full");
                 }
                 if cur.is_none() && !self.make_list(&bp, &group) {
@@ -1318,7 +1319,7 @@ impl Core {
                 }
                 let now = self.bnow();
                 let (friends, full, asked_full) = match self.buddies.list(&bp) {
-                    Some(l) => (l.b.contains_key(&k), l.b.len() >= MAX_LIST, l.r.len() >= MAX_ASKED && !l.r.contains_key(&k)),
+                    Some(l) => (l.b.contains_key(&k), l.b.len() >= MAX_FRIENDS, l.r.len() >= MAX_ASKED && !l.r.contains_key(&k)),
                     None => (false, false, false),
                 };
                 if friends {
@@ -1511,9 +1512,9 @@ mod tests {
     // buddies.json read leniently and written again, with room for 3 lists
     #[test]
     fn buddies_json_read_and_written_again() {
-        let friends: Vec<String> = (0..60).map(|i| format!("\"Friend{i}\"")).collect();
+        let friends: Vec<String> = (0..300).map(|i| format!("\"Friend{i}\"")).collect();
         let many = format!(r#"{{"personas":[{{"name":"Many","seen":"2026-03","B":[{}]}}]}}"#, friends.join(","));
-        let fifty = format!(r#"{{"name":"Many","seen":"2026-03","B":[{}]}}"#, friends[..50].join(","));
+        let two_fifty = format!(r#"{{"name":"Many","seen":"2026-03","B":[{}]}}"#, friends[..MAX_FRIENDS].join(","));
         let mail: Vec<String> = (0..25).map(|i| format!(r#"{{"from":"Friend1","t":{i},"body":"m{i}","subj":"","type":"C"}}"#)).collect();
         let lots = format!(r#"{{"v":3,"personas":[{{"name":"Inbox","seen":"2026-10","B":["Friend1"],"M":[{}]}}]}}"#, mail.join(","));
         let twenty = format!(r#"{{"name":"Inbox","seen":"2026-10","B":["Friend1"],"M":[{}]}}"#, mail[5..].join(","));
@@ -1537,8 +1538,8 @@ mod tests {
                 r#"{"personas":[{"name":"NoFriends","seen":"2026-10","B":[]},{"name":"Bad Name","B":["Alpha"]},{"name":"Old","B":["Alpha"]},{"name":"Mid","seen":"2026-05","B":["Alpha"]},{"name":"New","seen":"2026-12","B":"Alpha"},{"name":"Newer","seen":"2027-01","B":["Zed"]}]}"#,
                 r#"{"name":"Newer","seen":"2027-01","B":["Zed"]}"#,
             ),
-            // 50 friends at most
-            (many.as_str(), fifty.as_str()),
+            // 250 friends at most; blocked and met lists retain their 50-item limit
+            (many.as_str(), two_fifty.as_str()),
             // version 3: the blocked, the requests sent (ones that are no name or no time left out), the messages
             // waiting (text cleaned, ones from no name or without a time left out); a list with only some of them
             (
