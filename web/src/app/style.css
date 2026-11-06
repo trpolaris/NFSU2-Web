@@ -485,6 +485,8 @@ html:has(> body > .stage:not([hidden])) { overflow: hidden; }
   padding: var(--t) var(--r) var(--b) var(--l);
 }
 .touch > * { position: absolute; pointer-events: auto; touch-action: none; -webkit-tap-highlight-color: transparent; }
+/* Reset at speed (touch.ts): invisible in place, so neighbouring buttons never move under a thumb. */
+.touch .tc.stowed { visibility: hidden; }
 .tc {
   display: flex; align-items: center; justify-content: center; text-align: center;
   background: rgba(0, 0, 0, 0.4); color: rgba(255, 255, 255, 0.72); font: italic 700 calc(16px * var(--ts)) / calc(20px * var(--ts)) var(--font);
