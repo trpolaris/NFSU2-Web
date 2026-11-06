@@ -3,6 +3,7 @@
 import { CTL_EXIT, CTL_INTS, CTL_NEXT_TID, CTL_POOL, MAX_THREADS, POOL_IDLE, POOL_NONE, POOL_RUN_MAIN, RPC_BYTES, type BootConfig, type ToPage } from './proto';
 import { tzEnv } from './tz';
 import { movieCodec } from './movie';
+import { allocMemory, memoryTries } from './memory';
 
 export interface ProcessOptions {
   module: WebAssembly.Module;
@@ -49,7 +50,13 @@ export async function startProcess(o: ProcessOptions): Promise<GameProcess> {
   // which movies the I/O worker opens (the page decides before the game starts: shell.ts; a test page here)
   cfg.env.NFSU2_MOVIE_CODEC = await movieCodec(cfg.env);
   const initial = o.initialPages ?? memoryPagesOf(o.module) ?? 16384;
-  const memory = new WebAssembly.Memory({ initial, maximum: 65536, shared: true });
+  // A growing 4 GB reservation may fail on 32-bit Chrome or Safari even when the game's 1 GB fits.
+  // Retry at the same initial size without growth; never start below the module's required pages.
+  let got: ReturnType<typeof allocMemory>;
+  try { got = allocMemory(memoryTries(initial)); }
+  catch (e) { const note = (e as { note?: string } | null)?.note; if (note) o.onNote?.(note); throw e; }
+  const { memory } = got;
+  o.onNote?.(got.note);
   const ctlBuf = new SharedArrayBuffer(CTL_INTS * 4), rpc = new SharedArrayBuffer(RPC_BYTES);
   const ctl = new Int32Array(ctlBuf);
   ctl[CTL_NEXT_TID] = 1;

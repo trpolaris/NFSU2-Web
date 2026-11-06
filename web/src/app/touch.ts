@@ -376,6 +376,8 @@ export class TouchControls {
     this.center = this.lastRoll = null;
     if (this.sentRoll) { this.sentRoll = 0; this.session?.input?.viewRoll?.(0); }
     this.session = null;
+    // Do not retain the previous game's input closure (and its 1 GB WebAssembly memory) after Play ends.
+    this.menuTo = null;
     this.drive = this.frames = 0;
   }
 

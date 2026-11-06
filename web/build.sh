@@ -28,11 +28,12 @@ OPT="${OPT:--O3}"
 OUT="$ROOT/out/web"; mkdir -p "$OUT/obj" "$OUT/obj/srv" "$OUT/rt"
 OBJCACHE="${OBJCACHE:-$HOME/.cache/nsfu2-web/obj}"; mkdir -p "$OBJCACHE"
 
-# The guest owns [0, GUEST_END) of linear memory (runtime/cpu.h); the
-# runtime's data starts there.  Initial memory covers the guest span plus room
-# for the runtime heap; it can grow to 4 GB.
+# The guest owns [0, GUEST_END) of linear memory (runtime/cpu.h); the page gives
+# INITIAL_MB at start (nfsu2.json "pages"). The module declares MIN_MB only,
+# just past guest/runtime data and the main stack. Its heap grows via sbrk.c.
 GUEST_END=671088640   # 0x28000000
 INITIAL_MB="${INITIAL_MB:-1024}"
+MIN_MB="${MIN_MB:-704}"
 TARGET="--target=wasm32-wasip1-threads -pthread"
 FEAT="-msimd128 -mbulk-memory -mnontrapping-fptoint -mtail-call -mexception-handling -mllvm -wasm-enable-sjlj -mllvm -wasm-use-legacy-eh=false"
 DEFS="-D_WASI_EMULATED_MMAN -D_WASI_EMULATED_SIGNAL -D_WASI_EMULATED_PROCESS_CLOCKS"
@@ -85,7 +86,7 @@ HDRSUM="$( (cat runtime/cpu.h runtime/web/compat/wasm_plat.h; echo "$CFLAGS $SHA
 # browser's virtual-LAN backend (runtime/web/net_lan.c); module.c + modheap.c
 # load the lifted server.dll; enhance.c holds the graphics options (all off by
 # default, as on the Mac).
-RT="mem dispatch genexec heap watchdog win32 win32_ext com debug res fileio overrides d3dx_hle vsemu oracle autotest lifecycle widescreen framerate dinput_pad dikeys keyboard dinput_kbd career intro drifttest roam roam_core roam_game mprace horn hornmenu optslider tonemenu powerunits radio drift carsfx racehorn racenet winsock online netrace module modheap enhance headlights language sms sponsors lobbyclick olfilter tunegraph menusize regional garage vinylpacks sndlead carshadow carspot movie photo look engage gpsdistance"
+RT="mem dispatch genexec heap watchdog win32 win32_ext com debug res fileio overrides d3dx_hle vsemu oracle autotest lifecycle widescreen framerate dinput_pad dikeys keyboard dinput_kbd career intro drifttest roam roam_core roam_game mprace horn hornmenu optslider tonemenu powerunits radio drift carsfx racehorn racenet winsock online netrace module modheap enhance headlights language sms sponsors lobbyclick olfilter tunegraph menusize regional garage vinylpacks sndlead carshadow carspot movie photo look engage gpsdistance sbrk"
 WEB="$(cd runtime/web && ls *.c | sed 's/\.c$//')"
 pids=""
 for f in $RT; do
@@ -116,7 +117,7 @@ PAGES=$(( INITIAL_MB * 16 ))
 rm -f "$OUT/nfsu2.wasm"
 "$CC" $TARGET $OPT $FEAT -o "$OUT/nfsu2.wasm" "${OBJS[@]}" \
   -Wl,--import-memory,--export-memory,--shared-memory,--max-memory=4294967296 \
-  -Wl,--initial-memory=$(( INITIAL_MB * 1048576 )),--global-base=$GUEST_END \
+  -Wl,--initial-memory=$(( MIN_MB * 1048576 )),--global-base=$GUEST_END \
   -Wl,-z,stack-size=$(( 8 * 1048576 )) -Wl,--no-stack-first \
   -lsetjmp -lwasi-emulated-mman -lwasi-emulated-signal -lwasi-emulated-process-clocks 2>&1 | \
   { grep -v "^$" || true; } > "$OUT/link.log"
