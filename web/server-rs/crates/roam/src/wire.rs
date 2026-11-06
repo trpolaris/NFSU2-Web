@@ -14,6 +14,8 @@ pub(crate) const MSG_SNAP: u8 = 3;
 pub(crate) const MSG_BYE: u8 = 8;
 pub(crate) const MSG_MAPREQ: u8 = 10;
 pub(crate) const MSG_MAP: u8 = 11;
+/// Incremental world-map delta. Type 17 is reserved for TRPOLARIS typed FreeRoam chat.
+pub(crate) const MSG_MAPD: u8 = 18;
 pub(crate) const MSG_LOBBY: u8 = 12;
 pub(crate) const MSG_LOBBIES: u8 = 13;
 /// a player's report of a multiplayer race (roam_core.h RC_MSG_RACEREP): only to the hub, which logs it
@@ -59,6 +61,11 @@ pub(crate) const LOBBY_PLAYERS: usize = 6;
 /// a MAP entry: x, y (i16 LE, m), heading (u8, 256 a turn); at most MAP_PER of them a datagram (roam_core.h)
 pub(crate) const MAP_ENTRY: usize = 5;
 pub(crate) const MAP_PER: usize = 230;
+pub(crate) const MAP_MAX_V1: u16 = 512;
+pub(crate) const MAPD_GONE: u16 = 0x8000;
+pub(crate) const MAPD_PLACE: usize = 9;
+pub(crate) const MAPD_BYTES: usize = 1152;
+pub(crate) const MAPD_PARTS: usize = 16;
 pub(crate) const HDR: usize = 16;
 pub(crate) const CRC: usize = 4;
 
@@ -92,9 +99,11 @@ pub(crate) enum Msg<'a> {
         t_us: u32,
         clock: u8,
     },
-    /// the world map's question (roam_core.h RC_MSG_MAPREQ): req is echoed in the answer
+    /// the world map's question: a base answer means incremental MAPD; no base means legacy MAP.
     MapReq {
         req: u16,
+        max: u16,
+        base: Option<u16>,
     },
     /// a race lobby (roam_core.h RC_MSG_LOBBY), checked as roam_core.c's lobby_ok: what the hub keeps of one sent to
     /// it (to 0)
@@ -349,7 +358,9 @@ pub(crate) fn decode(d: &[u8]) -> Option<(u8, u32, Msg<'_>)> {
             }
             Msg::Snap { sender, status, p, v: velocity(d, 38), heading: heading(d, 50), t_us: u32_le(d, 22), clock: d[21] }
         }
-        MSG_MAPREQ if end == HDR + 2 => Msg::MapReq { req: u16_le(d, 16) },
+        MSG_MAPREQ if end == HDR + 2 => Msg::MapReq { req: u16_le(d, 16), max: MAP_MAX_V1, base: None },
+        MSG_MAPREQ if end == HDR + 4 => Msg::MapReq { req: u16_le(d, 16), max: u16_le(d, 18), base: None },
+        MSG_MAPREQ if end == HDR + 6 => Msg::MapReq { req: u16_le(d, 16), max: u16_le(d, 18), base: Some(u16_le(d, 20)) },
         MSG_LOBBY => {
             // op arg state max, to, lobby, race, x y, t, n, a reserved byte, then n ids (roam_core.c rc_encode)
             if end < HDR + 24 {
@@ -544,6 +555,36 @@ pub(crate) fn write_chat(
     b[22..24].copy_from_slice(&(text_len as u16).to_le_bytes());
     b[24..24 + name_len].copy_from_slice(&name[..name_len]);
     b[24 + name_len..24 + name_len + text_len].copy_from_slice(&text[..text_len]);
+    let crc = crc32fast::hash(&b[..len - CRC]);
+    b[len - CRC..].copy_from_slice(&crc.to_le_bytes());
+}
+
+/// Length of a MAPD datagram carrying `bytes` bytes of variable-sized entries.
+pub(crate) fn mapd_len(bytes: usize) -> usize {
+    HDR + 9 + bytes + CRC
+}
+
+/// A MAPD datagram: req, base, part, number of parts, total visible players, entry count and packed entries.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn write_mapd(
+    b: &mut [u8], sender: u32, seq: u16, req: u16, base: u16,
+    part: u8, nparts: u8, total: u16, n: u8, entries: &[u8],
+) {
+    let len = b.len();
+    b[..4].copy_from_slice(b"N2FR");
+    b[4] = 1;
+    b[5] = MSG_MAPD;
+    b[6..8].copy_from_slice(&(len as u16).to_le_bytes());
+    b[8..12].copy_from_slice(&sender.to_le_bytes());
+    b[12..14].copy_from_slice(&seq.to_le_bytes());
+    b[14..16].copy_from_slice(&[0, 0]);
+    b[16..18].copy_from_slice(&req.to_le_bytes());
+    b[18..20].copy_from_slice(&base.to_le_bytes());
+    b[20] = part;
+    b[21] = nparts;
+    b[22..24].copy_from_slice(&total.to_le_bytes());
+    b[24] = n;
+    b[25..25 + entries.len()].copy_from_slice(entries);
     let crc = crc32fast::hash(&b[..len - CRC]);
     b[len - CRC..].copy_from_slice(&crc.to_le_bytes());
 }
