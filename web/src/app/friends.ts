@@ -1,5 +1,3 @@
-import { t } from './i18n';
-
 export interface FriendRow {
   name: string;
   where: 'online' | '';
