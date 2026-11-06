@@ -1056,6 +1056,20 @@ impl LanSwitch {
         })
     }
 
+    /// The virtual addresses whose open pages use this claimed-name keyphrase.
+    /// The owner is read from the switch's authenticated Hello, never from a client-supplied field.
+    pub fn vips_of_owner(&self, owner: &str) -> Vec<u32> {
+        self.all.load().iter()
+            .filter(|p| p.open() && p.conn.owner.get().is_some_and(|o| o.as_ref() == owner))
+            .map(|p| p.vip)
+            .collect()
+    }
+
+    /// A small page notification to one open peer.
+    pub fn send_text(&self, vip: u32, data: Bytes) -> bool {
+        matches!(self.send_to(vip, data, None), SendResult::Sent)
+    }
+
     /// players on the switch now
     pub fn peer_count(&self) -> usize {
         self.all.load().len()
