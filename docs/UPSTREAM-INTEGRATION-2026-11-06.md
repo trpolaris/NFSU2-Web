@@ -62,6 +62,12 @@ This branch ports compatible changes from `th0mk/nfsu2-web` into TRPOLARIS while
 - Once the prologue is complete, the profile-load repair now selects the first owned car instead, preventing the car lot from treating a missing career car as a valid trade candidate.
 - The prologue/first-car path is preserved; this case only repairs an already-started career with an owned car.
 
+### Mobile GPU compatibility
+- The WebGPU adapter name is now retained for the current tab and included in mobile device-default selection.
+- PowerVR B-Series phone adapters default to windowed mode because filling the screen can exhaust WebGPU memory; other adapters keep the existing fullscreen default.
+- An explicit user setting remains higher priority than this device default.
+- Added a regression test for B-Series detection and unaffected D-Series/Adreno phones.
+
 ## Not yet integrated / requires coordinated work
 
 - **Friends UI and API:** the 250-entry server capacity is in place, but start-page pagination/filtering, F9 request management, friend/crew invites, Discord names and online/offline roster UI still need to be wired to the existing Buddy service and custom React/F9 components.
