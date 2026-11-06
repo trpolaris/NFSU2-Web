@@ -1697,11 +1697,16 @@ fn crew_pairs(slots: &[Option<Player>], list: &[u32], w: &Weigh, s: &mut Scratch
     let Scratch { soon, local: at, cpairs, cmembers, cmark, csince, .. } = s;
     cpairs.clear();
     cmembers.clear();
-    for (j, &q) in list.iter().enumerate() {
+    // A keyphrase may have several open pages; just one of its live players represents it
+    // in the friend-priority groups (the latest slot, like the whereabouts index).
+    let mut friend_owners = HashSet::new();
+    for (j, &q) in list.iter().enumerate().rev() {
         if let Some(p) = player(slots, q) {
             cmembers.extend(crews_of(p).map(|c| (c, j as u32)));
-            // A mutual friendship is a two-player crew for link priority.
-            cmembers.extend(p.friend_ids.iter().map(|&friend| (friend, j as u32)));
+            if p.owner.as_ref().is_some_and(|owner| friend_owners.insert(owner.clone())) {
+                // A mutual friendship is a two-player crew for link priority.
+                cmembers.extend(p.friend_ids.iter().map(|&friend| (friend, j as u32)));
+            }
         }
     }
     // by crew, each crew's players by place (each (crew, place) once: a player's crews are distinct)
