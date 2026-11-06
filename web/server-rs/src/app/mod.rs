@@ -14,6 +14,7 @@ mod blocks;
 pub mod control;
 mod etag;
 mod files;
+mod friends;
 mod kept;
 mod lan;
 mod manifest;
@@ -229,6 +230,8 @@ pub struct App {
     pub vault: Option<vault::VaultRoute>,
     /// claimed names (/names), none without keyphrase saves
     pub names: Option<names::NamesRoute>,
+    /// the start page's friends endpoint, backed by Online's EA Messenger lists
+    friends: Option<friends::FriendsRoute>,
     /// the operator's bans (the control socket: control.rs), checked at /lan
     pub bans: Arc<nfsu2_bans::Bans>,
     /// browser-private profiles and player-entered garage records, kept in the existing state volume
@@ -263,6 +266,10 @@ impl App {
         compress_threads: usize,
     ) -> App {
         let host_check = HostCheck::new(&o.hosts);
+        let friends = match (online.as_ref(), names.as_ref()) {
+            (Some(online), Some(names)) => Some(friends::FriendsRoute::new(online.clone(), names.claims.clone())),
+            _ => None,
+        };
         let real_roots: Arc<Mutex<HashMap<String, String>>> = Arc::default();
         let manifest: Arc<manifest::ManifestCell> = Arc::default();
         // the kept blocks: in the state folder, swept again for each new manifest
@@ -350,6 +357,7 @@ impl App {
             roam,
             vault: vault.map(vault::VaultRoute::new),
             names,
+            friends,
             bans,
             hub,
             lan_sndbuf,
@@ -552,6 +560,12 @@ impl App {
         }
         if p == "/names" {
             return self.names(q, s, &u).await;
+        }
+        if p == "/friends" {
+            return match &self.friends {
+                Some(friends) => friends.handle(self, q, s).await,
+                None => self.not_found(q, s).await,
+            };
         }
         if q.method != "GET" && q.method != "HEAD" {
             return self
