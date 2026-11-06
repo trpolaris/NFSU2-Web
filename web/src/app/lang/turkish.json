@@ -503,6 +503,8 @@
   "Leave full screen": "Tam ekrandan çık",
   "Full screen": "Tam ekran",
   "Nothing saved during this game yet.": "Bu oyun sırasında henüz hiçbir şey kaydedilmedi.",
+  "Quit without saving?": "Kaydetmeden çıkılsın mı?",
+  "To save, stop the car, press Esc and choose Save.": "Kaydetmek için arabayı durdurun, Esc'ye basın ve Kaydet'i seçin.",
   "Nothing saved during this game yet. Last save: {when} ({name}).": "Bu oyun sırasında henüz hiçbir şey kaydedilmedi. Son kayıt: {when} ({name}).",
   "Frame-rate counter: {mode}": "Kare hızı sayacı: {mode}",
   "detailed": "ayrıntılı",
