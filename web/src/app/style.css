@@ -1005,6 +1005,13 @@ html:has(> body > .stage:not([hidden])) { overflow: hidden; }
 .lobby-places li { display: flex; gap: 0.6em; align-items: baseline; padding: 0.12em 0; border-top: 1px solid rgba(255, 255, 255, 0.08); }
 .lobby-places li.open { color: rgba(255, 255, 255, 0.35); font-style: italic; }
 .lobby-places.dim li.taken { opacity: 0.6; }
+/* A compact performance gauge inside the existing race lobby panel. */
+.lobby-speed { display: flex; justify-content: center; align-items: center; gap: 0.4em; margin-top: 0.25em; color: var(--muted); font-size: 0.85em; }
+.lobby-gauge { flex: none; width: 1.9em; height: 1.1em; }
+.lobby-gauge path { fill: none; stroke-linecap: round; stroke-width: 2; }
+.lobby-gauge .track { stroke: var(--edge); }
+.lobby-gauge .red { stroke: var(--bad); }
+.lobby-gauge .needle { stroke: var(--text); }
 .lobby-n { width: 1em; text-align: right; color: var(--muted); }
 .lobby-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lobby-tag { font-size: 0.75em; text-transform: uppercase; color: var(--lime); }
