@@ -104,8 +104,11 @@ impl FriendsRoute {
             return Self::json(app, q, s, 401, &json!({ "error": "keyphrase" })).await;
         };
         let group: Arc<str> = Arc::from(app.group_id(&key));
-        let ask = if q.method == "GET" || q.method == "HEAD" {
+        let ask = if q.method == "GET" {
             FriendAsk::ListMail
+        } else if q.method == "HEAD" {
+            // HEAD must not consume the queued messages that GET delivers to the page.
+            FriendAsk::List
         } else {
             let body = match q.read_body(MAX_BODY).await {
                 Ok(b) => b,
