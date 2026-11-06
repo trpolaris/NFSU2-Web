@@ -61,6 +61,7 @@ use nfsu2_util::{FrameCtx, Host, SwitchSend, Tap, mono_ms, now_ms};
 use parking_lot::Mutex;
 use tokio::sync::oneshot;
 
+pub use crate::buddy::{FriendAsk, FriendReply, FriendRow, PAGE_MSG_LEN, PageMail, PageMailHook};
 pub use crate::trace::LobbyTrace;
 
 /// 10.77.0.1: the server's own host on the virtual LAN, the address the switch never hands to a browser (vhost.rs)
@@ -106,6 +107,8 @@ enum Event {
     Info(oneshot::Sender<serde_json::Value>),
     Vips(oneshot::Sender<HashSet<u32>>),
     Attach(SwitchSend),
+    Friends(Arc<str>, Arc<str>, FriendAsk, oneshot::Sender<FriendReply>),
+    PageMail(PageMailHook),
     Stop,
 }
 
@@ -125,6 +128,16 @@ impl OnlineHost {
     /// the switch's way to its browsers
     pub fn attach_switch(&self, send: SwitchSend) {
         let _ = self.tx.send(Event::Attach(send));
+    }
+    /// route a friend's message to its open page when it is not in EA Messenger
+    pub fn page_mail(&self, hook: PageMailHook) {
+        let _ = self.tx.send(Event::PageMail(hook));
+    }
+    /// a page's friends lists (the same EA Messenger store used by the game)
+    pub fn friends(&self, owner: Arc<str>, group: Arc<str>, ask: FriendAsk) -> oneshot::Receiver<FriendReply> {
+        let (tx, rx) = oneshot::channel();
+        let _ = self.tx.send(Event::Friends(owner, group, ask, tx));
+        rx
     }
 }
 
@@ -167,6 +180,12 @@ fn run(o: OnlineOptions, rx: mpsc::Receiver<Event>) {
                 let _ = tx.send(core.vips());
             }
             Some(Event::Attach(send)) => core.attach(send),
+            Some(Event::Friends(owner, group, ask, tx)) => {
+                let mut out = None;
+                guarded(&mut core, None, |c| out = Some(c.friends(&owner, &group, ask)));
+                let _ = tx.send(out.unwrap_or_default());
+            }
+            Some(Event::PageMail(hook)) => core.set_page_mail(hook),
             Some(Event::Stop) => {
                 guarded(&mut core, None, |c| c.stop());
                 return;
