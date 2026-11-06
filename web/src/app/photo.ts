@@ -17,10 +17,11 @@ import { N, t } from './i18n';
 import { pageDialog } from './padnav';
 import { padSeen, touchFirst } from './device';
 import { photoSpinValue } from './photo-spin';
+import { photoSpeedValue } from './photo-speed';
 
 // runtime/photo.c: the events (PH_*) and the bits of PH_HOLD (HB_*)
 const PH_HELLO = 0, PH_OPEN = 1, PH_HOLD = 2, PH_MOVE = 3, PH_TURN = 4, PH_DRAG = 5, PH_PAN = 6, PH_DOLLY = 7,
-  PH_FOV = 8, PH_ROLL = 9, PH_MODE = 10, PH_RESET = 11, PH_SPIN = 12;
+  PH_FOV = 8, PH_ROLL = 9, PH_MODE = 10, PH_RESET = 11, PH_SPIN = 12, PH_SPEED = 13;
 const HB_FWD = 1, HB_BACK = 2, HB_LEFT = 4, HB_RIGHT = 8, HB_UP = 16, HB_DOWN = 32, HB_TL = 64, HB_TR = 128,
   HB_TU = 256, HB_TD = 512, HB_ZIN = 4096, HB_ZOUT = 8192, HB_RL = 16384, HB_RR = 32768, HB_FAST = 65536;
 const FOV_MIN = 15, FOV_MAX = 110, ROLL_MAX = 45;
@@ -48,6 +49,7 @@ export class PhotoMode {
   private zoom: HTMLInputElement;
   private tilt: HTMLInputElement;
   private spin: HTMLInputElement;
+  private speed: HTMLInputElement;
   private hints: HTMLElement;
   private session: GameSession | null = null;
   private raf = 0;
@@ -76,6 +78,7 @@ export class PhotoMode {
       '<div class="ph-head"><b class="ph-title"></b><span class="ph-mode"><button type="button" data-mode="0"></button>' +
       '<button type="button" data-mode="1"></button></span></div>' +
       '<label class="ph-slider"><span class="ph-zoom-l"></span><input type="range" class="ph-zoom" min="0" max="1000" step="1"></label>' +
+      '<label class="ph-slider"><span class="ph-slider-l ph-speed-l"></span><input type="range" class="ph-speed" min="0" max="1000" step="1" value="500"></label>' +
       '<label class="ph-slider"><span class="ph-tilt-l"></span><input type="range" class="ph-tilt" min="-450" max="450" step="5"></label>' +
       '<label class="ph-slider"><span class="ph-spin-l"></span><input type="range" class="ph-spin" min="-600" max="600" step="5" value="0"></label>' +
       '<div class="ph-buttons"><button type="button" data-act="reset"></button>' +
@@ -84,6 +87,7 @@ export class PhotoMode {
     this.zoom = p.querySelector('.ph-zoom')!;
     this.tilt = p.querySelector('.ph-tilt')!;
     this.spin = p.querySelector('.ph-spin')!;
+    this.speed = p.querySelector('.ph-speed')!;
     this.hints = p.querySelector('.ph-hints')!;
     p.addEventListener('click', e => {
       const b = (e.target as HTMLElement).closest<HTMLButtonElement>('button');
@@ -95,11 +99,12 @@ export class PhotoMode {
     });
     // the buttons leave the keyboard with the game's canvas; the sliders give it back when let go
     p.addEventListener('pointerdown', e => { if ((e.target as HTMLElement).closest('button')) e.preventDefault(); });
-    for (const s of [this.zoom, this.tilt, this.spin]) {
+    for (const s of [this.zoom, this.tilt, this.speed, this.spin]) {
       s.addEventListener('pointerdown', () => { this.sliding = s; });
       s.addEventListener('input', () => {
         if (s === this.zoom) this.send(PH_FOV, Math.round((FOV_MAX - (+s.value / 1000) * (FOV_MAX - FOV_MIN)) * 100));
         else if (s === this.tilt) this.send(PH_ROLL, Math.round(+s.value * 10));
+        else if (s === this.speed) this.send(PH_SPEED, photoSpeedValue(+s.value));
         else {
           const spin = photoSpinValue(+s.value);
           if (!spin) s.value = '0';
@@ -110,6 +115,7 @@ export class PhotoMode {
     }
     this.tilt.addEventListener('dblclick', () => { this.tilt.value = '0'; this.send(PH_ROLL, 0); });
     this.spin.addEventListener('dblclick', () => this.setSpin(0));
+    this.speed.addEventListener('dblclick', () => this.setSpeed(500));
     const f = this.flash = document.createElement('div');
     f.className = 'photo-flash'; f.hidden = true;          // (hidden by a timer: with reduced motion no animation ends)
     stage.append(p, f);
@@ -165,6 +171,11 @@ export class PhotoMode {
   private input() { return this.session?.input ?? null; }
   private canvas() { return this.stage.querySelector('canvas'); }
   private send(what: number, a = 0, b = 0): boolean { return !!this.input()?.photo?.(what, a, b); }
+  private setSpeed(value: number) {
+    const slider = Number.isFinite(value) ? Math.max(0, Math.min(1000, Math.round(value))) : 500;
+    this.speed.value = String(slider);
+    this.send(PH_SPEED, photoSpeedValue(slider));
+  }
   private setSpin(value: number) {
     const spin = photoSpinValue(value);
     this.spin.value = String(spin);
@@ -226,6 +237,7 @@ export class PhotoMode {
     this.stage.classList.toggle('photo', on);
     if (on) {
       this.input()?.releaseAll?.();                 // what the game held when the page took the keys goes up
+      this.setSpeed(500);
       this.setSpin(0);
       this.steer(0, 0, 0);
       this.fill();
@@ -250,6 +262,7 @@ export class PhotoMode {
     q('[data-mode="1"]').textContent = t('Free');
     q('.ph-zoom-l').textContent = t('Zoom');
     q('.ph-tilt-l').textContent = t('Tilt');
+    q('.ph-speed-l').textContent = t('Camera speed');
     q('.ph-spin-l').textContent = t('Auto turn');
     q('[data-act="reset"]').textContent = t('Reset');
     q('[data-act="shoot"]').textContent = t('Take photo');
