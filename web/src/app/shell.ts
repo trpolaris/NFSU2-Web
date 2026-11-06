@@ -1106,9 +1106,22 @@ function friendMessage(message: Record<string, unknown>) {
   join.onclick = async () => {
     join.disabled = true;
     try {
-      const bridge = (window as unknown as { __trpSettingsBridge?: { joinCrewInvite?: (name: string, room: string) => Promise<void> } }).__trpSettingsBridge;
+      const bridge = (window as unknown as { __trpSettingsBridge?: { joinCrewInvite?: (name: string, room: string) => Promise<Crew[]> } }).__trpSettingsBridge;
       if (!bridge?.joinCrewInvite) throw new Error('Crew settings are not ready.');
-      await bridge.joinCrewInvite(message.crew as string, message.room as string);
+      const next = await bridge.joinCrewInvite(message.crew as string, message.room as string);
+      if (roamCrews !== null && session?.net) {
+        roamCrews = next;
+        quickChat.setCrews(next.map(crew => ({ name: crew.name, id: roomHash(crew.name) })));
+        session.net.crews?.(next.map(crew => roomHash(crew.name)), rgbWords(next));
+        const roomReady = session.net.room?.(message.room as string) ?? false;
+        if (roomReady) void friendsPanel?.refresh(true);
+        const crewsButton = document.querySelector<HTMLElement>('#menu [data-act="crews"]');
+        if (crewsButton) crewsButton.textContent = crewsLabel();
+        if (document.getElementById('menu-crews-box')?.isConnected) {
+          drawPopCrews();
+          void askPopCounts(1500);
+        }
+      }
       toast(`Joined crew ${message.crew}`, 5000);
       card.remove();
     } catch (error) {
