@@ -1,6 +1,7 @@
 export interface FriendRow {
   name: string;
-  where: 'online' | '';
+  where: 'roam' | 'online' | '';
+  room?: string;
   contact?: string;
 }
 export interface FriendLists {
@@ -37,7 +38,8 @@ export class FriendsApi {
       const f = v as Record<string, unknown>;
       return [{
         name: f.name as string,
-        where: f.where === 'online' ? 'online' : '',
+        where: f.where === 'roam' ? 'roam' : f.where === 'online' ? 'online' : '',
+        ...(typeof f.room === 'string' ? { room: f.room } : {}),
         ...(typeof f.contact === 'string' ? { contact: f.contact } : {}),
       }];
     }) : [];
@@ -282,7 +284,9 @@ export class FriendsPanel {
     list.replaceChildren();
     const friends = (this.lists?.friends ?? []).filter(f => !this.filter || f.name.toLocaleLowerCase().includes(this.filter));
     for (const f of friends) {
-      const state = f.where === 'online' ? 'Çevrimiçi' : 'Çevrimdışı';
+      const state = f.where === 'roam'
+        ? (f.room ? `Free Roam · ${f.room}` : 'Free Roam')
+        : f.where === 'online' ? 'Online lobisi' : 'Çevrimdışı';
       list.append(this.item(f.name, state, [
         this.action('remove', f.name, 'Kaldır'),
         this.action('block', f.name, 'Engelle'),
