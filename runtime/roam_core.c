@@ -603,9 +603,10 @@ int rc_carcfg_encode(const rc_carcfg *c, uint8_t *out, int cap){
     for (int i = 0; i < c->n_parts; i++){ rc_put8(&w, c->part[i].slot); rc_put32(&w, c->part[i].key); rc_put32(&w, c->part[i].owner); }
     /* extensions: count, then {u8 tag, u8 length, bytes}; unknown tags are
      * skipped by the reader */
-    rc_put8(&w, (c->has_perf ? 1u : 0u) + (c->has_horn ? 1u : 0u));
+    rc_put8(&w, (c->has_perf ? 1u : 0u) + (c->has_horn ? 1u : 0u) + (c->has_rating ? 1u : 0u));
     if (c->has_perf){ rc_put8(&w, RC_EXT_PERF); rc_put8(&w, RC_PERF_BYTES); rc_putb(&w, c->perf, RC_PERF_BYTES); }
     if (c->has_horn){ rc_put8(&w, RC_EXT_HORN); rc_put8(&w, 1); rc_put8(&w, c->horn); }
+    if (c->has_rating){ rc_put8(&w, RC_EXT_RATING); rc_put8(&w, 3); rc_put8(&w, (uint8_t)c->rating_cls); rc_put16(&w, c->rating); }
     return w.err ? -1 : (int)w.n;
 }
 int rc_carcfg_decode(const uint8_t *p, int len, rc_carcfg *c){
@@ -636,6 +637,10 @@ int rc_carcfg_decode(const uint8_t *p, int len, rc_carcfg *c){
         uint32_t tag = rc_get8(&r), l = rc_get8(&r);
         if (tag == RC_EXT_PERF && l == RC_PERF_BYTES){ rc_getb(&r, c->perf, RC_PERF_BYTES); c->has_perf = !r.err; }
         else if (tag == RC_EXT_HORN && l == 1){ c->horn = (uint8_t)rc_get8(&r); c->has_horn = !r.err; }
+        else if (tag == RC_EXT_RATING && l == 3){
+            c->rating_cls = (int8_t)rc_get8(&r); c->rating = (uint16_t)rc_get16(&r);
+            c->has_rating = !r.err && c->rating_cls >= -1 && c->rating_cls <= 3 && c->rating <= 5000;
+        }
         else if (r_have(&r, l)) r.n += l;
     }
     if (r.err) return RC_E_SHORT;
