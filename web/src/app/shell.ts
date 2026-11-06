@@ -1568,6 +1568,7 @@ async function menuAction(act: string) {
       if (!s) break;
       const stage = quitStage(s);
       if (stage === 0) {
+        if (!await quitUnsaved(s)) break;
         if (s.requestQuit()) { quitAt = { s, t: performance.now(), forced: false }; toast(t('Quitting: the game saves and closes.'), 5000); break; }
       } else if (stage === 1) {
         // the game's own second-request rule: open save files are finished, then it exits
@@ -1593,7 +1594,26 @@ async function menuAction(act: string) {
 // never offers to cut a save in half that the game is still finishing.
 const FORCED_CLOSE_MAX_MS = 5000 + 2000;
 const STOP_AFTER_MS = FORCED_CLOSE_MAX_MS + 3000;
+/** A quit warning after this long without a save (or when this game has not saved at all). */
+const UNSAVED_MS = 10 * 60_000;
 let quitAt: { s: GameSession; t: number; forced: boolean } | null = null;
+
+/** Warn before a first quit if this session has no recent save; keep the game open on Cancel or a session change. */
+async function quitUnsaved(s: GameSession): Promise<boolean> {
+  if (saved && Date.now() - saved.at < UNSAVED_MS) return true;
+  const last = saved
+    ? t('Last saved at {when} ({name}).', { when: when(saved.at), name: saved.name })
+    : t('Nothing saved during this game yet.');
+  log.add(`[app] quit: ${saved ? `last saved ${Math.round((Date.now() - saved.at) / 60_000)} min ago` : 'nothing saved during this game'}, warned first`);
+  return await confirmBox(
+    t('Quit without saving?'),
+    `${last} ${t('To save, stop the car, press Esc and choose Save.')}`,
+    t('Quit game'),
+    true,
+    'quit'
+  ) && session === s;
+}
+
 function quitStage(s: GameSession): 0 | 1 | 2 {
   if (!s.canQuit()) return 2;
   if (!quitAt || quitAt.s !== s) return 0;
