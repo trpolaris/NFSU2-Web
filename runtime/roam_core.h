@@ -561,7 +561,7 @@ typedef struct {
     uint32_t  duel_dropped;        /* the inbox was full */
     /* World map: legacy MAP assembly plus incremental MAPD state, indexed by hub slot. */
     uint16_t  map_req;  int64_t map_asked_us;
-    uint8_t   map_mask, map_nparts;  uint8_t map_part_n[RC_MAPD_PARTS];  uint16_t map_part_len[RC_MAPD_PARTS];
+    uint16_t  map_mask; uint8_t map_nparts;  uint8_t map_part_n[RC_MAPD_PARTS];  uint16_t map_part_len[RC_MAPD_PARTS];
     uint16_t  map_asm_total, map_asm_base;
     uint8_t   map_asm[RC_MAPD_PARTS * RC_MAPD_BYTES];
     uint16_t  map_held;
