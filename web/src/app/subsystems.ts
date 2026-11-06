@@ -69,6 +69,7 @@ export const attachNet: AttachNet = (proc, o) => {
     say: (p: number) => link.say(p),
     chat: (text: string, scope: 'room' | 'crew', crewId?: number) => link.chat(text, scope, crewId),
     crews: (hashes: readonly number[], rgbs: readonly number[]) => link.setCrews(hashes, rgbs),
+    room: (name: string) => link.setRoom(name),
     stats: () => {
       const s = link.stats();
       return {
