@@ -167,3 +167,91 @@ impl FriendsRoute {
         self.contacts.prune();
     }
 }
+
+
+#[cfg(test)]
+mod tests {
+    use serde_json::{Value, json};
+
+    use super::super::testkit::Kit;
+
+    const A: (&str, &str) = ("Authorization", "Bearer AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
+    const B: (&str, &str) = ("Authorization", "Bearer BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB");
+
+    fn j(body: &[u8]) -> Value {
+        serde_json::from_slice(body).unwrap()
+    }
+
+    async fn claim(kit: &Kit, who: (&str, &str), name: &str) {
+        assert_eq!(
+            kit.request("PUT", "/vault", &[who, ("If-None-Match", "*")], b"saves").await.status,
+            201
+        );
+        let body = json!({ "name": name }).to_string();
+        let answer = kit.request("POST", "/names", &[who, ("content-type", "application/json")], body.as_bytes()).await;
+        assert_eq!(answer.status, 200, "claim {name}: {}", String::from_utf8_lossy(&answer.body));
+        assert_eq!(j(&answer.body)["mine"]["name"], name);
+    }
+
+    async fn post(kit: &Kit, who: (&str, &str), value: Value) -> Value {
+        let body = value.to_string();
+        let answer = kit.request("POST", "/friends", &[who, ("content-type", "application/json")], body.as_bytes()).await;
+        assert_eq!(answer.status, 200, "POST /friends: {}", String::from_utf8_lossy(&answer.body));
+        j(&answer.body)
+    }
+
+    #[tokio::test]
+    async fn friends_http_uses_the_claimed_buddy_store_and_keeps_waiting_mail_until_get() {
+        let kit = Kit::start(&["--online", "on"], |_| {}).await;
+
+        assert_eq!(kit.request("GET", "/friends", &[], b"").await.status, 401);
+        assert_eq!(
+            kit.request("GET", "/friends", &[A, ("Origin", "https://evil.example")], b"").await.status,
+            403
+        );
+
+        claim(&kit, A, "Alex").await;
+        claim(&kit, B, "Bianca").await;
+
+        let mine = kit.request("GET", "/friends", &[A], b"").await;
+        assert_eq!(mine.status, 200);
+        assert_eq!(j(&mine.body)["me"], "Alex");
+        assert_eq!(j(&mine.body)["friends"], json!([]));
+
+        let asked = post(&kit, A, json!({ "op": "ask", "name": "Bianca" })).await;
+        assert_eq!(asked["done"], "asked");
+        assert_eq!(asked["sent"], json!(["Bianca"]));
+
+        let waiting = kit.request("GET", "/friends", &[B], b"").await;
+        assert_eq!(j(&waiting.body)["asks"], json!(["Alex"]));
+
+        let accepted = post(&kit, B, json!({ "op": "accept", "name": "Alex" })).await;
+        assert_eq!(accepted["done"], "friends");
+        assert_eq!(accepted["friends"][0]["name"], "Alex");
+
+        let discord = post(&kit, B, json!({ "op": "discord", "name": "Speedy.Player" })).await;
+        assert_eq!(discord["done"], "ok");
+        let alex_list = kit.request("GET", "/friends", &[A], b"").await;
+        assert_eq!(j(&alex_list.body)["friends"][0]["name"], "Bianca");
+        assert_eq!(j(&alex_list.body)["friends"][0]["contact"], "speedy.player");
+
+        // With both players mutually listed, an offline recipient's message is kept in the shared Buddy store.
+        let message = post(&kit, A, json!({ "op": "msg", "name": "Bianca", "body": "Meet at the garage." })).await;
+        assert_eq!(message["done"], "kept");
+
+        // HEAD is metadata-only and must not take the queued message away.
+        assert_eq!(kit.request("HEAD", "/friends", &[B], b"").await.status, 200);
+        let mailbox = kit.request("GET", "/friends", &[B], b"").await;
+        assert_eq!(j(&mailbox.body)["mail"][0]["from"], "Alex");
+        assert_eq!(j(&mailbox.body)["mail"][0]["body"], "Meet at the garage.");
+
+        // A later list read does not redeliver a message that was already taken.
+        let after = kit.request("GET", "/friends", &[B], b"").await;
+        assert_eq!(j(&after.body)["mail"], json!([]));
+
+        let removed = post(&kit, B, json!({ "op": "remove", "name": "Alex" })).await;
+        assert_eq!(removed["done"], "ok");
+        let final_list = kit.request("GET", "/friends", &[A], b"").await;
+        assert_eq!(j(&final_list.body)["friends"], json!([]));
+    }
+}
