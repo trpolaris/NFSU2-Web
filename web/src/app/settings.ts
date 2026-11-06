@@ -154,6 +154,9 @@ export const KEYS: readonly KeyDef[] = [
   { key: 'language', env: 'NFSU2_LANGUAGE', kind: 'enum', vals: LANGUAGES.join('|'), scope: 'web' },
   // GPS distance beneath the native direction arrow (runtime/gpsdistance.c).
   { key: 'gps_distance', env: 'NFSU2_GPS_DISTANCE', kind: 'bool', scope: 'web' },
+  // Shared community parts are loaded by every client; this switch only controls shop availability.
+  { key: 'ug2net_parts', env: 'NFSU2_UG2NET_PARTS', kind: 'bool', scope: 'web' },
+  { key: 'others_mod_parts', env: 'NFSU2_OTHERS_MOD_PARTS', kind: 'enum', vals: 'shown|original', scope: 'web' },
   // the movies' subtitles (runtime/language.c).  Not in bundle.m's table either
   { key: 'subtitles', env: 'NFSU2_SUBTITLES', kind: 'bool', scope: 'web' },
   // the player's horn, which the others hear too (runtime/horn.c).  Not in bundle.m's table either: NFSU2_HORN there
@@ -221,6 +224,14 @@ export const TEMPLATE = `# NFSU2 settings, read at every launch.
 # selected by Speedometer Units. This is a straight-line distance, not a road
 # route, and is hidden when GPS has no active destination. [NFSU2_GPS_DISTANCE]
 #gps_distance = off
+
+# Community mod parts: underground2.net Blitz rims in the Body Shop.
+# Every client loads the shared models; this switch only controls shop offers.
+#ug2net_parts = off
+
+# Other players' cars: shown = mod parts as fitted; original = compatible stock stand-ins.
+# Your own car is unchanged.
+#others_mod_parts = shown
 
 # Sound output.  [NOSOUND, inverted]
 #sound = on
