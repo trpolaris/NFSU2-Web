@@ -1117,7 +1117,7 @@ function friendMessage(message: Record<string, unknown>) {
         if (roomReady) void friendsPanel?.refresh(true);
         const crewsButton = document.querySelector<HTMLElement>('#menu [data-act="crews"]');
         if (crewsButton) crewsButton.textContent = crewsLabel();
-        if (document.getElementById('menu-crews-box')?.isConnected) {
+        if ($<HTMLDialogElement>('#crews-pop').open) {
           drawPopCrews();
           void askPopCounts(1500);
         }
@@ -1775,7 +1775,8 @@ export async function boot() {
     // the tab that owns the saves is the one whose Play reads the file: another tab only looks
     readOnly: () => !instance.owner, say: pageToast, confirm: confirmBox,
   });
-  window.__trpSettingsBridge = {
+  Object.assign(window, {
+    __trpSettingsBridge: {
     current: key => settings.current(key),
     snapshot: () => settings.reactSnapshot(),
     rawSnapshot: () => settings.rawSnapshot(),
@@ -1797,7 +1798,8 @@ export async function boot() {
     readOnly: () => !instance.owner,
     onlineStatus: () => settings.onlineStatus(),
     refresh: async () => { await settings.refresh(); window.dispatchEvent(new Event('trp-settings-changed')); },
-  };
+    },
+  });
   window.dispatchEvent(new Event('trp-settings-ready'));
 
   setupPlatformFeatures(settings, confirmBox, logLine);
