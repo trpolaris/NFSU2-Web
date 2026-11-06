@@ -98,6 +98,36 @@ fn a_claim_holds_180_days_after_the_last_game() {
 }
 
 #[test]
+fn a_vault_use_holds_its_current_name() {
+    let c = Claims::in_memory();
+    let (a, b) = (owner(11), owner(12));
+    c.claim("Alex", &a, NOW).unwrap();
+
+    let later = NOW + 90 * DAY_MS;
+    c.used(&a, later);
+    assert_eq!(c.mine(&a, later).unwrap().until, later + HOLD_DAYS * DAY_MS);
+
+    // Another keyphrase's cloud save must not extend this owner's claim.
+    c.used(&b, later + DAY_MS);
+    assert_eq!(c.mine(&a, later).unwrap().until, later + HOLD_DAYS * DAY_MS);
+
+    // Only the current name is extended after the owner changes names.
+    c.claim("Racer", &a, later + 2 * DAY_MS).unwrap();
+    c.used(&a, later + 3 * DAY_MS);
+    assert_eq!(
+        c.status("Alex", Some(&a), later + 3 * DAY_MS),
+        Status::Yours {
+            until: later + 2 * DAY_MS + GRACE_DAYS * DAY_MS,
+            current: false
+        }
+    );
+    assert_eq!(
+        c.mine(&a, later + 3 * DAY_MS).unwrap().until,
+        later + 3 * DAY_MS + HOLD_DAYS * DAY_MS
+    );
+}
+
+#[test]
 fn one_name_a_keyphrase_and_one_change_a_week() {
     let c = Claims::in_memory();
     let (a, b) = (owner(1), owner(2));
