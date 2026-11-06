@@ -62,6 +62,7 @@ export class FriendsApi {
   }
 
   list(): Promise<FriendLists | null> { return this.ask(); }
+  can(name: string): Promise<string | null> { return this.ask({ op: 'can', name }).then(r => r?.done ?? null); }
   room(name: string): Promise<FriendLists | null> { return this.ask({ op: 'room', room: name }); }
   act(op: 'ask' | 'accept' | 'decline' | 'remove' | 'block', name: string): Promise<FriendLists | null> {
     return this.ask({ op, name });

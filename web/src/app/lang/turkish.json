@@ -1493,5 +1493,13 @@
   "Add as a friend": "Arkadaş olarak ekle",
   "Sending friend request": "Arkadaşlık isteği gönderiliyor",
   "You and {name} have touched front bumpers for 3 seconds. Add as a friend?": "{name} ile ön tamponlarınız 3 saniyedir temas halinde. Arkadaş olarak ekle?",
-  "The friend request could not be sent.": "Arkadaşlık isteği gönderilemedi."
+  "The friend request could not be sent.": "Arkadaşlık isteği gönderilemedi.",
+  "Checking friend status for {name}": "{name} oyuncusunun arkadaşlık durumu kontrol ediliyor.",
+  "{name} has sent you a friend request. Accept it?": "{name} sana arkadaşlık isteği gönderdi. Kabul edilsin mi?",
+  "Your friend request to {name} is pending.": "{name} için arkadaşlık isteğin beklemede.",
+  "You and {name} are already friends.": "{name} ile zaten arkadaşsınız.",
+  "Claim your player name before adding friends.": "Arkadaş eklemek için önce oyuncu adını sahiplen.",
+  "{name} must claim a player name before you can add them.": "{name} oyuncusu arkadaş olarak eklenmeden önce oyuncu adını sahiplenmeli.",
+  "Friend status is temporarily unavailable.": "Arkadaşlık durumu şu anda alınamıyor.",
+  "Accept friend request": "Arkadaşlık isteğini kabul et"
 }

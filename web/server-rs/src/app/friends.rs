@@ -162,6 +162,33 @@ impl FriendsRoute {
         self.online.friends(owner, group, ask).await.unwrap_or_default()
     }
 
+    /// Classify a claimed player using this keyphrase's existing EA Messenger records.
+    /// This read-only preflight deliberately does not disclose another player's live whereabouts.
+    async fn can(&self, owner: Arc<str>, group: Arc<str>, name: &str) -> (String, &'static str) {
+        let now = nfsu2_util::now_ms() as i64;
+        let Some(peer_owner) = self.claims.holder(name, now) else {
+            return (name.to_string(), "theirs");
+        };
+        let Some(peer_name) = self.claims.mine(&peer_owner, now).map(|m| m.name).filter(|n| {
+            nfsu2_claims::canonical(n).is_some_and(|n| Some(n) == nfsu2_claims::canonical(name))
+        }) else {
+            return (name.to_string(), "theirs");
+        };
+        if peer_owner.as_ref() == owner.as_ref() {
+            return (peer_name, "theirs");
+        }
+        let reply = self.query(owner.clone(), group, FriendAsk::List).await;
+        let same = |other: &String| other.eq_ignore_ascii_case(&peer_name);
+        let state = friend_state(
+            reply.me.is_some(),
+            reply.friends.iter().any(|f| f.mutual && same(&f.name)),
+            reply.asks.iter().any(same),
+            reply.sent.iter().any(same),
+        );
+        self.update_hub(&owner, &reply);
+        (peer_name, state)
+    }
+
     async fn json(app: &App, q: &Request, s: &mut Response, code: u16, value: &Value) -> Res {
         let body = nfsu2_util::json::stringify(value);
         let mut h = app.headers(q, Cache::Store, true);
@@ -210,6 +237,10 @@ impl FriendsRoute {
             };
             let name: String = b.get("name").and_then(Value::as_str).unwrap_or("").chars().take(MAX_NAME).collect();
             match b.get("op").and_then(Value::as_str) {
+                Some("can") => {
+                    let (peer, state) = self.can(owner.clone(), group.clone(), &name).await;
+                    return Self::json(app, q, s, 200, &json!({ "name": peer, "done": state })).await;
+                }
                 Some("ask") => {
                     if !self.asks.take(&owner, "") {
                         return Self::json(app, q, s, 200, &json!({ "done": "rate" })).await;
@@ -276,6 +307,14 @@ impl FriendsRoute {
         self.contacts.prune();
         self.invites.prune();
     }
+}
+
+fn friend_state(has_claim: bool, mutual: bool, asks: bool, sent: bool) -> &'static str {
+    if !has_claim { "claim" }
+    else if mutual { "friends" }
+    else if asks { "asks" }
+    else if sent { "asked" }
+    else { "new" }
 }
 
 /// Clean crew and room names without applying the LAN room's display-name fallback:
@@ -347,6 +386,8 @@ mod tests {
         assert_eq!(mine.status, 200);
         assert_eq!(j(&mine.body)["me"], "Alex");
         assert_eq!(j(&mine.body)["friends"], json!([]));
+        assert_eq!(post(&kit, A, json!({ "op": "can", "name": "Ghost" })).await["done"], "theirs");
+        assert_eq!(post(&kit, A, json!({ "op": "can", "name": "Bianca" })).await["done"], "new");
 
         let asked = post(&kit, A, json!({ "op": "ask", "name": "Bianca" })).await;
         assert_eq!(asked["done"], "asked");
@@ -354,10 +395,13 @@ mod tests {
 
         let waiting = kit.request("GET", "/friends", &[B], b"").await;
         assert_eq!(j(&waiting.body)["asks"], json!(["Alex"]));
+        assert_eq!(post(&kit, B, json!({ "op": "can", "name": "Alex" })).await["done"], "asks");
+        assert_eq!(post(&kit, A, json!({ "op": "can", "name": "Bianca" })).await["done"], "asked");
 
         let accepted = post(&kit, B, json!({ "op": "accept", "name": "Alex" })).await;
         assert_eq!(accepted["done"], "friends");
         assert_eq!(accepted["friends"][0]["name"], "Alex");
+        assert_eq!(post(&kit, A, json!({ "op": "can", "name": "Bianca" })).await["done"], "friends");
 
         let discord = post(&kit, B, json!({ "op": "discord", "name": "Speedy.Player" })).await;
         assert_eq!(discord["done"], "ok");
@@ -420,6 +464,15 @@ mod tests {
             "op": "crew", "name": "Bianca", "crew": "  Night   Owls ", "room": "Blue  Room"
         })).await;
         assert_eq!(away["done"], "away");
+    }
+
+    #[test]
+    fn friend_state_prioritizes_claim_and_mutual_relationships() {
+        assert_eq!(super::friend_state(false, true, true, true), "claim");
+        assert_eq!(super::friend_state(true, true, true, true), "friends");
+        assert_eq!(super::friend_state(true, false, true, true), "asks");
+        assert_eq!(super::friend_state(true, false, false, true), "asked");
+        assert_eq!(super::friend_state(true, false, false, false), "new");
     }
 
     #[test]
