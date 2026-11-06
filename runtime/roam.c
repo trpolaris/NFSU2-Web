@@ -805,6 +805,7 @@ void engage_frame(CPU *c);                    /* engage.c: recover a stale caree
 void carspot_frame(void);                    /* carspot.c: sanitize the career's saved car position */
 void reads_frame(CPU *c);                     /* overrides.c: the streamer's reads and Loading screens, for the log */
 void roam_game_hud(CPU *c);                 /* its names over friends' cars */
+void gpsdistance_hud(CPU *c);
 int roam_game_cmd(CPU *c, const char *args, long *wait_start);
 /* the "virtual Windows friend" (roam_asipeer.c, only in out/nfsu2_asipeer):
  * the Windows plugin under Unicorn instead of roam_game.c */
@@ -817,7 +818,7 @@ int roam_hook(CPU *c, uint32_t ip){
     case HOOK_SITE(0x00581475): reads_frame(c); language_texts_frame(c); sms_frame(c); carspot_frame(); mprace_frame(c); if (!roam_asipeer_frame(c)) roam_game_frame(c); racehorn_frame(c); racenet_frame(c); optslider_frame(c); drift_frame(c); photo_frame(c); engage_frame(c); roam_frame(c); return 1;
     /* Player::Update's HUD step (0x600590), behind its call of the HUD
      * update (0x4EC5A0), where the game places its own LAN race labels */
-    case HOOK_SITE(0x006005e0): roam_game_hud(c); return 1;
+    case HOOK_SITE(0x006005e0): gpsdistance_hud(c); roam_game_hud(c); return 1;
     /* the main loop's call of World::DoTimestep (0x609CE0), its only one */
     case HOOK_SITE(0x00581407): racenet_prestep(c); return 1;
     }
