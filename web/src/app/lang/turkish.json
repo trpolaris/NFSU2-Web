@@ -295,7 +295,7 @@
   "Not a crew name: it reads as a slur.": "Bu bir ekip adı değil: hakaret içeren bir ifade olarak algılanıyor.",
   "At most 24 characters.": "En fazla 24 karakter.",
   "No commas, # or ; in a crew name.": "Ekip adında virgül, # veya ; kullanılamaz.",
-  "Up to 4 crews: leave one to join another.": "En fazla 4 ekip: başka bir ekibe katılmak için ekiplerden ayrıl.",
+  "Up to 4 crews: leave one to join another.": "En fazla 4 ekibe katılabilirsin; başka birine katılmak için bir ekipten ayrıl.",
   "Ghost mode": "Hayalet modu",
   "You drive through the other players' cars, and they through yours. Off: you collide with them, and a car that appears on yours lets you through until you are apart.": "Diğer oyuncuların arabalarının içinden geçersin, onlar da seninkinin içinden geçer. Kapalı olduğunda çarpışırsınız; üst üste görünen arabalar birbirinizden uzaklaşana kadar içinden geçmene izin verir.",
   "Online mode": "Çevrimiçi mod",
@@ -1483,5 +1483,10 @@
   "That crew or room name is not valid.": "Ekip veya oda adı geçerli değil.",
   "Crew invite limit reached. Wait a moment.": "Ekip daveti sınırına ulaşıldı. Biraz bekleyin.",
   "Crew invite is not valid.": "Ekip daveti geçerli değil.",
-  "Joined crew {name}": "{name} ekibine katıldınız."
+  "Joined crew {name}": "{name} ekibine katıldınız.",
+  "Pending crew invitations": "Bekleyen ekip davetleri",
+  "{name} invites you to crew \"{crew}\"": "{name} seni \"{crew}\" ekibine davet ediyor",
+  "Joined crew \"{crew}\"": "\"{crew}\" ekibine katıldın",
+  "Crew invitation declined": "Ekip daveti reddedildi",
+  "The Free Roam session is no longer active.": "Serbest dolaşım oturumu artık etkin değil."
 }

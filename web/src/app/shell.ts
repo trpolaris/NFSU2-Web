@@ -45,7 +45,8 @@ import { turnOnAutosave } from './profile';
 import { crewControl, showCrewCounts } from './crew-control';
 import { putKey, SettingsService } from './settings-service';
 import { askCrews, queueText, roomHash, serverAnswers, watchPlayers, type PlayerCounts } from './players';
-import { crewList, crewsOf, crewsValue, rgbsValue, rgbWords, type Crew } from './crews';
+import { checkCrew, CREW_MAX, crewList, crewsOf, crewsValue, rgbsValue, rgbWords, type Crew } from './crews';
+import { queueCrewInvite, removeCrewInvite, type PendingCrewInvite } from './crew-invite-queue';
 import { privacy, SCRUB_NOTE } from './privacy';
 import { SavesPanel } from './saves-ui';
 import { saveScreenshot } from './shots';
@@ -146,6 +147,7 @@ let hudWide = true;                      // the running game's HUD is edge-ancho
 let solidCars: boolean | null = null;    // the running game's free roam has solid cars (null: no free roam)
 let roamCrews: Crew[] | null = null;     // the running game's crews: as it started, then as the menu changed them (null: no free roam)
 let crewDraft = '';                      // the crew name being typed in the menu
+let pendingCrewInvites: PendingCrewInvite[] = []; // up to four invites wait here until accepted, declined or this game ends
 let popCounts = new Map<number, number>();   // how many are in free roam in each of those crews, by hash (askPopCounts)
 let popAsk = 0;                          // the popup's questions so far: only the newest one's answer shows
 let away: AwayCheck | null = null;
@@ -775,6 +777,7 @@ async function startGame() {
     // session's subsystems keep them (some, like a closed AudioContext, a little
     // longer than the game), and a closure from this function would keep its
     // scope, and with it this game, reachable
+    pendingCrewInvites = []; // invitations belong to this running game, not the next one
     session = await GameSession.start({
       module: loaded!.module, info: loaded!.info, saveDir: SAVE, env: r.env, canvas, stage, audio, displayHz, netName, notice, lobby, say, chat, friend: friendMessage, networkReady: friendsNetworkReady, marks,
       netBack, netQueue, onSaved,
@@ -1088,50 +1091,93 @@ function marks(n: number, m: Float32Array, ids: Uint32Array) { quickChat.marks(n
 function friendsNetworkReady() {
   void friendsPanel?.refresh(true);
 }
+function removeQueuedCrewInvite(invite: PendingCrewInvite) {
+  pendingCrewInvites = removeCrewInvite(pendingCrewInvites, invite);
+  document.querySelectorAll<HTMLElement>('.friends-crew-invite').forEach(card => {
+    if (card.dataset.crewName?.toLowerCase() === invite.crew.toLowerCase()) card.remove();
+  });
+  const pop = $<HTMLDialogElement>('#crews-pop');
+  if (pop.open) drawPopCrews(root => root.querySelector('.crew-invite-join:not(:disabled)') ?? root.querySelector('input:enabled'));
+}
+function declineCrewInvite(invite: PendingCrewInvite, card?: HTMLElement) {
+  removeQueuedCrewInvite(invite);
+  card?.remove();
+  toast(t('Crew invitation declined'), 3500);
+}
+async function acceptCrewInvite(invite: PendingCrewInvite, join?: HTMLButtonElement, card?: HTMLElement) {
+  if (roamCrews === null || !session?.net) {
+    toast(t('The Free Roam session is no longer active.'), 5000);
+    return;
+  }
+  if (roamCrews.length >= CREW_MAX) {
+    toast(t('Up to 4 crews: leave one to join another.'));
+    return;
+  }
+  if (join) join.disabled = true;
+  try {
+    const bridge = (window as unknown as { __trpSettingsBridge?: { joinCrewInvite?: (name: string, room: string) => Promise<Crew[]> } }).__trpSettingsBridge;
+    if (!bridge?.joinCrewInvite) throw new Error(t('Crew settings are not ready.'));
+    const next = await bridge.joinCrewInvite(invite.crew, invite.room);
+    roamCrews = next;
+    quickChat.setCrews(next.map(crew => ({ name: crew.name, id: roomHash(crew.name) })));
+    session.net.crews?.(next.map(crew => roomHash(crew.name)), rgbWords(next));
+    const roomReady = session.net.room?.(invite.room) ?? false;
+    if (roomReady) void friendsPanel?.refresh(true);
+    const crewsButton = document.querySelector<HTMLElement>('#menu [data-act="crews"]');
+    if (crewsButton) crewsButton.textContent = crewsLabel();
+    removeQueuedCrewInvite(invite);
+    card?.remove();
+    const pop = $<HTMLDialogElement>('#crews-pop');
+    if (pop.open) {
+      drawPopCrews(root => root.querySelector('input:enabled'));
+      void askPopCounts(1500);
+    }
+    toast(t('Joined crew "{crew}"', { crew: invite.crew }), 5000);
+  } catch (error) {
+    if (join) join.disabled = false;
+    toast(String(error), 6000);
+  }
+}
 function friendMessage(message: Record<string, unknown>) {
   friendsPanel?.server(message);
   if (message.op === 'mail' && typeof message.from === 'string' && typeof message.body === 'string') {
-    log.add(`[friends] message from ${message.from}`);
+    log.add('[friends] message from ' + message.from);
     return;
   }
   if (message.op !== 'crew' || typeof message.name !== 'string' || typeof message.crew !== 'string' || typeof message.room !== 'string') return;
+  const name = message.name.trim();
+  const checkedCrew = checkCrew(message.crew, []);
+  if (!name || !checkedCrew.ok) return;
+  const room = message.room.trim();
+  const checkedRoom = room ? checkSetting('roam_room', room) : null;
+  if (checkedRoom && !checkedRoom.ok) return;
+  const invite = { name, crew: checkedCrew.name, room: checkedRoom?.ok ? checkedRoom.value : '' };
+  pendingCrewInvites = queueCrewInvite(pendingCrewInvites, invite, (roamCrews ?? []).map(crew => crew.name));
+  const pending = pendingCrewInvites.find(item => item.crew.toLowerCase() === invite.crew.toLowerCase());
+  if (!pending) return;
+  document.querySelectorAll<HTMLElement>('.friends-crew-invite').forEach(old => {
+    if (old.dataset.crewName?.toLowerCase() === pending.crew.toLowerCase()) old.remove();
+  });
   const card = document.createElement('div');
   card.className = 'friends-crew-invite';
+  card.dataset.crewName = pending.crew;
   card.setAttribute('role', 'status');
   const copy = document.createElement('span');
-  copy.textContent = `${message.name} invites you to crew "${message.crew}"`;
+  copy.textContent = t('{name} invites you to crew "{crew}"', { name: pending.name, crew: pending.crew });
   const join = document.createElement('button');
   join.type = 'button';
-  join.textContent = 'Join';
-  join.onclick = async () => {
-    join.disabled = true;
-    try {
-      const bridge = (window as unknown as { __trpSettingsBridge?: { joinCrewInvite?: (name: string, room: string) => Promise<Crew[]> } }).__trpSettingsBridge;
-      if (!bridge?.joinCrewInvite) throw new Error('Crew settings are not ready.');
-      const next = await bridge.joinCrewInvite(message.crew as string, message.room as string);
-      if (roamCrews !== null && session?.net) {
-        roamCrews = next;
-        quickChat.setCrews(next.map(crew => ({ name: crew.name, id: roomHash(crew.name) })));
-        session.net.crews?.(next.map(crew => roomHash(crew.name)), rgbWords(next));
-        const roomReady = session.net.room?.(message.room as string) ?? false;
-        if (roomReady) void friendsPanel?.refresh(true);
-        const crewsButton = document.querySelector<HTMLElement>('#menu [data-act="crews"]');
-        if (crewsButton) crewsButton.textContent = crewsLabel();
-        if ($<HTMLDialogElement>('#crews-pop').open) {
-          drawPopCrews();
-          void askPopCounts(1500);
-        }
-      }
-      toast(`Joined crew ${message.crew}`, 5000);
-      card.remove();
-    } catch (error) {
-      join.disabled = false;
-      toast(String(error), 6000);
-    }
-  };
-  card.append(copy, join);
+  join.textContent = t('Join');
+  join.disabled = (roamCrews ?? []).length >= CREW_MAX;
+  join.onclick = () => void acceptCrewInvite(pending, join, card);
+  const decline = document.createElement('button');
+  decline.type = 'button';
+  decline.textContent = t('Decline');
+  decline.onclick = () => declineCrewInvite(pending, card);
+  card.append(copy, join, decline);
   $('#stage .toasts').prepend(card);
   window.setTimeout(() => card.remove(), 20_000);
+  const pop = $<HTMLDialogElement>('#crews-pop');
+  if (pop.open) drawPopCrews(root => root.querySelector('.crew-invite-join:not(:disabled)') ?? root.querySelector('input:enabled'));
 }
 function chatLine(name: string, text: string, me: boolean) {
   const box = $('#notices'), line = document.createElement('div'), b = document.createElement('b');
@@ -1362,6 +1408,42 @@ async function askPopCounts(ms = 0) {
 function drawPopCrews(focus?: (root: HTMLElement) => Element | null | undefined) {
   const box = $('#crews-pop-box'), had = box.contains(document.activeElement);
   box.replaceChildren();
+  if (pendingCrewInvites.length) {
+    const section = document.createElement('section');
+    section.className = 'crew-invites-waiting';
+    const heading = document.createElement('h3');
+    heading.textContent = t('Pending crew invitations');
+    const list = document.createElement('div');
+    list.className = 'crew-invite-pending-list';
+    for (const invite of pendingCrewInvites) {
+      const row = document.createElement('div');
+      row.className = 'crew-invite-pending-row';
+      const copy = document.createElement('span');
+      copy.className = 'crew-invite-pending-copy';
+      copy.textContent = t('{name} invites you to crew "{crew}"', { name: invite.name, crew: invite.crew });
+      const actions = document.createElement('div');
+      actions.className = 'crew-invite-pending-actions';
+      const join = document.createElement('button');
+      join.type = 'button'; join.className = 'btn crew-invite-join'; join.textContent = t('Join');
+      join.disabled = (roamCrews ?? []).length >= CREW_MAX;
+      join.title = join.disabled ? t('Up to 4 crews: leave one to join another.') : t('Join');
+      join.onclick = () => void acceptCrewInvite(invite, join);
+      const decline = document.createElement('button');
+      decline.type = 'button'; decline.className = 'btn crew-invite-decline'; decline.textContent = t('Decline');
+      decline.onclick = () => declineCrewInvite(invite);
+      actions.append(join, decline);
+      row.append(copy, actions);
+      list.append(row);
+    }
+    section.append(heading, list);
+    if ((roamCrews ?? []).length >= CREW_MAX) {
+      const hint = document.createElement('p');
+      hint.className = 'crew-invite-pending-hint';
+      hint.textContent = t('Up to 4 crews: leave one to join another.');
+      section.append(hint);
+    }
+    box.append(section);
+  }
   crewControl({ list: roamCrews ?? [], id: 'crews-pop-input', labelId: 'crews-pop-title', placeholder: N('Crew name'), counts: popCounts, draft: crewDraft,
     onDraft: v => { crewDraft = v; }, change: (list, f) => void menuCrews(list, f) }, box).setAttribute('aria-labelledby', 'crews-pop-title');
   if (had && focus) ((focus(box) ?? box.querySelector('input:enabled')) as HTMLElement | null)?.focus({ focusVisible: true } as FocusOptions);
