@@ -742,11 +742,10 @@ function FriendsDashboardPanel() {
           <h3><span data-i18n>Friends</span><b>{matching.length}</b></h3>
           {!matching.length && <p className="trp-friends-empty" data-i18n>No friends match this filter.</p>}
           {visible.map(friend => {
-            const where = friend.where === 'roam'
-              ? (friend.room ? 'Free Roam · ' + friend.room : 'Free Roam')
-              : friend.where === 'online' ? 'Online lobby' : 'Offline';
+            const where = friend.where === 'roam' ? 'Free Roam' : friend.where === 'online' ? 'Online lobby' : 'Offline';
+            const room = friend.where === 'roam' && friend.room ? ' · ' + friend.room : '';
             return <div className="trp-friend-dashboard-row" key={friend.name}>
-              <span><strong>{friend.name}</strong><small>{where}</small></span>
+              <span><strong>{friend.name}</strong><small><span data-i18n>{where}</span>{room}</small></span>
               <span className={'trp-friend-presence ' + (friend.where || 'offline')} />
             </div>;
           })}
@@ -766,7 +765,7 @@ function FriendsDashboardPanel() {
           </div>)}
         </section>
       </div>
-      {message && <p className="trp-friends-note" role="status">{message}</p>}
+      {message && <p className="trp-friends-note" role="status" data-i18n>{message}</p>}
       <p className="trp-friends-footnote" data-i18n>These are the same friend records used by F9. Your friends list supports up to 250 players.</p>
     </motion.section>
   );
