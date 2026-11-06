@@ -1559,3 +1559,8 @@ dialog.menu .menu-resume { flex: 0 0 auto; }
 .crew-invite-pending-actions .crew-invite-join:disabled{opacity:.42;cursor:not-allowed}
 .crew-invite-pending-hint{margin:0;color:#d9bd82;font:600 10px/1.4 var(--font)}
 @media(max-width:520px){.crew-invite-pending-row{align-items:flex-start;flex-direction:column}.crew-invite-pending-actions{width:100%;justify-content:flex-end}}
+
+.friend-bump-prompt { pointer-events:auto; }
+.friend-bump-prompt[hidden] { display:none; }
+.friend-bump-prompt > span { min-width:0; flex:1 1 auto; }
+.friend-bump-prompt > button { pointer-events:auto; }

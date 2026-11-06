@@ -115,9 +115,10 @@ This branch ports compatible changes from `th0mk/nfsu2-web` into TRPOLARIS while
 - The Online Friends & Crews panel can invite a mutual friend who is currently in Free Roam to one of the sender's saved crews. The authenticated `POST /friends` operation enforces the shared invite budget, validates the crew and room names, and sends a LAN notification only to the recipient's open game pages.
 - The recipient gets an in-game card with a Join action. Acceptance writes room, crew names and crew colours together through the existing settings validator, then updates the active game's crew hashes and the room mailbox.
 - Crew invitations now have a four-entry in-session queue in the existing Crews dialog. The 20-second HUD card is only the immediate prompt; the invitation remains available for Join/Decline after it disappears. A full four-crew roster leaves the invitation pending until the player leaves a crew. Repeated invitations replace the older entry for that crew.
+- Front-bumper FriendPrompt is now integrated for active Free Roam: opposing front bumpers must touch for 3 seconds before the game emits `NET_KIND_FRIEND` (19). The page shows a click-to-send prompt; only the click calls the existing authenticated `/friends` add-request API.
 - The room mailbox reuses bytes 436–503 of the existing 512-byte header: room generation at 436, sixteen little-endian UTF-8 words at 440–503. The page writes all name words before publishing the generation. The writer refuses old short mailboxes; names are capped at 63 UTF-8 bytes without splitting a character.
 - The runtime applies a new room only while the player is actually driving in Free Roam; race, duel and multiplayer-lobby states defer the change. The C and TypeScript layouts are covered by a native compile check and browser unit tests.
-- The upstream Z shortcut, waiting Join/Decline queue for delayed or full-crew cases, and bumper-contact FriendPrompt remain outstanding.
+- The upstream keyboard shortcut for FriendPrompt still needs a safe game-key binding check. Delayed Join/Decline and bumper-contact prompts are integrated.
 
 ### GPS Distance HUD
 - Ported upstream's GPS destination distance label beneath the game's native direction arrow. It reports straight-line distance (not road distance) in the current Speedometer Units, updates only when the text changes, and hides when GPS is inactive or a race is running.
@@ -127,7 +128,7 @@ This branch ports compatible changes from `th0mk/nfsu2-web` into TRPOLARIS while
 
 ## Not yet integrated / requires coordinated work
 
-- **Friends UI/gameplay completion:** the authenticated `/friends` API, initial F9 panel, direct messaging, RoamHub buddy-priority links, room whereabouts and LAN page-mail notifications are integrated. The existing F9 roster now has 20-row pagination and filtering. The separate start-page Friends & crews tab, bumper-contact FriendPrompt, Join action and race/crew invitations remain.
+- **Friends UI/gameplay completion:** the authenticated `/friends` API, F9 panel, direct messaging, RoamHub buddy-priority links, room whereabouts, LAN page-mail notifications, 20-row pagination/filtering, start-page Friends & Crews tab, crew invitations, pending Join/Decline queue, and click-to-send bumper-contact FriendPrompt are integrated. The upstream keyboard shortcut remains to be adapted without intercepting a key bound by the game.
 - **Mods/Mod Packs:** built-in catalogue, Blitz rims, maker details, mod toggles, OEM stand-ins and the Shown/Original remote-car view need the runtime modpack module, manifests and save compatibility.
 - **World map/minimap:** current TRPOLARIS map uses a 512-player snapshot. Upstream's 2,048-player live map deltas, smooth markers and car-meet markers/GPS require a coordinated C/TypeScript/Rust protocol change. Upstream uses message type 17 for MAPD while TRPOLARIS uses 17 for typed FreeRoam chat; do not reuse it without an explicit message-ID/version migration.
 - **Multiplayer career credits:** requires race eligibility, friend/crew credit masks, career save/result accounting, lobby protocol and UI changes.

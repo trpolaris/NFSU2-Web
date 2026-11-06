@@ -1489,5 +1489,9 @@
   "Joined crew \"{crew}\"": "\"{crew}\" ekibine katıldın",
   "Crew invitation declined": "Ekip daveti reddedildi",
   "The Free Roam session is no longer active.": "Serbest dolaşım oturumu artık etkin değil.",
-  "Separate USB pedals are supported; connect them before setting up the wheel.": "Ayrı USB pedal setleri desteklenir; direksiyon kalibrasyonundan önce pedalları bağla."
+  "Separate USB pedals are supported; connect them before setting up the wheel.": "Ayrı USB pedal setleri desteklenir; direksiyon kalibrasyonundan önce pedalları bağla.",
+  "Add as a friend": "Arkadaş olarak ekle",
+  "Sending friend request": "Arkadaşlık isteği gönderiliyor",
+  "You and {name} have touched front bumpers for 3 seconds. Add as a friend?": "{name} ile ön tamponlarınız 3 saniyedir temas halinde. Arkadaş olarak ekle?",
+  "The friend request could not be sent.": "Arkadaşlık isteği gönderilemedi."
 }
