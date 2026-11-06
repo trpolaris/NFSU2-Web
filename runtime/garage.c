@@ -620,6 +620,18 @@ void sub_005344d0(CPU *c){
     }
     not_empty(CAREER + K_CAR, "the career's car");
     not_empty(G_QR_CAR, "the Quick Race car");
+    /* A damaged/old profile can name a career car which is not present in
+     * any garage slot (rather than naming an empty extended slot, handled
+     * by not_empty above). After the prologue, use the first owned car so
+     * the car lot never resolves a nonexistent career vehicle. */
+    uint32_t h = MR32(CAREER + K_CAR), to;
+    if (MR32(CAREER + K_STAGE) >= 1u &&
+        slot_of(CARS0, garage_find(CARS0, h)) < 0 &&
+        (to = first_car(CARS0, SLOTS))){
+        gcall(c, FN_SET_CAR, CAREER, 1, &to);
+        fprintf(stderr, "[garage] the career's car 0x%08x was in none of the slots: now the one in slot %d (0x%08x)\\n",
+                h, slot_of(CARS0, garage_find(CARS0, to)) + 1, MR32(CAREER + K_CAR));
+    }
 }
 
 /* The shop's buys (0x547570) add each part to the career car it finds among
