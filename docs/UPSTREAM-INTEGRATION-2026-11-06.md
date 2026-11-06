@@ -38,6 +38,12 @@ This branch ports compatible changes from `th0mk/nfsu2-web` into TRPOLARIS while
 - Added `tests/scripts/engage_stuck.txt`, which sets both flags, checks that they clear, then confirms a shop marker opens.
 - Added the opt-in `engagestuck` scenario to `web/tools/run-suite.mjs`. It requires a career save via `NFSU2_SAVE_SEED`; it is not part of the default no-save suite.
 
+### Multiplayer race-trip lobby recovery
+- The race trip now detects when Enter on the Online menu opens a remembered non-Lobby icon (Car Select, Options, Rankings, EA Messenger, etc.).
+- It backs out and retries the Lobby selection, stepping the icon carousel left on subsequent attempts, with a six-attempt bound and a clear failure message rather than silently waiting for the host's race to disappear.
+- The way back from a race also closes these detour screens before returning to the career.
+- Added `tests/scripts/mprace_lobby_b_detour.txt` as a two-client manual regression scenario paired with `mprace_lobby_a.txt`. It must be exercised against a seeded career and live multiplayer session; it is not an automated CI pass.
+
 ## Not yet integrated / requires coordinated work
 
 - **Friends UI and API:** the 250-entry server capacity is in place, but start-page pagination/filtering, F9 request management, friend/crew invites, Discord names and online/offline roster UI still need to be wired to the existing Buddy service and custom React/F9 components.
