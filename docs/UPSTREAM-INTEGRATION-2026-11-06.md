@@ -73,6 +73,8 @@ This branch ports compatible changes from `th0mk/nfsu2-web` into TRPOLARIS while
 - Added an Auto turn slider to the current Photo Mode panel without changing its existing layout style. The centre tenth of the slider is a neutral dead zone; values outside it turn in either direction.
 - Auto turn starts off every time Photo Mode opens. Reset, R, and controller X reset the camera and disable auto-turn; double-clicking the slider also stops it.
 - Added a TypeScript range/dead-zone test and extended the Quick Race photo-mode script to cover clockwise/counter-clockwise turning, stop, and Reset. The live game script still needs execution.
+- Added the upstream camera movement-speed control to the existing panel: a 0.1×–4× slider with 1× default, a double-click reset, and a backward-compatible `PH_SPEED` input event. The multiplier applies to keyboard and gamepad camera translation; Shift's existing 3× boost remains multiplicative.
+- Added bounds/monotonicity tests for the speed scale and extended `tests/scripts/photo_mode.txt` to exercise 2× speed then restore 1×. The in-game scenario still needs a real run.
 
 ### Steam Controller and Steam Deck through WebHID
 - Added the upstream WebHID reader for the 2015 Steam Controller (USB/dongle), 2026 Steam Controller and Steam Deck, including their button/axis maps, lizard-mode handoff and supported rumble behavior.
@@ -89,7 +91,7 @@ This branch ports compatible changes from `th0mk/nfsu2-web` into TRPOLARIS while
 - **Multiplayer career credits:** requires race eligibility, friend/crew credit masks, career save/result accounting, lobby protocol and UI changes.
 - **24,000-player capacity:** requires load testing and review of Rust hub memory, connection/stream limits, networking, container resources and deployment topology. Do not copy upstream limits blindly.
 - **Vehicle show-off:** hood/trunk/door state, speakers/audio and remote animation need the upstream show-off runtime system adapted to the local FreeRoam implementation.
-- **Photo Mode:** camera paths, scene/picture options, lens effects, higher-resolution output and freeze-time need a wider runtime/React integration. The current TRPOLARIS Photo Mode is a separate, simpler panel; the upstream auto-turn slider behavior has no direct equivalent.
+- **Photo Mode expansion:** camera paths, scene/picture options, lens effects, higher-resolution output and freeze-time still need a wider runtime/React integration. Auto-turn and movement-speed controls are already ported into the existing simpler TRPOLARIS panel; the remaining controls should be added incrementally without replacing its design.
 - **Co-op/split-screen:** local 2–4 player support spans renderer, memory, controls, career and race systems; it is not a safe file-level copy.
 - **Lobby/Quick Chat:** multi-lobby focus/grouping, stage eligibility, friend/crew invites and countdown messages remain to be ported with tests.
 - **Vinyls/car parts:** Art Factory 28–34, hidden Special vinyls, car-specific filters, unique unlocks and Visual Reputation Remover need their manifests/runtime modules.
