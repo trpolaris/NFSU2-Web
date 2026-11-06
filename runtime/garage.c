@@ -134,6 +134,13 @@ int fileio_resolve_save(const char *win, char *out, size_t outsz);
 #define GARAGE_OLD      "GARAGE.OLD"
 #define GARAGE_MAGIC    0x4147324eu   /* "N2GA" */
 #define TRADE_PCT       80u
+/* modpacks.c: stock parts stay in the original profile; added parts live beside it. */
+void modparts_hide(CPU *,uint32_t,int);
+void modparts_show(void);
+void modparts_built(int,uint32_t,uint64_t,const char *,int);
+void modparts_loaded(CPU *,uint32_t,int,uint32_t,uint64_t,const char *,int);
+int modparts_changed(CPU *,int);
+void modparts_written(const char *,uint64_t,const char *);
 
 static uint32_t g_blk;            /* guest memory: our records (XN a player), a new one, scratch */
 #define X_AT(p)         (g_blk + (p) * XN * REC_SZ)
@@ -423,7 +430,7 @@ static int differ(const State *a, const State *b){
 /* thiscall profile (out, size): the payload, naming the stand-in for a car of
  * ours driven; what our slots are in it */
 void sub_0052a280_orig(CPU *c);
-void sub_0052a280(CPU *c){
+static void payload(CPU *c){
     uint32_t db = c->ecx + PR_CARS, out = MR32(c->esp + 4u), size = MR32(c->esp + 8u);
     int p = player_of(db);
     if (!g_blk || p < 0 || size < P_NAME + 32u){ sub_0052a280_orig(c); return; }
@@ -452,6 +459,17 @@ void sub_0052a280(CPU *c){
         memcpy(g_kept.name, g_built[at].name, sizeof g_kept.name);
     }
 }
+/* Save stock parts in the original profile and community parts in MODPARTS.DAT. */
+void sub_0052a280(CPU *c){
+    uint32_t db=c->ecx+PR_CARS,out=MR32(c->esp+4u),size=MR32(c->esp+8u);
+    int p=player_of(db);
+    if(p>=0)modparts_hide(c,db,p);
+    payload(c);
+    if(p<0)return;
+    char name[33]="";
+    if(size>=P_NAME+32u)name_of(out,name);
+    modparts_built(p,out,size>=CARS_PART?fnv(out,CARS_PART):0,name,out==MR32(FEDB+FEDB_KEPT));
+}
 /* thiscall FEDatabase (out, size): the payload the save writes (the memory
  * card's 0x4D9B80): add ecx, 0x10; jmp 0x52A280.  The lift copies a jump's
  * target into the function that jumps, so its own copy of 0x52A280 would
@@ -464,8 +482,12 @@ void sub_0052a4c0(CPU *c){
     uint32_t kept = MR32(c->ecx + FEDB_KEPT);
     sub_0052a4c0_orig(c);
     if ((c->eax & 0xffu) || !kept || !g_kept.on || !g_blk) return;
-    state_of(c, CARS0 + (uint32_t)g_kept.p * CARS_SZ, &g_now);
-    if (differ(&g_now, &g_kept.st)){ c->eax = (c->eax & ~0xffu) | 1u; fprintf(stderr, "[garage] slots 6-10 changed: something to save\n"); }
+    uint32_t kdb=CARS0+(uint32_t)g_kept.p*CARS_SZ;
+    modparts_hide(c,kdb,g_kept.p);
+    state_of(c,kdb,&g_now);
+    modparts_show();
+    if(differ(&g_now,&g_kept.st)){c->eax=(c->eax&~0xffu)|1u;fprintf(stderr,"[garage] slots 6-10 changed: something to save\\n");return;}
+    if(modparts_changed(c,g_kept.p))c->eax=(c->eax&~0xffu)|1u;
 }
 
 /* fileio.c: the game has written a profile (host path): its GARAGE file beside it */
@@ -481,6 +503,7 @@ void garage_profile_written(const char *path){
     name[i] = 0;
     uint64_t fp = 0xcbf29ce484222325ull;
     for (uint32_t k = 0; k < CARS_PART; k++){ fp ^= pl[k]; fp *= 0x100000001b3ull; }
+    modparts_written(path,fp,name);
     int best = -1;
     for (int k = 0; k < 4; k++)
         if (g_built[k].seq && g_built[k].fp == fp && !strcasecmp(g_built[k].name, name) && (best < 0 || g_built[k].seq > g_built[best].seq)) best = k;
@@ -500,9 +523,9 @@ void garage_profile_written(const char *path){
 }
 /* fileio.c: a profile file deleted: its GARAGE files go too (the game then removes the folder) */
 void garage_profile_deleted(const char *path){
-    static const char *const files[] = { GARAGE_FILE, GARAGE_OLD };
+    static const char *const files[] = { GARAGE_FILE, GARAGE_OLD, "MODPARTS.DAT" };
     char g[1100]; const char *sl = strrchr(path, '/');
-    for (unsigned i = 0; i < 2u; i++){
+    for (unsigned i = 0; i < 3u; i++){
         snprintf(g, sizeof g, "%.*s/%s", sl ? (int)(sl - path) : 1, sl ? path : ".", files[i]);
         if (remove(g) == 0) fprintf(stderr, "[garage] %s deleted with its profile\n", g);
     }
@@ -540,7 +563,7 @@ static void load_state(CPU *c, uint32_t db, const State *st){
  * file, or, the game going back to the payload it kept (0x5347C0), as they
  * were when it was made */
 void sub_00516850_orig(CPU *c);
-void sub_00516850(CPU *c){
+static void cars_loaded(CPU *c){
     uint32_t db = c->ecx, in = MR32(c->esp + 4u), size = MR32(c->esp + 8u);
     sub_00516850_orig(c);
     g_loads++;
@@ -571,6 +594,31 @@ void sub_00516850(CPU *c){
     /* the cars alone (0x534770): the game's own rule had a slot a stage */
     open_to(db, 2u * open_n(db));
     fprintf(stderr, "[garage] (cars only): no slots 6-10 saved, %u of %u slots open\n", open_n(db), SLOTS);
+}
+/* Restore community parts after the game's stock-part payload has loaded. */
+void sub_00516850(CPU *c){
+    uint32_t db=c->ecx,in=MR32(c->esp+4u),size=MR32(c->esp+8u);
+    cars_loaded(c);
+    int p=player_of(db);
+    if(p<0)return;
+    char name[33]="";
+    if(size>=P_NAME+32u||(size>=CARS_PART&&mem_is_committed(in+P_NAME)&&mem_is_committed(in+P_NAME+31u)))name_of(in,name);
+    modparts_loaded(c,db,p,in,size>=CARS_PART?fnv(in,CARS_PART):0,name,in==MR32(FEDB+FEDB_KEPT));
+}
+/* The sidecar covers the player's customize and career records. */
+#define T_CUSTOM 48u
+#define T_CAREER_END 73u
+int garage_records(uint32_t db,uint32_t *out,int max){
+    int n=0,p=player_of(db);
+    if(p<0)return 0;
+    for(uint32_t i=T_CUSTOM;i<T_CAREER_END&&n<max;i++){
+        uint32_t r=MR32(db+C_TABLE+4u*i);
+        int seen=!r||!mem_is_committed(r)||!mem_is_committed(r+REC_SZ-1u);
+        for(int k=0;k<n&&!seen;k++)seen=out[k]==r;
+        if(!seen)out[n++]=r;
+    }
+    for(unsigned i=0;g_blk&&i<XN&&n<max;i++)out[n++]=X_AT(p)+i*REC_SZ;
+    return n;
 }
 /* thiscall FEDatabase (in, size): a profile loaded (0x4A9850), in
  * [+0x156A8] 4 only the cars of player [+0x20358], by a jump to 0x516850 (a
