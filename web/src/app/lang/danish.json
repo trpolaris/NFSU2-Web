@@ -1504,5 +1504,9 @@
   "This server is currently running for testing only and should not be considered a stable, production-ready service.": "Denne server kører i øjeblikket kun til testformål og bør ikke betragtes som en stabil, produktionsklar tjeneste.",
   "The project is still in development and testing. You may encounter bugs, interruptions, or unexpected behavior in gameplay, multiplayer connections, chat, or website features.": "Projektet er stadig under udvikling og test. Du kan opleve fejl, afbrydelser eller uventet adfærd i spillet, multiplayerforbindelser, chatten eller webstedets funktioner.",
   "By continuing, you acknowledge that you are using a test build.": "Ved at fortsætte bekræfter du, at du bruger en testversion.",
-  "I understand, continue": "Jeg forstår, fortsæt"
+  "I understand, continue": "Jeg forstår, fortsæt",
+  "Steam Controller or Steam Deck: connect it once.": "Steam Controller eller Steam Deck: forbind den én gang.",
+  "{names}: connected in this browser.": "{names}: forbundet i denne browser.",
+  "Connect a Steam Controller": "Forbind en Steam Controller",
+  "Connect another": "Forbind en til"
 }
