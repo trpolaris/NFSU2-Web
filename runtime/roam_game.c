@@ -2653,7 +2653,7 @@ static void map_update(CPU *c, uint32_t w, int64_t host){
     if (!ok(map, 0x2c) || !ok(pkg, 24)){ g_wm.done = 0; return; }
     if (g_wm.done && map != g_wm.map) g_wm.done = 0;                    /* another map (opened again) */
     if (!g_wm.done){
-        g_wm.done = 1; g_wm.map = map; g_wm.copies = 0; g_wm.asks = 0; g_wm.others = 0; memset(g_wm_markers,0,sizeof g_wm_markers); memset(g_wm_seen,0,sizeof g_wm_seen);
+        g_wm.done = 1; g_wm.map = map; g_wm.copies = 0; g_wm.asks = 0; g_wm.asked = 0; g_wm.others = 0; memset(g_wm_markers,0,sizeof g_wm_markers); memset(g_wm_seen,0,sizeof g_wm_seen);
         int32_t col[4] = {0}; uint32_t o0 = wm_find(c, pkg, "AIRACERINDICATOR_0");      /* (before a crew's colour) */
         g_wm.col_ok = o0 && fe_colour_get(o0, col);
         for (int i = 0; i < 3; i++) g_wm.col[i] = col[i];
@@ -2725,7 +2725,7 @@ static void map_update(CPU *c, uint32_t w, int64_t host){
         if(ok(obj,0x20))gcall1(c,FN_FE_HIDE,0,obj);
     }
     int room=wm_room(pk),copies=made?wm_dress(c,map,pkg,room):0;
-    if(made)gcall0(c,FN_WM_PLACE,map);
+    if(n)gcall0(c,FN_WM_PLACE,map);
     g_wm.others=n;
     rlog("[roam] f=%ld world map: %d other players updated by MAPD (total %d), %d new markers, %d copies\n",
          rh_frame(),n,total,made,copies);
