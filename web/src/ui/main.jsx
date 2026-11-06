@@ -682,6 +682,32 @@ function FriendsDashboardPanel() {
     }
   };
 
+  const inviteCrew = async (name, crew) => {
+    const bridge = window.__trpFriendsBridge;
+    if (!bridge || busy) return;
+    setBusy(true);
+    setMessage('');
+    try {
+      const result = await bridge.crew(name, crew);
+      if (result) {
+        setLists(result);
+        const labels = {
+          sent: 'Crew invite sent.',
+          away: 'That friend is no longer in Free Roam.',
+          none: 'Crew invites can only be sent to a mutual friend.',
+          claim: 'Claim your player name before sending crew invites.',
+          name: 'That crew or room name is not valid.',
+          rate: 'Crew invite limit reached. Wait a moment.',
+        };
+        setMessage(labels[result.done] || 'Crew invite could not be sent.');
+      } else setMessage('Friends are unavailable. Connect to the server first.');
+    } catch (error) {
+      setMessage(String(error));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const matching = (lists?.friends || []).filter(friend =>
     !filter || friend.name.toLocaleLowerCase().includes(filter.toLocaleLowerCase()));
   const pages = Math.max(1, Math.ceil(matching.length / 20));
@@ -747,6 +773,15 @@ function FriendsDashboardPanel() {
             return <div className="trp-friend-dashboard-row" key={friend.name}>
               <span><strong>{friend.name}</strong><small><span data-i18n>{where}</span>{room}</small></span>
               <span className={'trp-friend-presence ' + (friend.where || 'offline')} />
+              {friend.where === 'roam' && crews.length > 0 && <span className="trp-friend-crew-actions">
+                <select aria-label={'Crew for ' + friend.name} defaultValue={crews[0].name}>
+                  {crews.map(crew => <option value={crew.name} key={crew.name}>{crew.name}</option>)}
+                </select>
+                <button type="button" disabled={busy} data-i18n onClick={event => {
+                  const selected = event.currentTarget.parentElement?.querySelector('select')?.value || crews[0].name;
+                  void inviteCrew(friend.name, selected);
+                }}>Invite</button>
+              </span>}
             </div>;
           })}
           {matching.length > 20 && <div className="trp-friends-pagination">
