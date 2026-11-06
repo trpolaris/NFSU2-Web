@@ -267,7 +267,7 @@ impl App {
     ) -> App {
         let host_check = HostCheck::new(&o.hosts);
         let friends = match (online.as_ref(), names.as_ref()) {
-            (Some(online), Some(names)) => Some(friends::FriendsRoute::new(online.clone(), names.claims.clone())),
+            (Some(online), Some(names)) => Some(friends::FriendsRoute::new(online.clone(), names.claims.clone(), lan.clone(), roam.clone())),
             _ => None,
         };
         let real_roots: Arc<Mutex<HashMap<String, String>>> = Arc::default();
