@@ -84,6 +84,7 @@ This branch ports compatible changes from `th0mk/nfsu2-web` into TRPOLARIS while
 ### Steam Controller and Steam Deck through WebHID
 - Added the upstream WebHID reader for the 2015 Steam Controller (USB/dongle), 2026 Steam Controller and Steam Deck, including their button/axis maps, lizard-mode handoff and supported rumble behavior.
 - PadPoller now sees browser gamepads and permitted Valve WebHID devices through one indexed allPads() list. Controller selection, family naming, controller detection and steering-wheel/pedal setup all use that combined list.
+- Separate USB pedal support: known Fanatec pedal IDs map to gas/brake; other non-standard devices can be learned through the existing Controller wheel calibration. Pedal-only controllers are excluded from primary-pad selection, their live axes feed the wheel's virtual triggers, and saved mappings fall back to the wheel's own pedals when the external device is unplugged.
 - Added a connect action and connection status beneath the existing controller-family selector, shown only where WebHID is available; the rest of the panel layout is unchanged.
 - Allowed the page's own WebHID permission in the server Permissions-Policy. Other device APIs remain disabled.
 - Added parser, mapping, connection lifecycle, focus/lizard-mode, dongle and rumble tests in web/test/steampad.test.mjs. Real controller hardware is not attached to CI, so pairing and rumble still need a browser/hardware check.
@@ -136,7 +137,7 @@ This branch ports compatible changes from `th0mk/nfsu2-web` into TRPOLARIS while
 - **Co-op/split-screen:** local 2–4 player support spans renderer, memory, controls, career and race systems; it is not a safe file-level copy.
 - **Lobby/Quick Chat:** multi-lobby focus/grouping, stage eligibility, friend/crew invites and countdown messages remain to be ported with tests.
 - **Vinyls/car parts:** Art Factory 28–34, hidden Special vinyls, car-specific filters, unique unlocks and Visual Reputation Remover need their manifests/runtime modules.
-- **Other platform and game fixes:** independent USB pedals, further phone/browser fixes, synchronized weather, pause-menu save, save recovery, Last.fm/EA Trax, country RTT, and runtime collision/tire-smoke fixes remain under review.
+- **Other platform and game fixes:** further phone/browser fixes, synchronized weather, pause-menu save, save recovery, Last.fm/EA Trax, country RTT, and runtime collision/tire-smoke fixes remain under review.
 
 ## Validation status
 

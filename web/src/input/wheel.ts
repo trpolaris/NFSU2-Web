@@ -20,7 +20,7 @@ import { PAD_A, PAD_B, PAD_BACK, PAD_DDOWN, PAD_DLEFT, PAD_DRIGHT, PAD_DUP, PAD_
   PAD_START, PAD_X, PAD_Y } from './proto';
 
 /** a pedal: its axis, its value let go and pressed to the floor (gas and brake on one axis: the two halves) */
-export interface Pedal { axis: number; rest: number; full: number }
+export interface Pedal { axis: number; rest: number; full: number; pad?: string }
 /** how a wheel's axes and buttons make the pad */
 export interface WheelMap {
   steer: number;                 // the wheel's axis
@@ -184,6 +184,25 @@ export function wheelOf(id: string): WheelInfo | null {
 }
 
 /** whether an axis value is a hat switch read as one axis, let go (it reads outside -1..1 then) */
+/** pedals on their own USB: their axes by usage and where a released pedal reads */
+export interface PedalSet { axes: Usage[]; gas: Usage; brake: Usage; rest: number }
+const FTEC_USB_PEDALS: PedalSet = { axes: ['x', 'y', 'z', 'rx'], gas: 'x', brake: 'y', rest: -1 };
+const PEDAL_SETS: Record<string, PedalSet> = {
+  '0eb7:183b': FTEC_USB_PEDALS, '0eb7:6204': FTEC_USB_PEDALS, '0eb7:6205': FTEC_USB_PEDALS, '0eb7:6206': FTEC_USB_PEDALS,
+  '0eb7:1a95': FTEC_USB_PEDALS, '0eb7:1839': { axes: ['rx', 'ry', 'rz'], gas: 'rx', brake: 'ry', rest: 1 },
+};
+export function pedalSetOf(id: string): PedalSet | null {
+  const u = usbIds(id);
+  return (u && PEDAL_SETS[`${u.vendor}:${u.product}`]) || null;
+}
+export function isPedals(id: string): boolean {
+  return !!pedalSetOf(id) || (/\bpedals?\b/i.test(id) && !wheelOf(id));
+}
+export function pedalsOf(id: string, set: PedalSet, n: number): { gas: Pedal; brake: Pedal } {
+  const at = (u: Usage) => n > USAGE_AT[u] ? USAGE_AT[u] : set.axes.indexOf(u);
+  const p = (u: Usage): Pedal => ({ axis: at(u), rest: set.rest, full: -set.rest, pad: id });
+  return { gas: p(set.gas), brake: p(set.brake) };
+}
 const hatRest = (v: number) => Math.abs(v) > 1.05;
 
 /**
@@ -246,23 +265,28 @@ export function dpadDirs(x: number, y: number): number {
 }
 
 const clamp = (v: number, lo: number, hi: number) => v < lo ? lo : v > hi ? hi : v;
+/** axes belonging to controllers besides the wheel (pedals on their own USB) */
+export type OtherAxes = (id: string) => readonly number[] | undefined;
 /** a pedal's travel, 0 let go to 1 on the floor */
-export function pedalValue(p: Pedal | null, axes: readonly number[]): number {
-  const v = p ? axes[p.axis] : undefined;
-  if (p === null || typeof v !== 'number' || !isFinite(v) || p.full === p.rest) return 0;
+export function pedalValue(p: Pedal | null, axes: readonly number[], others?: OtherAxes): number {
+  if (!p) return 0;
+  let v = (p.pad !== undefined ? others?.(p.pad) : axes)?.[p.axis];
+  // Some USB pedal sets expose zeroes until the first physical movement.
+  if (p.pad !== undefined && v === 0) v = p.rest;
+  if (typeof v !== 'number' || !isFinite(v) || p.full === p.rest) return 0;
   return clamp((v - p.rest) / (p.full - p.rest), 0, 1);
 }
 
-/** a wheel's state as the pad's: buttons (1 << PAD_*), and axes LX (the wheel, -1 .. 1 at full lock), LY, RX, RY
- *  (0), LT (the brake), RT (the gas).  hat: the axis the browser put the hat switch on, as one (-1: none seen) */
-export function readWheel(axes: readonly number[], pressed: readonly boolean[], m: WheelMap, hat: number): { buttons: number; axes: number[] } {
+/** a wheel's state as the pad's; otherAxes reads pedals on their own USB. */
+export function readWheel(axes: readonly number[], pressed: readonly boolean[], m: WheelMap, hat: number,
+                          otherAxes?: OtherAxes): { buttons: number; axes: number[] } {
   let buttons = 0;
   for (let i = 0; i < pressed.length && i < m.buttons.length; i++) if (pressed[i] && m.buttons[i] >= 0) buttons |= 1 << m.buttons[i];
   if (hat >= 0 && hat !== m.steer) buttons |= hatDirs(axes[hat]);
   if (m.dpad) buttons |= dpadDirs(axes[m.dpad[0]], axes[m.dpad[1]]);
   const w = axes[m.steer];
   const lx = typeof w === 'number' && isFinite(w) && m.lock ? clamp((w - m.centre) / m.lock, -1, 1) : 0;
-  return { buttons, axes: [lx, 0, 0, 0, pedalValue(m.brake, axes), pedalValue(m.gas, axes)] };
+  return { buttons, axes: [lx, 0, 0, 0, pedalValue(m.brake, axes, otherAxes), pedalValue(m.gas, axes, otherAxes)] };
 }
 
 /** the axis carrying a hat switch read as one: one that reads outside -1..1 (let go), or -1 */
@@ -323,7 +347,8 @@ export class Shifter {
 
 /** a short line for the log: what drives what */
 export function describeMap(m: WheelMap, hat: number): string {
-  const p = (x: Pedal | null) => x ? `axis ${x.axis} (${x.rest.toFixed(2)} to ${x.full.toFixed(2)})` : 'none';
+  const name = (id: string) => id.replace(/\s*\([^)]*\)$/, '').replace(/^[0-9a-f]{1,4}-[0-9a-f]{1,4}-/i, '');
+  const p = (x: Pedal | null) => x ? `axis ${x.axis}${x.pad !== undefined ? ` of ${name(x.pad)}` : ''} (${x.rest.toFixed(2)} to ${x.full.toFixed(2)})` : 'none';
   const gears = m.gears ? m.gears.map(i => i >= 0 ? i : '-').join(' ') : '';
   return `wheel axis ${m.steer} (centre ${m.centre.toFixed(2)}, full lock ${m.lock >= 0 ? '+' : ''}${m.lock.toFixed(2)}), ` +
     `gas ${p(m.gas)}, brake ${p(m.brake)}, D-pad ${m.dpad ? `axes ${m.dpad.join(' and ')}` : hat >= 0 ? `axis ${hat}` : 'none seen'}, ` +
@@ -339,10 +364,13 @@ const modelKey = (id: string) => { const u = usbIds(id); return u ? `${u.vendor}
 export function wheelKey(id: string): string {
   return KEY + modelKey(id);
 }
-/** the model's layout (guessMap) with the player's set-up of its wheel and pedals over it: the buttons and the
- *  shifter stay the model's, so a set-up kept from before a change to those gets it */
-export function withSetUp(guess: WheelMap, kept: WheelMap): WheelMap {
-  return { ...guess, steer: kept.steer, centre: kept.centre, lock: kept.lock, gas: kept.gas, brake: kept.brake,
+/** Restore the player's steering and pedal set-up; external pedals are kept only while connected. */
+export function withSetUp(guess: WheelMap, kept: WheelMap, has: (id: string) => boolean = () => true): WheelMap {
+  const here = (p: Pedal | null) => p?.pad === undefined || has(p.pad);
+  const pedals = here(kept.gas) && here(kept.brake)
+    ? { gas: kept.gas, brake: kept.brake }
+    : { gas: guess.gas, brake: guess.brake };
+  return { ...guess, steer: kept.steer, centre: kept.centre, lock: kept.lock, ...pedals,
     dpad: kept.dpad ?? guess.dpad, placed: undefined, learned: true };
 }
 /** the picks of this page (storage may be off) */
@@ -362,7 +390,7 @@ export function saveShifter(id: string, mode: ShifterMode) {
 export function loadMap(id: string): WheelMap | null {
   try {
     const m = JSON.parse(localStorage.getItem(wheelKey(id)) ?? 'null') as WheelMap | null;
-    const ok = (p: Pedal | null) => p === null || (Number.isInteger(p.axis) && isFinite(p.rest) && isFinite(p.full));
+    const ok = (p: Pedal | null) => p === null || (Number.isInteger(p.axis) && p.axis >= 0 && isFinite(p.rest) && isFinite(p.full) && (p.pad === undefined || (typeof p.pad === 'string' && p.pad.length > 0 && p.pad.length <= 128)));
     return m && Number.isInteger(m.steer) && isFinite(m.centre) && isFinite(m.lock) && m.lock !== 0 && ok(m.gas) && ok(m.brake) &&
       Array.isArray(m.buttons) ? m : null;
   } catch { return null; }
@@ -389,7 +417,6 @@ const HOLD_MS = 700;
  */
 export class WheelLearn {
   step: LearnStep = 'rest';
-  /** 0..1: how far the step is (the hold) */
   progress = 0;
   private rest: number[] = [];
   private last: number[] = [];
@@ -399,23 +426,27 @@ export class WheelLearn {
   private lock = 0;
   private gas: Pedal | null = null;
   private brake: Pedal | null = null;
+  private lens: number[] = [];
 
-  constructor(private base: WheelMap) {}
+  constructor(private base: WheelMap, private pads: readonly string[] = []) {}
 
-  /** the axes now, at time now (ms); true when the step changed */
-  feed(axes: readonly number[], now: number): boolean {
+  /** Feed wheel axes and, in the same order as pads, axes from separate USB pedal devices. */
+  feed(own: readonly number[], now: number, more: readonly (readonly number[])[] = []): boolean {
+    const axes = more.length ? [...own, ...more.flat()] : [...own];
+    this.lens = [own.length, ...more.map(a => a.length)];
     const moved = this.last.length !== axes.length || axes.some((v, i) => Math.abs(v - this.last[i]) > 0.01);
     if (moved) this.still = now;
     this.last = axes.slice();
     const held = Math.min(1, (now - this.still) / HOLD_MS);
     const before = this.step;
+    if (this.step !== 'rest' && more.length) this.restAgain(axes);
     switch (this.step) {
       case 'rest':
         this.progress = held;
         if (held >= 1) { this.rest = axes.slice(); this.step = 'steer'; }
         break;
       case 'steer': {
-        const i = this.most(axes, [], 0.08);
+        const i = this.most(axes, [], 0.08, j => j < own.length);
         this.progress = i < 0 ? 0 : held;
         if (i >= 0 && held >= 1) { this.steer = i; this.centre = this.rest[i]; this.lock = axes[i] - this.rest[i]; this.step = 'gas'; }
         break;
@@ -427,9 +458,8 @@ export class WheelLearn {
         break;
       }
       case 'brake': {
-        const g = this.gas!;
-        // the gas's axis only the other way from its rest (combined pedals)
-        const i = this.most(axes, [this.steer], 0.3, j => j !== g.axis || Math.sign(axes[j] - g.rest) === -Math.sign(g.full - g.rest));
+        const gas = this.gas!;
+        const i = this.most(axes, [this.steer], 0.3, j => j !== gas.axis || Math.sign(axes[j] - gas.rest) === -Math.sign(gas.full - gas.rest));
         this.progress = i < 0 ? 0 : held;
         if (i >= 0 && held >= 1) { this.brake = { axis: i, rest: this.rest[i], full: axes[i] }; this.step = 'done'; }
         break;
@@ -439,22 +469,47 @@ export class WheelLearn {
     return this.step !== before;
   }
 
-  /** the axis furthest from its rest (at least min, a hat switch's never), not one of skip, or -1 */
   private most(axes: readonly number[], skip: number[], min: number, ok: (i: number) => boolean = () => true): number {
     let best = -1, far = min;
     axes.forEach((v, i) => {
       const r = this.rest[i];
       if (skip.includes(i) || hatRest(v) || hatRest(r ?? 0) || typeof r !== 'number' || !ok(i)) return;
-      const d = Math.abs(v - r);
-      if (d >= far) { far = d; best = i; }
+      const distance = Math.abs(v - r);
+      if (distance >= far) { far = distance; best = i; }
     });
     return best;
   }
 
-  /** the set-up, once done */
   map(): WheelMap | null {
     if (this.step !== 'done') return null;
-    return { ...this.base, steer: this.steer, centre: this.centre, lock: this.lock, gas: this.gas, brake: this.brake,
-      placed: undefined, learned: true };
+    return { ...this.base, steer: this.steer, centre: this.centre, lock: this.lock, gas: this.where(this.gas),
+      brake: this.where(this.brake), placed: undefined, learned: true };
+  }
+
+  private where(p: Pedal | null): Pedal | null {
+    if (!p) return p;
+    let i = p.axis - this.lens[0];
+    if (i < 0) return p;
+    for (let d = 0; d < this.pads.length; d++) {
+      const n = this.lens[d + 1] ?? 0;
+      if (i < n) {
+        const rest = Math.abs(p.rest) < 0.9 && Math.abs(p.full) >= 0.9 ? -Math.sign(p.full) : p.rest;
+        return { axis: i, rest, full: p.full, pad: this.pads[d] };
+      }
+      i -= n;
+    }
+    return null;
+  }
+
+  /** Independent pedals may report all-zero axes until first moved; capture their initial rest on that report. */
+  private restAgain(axes: readonly number[]) {
+    if (this.rest.length !== axes.length) return;
+    for (let d = 1, at = this.lens[0]; d < this.lens.length; at += this.lens[d++]) {
+      const n = this.lens[d];
+      const unread = (j: number) => this.rest[j] === 0;
+      if (n && Array.from({ length: n }, (_, j) => at + j).every(unread) && axes.slice(at, at + n).some(v => v !== 0)) {
+        for (let j = at; j < at + n; j++) this.rest[j] = axes[j];
+      }
+    }
   }
 }

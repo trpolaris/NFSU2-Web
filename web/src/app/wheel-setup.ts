@@ -97,6 +97,7 @@ export function wheelSection(pad: HTMLElement, cap: (xb: string, ps: string) => 
     </div>
     <div class="wheel-learn"${learn ? '' : ' hidden'}>
       <p class="wheel-step" aria-live="polite"></p>
+      <p class="hint wheel-pedal-help">${esc(t('Separate USB pedals are supported; connect them before setting up the wheel.'))}</p>
       <div class="bar"><div class="bar-fill"></div></div>
       <button type="button" class="text-btn" data-wheel="cancel">${esc(t('Cancel'))}</button>
     </div>`;
@@ -111,6 +112,7 @@ export function wheelSection(pad: HTMLElement, cap: (xb: string, ps: string) => 
   }
 
   let id = '', index = -1, learn: WheelLearn | null = null, raf = 0;
+let beside: { index: number; id: string; n: number }[] = [];
 
   /** show the wheel connected now (or none), unless a set-up is going on */
   function refresh() {
@@ -147,7 +149,12 @@ export function wheelSection(pad: HTMLElement, cap: (xb: string, ps: string) => 
     if (!learn || !(box.checkVisibility?.() ?? box.offsetParent !== null)) { stop(); return; }
     const g = allPads().find(p => !!p?.connected && p.id === id && p.index === index);
     if (!g) { stop(N('The wheel went away before its set-up was done.')); return; }
-    if (learn.feed(Array.from(g.axes), performance.now())) { stepText = STEPS[learn.step]; step.textContent = t(stepText); }
+    const pads = allPads();
+    const more = beside.map(b => {
+      const p = pads.find(q => !!q?.connected && q.index === b.index && q.id === b.id);
+      return p && p.axes.length === b.n ? Array.from(p.axes) : Array<number>(b.n).fill(0);
+    });
+    if (learn.feed(Array.from(g.axes), performance.now(), more)) { stepText = STEPS[learn.step]; step.textContent = t(stepText); }
     fill.style.width = `${Math.round(learn.progress * 100)}%`;
     if (learn.step === 'done') {
       saveMap(id, learn.map());
@@ -163,7 +170,11 @@ export function wheelSection(pad: HTMLElement, cap: (xb: string, ps: string) => 
     id = g.id;
     index = g.index;
     const info = wheelOf(g.id)!;
-    learn = new WheelLearn(loadMap(g.id) ?? guessMap(info, Array.from(g.axes), g.buttons.length));
+    const pads = allPads();
+    // Non-standard controllers besides the wheel may be separate USB pedals; keep their axis order stable while learning.
+    beside = pads.filter(p => !!p?.connected && p.index !== g.index && p.mapping !== 'standard' && !wheelOf(p.id))
+      .map(p => ({ index: p!.index, id: p!.id, n: p!.axes.length }));
+    learn = new WheelLearn(loadMap(g.id) ?? guessMap(info, Array.from(g.axes), g.buttons.length), beside.map(p => p.id));
     stateText = '';
     stepText = STEPS.rest;
     step.textContent = t(stepText);

@@ -1488,5 +1488,6 @@
   "{name} invites you to crew \"{crew}\"": "{name} seni \"{crew}\" ekibine davet ediyor",
   "Joined crew \"{crew}\"": "\"{crew}\" ekibine katıldın",
   "Crew invitation declined": "Ekip daveti reddedildi",
-  "The Free Roam session is no longer active.": "Serbest dolaşım oturumu artık etkin değil."
+  "The Free Roam session is no longer active.": "Serbest dolaşım oturumu artık etkin değil.",
+  "Separate USB pedals are supported; connect them before setting up the wheel.": "Ayrı USB pedal setleri desteklenir; direksiyon kalibrasyonundan önce pedalları bağla."
 }
