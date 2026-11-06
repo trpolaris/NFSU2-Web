@@ -30,8 +30,10 @@
 +0    dump photo_orbit
 +0    photo free
 +0    photo speed 2                            # twice the default camera translation speed
++0    photo level 1                            # forward now stays level even while looking up/down
 +0    photo move 0 1
 +30   photo move 0 0
++0    photo level 0                            # restore pitch-aligned movement
 +0    photo speed 1                            # restore the default
 +10   dump photo_free
 +0    photo off
