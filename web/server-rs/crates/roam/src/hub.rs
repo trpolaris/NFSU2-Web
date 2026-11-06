@@ -1096,11 +1096,13 @@ impl Hub {
             .filter_map(|owner| self.players().find(|p| p.owner.as_ref().is_some_and(|o| o.as_ref() == owner.as_ref())).map(|p| p.vip))
             .filter(|&other_vip| other_vip != vip)
             .collect();
+        let mut touched = vec![vip];
         for old in previous.iter().filter(|old| !owners.iter().any(|new| new.as_ref() == old.as_ref())) {
             if let Some(other_vip) = self.players().find(|p| p.owner.as_ref().is_some_and(|o| o.as_ref() == old.as_ref())).map(|p| p.vip) {
                 if let Some(list) = self.friends.get_mut(&other_vip) {
                     list.retain(|owner| owner.as_ref() != me.as_ref());
                 }
+                touched.push(other_vip);
             }
         }
         if owners.is_empty() {
@@ -1108,13 +1110,16 @@ impl Hub {
         } else {
             self.friends.insert(vip, owners);
         }
+        touched.extend(theirs.iter().copied());
         for other_vip in &theirs {
             let list = self.friends.entry(*other_vip).or_default();
             if !list.iter().any(|o| o.as_ref() == me.as_ref()) && list.len() < FRIENDS_MAX {
                 list.push(me.clone());
             }
         }
-        for v in std::iter::once(vip).chain(theirs) {
+        touched.sort_unstable();
+        touched.dedup();
+        for v in touched {
             let list = self.friends.get(&v).cloned();
             for p in self.slots.iter_mut().flatten().filter(|p| p.vip == v) {
                 p.friend_ids = friend_ids(p.owner.as_ref(), list.as_ref());
