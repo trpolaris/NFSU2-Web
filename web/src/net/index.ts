@@ -156,6 +156,8 @@ export interface NetLink {
   /** free roam's crews, changed while the game runs (the page menu): their hashes (players.ts roomHash), in the
    *  player's order, at most 4, and their colours (0x00rrggbb; 0 or none: the place's default) */
   setCrews(hashes: readonly number[], rgbs?: readonly number[]): void;
+  /** Change the live Free Roam room; false if no compatible mailbox is attached. */
+  setRoom(name: string): boolean;
   close(): void;
 }
 
@@ -351,6 +353,9 @@ class Link implements NetLink {
   private crews: number[] = [];
   private crewsRgb: number[] = [];
   private crewsGen = 0;
+  /** UTF-8 room bytes and generation published to the Free Roam mailbox */
+  private room = new Uint8Array(0);
+  private roomGen = 0;
   /** the switch's peer list (the online host on it too), as its last whole list and the changes since made it */
   private peerMap = new Map<number, { name: string; server: boolean }>();
   private peerVips = new Set<number>();
@@ -388,7 +393,7 @@ class Link implements NetLink {
     const ep = new Endpoint(name, ver, buf, r.ptr, r.size);
     if (name === 'roam') this.roam = ep; else this.lan = ep;
     if (name === 'roam' && this.solid) Atomics.store(ep.i32, P.W_SOLID, this.solid);
-    if (name === 'roam') this.publishCrews(ep);
+    if (name === 'roam') { this.publishCrews(ep); this.publishRoom(ep); }
     if (name === 'lan') this.log('LAN play attached (the game opened its LAN screens)');
     this.publishPeers(ep);
     if (this.state === 'online') this.publishOnline(ep);
@@ -549,6 +554,30 @@ class Link implements NetLink {
     for (let i = 0; i < P.CREW_WORDS; i++) Atomics.store(ep.i32, P.W_CREWS + i, (this.crews[i] ?? 0) | 0);
     for (let i = 0; i < P.CREW_WORDS; i++) Atomics.store(ep.i32, P.W_CREWS_RGB + i, this.crewsRgb[i] ?? 0);
     Atomics.store(ep.i32, P.W_CREWS_GEN, this.crewsGen | 0);
+  }
+  setRoom(name: string): boolean {
+    let bytes = new TextEncoder().encode(name);
+    if (bytes.length > P.ROOM_BYTES) {
+      let end = P.ROOM_BYTES;
+      while (end > 0 && (bytes[end] & 0xc0) === 0x80) end--;
+      bytes = bytes.slice(0, end);
+    }
+    this.room = bytes;
+    this.roomGen = (this.roomGen + 1) >>> 0 || 1;
+    const compatible = !!this.roam && this.roam.i32.length >= P.W_ROOM_NAME + P.ROOM_WORDS;
+    if (compatible) this.publishRoom(this.roam!);
+    this.log(`room: ${bytes.length ? 'changed' : 'none'} (the page)`);
+    return compatible;
+  }
+  /** Name words first, generation last: the game ignores a partial concurrent write. */
+  private publishRoom(ep: Endpoint) {
+    if (!this.roomGen || ep.i32.length < P.W_ROOM_NAME + P.ROOM_WORDS) return;
+    for (let i = 0; i < P.ROOM_WORDS; i++) {
+      let word = 0;
+      for (let k = 0; k < 4; k++) word |= (this.room[4 * i + k] ?? 0) << (8 * k);
+      Atomics.store(ep.i32, P.W_ROOM_NAME + i, word | 0);
+    }
+    Atomics.store(ep.i32, P.W_ROOM_GEN, this.roomGen | 0);
   }
   private connect() {
     if (this.closed) return;
