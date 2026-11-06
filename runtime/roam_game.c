@@ -600,6 +600,13 @@ static int local_cfg(uint8_t *out, int cap, char *tname){
     for (int i = 0; i < 68; i++) if (MR8(ride + 0x340u + (uint32_t)i)) c.perf[2 + (i >> 3)] |= (uint8_t)(0x80u >> (i & 7));
     for (int i = 0; i < 41; i++) c.perf[11 + i] = MR8(ride + 0x398u + (uint32_t)i);
     c.has_perf = 1;
+    /* Carry the game's own rating: remote rides have no physics block from
+     * which another client could calculate this reliably. */
+    { CarPerf pf;
+      if (mprace_car_perf(car, &pf) && pf.rating > 0.f && pf.rating <= 5000.f){
+          c.has_rating = 1; c.rating_cls = (int8_t)pf.cls; c.rating = (uint16_t)(pf.rating + 0.5f);
+      }
+    }
     int horn = rh_horn_mine();                       /* the horn the others hear from this car */
     if (horn >= 0){ c.has_horn = 1; c.horn = (uint8_t)horn; }
     for (uint32_t sl = 0; sl < RC_PART_SLOTS; sl++){
@@ -3636,6 +3643,49 @@ static const char *mp_name(uint32_t id){
     const rc_peer *p = mp_peer(id);
     return p && p->name[0] ? p->name : "a player";
 }
+/* Car ratings are sent in the car-look record. Keep the cache per peer's
+ * config generation so a changed car is picked up without decoding each frame. */
+static struct { uint32_t id, gen; float rating; char car[RC_CFG_TYPE_NAME + 1]; } g_mprt[RC_TABLE];
+static float mp_rating(uint32_t id, const char **name){
+    static float mine;
+    static char mycar[24];
+    static int64_t at;
+    if (name) *name = "";
+    if (id == g_s.conf.self_id){
+        int64_t now = roam_plat_now_us();
+        if (now - at > 1000000 || now < at){
+            CarPerf pf; at = now; mine = 0.f; mycar[0] = 0;
+            if (mprace_car_perf(player_car(), &pf)){
+                mine = pf.rating > 0.f ? pf.rating : 0.f;
+                snprintf(mycar, sizeof mycar, "%s", pf.name);
+            }
+        }
+        if (name) *name = mycar;
+        return mine;
+    }
+    for (int i = 0; i < RC_TABLE; i++){
+        const rc_peer *p = &g_s.peer[i];
+        if (p->state != RC_PS_EST || p->id != id) continue;
+        if (g_mprt[i].id != id || g_mprt[i].gen != p->cfg_gen){
+            static uint8_t buf[RC_CFG_MAX];
+            static rc_carcfg cc;
+            int len;
+            roam_plat_lock();
+            len = p->cfg_len > 0 && p->cfg_len <= RC_CFG_MAX ? p->cfg_len : 0;
+            if (len) memcpy(buf, p->cfg, (size_t)len);
+            g_mprt[i].gen = p->cfg_gen;
+            roam_plat_unlock();
+            g_mprt[i].id = id; g_mprt[i].rating = 0.f; g_mprt[i].car[0] = 0;
+            if (len && rc_carcfg_decode(buf, len, &cc) == RC_OK){
+                snprintf(g_mprt[i].car, sizeof g_mprt[i].car, "%s", cc.type_name);
+                if (cc.has_rating) g_mprt[i].rating = (float)cc.rating;
+            }
+        }
+        if (name) *name = g_mprt[i].car;
+        return g_mprt[i].rating;
+    }
+    return 0.f;
+}
 /* one message about lobby l to `to` (0: the hub); the session lock is ours */
 static void mp_send_of(const MpLobby *l, uint8_t op, uint8_t arg, uint32_t to){
     rc_lobby m; memset(&m, 0, sizeof m);
@@ -4190,16 +4240,41 @@ static void js_race(MpJs *j, uint32_t r){
     uint8_t ty = MR8(r + 0xfu); int laps = MR8(r + 0x1bu), lo = ty == 2 ? 4 : 2;
     if (MR8(r + 0x34u) != 2u && (ty == 0 || ty == 2 || ty == 5) && laps > 1) js_int(j, "laps", laps < lo ? lo : laps > 10 ? 10 : laps);
 }
+#define MP_GAUGE_EVEN 0.85f
 static void js_players(MpJs *j, const MpLobby *l){
     js_key(j, "names"); js_raw(j, "[");
-    int me = -1;
+    int me = -1, trip = l == &g_mp.l && g_mp.st == MP_TRIP;
     for (int i = 0; i < l->n && i < RC_LOBBY_MAX; i++){
         if (i) js_raw(j, ",");
-        js_val(j, l == &g_mp.l && g_mp.st == MP_TRIP ? g_mp.names[i] : mp_name(l->ids[i]));
+        js_val(j, trip ? g_mp.names[i] : mp_name(l->ids[i]));
         if (l->ids[i] == g_s.conf.self_id) me = i;
     }
     js_raw(j, "]");
     js_int(j, "me", me); js_int(j, "max", l->max);
+    /* Include car names and the fastest other car's rating relative to ours,
+     * after applying the same partial engine balancing as the actual race. */
+    if (!trip){
+        float ratings[RC_LOBBY_MAX + 1], top = 0.f;
+        int n = 0, ours = -1;
+        js_key(j, "car"); js_raw(j, "[");
+        for (int i = 0; i < l->n && i < RC_LOBBY_MAX; i++){
+            const char *carname = "";
+            ratings[n] = mp_rating(l->ids[i], &carname);
+            if (l->ids[i] == g_s.conf.self_id) ours = n;
+            if (i) js_raw(j, ",");
+            js_val(j, carname);
+            n++;
+        }
+        js_raw(j, "]");
+        if (ours < 0){ ours = n; ratings[n++] = mp_rating(g_s.conf.self_id, 0); }
+        if (l->race) mprace_even_ratings(ratings, n, race_net_mode(l->race), MP_GAUGE_EVEN);
+        for (int i = 0; i < n; i++) if (i != ours && ratings[i] > top) top = ratings[i];
+        if (ratings[ours] > 0.f && top > 0.f){
+            char ratio[24];
+            snprintf(ratio, sizeof ratio, ",\"vs\":%.2f", (double)(top / ratings[ours]));
+            js_raw(j, ratio);
+        }
+    }
 }
 /* the race's results, once the game showed them (mprace_results, by the LAN names the trip gave the lobby's players):
  * res, the rows in their order, each {n: the player's name, f: 1 finished, t: its time (s) or p: a drift's points,
