@@ -1076,11 +1076,6 @@ impl Hub {
             }
         }
         self.friends.remove(&vip);
-        if !self.per_vip.contains_key(&vip) {
-            return;
-        }
-        let mine: Vec<u32> = self.order.iter().copied().filter(|&s| self.player(s).is_some_and(|p| p.vip == vip)).collect();
-        self.drop_slots(&mine, true);
         if owner.is_some() {
             let changed: Vec<u32> = self.friends.keys().copied().collect();
             for v in changed {
@@ -1090,6 +1085,11 @@ impl Hub {
                 }
             }
         }
+        if !self.per_vip.contains_key(&vip) {
+            return;
+        }
+        let mine: Vec<u32> = self.order.iter().copied().filter(|&s| self.player(s).is_some_and(|p| p.vip == vip)).collect();
+        self.drop_slots(&mine, true);
     }
 
     /// Browser `vip`'s page gives the hub its mutual friends (keyphrases). Friends get a reciprocal
