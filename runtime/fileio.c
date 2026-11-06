@@ -241,6 +241,37 @@ static void vpack_walk(void){
     if (g_vp.n) fprintf(stderr, "file: VINYLPACKS: %d files\n", g_vp.n);
 }
 int fileio_vinyl_packs(void){ vpack_walk(); return g_vp.n; }
+
+/* MODPACKS: community-added game data shared by every client. */
+#define MP_NEEDS_MEMFILE 1u
+#define MP_MEMFILE "global/globalmemoryfile.bin"
+static char g_mroot[1024];
+static struct flist g_mp;
+static int g_mp_walked, g_mp_memfile;
+static void mpack_walk(void){
+    if(g_mp_walked) return;
+    g_mp_walked=1;
+    if(!resolve_in(g_root,"MODPACKS",g_mroot,sizeof g_mroot)){g_mroot[0]=0;return;}
+    lpack_walk(&g_mp,g_mroot,"");
+    qsort(g_mp.f,(size_t)g_mp.n,sizeof *g_mp.f,lfile_cmp);
+    if(g_mp.n) fprintf(stderr,"file: MODPACKS: %d files\\n",g_mp.n);
+}
+int fileio_mod_pack(const char *rel,char *out,size_t outsz){
+    mpack_walk();
+    const struct lfile *e=flist_find(&g_mp,rel);
+    if(!e) return 0;
+    snprintf(out,outsz,"%s/%s",g_mroot,e->rel);
+    return 1;
+}
+static int mpack_resolve(const char *win,char *out,size_t outsz){
+    mpack_walk();
+    const struct lfile *e=flist_find(&g_mp,win);
+    if(!e) return 0;
+    snprintf(out,outsz,"%s/%s",g_mroot,e->rel);
+    static int said;
+    if(said++<8) fprintf(stderr,"  [file] %s: MODPACKS/%s\\n",win,e->rel);
+    return 1;
+}
 /* Read: the write root if the file is there, then the language pack, otherwise the game root. */
 static int resolve(const char *win, char *out, size_t outsz){
     if (g_wroot[0] && !overlay_cannot_have(win)){
@@ -249,7 +280,8 @@ static int resolve(const char *win, char *out, size_t outsz){
             snprintf(out, outsz, "%s", w); return 1; }
     }
     if (lpack_resolve(win, out, outsz)) return 1;
-    return resolve_in(g_root, win, out, outsz);
+    if (resolve_in(g_root, win, out, outsz)) return 1;
+    return mpack_resolve(win, out, outsz);
 }
 /* Write: ALWAYS the write root if there is one. */
 static int resolve_w(const char *win, char *out, size_t outsz){
@@ -421,29 +453,37 @@ static FH *fh_get(uint32_t h){
 }
 int fileio_is_handle(uint32_t h){ return fh_get(h)!=0; }
 int fileio_open_handles(void){ int n = 0; for (int k = 1; k < FH_MAX; k++) n += g_fh[k].used; return n; }
-static int vp_open(FH *f, const char *win, const char *real, int fd){
-    vpack_walk();
-    const struct lfile *e = flist_find(&g_vp, win);
-    if (!e || !path_under(real, g_root) || (g_wroot[0] && path_under(real, g_wroot)) || (g_lroot[0] && path_under(real, g_lroot))) return 0;
-    char p[1100]; uint8_t h[VP_HDR]; struct stat st = {0}, pst = {0};
-    snprintf(p, sizeof p, "%s/%s", g_vroot, e->rel);
-    int fd2 = open(p, O_RDONLY);
-    if (fd2 < 0) return 0;
+/* Resolve a VPAK overlay for an existing game file (vinyl pack first, then mod pack). */
+static int vp_path(const char *win,char *p,size_t psz,const char **dir){
+    vpack_walk(); mpack_walk();
+    const struct lfile *e=flist_find(&g_vp,win);
+    if(e){snprintf(p,psz,"%s/%s",g_vroot,e->rel);if(dir)*dir="VINYLPACKS";return 1;}
+    e=flist_find(&g_mp,win);
+    if(e){snprintf(p,psz,"%s/%s",g_mroot,e->rel);if(dir)*dir="MODPACKS";return 1;}
+    return 0;
+}
+static int vp_open(FH *f,const char *win,const char *real,int fd){
+    char p[1100]; uint8_t h[VP_HDR]; struct stat st={0},pst={0}; const char *dir="";
+    if(!vp_path(win,p,sizeof p,&dir)) return 0;
+    if(!path_under(real,g_root)||(g_wroot[0]&&path_under(real,g_wroot))||
+       (g_lroot[0]&&path_under(real,g_lroot))||(g_mroot[0]&&path_under(real,g_mroot))) return 0;
+    int fd2=open(p,O_RDONLY); if(fd2<0)return 0;
     uint32_t v[8];
-    int fits = pread(fd2, h, VP_HDR, 0) == (ssize_t)VP_HDR && fstat(fd, &st) == 0 && fstat(fd2, &pst) == 0;
-    if (fits){
-        memcpy(v, h, sizeof v);
-        fits = !memcmp(h, "VPAK", 4) && v[1] == 1u && (uint64_t)v[2] == (uint64_t)st.st_size && v[3] <= v[2] &&
-               (uint64_t)VP_HDR + (uint64_t)v[4] + (uint64_t)v[5] <= (uint64_t)pst.st_size;
+    int fits=pread(fd2,h,VP_HDR,0)==(ssize_t)VP_HDR&&fstat(fd,&st)==0&&fstat(fd2,&pst)==0;
+    if(fits){memcpy(v,h,sizeof v);fits=!memcmp(h,"VPAK",4)&&v[1]==1u&&
+      (uint64_t)v[2]==(uint64_t)st.st_size&&v[3]<=v[2]&&
+      (uint64_t)VP_HDR+(uint64_t)v[4]+(uint64_t)v[5]<=(uint64_t)pst.st_size;}
+    if(fits&&dir[0]=='M'&&v[6]==MP_NEEDS_MEMFILE&&!g_mp_memfile){
+      static int waited;if(waited++<4)fprintf(stderr,"  [file] %s: MODPACKS pack waits for GlobalMemoryFile\\n",win);
+      close(fd2);return 0;
     }
-    static int said;
-    if (!fits){
-        if (said++ < 4) fprintf(stderr, "  [file] VINYLPACKS/%s does not fit the game's file (%lld bytes): the game's alone\n", e->rel, (long long)st.st_size);
-        close(fd2); return 0;
-    }
-    f->fd2 = fd2; f->sp_bsize = v[2]; f->sp_cut = v[3]; f->sp_head = v[4];
-    f->size = (int64_t)v[4] + ((int64_t)v[2] - v[3]) + v[5]; f->pos = 0;
-    if (said++ < 4) fprintf(stderr, "  [file] %s: the game's %lld bytes with VINYLPACKS/%s (%u more)\n", win, (long long)st.st_size, e->rel, (unsigned)(f->size - st.st_size));
+    if(!fits){static int bad;if(bad++<4)fprintf(stderr,"  [file] %s/%s does not fit %s (%lld bytes)\\n",dir,p,win,(long long)st.st_size);close(fd2);return 0;}
+    f->fd2=fd2;f->sp_bsize=v[2];f->sp_cut=v[3];f->sp_head=v[4];
+    f->size=(int64_t)v[4]+((int64_t)v[2]-v[3])+v[5];f->pos=0;
+    const char *rel=p+strlen(dir[0]=='V'?g_vroot:g_mroot)+1;
+    if(dir[0]=='M'&&!strcasecmp(rel,MP_MEMFILE))g_mp_memfile=1;
+    static int said_v,said_m;int *n=dir[0]=='V'?&said_v:&said_m;
+    if((*n)++<4)fprintf(stderr,"  [file] %s: %s/%s overlay (%u more)\\n",win,dir,rel,(unsigned)(f->size-st.st_size));
     return 1;
 }
 static ssize_t vp_pread(FH *f, uint8_t *buf, size_t len, int64_t off){
@@ -663,7 +703,7 @@ int fileio_call(CPU *c, const char *n, uint32_t *out){
                        fstat(fd, &st) == 0 && S_ISREG(st.st_mode)){
                        int64_t size = f->fd2 >= 0 ? f->size : (int64_t)st.st_size;
                        char p2[1100] = "";
-                       if (f->fd2 >= 0){ const struct lfile *e = flist_find(&g_vp, GS(pn)); if (e) snprintf(p2, sizeof p2, "%s/%s", g_vroot, e->rel); }
+                       if (f->fd2 >= 0 && !vp_path(GS(pn), p2, sizeof p2, 0)) p2[0] = 0;
                        int i = (f->fd2 < 0 || p2[0]) ? gf_add(GS(pn), real, size) : -1;
                        if (i >= 0 && f->fd2 >= 0 && !g_gf[i].real2 && (g_gf[i].real2 = strdup(p2))){
                            g_gf[i].cut = f->sp_cut; g_gf[i].head = f->sp_head; g_gf[i].bsize = f->sp_bsize; }
