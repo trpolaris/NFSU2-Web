@@ -416,7 +416,7 @@ pub struct Whereabouts {
 fn friend_id(a: &str, b: &str) -> u32 {
     let (lo, hi) = if a <= b { (a, b) } else { (b, a) };
     let mut h: u32 = 0x811C_9DC5;
-    for &c in lo.as_bytes().iter().chain(b"\\0").chain(hi.as_bytes()) {
+    for &c in lo.as_bytes().iter().chain(b"\0").chain(hi.as_bytes()) {
         h = (h ^ c as u32).wrapping_mul(0x0100_0193);
     }
     h.max(1)
@@ -702,6 +702,7 @@ impl Hub {
             return;
         };
         let k = key(from, sport);
+        let page_friends = self.friends.get(&from).cloned();
         let found = self.by_key.get(&k).copied();
         if let Msg::Bye = m {
             if found.is_some() {
@@ -744,7 +745,7 @@ impl Hub {
                     watch: Watch::new((self.now)()),
                     at: 0,
                     owner: owner.cloned(),
-                    friend_ids: friend_ids(owner, self.friends.get(&from)),
+                    friend_ids: friend_ids(owner, page_friends.as_ref()),
                     impostor: false,
                     checked: 0,
                     seen_claim: f64::NEG_INFINITY,
@@ -754,7 +755,6 @@ impl Hub {
         };
         let now = (self.now)();
         let degree = self.o.degree;
-        let page_friends = self.friends.get(&from).cloned();
         let Some(Some(p)) = self.slots.get_mut(slot as usize) else { return };
         p.seen = now;
         p.hub_port = dport;
@@ -1066,7 +1066,7 @@ impl Hub {
         self.blocks.remove(&vip);
         self.room_names.remove(&vip);
         let owner = self.players().find(|p| p.vip == vip).and_then(|p| p.owner.clone());
-        if let Some(owner) = owner {
+        if let Some(owner) = owner.as_ref() {
             for list in self.friends.values_mut() {
                 list.retain(|f| f.as_ref() != owner.as_ref());
             }
@@ -1077,7 +1077,7 @@ impl Hub {
         }
         let mine: Vec<u32> = self.order.iter().copied().filter(|&s| self.player(s).is_some_and(|p| p.vip == vip)).collect();
         self.drop_slots(&mine, true);
-        if let Some(owner) = owner {
+        if owner.is_some() {
             let changed: Vec<u32> = self.friends.keys().copied().collect();
             for v in changed {
                 let list = self.friends.get(&v).cloned();
@@ -1091,10 +1091,18 @@ impl Hub {
     /// Browser `vip`'s page gives the hub its mutual friends (keyphrases). Friends get a reciprocal
     /// entry so the two players can be linked first on the next tick.
     pub fn friends(&mut self, vip: u32, me: Arc<str>, owners: Vec<Arc<str>>) {
+        let previous = self.friends.get(&vip).cloned().unwrap_or_default();
         let theirs: Vec<u32> = owners.iter()
             .filter_map(|owner| self.players().find(|p| p.owner.as_ref().is_some_and(|o| o.as_ref() == owner.as_ref())).map(|p| p.vip))
             .filter(|&other_vip| other_vip != vip)
             .collect();
+        for old in previous.iter().filter(|old| !owners.iter().any(|new| new.as_ref() == old.as_ref())) {
+            if let Some(other_vip) = self.players().find(|p| p.owner.as_ref().is_some_and(|o| o.as_ref() == old.as_ref())).map(|p| p.vip) {
+                if let Some(list) = self.friends.get_mut(&other_vip) {
+                    list.retain(|owner| owner.as_ref() != me.as_ref());
+                }
+            }
+        }
         if owners.is_empty() {
             self.friends.remove(&vip);
         } else {
