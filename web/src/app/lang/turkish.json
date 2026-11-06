@@ -1435,5 +1435,6 @@
   "This server is currently running for testing only and should not be considered a stable, production-ready service.": "Bu sunucu şu anda yalnızca test amacıyla çalışmaktadır; kararlı ve genel kullanıma hazır bir hizmet olarak değerlendirilmemelidir.",
   "The project is still in development and testing. You may encounter bugs, interruptions, or unexpected behavior in gameplay, multiplayer connections, chat, or website features.": "Proje hâlâ geliştirme ve test aşamasındadır. Oyun, çok oyunculu bağlantılar, sohbet veya web sitesi özelliklerinde hatalar, kesintiler ve beklenmeyen davranışlarla karşılaşabilirsiniz.",
   "By continuing, you acknowledge that you are using a test build.": "Devam ederek test sürümünü kullandığınızı kabul etmiş olursunuz.",
-  "I understand, continue": "Anladım, devam et"
+  "I understand, continue": "Anladım, devam et",
+  "Auto turn": "Otomatik döndürme"
 }
