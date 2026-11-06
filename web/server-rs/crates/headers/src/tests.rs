@@ -45,6 +45,8 @@ fn csp_and_policies() {
     // crypto.createHash('sha256').update('x', 'utf8').digest('base64')
     assert_eq!(sha256_source("x"), "sha256-LXEWQrcmsEQBYnyp+6wy9chTD7GQPMTbAiWHF5IaSIE=");
     assert!(permissions_policy().starts_with("gamepad=(self), fullscreen=(self), "));
+    assert!(permissions_policy().contains("hid=(self)"), "WebHID is allowed for explicitly paired Steam controllers");
+    assert!(!permissions_policy().contains("hid=()"), "WebHID is not blocked by the deny list");
     assert!(permissions_policy().ends_with(", window-management=(), xr-spatial-tracking=()"));
     assert_eq!(permissions_policy().split(", ").count(), 27);
 }
