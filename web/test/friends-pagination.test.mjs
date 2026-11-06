@@ -34,11 +34,11 @@ test('F9 Friends roster paginates 20 rows, clamps pages and resets pagination on
     await page.setContent('<main id="friends"></main>');
     const result = await page.evaluate(async bundleUrl => {
       const { FriendsPanel } = await import(bundleUrl);
-      const friends = Array.from({ length: 45 }, (_, index) => ({
+      const allFriends = Array.from({ length: 45 }, (_, index) => ({
         name: `Driver ${index + 1}`,
         where: index % 2 ? 'online' : 'roam',
       }));
-      const lists = { me: 'LocalDriver', friends, asks: [], sent: [], mail: [] };
+      const lists = { me: 'LocalDriver', friends: allFriends.slice(), asks: [], sent: [], mail: [] };
       const root = document.querySelector('#friends');
       new FriendsPanel(root, { room: async () => lists }, () => {}, () => 'Room A');
       await new Promise(resolve => setTimeout(resolve, 0));
@@ -61,6 +61,14 @@ test('F9 Friends roster paginates 20 rows, clamps pages and resets pagination on
       states.push(inspect());
       root.querySelector('[data-friends-prev]').click();
       states.push(inspect());
+
+      // If a refresh shrinks the roster, the current page is clamped to the
+      // new last page rather than leaving an empty list.
+      lists.friends = allFriends.slice(0, 21);
+      await root.querySelector('[data-friends-refresh]').click();
+      await new Promise(resolve => setTimeout(resolve, 0));
+      states.push(inspect());
+      lists.friends = allFriends.slice();
 
       const filter = root.querySelector('[data-friends-filter]');
       filter.value = 'Driver 4';
@@ -89,10 +97,14 @@ test('F9 Friends roster paginates 20 rows, clamps pages and resets pagination on
       previousDisabled: false, nextDisabled: false, empty: '',
     });
     assert.deepEqual(result[4], {
+      rows: 1, first: 'Driver 21', page: '2 / 2', hidden: false,
+      previousDisabled: false, nextDisabled: true, empty: '',
+    });
+    assert.deepEqual(result[5], {
       rows: 7, first: 'Driver 4', page: '1 / 1', hidden: true,
       previousDisabled: true, nextDisabled: true, empty: '',
     });
-    assert.deepEqual(result[5], {
+    assert.deepEqual(result[6], {
       rows: 0, first: '', page: '1 / 1', hidden: true,
       previousDisabled: true, nextDisabled: true, empty: 'Eşleşen arkadaş yok.',
     });
