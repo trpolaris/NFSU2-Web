@@ -207,7 +207,7 @@ impl FriendsRoute {
                             roam.room_name(vip, room.clone());
                         }
                     }
-                    FriendAsk::List
+                    FriendAsk::ListMail
                 }
                 _ => return Self::json(app, q, s, 400, &json!({ "error": "invalid" })).await,
             }
