@@ -84,6 +84,8 @@ export interface NetOptions {
   onLobby?: (json: string) => void;
   /** quick chat from the game (NET_KIND_SAY): a phrase said, by a friend or the player, as JSON */
   onSay?: (json: string) => void;
+  /** front bumpers with a Free Roam friend touched for 3 s or parted (NET_KIND_FRIEND) */
+  onBump?: (json: string) => void;
   /** typed FreeRoam room or Crew chat, relayed by the hub as JSON */
   onChat?: (json: string) => void;
   /** server-side friend message/request/invite notification */
@@ -796,6 +798,8 @@ class Link implements NetLink {
       } else if (dv.getUint32(s + P.S_KIND, true) === P.NET_KIND_SAY) {
         // quick chat: the same
         if (len <= P.NET_MAX_PAYLOAD) this.o.onSay?.(new TextDecoder().decode(ep.u8.slice(s + P.S_DATA, s + P.S_DATA + len)));
+      } else if (dv.getUint32(s + P.S_KIND, true) === P.NET_KIND_FRIEND) {
+        if (len <= P.NET_MAX_PAYLOAD) this.o.onBump?.(new TextDecoder().decode(ep.u8.slice(s + P.S_DATA, s + P.S_DATA + len)));
       } else if (open && len <= P.NET_MAX_PAYLOAD) {
         const f = new Uint8Array(P.F_DATA + len), fv = new DataView(f.buffer), dst = dv.getUint32(s + P.S_DST_IP, true);
         f[P.F_KIND] = dv.getUint32(s + P.S_KIND, true);
