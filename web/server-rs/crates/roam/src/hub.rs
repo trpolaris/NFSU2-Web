@@ -47,6 +47,19 @@ const MAP_TOL_H: u8 = 32;
 const MAP_KEEP_MS: f64 = 10_000.0;
 const MAP_LOBBIES_GAP_MS: f64 = 1000.0;
 const MAPD_MAX: usize = wire::MAPD_PARTS * (wire::MAPD_BYTES / wire::MAPD_PLACE);
+/// NEARD: one datagram, at most 128 nearby players within the requested radius.
+const NEAR_MAX: usize = wire::MAPD_BYTES / wire::MAPD_PLACE;
+const NEAR_M: f64 = 1000.0;
+const NEAR_TOL_M: f64 = 2.0;
+const NEAR_TOL_H: u8 = 8;
+const NEAR_CELL_M: f64 = 128.0;
+const NEAR_SLACK_M: f64 = 64.0;
+const NEAR_KEEP_M: f64 = 120.0;
+const NEAR_CANDS_MS: f64 = 1000.0;
+const NEAR_MOVE_M: f64 = 40.0;
+const NEAR_FIRST: i32 = 2;
+const NEAR_BUSY_LOW: f64 = 0.6;
+const NEAR_BUSY_HIGH: f64 = 0.75;
 
 #[derive(Clone, Copy)]
 struct MapCand {
@@ -56,11 +69,18 @@ struct MapCand {
 struct MapSent {
     slot: u32, id: u32, x: i16, y: i16, heading: u8, vx: i8, vy: i8, t: f64,
 }
+/// One room's grid of free-roam players, sorted by room and cell for local NEARD queries.
+struct NearGrid { at: f64, keys: Vec<(u32,i32,i32)>, items: Vec<NearItem>, pos: Vec<u32> }
+#[derive(Clone, Copy)]
+struct NearItem { slot:u32, x:f32, y:f32, vx:f32, vy:f32, left:f32 }
+
 #[derive(Default)]
 struct MapHeld {
     held: Option<(u16, Vec<MapSent>)>,
     sent: Option<(u16, Vec<MapSent>)>,
     at: f64,
+    cands: Vec<u32>,
+    cands_of: Option<(f64,u32,u16,u16,f64,f64)>,
 }
 
 /// an advert older than this is a lobby gone (its host sends one every second)
@@ -514,6 +534,10 @@ pub struct Hub {
     maps: HashMap<u32, MapHeld>,
     lobbies_at: HashMap<u32, f64>,
     map_cands: HashMap<u32, Vec<MapCand>>,
+    near_at: HashMap<u32,f64>,
+    nears: HashMap<u32,MapHeld>,
+    near_grid: Option<NearGrid>,
+    near_found: Vec<(u32,u32)>,
     s: Scratch,
     /// the claimed names (nfsu2-claims): a player under another keyphrase's name plays alone; None: any name is anyone's
     claims: Option<Arc<nfsu2_claims::Claims>>,
