@@ -4,7 +4,10 @@
 
 use std::sync::Arc;
 
+use bytes::Bytes;
 use nfsu2_claims::{Claims, owner_of_token};
+use nfsu2_lan::LanSwitch;
+use nfsu2_roam::RoamHub;
 use nfsu2_headers::Cache;
 use nfsu2_http::{Request, Response};
 use nfsu2_online::{FriendAsk, FriendReply, OnlineHost};
@@ -22,6 +25,8 @@ const MAX_NAME: usize = 64;
 pub struct FriendsRoute {
     online: Arc<OnlineHost>,
     claims: Arc<Claims>,
+    lan: Arc<LanSwitch>,
+    roam: Option<Arc<RoamHub>>,
     reads: Rate,
     asks: Rate,
     messages: Rate,
@@ -29,10 +34,21 @@ pub struct FriendsRoute {
 }
 
 impl FriendsRoute {
-    pub fn new(online: Arc<OnlineHost>, claims: Arc<Claims>) -> FriendsRoute {
+    pub fn new(online: Arc<OnlineHost>, claims: Arc<Claims>, lan: Arc<LanSwitch>, roam: Option<Arc<RoamHub>>) -> FriendsRoute {
+        // If a friend is not in EA Messenger, deliver its page message to every open game page for that keyphrase.
+        let (mail_lan, mail_claims) = (lan.clone(), claims.clone());
+        online.page_mail(Box::new(move |to, message| {
+            let Some(owner) = mail_claims.holder(to, nfsu2_util::now_ms() as i64) else { return false };
+            let value = json!({ "t": "friend", "op": "mail", "from": message.from, "body": message.body, "at": message.t });
+            let data = Bytes::from(nfsu2_util::json::stringify(&value));
+            mail_lan.vips_of_owner(&owner).into_iter()
+                .fold(false, |sent, vip| mail_lan.send_text(vip, data.clone()) || sent)
+        }));
         FriendsRoute {
             online,
             claims,
+            lan,
+            roam,
             reads: Rate::new(READ_BURST, READ_RATE),
             asks: Rate::new(5.0, 1.0 / 30.0),
             messages: Rate::new(3.0, 1.0),
@@ -45,11 +61,42 @@ impl FriendsRoute {
         (t.len() == 43 && t.bytes().all(|c| c.is_ascii_alphanumeric() || c == b'-' || c == b'_')).then_some(t)
     }
 
-    fn page_json(r: FriendReply) -> Value {
-        let friends: Vec<Value> = r.friends.into_iter().map(|f| {
+    fn update_hub(&self, owner: &Arc<str>, reply: &FriendReply) {
+        let Some(me) = reply.me.as_ref() else { return };
+        let now = nfsu2_util::now_ms() as i64;
+        let owners: Vec<Arc<str>> = reply.friends.iter()
+            .filter(|f| f.mutual)
+            .filter_map(|f| self.claims.holder(&f.name, now))
+            .collect();
+        if let Some(roam) = &self.roam {
+            for vip in self.lan.vips_of_owner(owner) {
+                roam.friends(vip, owner.clone(), owners.clone());
+            }
+        }
+        let _ = me;
+    }
+
+    async fn page_json(&self, r: FriendReply) -> Value {
+        let names: Vec<Option<Arc<str>>> = r.friends.iter().map(|f| {
+            if f.mutual { self.claims.holder(&f.name, nfsu2_util::now_ms() as i64) } else { None }
+        }).collect();
+        let found: Vec<Arc<str>> = names.iter().flatten().cloned().collect();
+        let mut places = match &self.roam {
+            Some(roam) => roam.whereabouts(found).await.ok().unwrap_or_default().into_iter(),
+            None => Vec::new().into_iter(),
+        };
+        let friends: Vec<Value> = r.friends.into_iter().zip(names).map(|(f, owner)| {
+            let where_ = owner.and_then(|_| places.next().flatten());
             let mut row = serde_json::Map::new();
             row.insert("name".into(), f.name.into());
-            row.insert("where".into(), if f.mutual && f.online { "online" } else { "" }.into());
+            row.insert("where".into(), if where_.is_some() { "roam" } else if f.mutual && f.online { "online" } else { "" }.into());
+            if let Some(place) = where_ {
+                if place.room == 0 {
+                    row.insert("room".into(), "".into());
+                } else if let Some(name) = place.room_name {
+                    row.insert("room".into(), name.into());
+                }
+            }
             if f.mutual {
                 if let Some(contact) = f.contact { row.insert("contact".into(), contact.into()); }
             }
@@ -155,8 +202,9 @@ impl FriendsRoute {
                 _ => return Self::json(app, q, s, 400, &json!({ "error": "invalid" })).await,
             }
         };
-        let result = self.query(owner, group, ask).await;
-        let value = Self::page_json(result);
+        let result = self.query(owner.clone(), group, ask).await;
+        self.update_hub(&owner, &result);
+        let value = self.page_json(result).await;
         Self::json(app, q, s, 200, &value).await
     }
 
