@@ -74,6 +74,13 @@ This branch ports compatible changes from `th0mk/nfsu2-web` into TRPOLARIS while
 - Auto turn starts off every time Photo Mode opens. Reset, R, and controller X reset the camera and disable auto-turn; double-clicking the slider also stops it.
 - Added a TypeScript range/dead-zone test and extended the Quick Race photo-mode script to cover clockwise/counter-clockwise turning, stop, and Reset. The live game script still needs execution.
 
+### Steam Controller and Steam Deck through WebHID
+- Added the upstream WebHID reader for the 2015 Steam Controller (USB/dongle), 2026 Steam Controller and Steam Deck, including their button/axis maps, lizard-mode handoff and supported rumble behavior.
+- PadPoller now sees browser gamepads and permitted Valve WebHID devices through one indexed allPads() list. Controller selection, family naming, controller detection and steering-wheel/pedal setup all use that combined list.
+- Added a connect action and connection status beneath the existing controller-family selector, shown only where WebHID is available; the rest of the panel layout is unchanged.
+- Allowed the page's own WebHID permission in the server Permissions-Policy. Other device APIs remain disabled.
+- Added parser, mapping, connection lifecycle, focus/lizard-mode, dongle and rumble tests in web/test/steampad.test.mjs. Real controller hardware is not attached to CI, so pairing and rumble still need a browser/hardware check.
+
 ## Not yet integrated / requires coordinated work
 
 - **Friends UI and API:** the 250-entry server capacity is in place, but start-page pagination/filtering, F9 request management, friend/crew invites, Discord names and online/offline roster UI still need to be wired to the existing Buddy service and custom React/F9 components.
