@@ -305,7 +305,7 @@ fn sanitize(o: RoamOptions) -> RoamOptions {
         away_m: f(o.away_m, d.away_m),
         view_m: f(o.view_m, d.view_m),
         // (one answer is three datagrams at most)
-        map_max: n(o.map_max, d.map_max).min(wire::MAP_PER * 3),
+        map_max: n(o.map_max, d.map_max).min(MAPD_MAX),
         map_gap_ms: f(o.map_gap_ms, d.map_gap_ms),
         map_fresh_ms: f(o.map_fresh_ms, d.map_fresh_ms),
     }
