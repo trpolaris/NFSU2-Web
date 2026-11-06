@@ -50,6 +50,7 @@ import { privacy, SCRUB_NOTE } from './privacy';
 import { SavesPanel } from './saves-ui';
 import { saveScreenshot } from './shots';
 import { forgetLink, VaultPanel } from './vault-ui';
+import { FriendsApi, FriendsPanel } from './friends';
 import { Radio, MODES, radioWasOn, type Mode } from '../radio';
 import { canPickMusic, pickMusic } from '../radio-folder';
 import { RadioLink } from './radio-link';
@@ -174,6 +175,7 @@ let settings: SettingsService;
 let players: { now(): void; last(): PlayerCounts | null; fresh(ms: number): Promise<PlayerCounts | null> } | null = null;
 let saves: SavesPanel;
 let vault: VaultPanel;
+let friendsPanel: FriendsPanel;
 /** the claimed names (claim.ts), and the line under Your name (claim-ui.ts) */
 let claims: NameClaims;
 let nameRow: NameRow;
@@ -1227,6 +1229,7 @@ function openMenu() {
     });
   }
   $('#stage').classList.add('cursor');
+  void friendsPanel.refresh();
   selectMenuTab(m.dataset.activeTab || 'chat');
   m.showModal();
 }
@@ -1244,6 +1247,7 @@ function selectMenuTab(name: string) {
   for (const page of m.querySelectorAll<HTMLElement>('[data-menu-page]')) {
     page.hidden = page.dataset.menuPage !== name;
   }
+  if (name === 'multiplayer') void friendsPanel.refresh();
 }
 
 /** The menu's chat sliders change only this browser's HUD presentation, not game/network settings. */
@@ -1753,7 +1757,7 @@ export async function boot() {
   players = watchPlayers((line, crews) => { settings.setStatus(line); settings.setCrewCounts(crews); window.dispatchEvent(new Event('trp-settings-changed')); }, () => !session && !starting, setReach,
     () => { const e = resolved().env; return e.NFSU2_ROAM === '1' ? e.NFSU2_ROAM_ROOM ?? '' : ''; },
     () => crewList(resolved().env.NFSU2_ROAM_CREW ?? '').map(roomHash));
-  window.addEventListener('online', () => players?.now());
+  window.addEventListener('online', () => { players?.now(); if ($('#menu').open) void friendsPanel.refresh(); });
   window.addEventListener('resize', placeNotices);
   window.addEventListener('resize', placeLobby);
   download = new Predownload(s => saves.showData(s), logLine, () => language(), () => texpack());
@@ -1819,6 +1823,7 @@ export async function boot() {
     putBack: () => vault.putBackFromReact(),
   };
   window.dispatchEvent(new Event('trp-vault-ready'));
+  friendsPanel = new FriendsPanel($('#friends-panel'), new FriendsApi(() => vault ? vault.token() : Promise.resolve(null)), logLine);
   $<HTMLButtonElement>('#play').onclick = () => void play();
   $<HTMLButtonElement>('#retry').onclick = () => void loadModule();
   $<HTMLButtonElement>('#reload').onclick = () => void reload();
