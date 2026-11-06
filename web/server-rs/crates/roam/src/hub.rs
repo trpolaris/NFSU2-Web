@@ -1243,8 +1243,8 @@ impl Hub {
             lobby_pairs(&self.slots, &list, now, s);
             block_pairs(&self.slots, &list, &self.blocks, s);
             self.apart.extend(s.bpairs.iter().map(|&(a, b)| (list[a as usize], list[b as usize])).map(|(x, y)| (x.min(y), x.max(y))));
-            // (no player in a crew, nothing to look for)
-            if self.crewed > 0 {
+            // Friends are represented as two-player groups in crew_pairs, even when nobody is in a named crew.
+            if self.crewed > 0 || !self.friends.is_empty() {
                 crew_skips += crew_pairs(&self.slots, &list, &w, s);
             } else {
                 s.cpairs.clear();
