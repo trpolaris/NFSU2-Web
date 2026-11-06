@@ -1070,7 +1070,12 @@ impl Hub {
         self.room_names.remove(&vip);
         let owner = self.friend_owner.remove(&vip)
             .or_else(|| self.players().find(|p| p.vip == vip).and_then(|p| p.owner.clone()));
-        if let Some(owner) = owner.as_ref() {
+        // One claimed-name account may have several open game pages. Removing one tab must not
+        // erase the reciprocal friendships still used by its other tabs.
+        let owner_has_other_page = owner.as_ref().is_some_and(|owner| {
+            self.friend_owner.values().any(|other| other.as_ref() == owner.as_ref())
+        });
+        if let Some(owner) = owner.as_ref().filter(|_| !owner_has_other_page) {
             for list in self.friends.values_mut() {
                 list.retain(|f| f.as_ref() != owner.as_ref());
             }
