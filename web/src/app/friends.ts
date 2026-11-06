@@ -233,6 +233,14 @@ export class FriendsPanel {
     return li;
   }
 
+  /** a friend notification delivered over the game's LAN websocket */
+  server(message: Record<string, unknown>) {
+    if (message.op !== 'mail' || typeof message.from !== 'string' || typeof message.body !== 'string') return;
+    const at = typeof message.at === 'number' ? message.at : Date.now();
+    this.keepMail([{ from: message.from, body: message.body, t: at }]);
+    if (this.root.isConnected) this.setNote(`Yeni arkadaş mesajı: ${message.from}`);
+  }
+
   private keepMail(mail: FriendLists['mail']) {
     for (const item of mail) {
       const key = `${item.from.toLowerCase()}|${item.t}|${item.body}`;
