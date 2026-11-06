@@ -44,6 +44,13 @@ This branch ports compatible changes from `th0mk/nfsu2-web` into TRPOLARIS while
 - The way back from a race also closes these detour screens before returning to the career.
 - Added `tests/scripts/mprace_lobby_b_detour.txt` as a two-client manual regression scenario paired with `mprace_lobby_a.txt`. It must be exercised against a seeded career and live multiplayer session; it is not an automated CI pass.
 
+### Remote vehicle tyre smoke and nitrous effects
+- Remote cars are deliberately outside the game's normal car index, so the world's normal effect step skipped their tyre smoke, dirt and nitrous particles.
+- Remote poses now populate the wheel-contact flags from received slip data and call the game's native `0x5F5730` effects routine for visible, unindexed cars while the local world is running.
+- The previous hand-written nitrous flame/purge call has been removed; the native effect routine handles both tyre and nitrous effects from the car's received state.
+- When a peer is paused or its interpolated pose is held, nitrous and wheel slip are cleared so an absent final network snapshot cannot leave smoke or nitrous effects stuck.
+- Added `mp waitsmoke` as a test assertion and updated the paired `roam_mp_drift_a.txt` / `roam_mp_drift_b.txt` manual scenario to check that effects appear while drifting and stop after braking. This still needs a real two-client game-session run.
+
 ## Not yet integrated / requires coordinated work
 
 - **Friends UI and API:** the 250-entry server capacity is in place, but start-page pagination/filtering, F9 request management, friend/crew invites, Discord names and online/offline roster UI still need to be wired to the existing Buddy service and custom React/F9 components.
