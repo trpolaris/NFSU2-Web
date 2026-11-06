@@ -179,6 +179,8 @@ struct Player {
     at: u32,
     /// the keyphrase its page plays with (nfsu2-claims' owner: its hello to the switch named it), if any
     owner: Option<Arc<str>>,
+    /// friendships of its owner that are mutual on both Buddy lists; each id is shared with the friend
+    friend_ids: Vec<u32>,
     /// its name is claimed by another keyphrase (nfsu2-claims): it gets no links, shows on no map and counts nowhere,
     /// as of the claims' `generation` in `checked` (0: not looked at yet)
     impostor: bool,
@@ -403,6 +405,37 @@ fn apart(soon: &[[f64; 3]], ahead: &[[f64; 3]], view: &[[f64; 3]], i: usize, j: 
     distance(&soon[i], &soon[j]).min(distance(&ahead[i], &ahead[j])).min(distance(&view[i], &soon[j])).min(distance(&view[j], &soon[i]))
 }
 
+/// A claimed friend playing in Free Roam now; None means the keyphrase is not in a live, non-impostor game.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Whereabouts {
+    pub room: u32,
+    pub room_name: Option<String>,
+}
+
+/// The id of a mutual friendship of two keyphrases, identical at either end.
+fn friend_id(a: &str, b: &str) -> u32 {
+    let (lo, hi) = if a <= b { (a, b) } else { (b, a) };
+    let mut h: u32 = 0x811C_9DC5;
+    for &c in lo.as_bytes().iter().chain(b"\\0").chain(hi.as_bytes()) {
+        h = (h ^ c as u32).wrapping_mul(0x0100_0193);
+    }
+    h.max(1)
+}
+
+/// A player's mutual friends as stable ids; one-way names never make priority links.
+fn friend_ids(owner: Option<&Arc<str>>, friends: Option<&Vec<Arc<str>>>) -> Vec<u32> {
+    let (Some(owner), Some(friends)) = (owner, friends) else { return Vec::new() };
+    let mut ids: Vec<u32> = friends.iter()
+        .filter(|other| other.as_ref() != owner.as_ref())
+        .map(|other| friend_id(owner, other))
+        .collect();
+    ids.sort_unstable();
+    ids.dedup();
+    ids
+}
+
+const FRIENDS_MAX: usize = 264;
+
 /// The hub's logic, without its timer (`RoamHub` gives it one).
 pub struct Hub {
     o: RoamOptions,
@@ -427,6 +460,10 @@ pub struct Hub {
     by_key: HashMap<u64, u32>,
     /// per browser (virtual address), the players its page blocks (`blocks`), until it leaves the switch
     blocks: HashMap<u32, Block>,
+    /// each browser's mutual Buddy friends by keyphrase; a friend gets the caller added to its reciprocal list too
+    friends: HashMap<u32, Vec<Arc<str>>>,
+    /// the room names its pages typed, for Friends' Join labels
+    room_names: HashMap<u32, String>,
     /// the pairs of players kept apart at the last tick (`block_pairs`), as slots, the lower first, sorted: the world
     /// map and the lobby list read them between ticks
     apart: Vec<(u32, u32)>,
@@ -480,6 +517,8 @@ impl Hub {
             holes: 0,
             by_key: HashMap::new(),
             blocks: HashMap::new(),
+            friends: HashMap::new(),
+            room_names: HashMap::new(),
             apart: Vec::new(),
             per_vip: HashMap::new(),
             crewed: 0,
@@ -705,6 +744,7 @@ impl Hub {
                     watch: Watch::new((self.now)()),
                     at: 0,
                     owner: owner.cloned(),
+                    friend_ids: friend_ids(owner, self.friends.get(&from)),
                     impostor: false,
                     checked: 0,
                     seen_claim: f64::NEG_INFINITY,
@@ -714,6 +754,7 @@ impl Hub {
         };
         let now = (self.now)();
         let degree = self.o.degree;
+        let page_friends = self.friends.get(&from).cloned();
         let Some(Some(p)) = self.slots.get_mut(slot as usize) else { return };
         p.seen = now;
         p.hub_port = dport;
@@ -749,6 +790,7 @@ impl Hub {
                     p.owner = owner.cloned();
                     p.checked = 0;
                 }
+                p.friend_ids = friend_ids(p.owner.as_ref(), page_friends.as_ref());
                 check = true;
                 p.degree = if core >= 2 { degree } else { degree.min(DEGREE_V1) };
                 p.lobbies = lobbies;
@@ -1022,11 +1064,72 @@ impl Hub {
     /// browser `vip` left the switch
     pub fn peer_gone(&mut self, vip: u32) {
         self.blocks.remove(&vip);
+        self.room_names.remove(&vip);
+        let owner = self.players().find(|p| p.vip == vip).and_then(|p| p.owner.clone());
+        if let Some(owner) = owner {
+            for list in self.friends.values_mut() {
+                list.retain(|f| f.as_ref() != owner.as_ref());
+            }
+        }
+        self.friends.remove(&vip);
         if !self.per_vip.contains_key(&vip) {
             return;
         }
         let mine: Vec<u32> = self.order.iter().copied().filter(|&s| self.player(s).is_some_and(|p| p.vip == vip)).collect();
         self.drop_slots(&mine, true);
+        if let Some(owner) = owner {
+            let changed: Vec<u32> = self.friends.keys().copied().collect();
+            for v in changed {
+                let list = self.friends.get(&v).cloned();
+                for p in self.slots.iter_mut().flatten().filter(|p| p.vip == v) {
+                    p.friend_ids = friend_ids(p.owner.as_ref(), list.as_ref());
+                }
+            }
+        }
+    }
+
+    /// Browser `vip`'s page gives the hub its mutual friends (keyphrases). Friends get a reciprocal
+    /// entry so the two players can be linked first on the next tick.
+    pub fn friends(&mut self, vip: u32, me: Arc<str>, owners: Vec<Arc<str>>) {
+        let theirs: Vec<u32> = owners.iter()
+            .filter_map(|owner| self.players().find(|p| p.owner.as_ref().is_some_and(|o| o.as_ref() == owner.as_ref())).map(|p| p.vip))
+            .filter(|&other_vip| other_vip != vip)
+            .collect();
+        if owners.is_empty() {
+            self.friends.remove(&vip);
+        } else {
+            self.friends.insert(vip, owners);
+        }
+        for other_vip in &theirs {
+            let list = self.friends.entry(*other_vip).or_default();
+            if !list.iter().any(|o| o.as_ref() == me.as_ref()) && list.len() < FRIENDS_MAX {
+                list.push(me.clone());
+            }
+        }
+        for v in std::iter::once(vip).chain(theirs) {
+            let list = self.friends.get(&v).cloned();
+            for p in self.slots.iter_mut().flatten().filter(|p| p.vip == v) {
+                p.friend_ids = friend_ids(p.owner.as_ref(), list.as_ref());
+            }
+        }
+    }
+
+    /// The room name typed by browser `vip`, shown to its friends when they can Join.
+    pub fn room_name(&mut self, vip: u32, name: String) {
+        if name.is_empty() {
+            self.room_names.remove(&vip);
+        } else {
+            self.room_names.insert(vip, name.chars().take(64).collect());
+        }
+    }
+
+    /// Where each claimed friend is playing now (the last tick's live, non-impostor Free Roam players only).
+    pub fn whereabouts(&self, owners: &[Arc<str>]) -> Vec<Option<Whereabouts>> {
+        owners.iter().map(|owner| {
+            self.players().find(|p| p.owner.as_ref().is_some_and(|o| o.as_ref() == owner.as_ref())
+                && matches!(p.status, 2 | 5) && !p.impostor)
+                .map(|p| Whereabouts { room: p.room, room_name: self.room_names.get(&p.vip).cloned() })
+        }).collect()
     }
 
     /// browser `vip`'s page blocks these players, by the name over their car (`Block`): logged, so that the operator
@@ -1561,6 +1664,8 @@ fn crew_pairs(slots: &[Option<Player>], list: &[u32], w: &Weigh, s: &mut Scratch
     for (j, &q) in list.iter().enumerate() {
         if let Some(p) = player(slots, q) {
             cmembers.extend(crews_of(p).map(|c| (c, j as u32)));
+            // A mutual friendship is a two-player crew for link priority.
+            cmembers.extend(p.friend_ids.iter().map(|&friend| (friend, j as u32)));
         }
     }
     // by crew, each crew's players by place (each (crew, place) once: a player's crews are distinct)
