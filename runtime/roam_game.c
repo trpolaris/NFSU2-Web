@@ -2041,7 +2041,9 @@ static uint32_t fe_clone(CPU *c, uint32_t pkg, uint32_t o, const char *name){
     uint32_t dn = rd32(o + 0x30u), d0 = rd32(o + 0x2cu), d1 = rd32(cl + 0x2cu), ty = MR32(o + 0x18u);
     if ((ty == 1u || ty == 2u) && rd32(cl + 0x30u) == dn && dn && dn <= 0x100u && ok(d0, dn) && ok(d1, dn) && d0 != d1)
         memcpy(GPTR(d1), GPTR(d0), dn);
-    uint32_t sa = g_gmem + TAG_SCR + 0x48u;
+    /* GPS's package-owned label may be cloned before free roam's optional g_gmem exists.
+     * Use stack scratch in that case instead of allocating the 512 KB roam heap just for a hash. */
+    uint32_t sa = g_gmem ? g_gmem + TAG_SCR + 0x48u : (c->esp - 0x40u) & ~15u;
     gstr(sa, name, 24);
     MR32(cl + 0x10u) = gcall1(c, FN_FE_HASH, 0, sa);
     uint32_t nx = rd32(o + 4u);
@@ -2055,8 +2057,7 @@ static uint32_t fe_clone(CPU *c, uint32_t pkg, uint32_t o, const char *name){
  * render-object ownership in the same clone path as the multiplayer labels. */
 uint32_t roam_game_clone_hud_text(CPU *c, uint32_t pkg, uint32_t source, const char *name){
     if (!ok(source, 0x70) || rd32(source + 0x18u) != 2u) return 0;
-    gmem_init(c);
-    return g_gmem ? fe_clone(c, pkg, source, name) : 0;
+    return fe_clone(c, pkg, source, name);
 }
 
 /* an image's or a string's colour: its drawing data's first four ints

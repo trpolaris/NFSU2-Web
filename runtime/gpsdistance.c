@@ -111,5 +111,5 @@ void gpsdistance_hud(CPU *c){
         MR32(obj + 0x1cu) |= 2u;
     }
     one(c, 0x50ca50u, 0, obj);
-    if (made) fprintf(stderr, "[gps] distance under the arrow: %s\n", text);
+    if (made) fprintf(stderr, "[gps] distance under the arrow for player 1: %s\n", text);
 }
