@@ -689,6 +689,10 @@ function FriendsDashboardPanel() {
   const visible = matching.slice(currentPage * 20, currentPage * 20 + 20);
 
   useEffect(() => { setPage(0); }, [filter]);
+  useEffect(() => {
+    const pagesNow = Math.max(1, Math.ceil(matching.length / 20));
+    setPage(current => Math.min(current, pagesNow - 1));
+  }, [lists, filter]);
 
   return (
     <motion.section ref={root} className="trp-friends-dashboard-panel"
