@@ -1,6 +1,6 @@
 //! The start page's friend-list API. It uses EA Messenger's existing per-persona lists;
-//! no duplicate friend database is introduced here. Live free-roam location and invitations are
-//! deliberately handled by a later hub/LAN integration step.
+//! no duplicate friend database is introduced here. Friend crew invites are validated against the
+//! mutual EA Messenger list and live RoamHub whereabouts, then delivered over the recipient's LAN pages.
 
 use std::sync::Arc;
 
@@ -20,6 +20,8 @@ const READ_BURST: f64 = 120.0;
 const READ_RATE: f64 = 2.0;
 const MAX_BODY: usize = 4096;
 const MAX_NAME: usize = 64;
+const CREW_LEN: usize = 24;
+const ROOM_BYTES: usize = 63;
 
 /// A limited bridge from same-origin pages to EA Messenger's lists.
 pub struct FriendsRoute {
@@ -31,6 +33,7 @@ pub struct FriendsRoute {
     asks: Rate,
     messages: Rate,
     contacts: Rate,
+    invites: Rate,
 }
 
 impl FriendsRoute {
@@ -53,6 +56,7 @@ impl FriendsRoute {
             asks: Rate::new(5.0, 1.0 / 30.0),
             messages: Rate::new(3.0, 1.0),
             contacts: Rate::new(4.0, 1.0 / 10.0),
+            invites: Rate::new(6.0, 1.0 / 5.0),
         }
     }
 
@@ -116,6 +120,42 @@ impl FriendsRoute {
             "mail": mail,
             "contact": r.contact,
         })
+    }
+
+    /// Invite a mutual friend who is currently in Free Roam to the sender's crew and room.
+    /// The crew name is never persisted or written to the server log.
+    async fn crew_invite(&self, owner: Arc<str>, group: Arc<str>, name: &str, crew: &str, room: &str) -> (FriendReply, &'static str) {
+        let reply = self.query(owner.clone(), group, FriendAsk::List).await;
+        let Some(me) = reply.me.clone() else { return (reply, "claim") };
+        let (crew, room) = (tidy_invite_name(crew), tidy_invite_name(room));
+        let blocked = |value: &str| nfsu2_names::blocked_name(value);
+        if crew.is_empty()
+            || crew.chars().count() > CREW_LEN
+            || room.len() > ROOM_BYTES
+            || blocked(&crew)
+            || (!room.is_empty() && blocked(&room))
+        {
+            return (reply, "name");
+        }
+        let Some(friend) = reply.friends.iter()
+            .find(|f| f.mutual && f.name.eq_ignore_ascii_case(name))
+            .map(|f| f.name.clone())
+        else { return (reply, "none") };
+        let Some(theirs) = self.claims.holder(&friend, nfsu2_util::now_ms() as i64) else {
+            return (reply, "away");
+        };
+        let at = match &self.roam {
+            Some(roam) => roam.whereabouts(vec![theirs.clone()]).await.unwrap_or_default(),
+            None => return (reply, "away"),
+        };
+        if !matches!(at.first(), Some(Some(_))) {
+            return (reply, "away");
+        }
+        let notice = json!({ "t": "friend", "op": "crew", "name": me, "crew": crew, "room": room });
+        let data = Bytes::from(nfsu2_util::json::stringify(&notice));
+        let delivered = self.lan.vips_of_owner(&theirs).into_iter()
+            .fold(false, |any, vip| self.lan.send_text(vip, data.clone()) || any);
+        (reply, if delivered { "sent" } else { "away" })
     }
 
     async fn query(&self, owner: Arc<str>, group: Arc<str>, ask: FriendAsk) -> FriendReply {
@@ -199,6 +239,17 @@ impl FriendsRoute {
                     }
                     FriendAsk::Discord(name)
                 }
+                Some("crew") => {
+                    if !self.invites.take(&owner, "") {
+                        return Self::json(app, q, s, 200, &json!({ "done": "rate" })).await;
+                    }
+                    let crew = b.get("crew").and_then(Value::as_str).unwrap_or("").chars().take(64).collect::<String>();
+                    let room = b.get("room").and_then(Value::as_str).unwrap_or("").chars().take(64).collect::<String>();
+                    let (reply, done) = self.crew_invite(owner, group, &name, &crew, &room).await;
+                    let mut value = self.page_json(reply).await;
+                    value["done"] = done.into();
+                    return Self::json(app, q, s, 200, &value).await;
+                }
                 Some("room") => {
                     let typed = b.get("room").and_then(Value::as_str).unwrap_or("");
                     let room = if typed.trim().is_empty() { String::new() } else { nfsu2_lan::clean_name(typed) };
@@ -223,7 +274,28 @@ impl FriendsRoute {
         self.asks.prune();
         self.messages.prune();
         self.contacts.prune();
+        self.invites.prune();
     }
+}
+
+/// Clean crew and room names without applying the LAN room's display-name fallback:
+/// an empty room must remain the shared/default room, not become "player".
+fn tidy_invite_name(input: &str) -> String {
+    let is_format = |ch: char| matches!(ch,
+        '\u{00ad}' | '\u{0600}'..='\u{0605}' | '\u{061c}' | '\u{06dd}' | '\u{070f}' |
+        '\u{180e}' | '\u{200b}'..='\u{200f}' | '\u{202a}'..='\u{202e}' |
+        '\u{2060}'..='\u{2064}' | '\u{2066}'..='\u{206f}' | '\u{feff}' |
+        '\u{fff9}'..='\u{fffb}'
+    );
+    let mut clean = String::with_capacity(input.len());
+    for ch in input.chars() {
+        if ch.is_whitespace() {
+            if !clean.is_empty() && !clean.ends_with(' ') { clean.push(' '); }
+        } else if !ch.is_control() && !is_format(ch) {
+            clean.push(ch);
+        }
+    }
+    clean.trim_end().to_string()
 }
 
 
