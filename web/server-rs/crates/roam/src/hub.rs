@@ -1154,9 +1154,11 @@ impl Hub {
 
     /// Where each claimed friend is playing now (the last tick's live, non-impostor Free Roam players only).
     pub fn whereabouts(&self, owners: &[Arc<str>]) -> Vec<Option<Whereabouts>> {
+        let now = (self.now)();
         owners.iter().map(|owner| {
             self.players().find(|p| p.owner.as_ref().is_some_and(|o| o.as_ref() == owner.as_ref())
-                && matches!(p.status, 2 | 5) && !p.impostor)
+                && matches!(p.status, 2 | 5) && p.p.is_some()
+                && now - p.pos_at <= self.o.stale_ms && !p.impostor)
                 .map(|p| Whereabouts { room: p.room, room_name: self.room_names.get(&p.vip).cloned() })
         }).collect()
     }
