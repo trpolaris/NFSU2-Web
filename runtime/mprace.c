@@ -275,7 +275,7 @@ static const char *const OL_DETOURS[] = {
     "UI_OLRankings_Monthly.fng", "UI_OLRankings_Personal.fng", "UI_OLEAMessenger.fng",
     "UI_OL_ViewCar.fng", "UI_OLViewCareer.fng", "UI_OL_News.fng"
 };
-#define OL_TRIES 6
+#define OL_TRIES 6 /* bounded recovery: fail explicitly instead of waiting for a vanished host lobby */
 static const char *ol_detour(void){
     for (size_t i = 0; i < sizeof OL_DETOURS / sizeof OL_DETOURS[0]; i++)
         if (on(OL_DETOURS[i])) return OL_DETOURS[i];
