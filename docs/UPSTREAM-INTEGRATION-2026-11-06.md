@@ -126,6 +126,14 @@ This branch ports compatible changes from `th0mk/nfsu2-web` into TRPOLARIS while
 - Added the runtime hook and package-owned HUD text cloning helper. The current fork does not include Split Screen/Co-op, so the port intentionally handles Player 1 only; Player 2–4 support must follow a future co-op integration.
 - Added native C tests for unit formatting, HUD visibility, route state, race hiding, Player 1 filtering and disabled defaults, plus a browser test for the persisted setting.
 
+### Art Factory 28–34 vinyl packs
+
+- Added native game-part support for seven Sha_Do Art Factory designs after Art Factory 27. The original GLOBALB chunk remains unchanged; the runtime gives the game a guarded copy with the seven new entries.
+- Added `VPAK` overlay reads for each car's `VINYLS.BIN`, with base-file and pack-size checks. Without a valid `VINYLPACKS/` pack, the original game file is read unchanged.
+- Added `tools/vinylpacks.py`, native/WASM build wiring, server manifest allow-listing and an install-folder audit entry.
+- Source textures are not bundled. Generate `VINYLPACKS/` from a separately obtained compatible PC mod containing the Japanese-release designs with `python tools/vinylpacks.py "<game folder>" --shado "<mod folder>"`. See `docs/web/VINYLPACKS.md`.
+- Validation script: `tests/scripts/vinylpacks_shop.txt`; real in-game shop validation still requires the game and generated assets.
+
 ## Not yet integrated / requires coordinated work
 
 - **Friends UI/gameplay completion:** the authenticated `/friends` API, F9 panel, direct messaging, RoamHub buddy-priority links, room whereabouts, LAN page-mail notifications, 20-row pagination/filtering, start-page Friends & Crews tab, crew invitations, pending Join/Decline queue, click-to-send bumper-contact FriendPrompt, and safe configurable F shortcut are integrated.
@@ -137,7 +145,7 @@ This branch ports compatible changes from `th0mk/nfsu2-web` into TRPOLARIS while
 - **Photo Mode expansion:** camera paths, scene/picture options, lens effects, higher-resolution output and freeze-time still need a wider runtime/React integration. Auto-turn and movement-speed controls are already ported into the existing simpler TRPOLARIS panel; the remaining controls should be added incrementally without replacing its design.
 - **Co-op/split-screen:** local 2–4 player support spans renderer, memory, controls, career and race systems; it is not a safe file-level copy.
 - **Lobby/Quick Chat:** multi-lobby focus/grouping, stage eligibility, friend/crew invites and countdown messages remain to be ported with tests.
-- **Vinyls/car parts:** Art Factory 28–34, hidden Special vinyls, car-specific filters, unique unlocks and Visual Reputation Remover need their manifests/runtime modules.
+- **Vinyls/car parts:** hidden Special vinyls, car-specific filters, unique unlocks and Visual Reputation Remover still need separate manifests/runtime modules.
 - **Other platform and game fixes:** further phone/browser fixes, synchronized weather, pause-menu save, save recovery, Last.fm/EA Trax, country RTT, and runtime collision/tire-smoke fixes remain under review.
 
 ## Validation status
