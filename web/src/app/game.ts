@@ -33,6 +33,8 @@ export interface SessionOptions {
   lobby?(json: string): void;
   /** free roam: quick chat, a phrase said (by a friend or the player), as JSON from the game */
   say?(json: string): void;
+  /** front-bumper contact with a Free Roam friend, as JSON from the game */
+  bump?(json: string): void;
   /** typed FreeRoam room or Crew chat, relayed by the hub as JSON */
   chat?(json: string): void;
   /** server-to-page friend notifications */
@@ -139,7 +141,7 @@ export class GameSession {
     })).then(i => { s.input = i; });
     if (o.netName !== null)
       void attach('network', () => attachNet(s.proc, {
-        ...common, name: o.netName!, id: o.netId, claim: o.netClaim, block: o.netBlock, notice: o.notice, lobby: o.lobby, say: o.say, chat: o.chat, friend: o.friend, networkReady: o.networkReady, back: o.netBack, queue: o.netQueue, removed: o.netRemoved,
+        ...common, name: o.netName!, id: o.netId, claim: o.netClaim, block: o.netBlock, notice: o.notice, lobby: o.lobby, say: o.say, bump: o.bump, chat: o.chat, friend: o.friend, networkReady: o.networkReady, back: o.netBack, queue: o.netQueue, removed: o.netRemoved,
       })).then(n => { s.net = n; });
     return s;
   }

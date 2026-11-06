@@ -62,6 +62,8 @@ export interface NetOptions extends CommonOptions {
   lobby?: (json: string) => void;
   /** free roam: quick chat, a phrase said (by a friend or the player), as JSON from the game */
   say?: (json: string) => void;
+  /** Free Roam front-bumper contact with a friend, as JSON */
+  bump?: (json: string) => void;
   /** typed FreeRoam room or Crew chat, relayed by the hub as JSON */
   chat?: (json: string) => void;
   /** Free Roam friend notifications delivered by the server */
