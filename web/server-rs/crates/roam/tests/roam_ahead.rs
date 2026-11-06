@@ -1,5 +1,5 @@
 //! What the hub does that the Node server's hub never did: links that look ahead at the cars' speeds, and the world
-//! map's answer (MAPREQ / MAP).
+//! map's answer (MAPREQ / MAP, MAPD).
 
 mod kit;
 
@@ -271,6 +271,142 @@ fn the_world_map_answers_a_browser_once_a_second_whatever_its_endpoints() {
     k.clear();
     k.from(W(0), &mapreq(100, 4));
     assert_eq!(maps(&k).len(), 1);
+}
+
+/// the MAPD datagrams the hub sent since the last clear
+fn mapds(k: &Kit) -> Vec<(u32, Mapd)> {
+    k.sent.lock().iter().filter_map(|(vip, f)| mapd_of(f).map(|m| (*vip, m))).collect()
+}
+
+/// the entries of one MAPD answer, its parts in order (each checked to be of it): (req, base, total, entries)
+fn mapd_answer(k: &Kit) -> (u16, u16, u16, Vec<MapdEntry>) {
+    let m = mapds(k);
+    assert!(!m.is_empty(), "an answer");
+    let (req, base, n, total) = (m[0].1.0, m[0].1.1, m[0].1.3, m[0].1.4);
+    assert!(m.iter().enumerate().all(|(j, (_, x))| (x.0, x.1, x.2 as usize, x.3, x.4) == (req, base, j, n, total)), "one answer's parts");
+    (req, base, total, m.into_iter().flat_map(|(_, x)| x.5).collect())
+}
+
+// a page since MAPD gets what changed since the answer it holds: everyone at first (by slot, with their velocities),
+// then only the players come, gone, or off where the page moved them on at their velocities; from nothing again when
+// the hub has no such answer; one answer a quarter second
+#[test]
+fn the_world_map_sends_what_changed() {
+    let mut k = Kit::new(RoamOptions { degree: 1, ..RoamOptions::default() });
+    for i in 0..8 {
+        join(&mut k, i);
+    }
+    // 0 asks; 1 its link; 2, 3 stand; 4 drives east at 20 m/s, 5 north at 10; 6 drives east, then turns; 7 is to go
+    let at = |i: u32, t: f64| -> ([f64; 3], [f64; 3]) {
+        match i {
+            4 => ([400.0 + 20.0 * t, 0.0, 0.0], [20.0, 0.0, 0.0]),
+            5 => ([500.0, 10.0 * t, 0.0], [0.0, 10.0, 0.0]),
+            6 if t > 0.0 => ([600.0 + 20.0 * t, 15.0, 0.0], [20.0, 0.0, 0.0]),
+            6 => ([600.0, 0.0, 0.0], [20.0, 0.0, 0.0]),
+            _ => ([i as f64 * 100.0, 0.0, 0.0], [0.0; 3]),
+        }
+    };
+    let snaps = |k: &mut Kit, t: f64| {
+        for i in 0..8 {
+            let (p, v) = at(i, t);
+            k.from(W(i), &snap_moving(100 + i, p, v, 0.0, 2));
+        }
+    };
+    snaps(&mut k, 0.0);
+    k.hub.tick();
+    k.clear();
+    k.from(W(0), &mapreq_base(100, 1, 2048, 0));
+    let first = mapd_answer(&k);
+    assert_eq!(
+        first,
+        (
+            1,
+            0,
+            6,
+            vec![
+                (2, Some((200, 0, 0, 0, 0))),
+                (3, Some((300, 0, 0, 0, 0))),
+                (4, Some((400, 0, 0, 20, 0))),
+                (5, Some((500, 0, 0, 0, 10))),
+                (6, Some((600, 0, 0, 20, 0))),
+                (7, Some((700, 0, 0, 0, 0)))
+            ]
+        ),
+        "everyone past itself and its link, by slot"
+    );
+    // a quarter second on: 4 and 5 where the page has them, 6 turned off 15 m, 7 gone, 8 come
+    k.step(250.0);
+    k.from(W(7), &bye(107));
+    join(&mut k, 8);
+    snaps(&mut k, 0.25);
+    k.from(W(8), &snap(108, [-50.0, 0.0, 0.0]));
+    k.hub.tick();
+    k.clear();
+    k.step(100.0);
+    k.from(W(0), &mapreq_base(100, 2, 2048, 1));
+    assert_eq!(mapd_answer(&k), (2, 1, 6, vec![(6, Some((605, 15, 0, 20, 0))), (7, None), (8, Some((-50, 0, 0, 0, 0)))]));
+    // within the quarter second: nothing
+    k.clear();
+    k.step(100.0);
+    k.from(W(0), &mapreq_base(100, 3, 2048, 2));
+    assert!(mapds(&k).is_empty(), "one answer a quarter second");
+    // the page did not take answer 2: it asks from 1 again and gets the same
+    k.clear();
+    k.step(200.0);
+    k.from(W(0), &mapreq_base(100, 4, 2048, 1));
+    let again = mapd_answer(&k);
+    assert_eq!((again.1, again.3.iter().map(|e| e.0).collect::<Vec<_>>()), (1, vec![6, 7, 8]));
+    // an answer the hub does not have: from nothing
+    k.clear();
+    k.step(300.0);
+    k.from(W(0), &mapreq_base(100, 5, 2048, 77));
+    let full = mapd_answer(&k);
+    assert_eq!((full.0, full.1, full.3.len()), (5, 0, 6));
+    // from that one on: what changed since it
+    k.clear();
+    k.step(300.0);
+    k.from(W(0), &mapreq_base(100, 6, 2048, 5));
+    assert_eq!(mapd_answer(&k).1, 5);
+    // a page that asks for fewer gets the nearest, and the others go
+    k.clear();
+    k.step(300.0);
+    k.from(W(0), &mapreq_base(100, 7, 2, 6));
+    let few = mapd_answer(&k);
+    assert_eq!((few.1, few.2), (6, 6));
+    assert_eq!(few.3.iter().filter(|e| e.1.is_some()).count(), 0, "{few:?}");
+    assert_eq!(few.3.iter().filter(|e| e.1.is_none()).map(|e| e.0).collect::<Vec<_>>(), [3, 4, 5, 6], "the nearest, 8 and 2, stay");
+}
+
+// MAPD from nothing for 2048 of 2200: 16 full datagrams; a page before MAPD still gets MAP once a second
+#[test]
+fn the_world_map_sends_2048_in_16_mapd_datagrams() {
+    let mut k = Kit::new(RoamOptions { degree: 1, ..RoamOptions::default() });
+    for i in 0..2200 {
+        join(&mut k, i);
+        k.from(W(i), &snap(100 + i, [i as f64 * 5.0, 0.0, 0.0]));
+    }
+    k.hub.tick();
+    k.clear();
+    k.from(W(0), &mapreq_base(100, 1, 2048, 0));
+    let m = mapds(&k);
+    assert_eq!(m.len(), 16);
+    assert!(m.iter().all(|(_, x)| x.5.len() == 128));
+    let (_, _, total, all) = mapd_answer(&k);
+    assert_eq!((total, all.len()), (2198, 2048));
+    let keys: Vec<u16> = all.iter().map(|e| e.0).collect();
+    assert!(keys.windows(2).all(|w| w[0] < w[1]) && keys[0] <= 2 && keys[2047] <= 2050, "the nearest, by slot");
+    // a quarter second on, nobody moved: one empty datagram
+    k.clear();
+    k.step(300.0);
+    k.from(W(0), &mapreq_base(100, 2, 2048, 1));
+    assert_eq!(mapds(&k).into_iter().map(|(_, x)| (x.0, x.1, x.2, x.3, x.5.len())).collect::<Vec<_>>(), [(2, 1, 0, 1, 0)]);
+    k.clear();
+    k.from(W(1), &mapreq(101, 1));
+    assert_eq!(maps(&k).len(), 3, "MAP to a page before MAPD");
+    k.clear();
+    k.step(300.0);
+    k.from(W(1), &mapreq(101, 2));
+    assert!(maps(&k).is_empty(), "...once a second");
 }
 
 // roam_core asks as the hub reads it, and takes the hub's answer in parts, in any order
