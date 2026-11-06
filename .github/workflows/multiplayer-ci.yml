@@ -85,6 +85,16 @@ jobs:
           mkdir -p out/ci
           cargo test --manifest-path web/server-rs/Cargo.toml --workspace 2>&1 | tee out/ci/rust-tests.log
 
+      - name: Test GPS distance HUD and unit conversion
+        run: |
+          cc -std=c11 -Wall -Wextra -Werror -Iruntime tests/gpsdistance_unit.c -o /tmp/gpsdistance_unit
+          /tmp/gpsdistance_unit
+          cc -std=c11 -D_POSIX_C_SOURCE=200809L -Wall -Wextra -Werror -Iruntime tests/gpsdistance_hud_unit.c -lm -o /tmp/gpsdistance_hud_unit
+          /tmp/gpsdistance_hud_unit
+          /tmp/gpsdistance_hud_unit unset
+          /tmp/gpsdistance_hud_unit off
+          /tmp/gpsdistance_hud_unit false
+
       - name: Build server binaries for Node integration tests
         run: |
           cargo build --manifest-path web/server-rs/Cargo.toml -p nfsu2-server -p nfsu2-roamload
