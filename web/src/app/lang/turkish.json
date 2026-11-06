@@ -1436,5 +1436,9 @@
   "The project is still in development and testing. You may encounter bugs, interruptions, or unexpected behavior in gameplay, multiplayer connections, chat, or website features.": "Proje hâlâ geliştirme ve test aşamasındadır. Oyun, çok oyunculu bağlantılar, sohbet veya web sitesi özelliklerinde hatalar, kesintiler ve beklenmeyen davranışlarla karşılaşabilirsiniz.",
   "By continuing, you acknowledge that you are using a test build.": "Devam ederek test sürümünü kullandığınızı kabul etmiş olursunuz.",
   "I understand, continue": "Anladım, devam et",
-  "Auto turn": "Otomatik döndürme"
+  "Auto turn": "Otomatik döndürme",
+  "Steam Controller or Steam Deck: connect it once.": "Steam Controller veya Steam Deck: bir kez bağla.",
+  "{names}: connected in this browser.": "{names}: bu tarayıcıda bağlı.",
+  "Connect a Steam Controller": "Steam Controller bağla",
+  "Connect another": "Bir tane daha bağla"
 }
