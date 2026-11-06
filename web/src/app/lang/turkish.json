@@ -1474,5 +1474,14 @@
   "Wait a moment.": "Biraz bekleyin.",
   "Friends are unavailable. Claim your name and connect to the server first.": "Arkadaşlar kullanılamıyor. Önce oyuncu adınızı sahiplenip sunucuya bağlanın.",
   "These are the same friend records used by F9. Your friends list supports up to 250 players.": "Bunlar F9 menüsündeki aynı arkadaş kayıtlarıdır. Arkadaş listeniz en fazla 250 oyuncuyu destekler.",
-  "Free Roam": "Serbest dolaşım"
+  "Free Roam": "Serbest dolaşım",
+  "Invite": "Davet et",
+  "Crew invite sent.": "Ekip daveti gönderildi.",
+  "That friend is no longer in Free Roam.": "Bu arkadaş artık Serbest Dolaşım'da değil.",
+  "Crew invites can only be sent to a mutual friend.": "Ekip daveti yalnızca karşılıklı arkadaşlara gönderilebilir.",
+  "Claim your player name before sending crew invites.": "Ekip daveti göndermeden önce oyuncu adınızı sahiplenin.",
+  "That crew or room name is not valid.": "Ekip veya oda adı geçerli değil.",
+  "Crew invite limit reached. Wait a moment.": "Ekip daveti sınırına ulaşıldı. Biraz bekleyin.",
+  "Crew invite is not valid.": "Ekip daveti geçerli değil.",
+  "Joined crew {name}": "{name} ekibine katıldınız."
 }
