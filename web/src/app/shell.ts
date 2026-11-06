@@ -1834,10 +1834,12 @@ export async function boot() {
   window.dispatchEvent(new Event('trp-vault-ready'));
   const friendsApi = new FriendsApi(() => vault ? vault.token() : Promise.resolve(null));
   friendsPanel = new FriendsPanel($('#friends-panel'), friendsApi, logLine, () => resolved().env.NFSU2_ROAM_ROOM ?? '');
-  window.__trpFriendsBridge = {
-    refresh: () => friendsApi.room(resolved().env.NFSU2_ROAM_ROOM ?? ''),
-    act: (op, name) => friendsApi.act(op, name),
-  };
+  Object.assign(window, {
+    __trpFriendsBridge: {
+      refresh: () => friendsApi.room(resolved().env.NFSU2_ROAM_ROOM ?? ''),
+      act: (op: 'ask' | 'accept' | 'decline' | 'remove' | 'block', name: string) => friendsApi.act(op, name),
+    },
+  });
   window.dispatchEvent(new Event('trp-friends-ready'));
   $<HTMLButtonElement>('#play').onclick = () => void play();
   $<HTMLButtonElement>('#retry').onclick = () => void loadModule();
