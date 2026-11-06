@@ -1110,7 +1110,7 @@ async function acceptCrewInvite(invite: PendingCrewInvite, join?: HTMLButtonElem
     return;
   }
   if (roamCrews.length >= CREW_MAX) {
-    toast(t('Up to 4 crews: leave one to join another.'));
+    toast(t('Up to 4 crews: leave one to join another.'), 5000);
     return;
   }
   if (join) join.disabled = true;
