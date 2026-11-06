@@ -1327,8 +1327,10 @@ impl Hub {
         self.drop_slots(&gone, true);
         // every player gone since the last tick out of the links the tick weighs
         self.purge();
-        let gap = self.o.map_gap_ms;
-        self.map_at.retain(|_, t| now < *t);\n        self.lobbies_at.retain(|_, t| now < *t);\n        self.maps.retain(|_, m| now - m.at < MAP_KEEP_MS);\n        self.map_cands.clear();
+        self.map_at.retain(|_, t| now < *t);
+        self.lobbies_at.retain(|_, t| now < *t);
+        self.maps.retain(|_, m| now - m.at < MAP_KEEP_MS);
+        self.map_cands.clear();
         // what the cheat watch did not tell, summed up now and then; and the watches of players gone a while, summed up
         // as of when they went
         let mut gone_for_good = Vec::new();
