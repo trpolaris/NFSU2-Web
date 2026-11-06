@@ -1838,6 +1838,7 @@ export async function boot() {
     __trpFriendsBridge: {
       refresh: () => friendsApi.room(resolved().env.NFSU2_ROAM_ROOM ?? ''),
       act: (op: 'ask' | 'accept' | 'decline' | 'remove' | 'block', name: string) => friendsApi.act(op, name),
+      crew: (name: string, crew: string) => friendsApi.crew(name, crew, resolved().env.NFSU2_ROAM_ROOM ?? ''),
     },
   });
   window.dispatchEvent(new Event('trp-friends-ready'));
