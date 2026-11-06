@@ -114,7 +114,9 @@ enum { RC_MSG_HELLO = 1, RC_MSG_PEERS = 2, RC_MSG_SNAP = 3, RC_MSG_CFG = 4, RC_M
         * racer's place in them, by its player's id, its time and how far it came.  The server compares the players'
         * games' results for a racer far ahead of the others (a teleport to the finish, a speed hack).  A hub before it
         * ignores the type, and no player is sent one */
-       RC_MSG_RACERES = 16,\n       /* the minimap's nearby players: NEARREQ to hub; NEARD is laid out as a MAPD */\n       RC_MSG_NEARREQ = 19, RC_MSG_NEARD = 20 };
+       RC_MSG_RACERES = 16,
+       /* the minimap's nearby players: NEARREQ to hub; NEARD is laid out as a MAPD */
+       RC_MSG_NEARREQ = 19, RC_MSG_NEARD = 20 };
 /* RACEREP flags */
 #define RC_RR_HOST       0x01       /* the reporter hosted the race */
 #define RC_RR_QUIT       0x02       /* ...left it with its pause menu's Quit */
@@ -335,7 +337,8 @@ typedef struct {
         struct { uint8_t reason; } bye;
         struct { uint8_t op, arg; uint32_t to, duel; } duel;      /* to: the player it is for */
         struct { uint16_t req, max, base; } mapreq;
-        struct { uint16_t req, base, total, len; uint8_t part, nparts, n; const uint8_t *data; } mapd;\n        struct { uint16_t req, max, base, radius; } nearreq;
+        struct { uint16_t req, base, total, len; uint8_t part, nparts, n; const uint8_t *data; } mapd;
+        struct { uint16_t req, max, base, radius; } nearreq;
         struct { uint16_t req, total; uint8_t part, nparts, n; const uint8_t *data; } map;   /* data: n entries */
         rc_lobby lobby;
         struct { uint16_t req; uint8_t n; const uint8_t *data; } lobbies;   /* data: n entries */
