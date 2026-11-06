@@ -723,7 +723,7 @@ impl Hub {
                     self.st.refused += 1;
                     return;
                 }
-                self.insert(Player {
+                let slot = self.insert(Player {
                     vip: from,
                     port: sport,
                     hub_port: dport,
@@ -753,7 +753,11 @@ impl Hub {
                     checked: 0,
                     seen_claim: f64::NEG_INFINITY,
                     chat_at: Vec::new(),
-                })
+                });
+                if let Some(owner) = owner {
+                    self.friends_on_arrival(from, owner);
+                }
+                slot
             }
         };
         let now = (self.now)();
@@ -1095,6 +1099,31 @@ impl Hub {
         }
         let mine: Vec<u32> = self.order.iter().copied().filter(|&s| self.player(s).is_some_and(|p| p.vip == vip)).collect();
         self.drop_slots(&mine, true);
+    }
+
+    /// A newly arrived Free Roam player may have a friend whose page synced first, before
+    /// this player had a slot. Mirror that already-mutual relation now; do not wait for an F9 refresh.
+    fn friends_on_arrival(&mut self, vip: u32, owner: &Arc<str>) {
+        self.friend_owner.entry(vip).or_insert_with(|| owner.clone());
+        let incoming: Vec<Arc<str>> = self.friends.iter()
+            .filter(|(_, owners)| owners.iter().any(|other| other.as_ref() == owner.as_ref()))
+            .filter_map(|(other_vip, _)| self.friend_owner.get(other_vip))
+            .filter(|other| other.as_ref() != owner.as_ref())
+            .cloned()
+            .collect();
+        if incoming.is_empty() {
+            return;
+        }
+        let list = self.friends.entry(vip).or_default();
+        for friend in incoming {
+            if !list.iter().any(|old| old.as_ref() == friend.as_ref()) && list.len() < FRIENDS_MAX {
+                list.push(friend);
+            }
+        }
+        let list = self.friends.get(&vip).cloned();
+        for p in self.slots.iter_mut().flatten().filter(|p| p.vip == vip) {
+            p.friend_ids = friend_ids(p.owner.as_ref(), list.as_ref());
+        }
     }
 
     /// Browser `vip`'s page gives the hub its mutual friends (keyphrases). Friends get a reciprocal
