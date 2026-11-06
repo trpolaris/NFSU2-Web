@@ -1527,5 +1527,9 @@
   "This server is currently running for testing only and should not be considered a stable, production-ready service.": "Questo server è attualmente attivo solo a scopo di test e non deve essere considerato un servizio stabile e pronto per la produzione.",
   "The project is still in development and testing. You may encounter bugs, interruptions, or unexpected behavior in gameplay, multiplayer connections, chat, or website features.": "Il progetto è ancora in fase di sviluppo e test. Durante il gioco, le connessioni multigiocatore, la chat o le funzioni del sito potrebbero verificarsi errori, interruzioni o comportamenti imprevisti.",
   "By continuing, you acknowledge that you are using a test build.": "Continuando, confermi di utilizzare una versione di test.",
-  "I understand, continue": "Ho capito, continua"
+  "I understand, continue": "Ho capito, continua",
+  "Steam Controller or Steam Deck: connect it once.": "Steam Controller o Steam Deck: collegalo una volta.",
+  "{names}: connected in this browser.": "{names}: collegato in questo browser.",
+  "Connect a Steam Controller": "Collega uno Steam Controller",
+  "Connect another": "Collegane un altro"
 }
