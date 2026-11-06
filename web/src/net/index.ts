@@ -86,6 +86,8 @@ export interface NetOptions {
   onSay?: (json: string) => void;
   /** typed FreeRoam room or Crew chat, relayed by the hub as JSON */
   onChat?: (json: string) => void;
+  /** server-side friend message/request/invite notification */
+  onFriend?: (message: Record<string, unknown>) => void;
   /** the switch welcomed this page again after the link was lost (a server restart, as for a deploy) */
   onBack?: () => void;
   /** the server is full and this page waits in line for a place: where it is, as the switch last said; null: not
@@ -659,6 +661,8 @@ class Link implements NetLink {
       for (const g of m.gone) if (this.peerMap.delete(g >>> 0)) this.peerLeft(g >>> 0);
       for (const p of m.peers) this.peerMap.set(p.vip >>> 0, { name: String(p.name ?? ''), server: !!p.server });
       this.peersUpdated();
+    } else if (m.t === 'friend') {
+      this.o.onFriend?.(m as Record<string, unknown>);
     } else if (m.t === 'pong' && typeof m.id === 'number') {
       const t0 = this.pings.get(m.id);
       if (t0 === undefined) return;
