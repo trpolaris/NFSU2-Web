@@ -303,7 +303,19 @@ static void t_roundtrip(void){
       r2[n2 - 3] = 77;                                       /* as an older core reads it: skipped */
       CHECK(rc_carcfg_decode(r2, n2, &d2) == RC_OK && d2.has_perf && !d2.has_horn, "horn extension skipped as unknown");
       cp.has_perf = 0; n2 = rc_carcfg_encode(&cp, r2, sizeof r2);
-      CHECK(n2 == n + 3 && rc_carcfg_decode(r2, n2, &d2) == RC_OK && !d2.has_perf && d2.has_horn && d2.horn == 6, "horn extension alone"); }
+      CHECK(n2 == n + 3 && rc_carcfg_decode(r2, n2, &d2) == RC_OK && !d2.has_perf && d2.has_horn && d2.horn == 6, "horn extension alone");
+      cp.has_horn = 0; cp.has_rating = 1; cp.rating_cls = 2; cp.rating = 1234;
+      n2 = rc_carcfg_encode(&cp, r2, sizeof r2);
+      CHECK(n2 == n + 5 && r2[n] == 1 && r2[n + 1] == RC_EXT_RATING && r2[n + 2] == 3,
+            "rating extension encoded: %d bytes", n2);
+      CHECK(rc_carcfg_decode(r2, n2, &d2) == RC_OK && d2.has_rating && d2.rating_cls == 2 && d2.rating == 1234,
+            "rating extension round trip");
+      r2[n + 1] = 77;
+      CHECK(rc_carcfg_decode(r2, n2, &d2) == RC_OK && !d2.has_rating, "unknown rating extension skipped");
+      cp.rating = 5001; cp.rating_cls = 2;
+      n2 = rc_carcfg_encode(&cp, r2, sizeof r2);
+      CHECK(rc_carcfg_decode(r2, n2, &d2) == RC_OK && !d2.has_rating, "out-of-range rating ignored");
+    }
     CHECK(rc_carcfg_decode(rec, n, &c2) == RC_OK && c2.type_hash == cc.type_hash && !strcmp(c2.type_name, "350Z") && c2.n_parts == RC_PART_SLOTS &&
           !memcmp(c2.part, cc.part, sizeof cc.part), "car record round trip");
     /* record: version 1, type hash 4, name 16, ride bytes 4, count 1 = 26, then 9 per part */
