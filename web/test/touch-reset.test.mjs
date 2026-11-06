@@ -5,6 +5,7 @@ import { test, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import * as esbuild from 'esbuild';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 
@@ -47,7 +48,7 @@ Object.defineProperty(globalThis, 'performance', { value: { now: () => now }, co
 const js = (await esbuild.build({ entryPoints: [path.join(ROOT, 'web/src/app/touch.ts')], bundle: true, format: 'esm', write: false })).outputFiles[0].text;
 const { TouchControls } = await import('data:text/javascript;base64,' + Buffer.from(js).toString('base64'));
 
-// a game in free roam (drive 2) with a car with hydraulics, slow enough to start them (2) until the test says
+// a game in free roam (drive 2) whose speed state is controlled by each test
 function setup() {
   mock.timers.enable({ apis: ['setTimeout'] });
   const status = new Map([['drive', 2], ['frames', 100], ['fast', 0]]);
