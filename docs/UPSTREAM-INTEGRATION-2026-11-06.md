@@ -68,6 +68,12 @@ This branch ports compatible changes from `th0mk/nfsu2-web` into TRPOLARIS while
 - An explicit user setting remains higher priority than this device default.
 - Added a regression test for B-Series detection and unaffected D-Series/Adreno phones.
 
+### Photo Mode auto-turn
+- Added a continuous camera yaw rate to the existing runtime photo camera and a backward-compatible PH_SPIN input event.
+- Added an Auto turn slider to the current Photo Mode panel without changing its existing layout style. The centre tenth of the slider is a neutral dead zone; values outside it turn in either direction.
+- Auto turn starts off every time Photo Mode opens. Reset, R, and controller X reset the camera and disable auto-turn; double-clicking the slider also stops it.
+- Added a TypeScript range/dead-zone test and extended the Quick Race photo-mode script to cover clockwise/counter-clockwise turning, stop, and Reset. The live game script still needs execution.
+
 ## Not yet integrated / requires coordinated work
 
 - **Friends UI and API:** the 250-entry server capacity is in place, but start-page pagination/filtering, F9 request management, friend/crew invites, Discord names and online/offline roster UI still need to be wired to the existing Buddy service and custom React/F9 components.
