@@ -415,7 +415,7 @@ export class SettingsService {
         ['roam_crew', names ? (checkedNames && checkedNames.ok ? checkedNames.value : names) : null],
         ['roam_crew_colours', colours ? (checkedColours && checkedColours.ok ? checkedColours.value : colours) : null],
       ],
-    );
+    );    return next;
   }
 
 
