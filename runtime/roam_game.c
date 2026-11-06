@@ -5239,6 +5239,36 @@ static void crews_follow(void){
     rlog("[roam] f=%ld crews changed (the page's menu): %d: %08x %08x %08x %08x, colours %06x %06x %06x %06x\n", rh_frame(), n,
          c[0], c[1], c[2], c[3], O.crew_rgb[0], O.crew_rgb[1], O.crew_rgb[2], O.crew_rgb[3]);
 }
+/* Room changes from a friend invite wait until the player is safely driving
+ * in Free Roam. The hub then links this page in the new room on its next HELLO. */
+static uint32_t g_room_gen;
+static void room_follow(void){
+    char name[64];
+    uint32_t gen = roam_plat_room(name);
+    if (!gen || gen == g_room_gen || g_racing) return;
+#if DUELS
+    if (g_du.st != DU_IDLE) return;
+#endif
+#if MPRACES
+    if (g_mp.st != MP_IDLE) return;
+#endif
+    g_room_gen = gen;
+    if (name_blocked(name)){
+        rlog("[roam] f=%ld the room from the page reads as a slur: no room\\n", rh_frame());
+        name[0] = 0;
+    }
+    uint32_t hash = rc_room_hash(name);
+    roam_plat_lock();
+    uint32_t previous = g_s.conf.room;
+    int left = rc_set_room(&g_s, hash);
+    g_alone_since = 0;
+    g_alone_told = 0;
+    roam_plat_unlock();
+    snprintf(O.room, sizeof O.room, "%s", name);
+    rlog("[roam] f=%ld room changed (the page): %08x -> %08x, %d friend(s) left with the old one\\n",
+         rh_frame(), previous, hash, left);
+}
+
 #endif
 void roam_game_frame(CPU *c){
     if (!g_inited) init_once(c);
@@ -5246,6 +5276,7 @@ void roam_game_frame(CPU *c){
 #ifndef ROAM_HOST_WIN
     solid_follow();
     crews_follow();
+    room_follow();
 #endif
     g_step++;
     uint64_t t0 = rh_ns();
