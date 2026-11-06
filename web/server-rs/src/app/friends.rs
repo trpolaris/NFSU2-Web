@@ -299,9 +299,10 @@ mod tests {
 
         // HEAD is metadata-only and must not take the queued message away.
         assert_eq!(kit.request("HEAD", "/friends", &[B], b"").await.status, 200);
-        let mailbox = kit.request("GET", "/friends", &[B], b"").await;
-        assert_eq!(j(&mailbox.body)["mail"][0]["from"], "Alex");
-        assert_eq!(j(&mailbox.body)["mail"][0]["body"], "Meet at the garage.");
+        // The room-name sync also reads the page's mailbox, so it must deliver the message in this POST response.
+        let mailbox = post(&kit, B, json!({ "op": "room", "room": "Downtown" })).await;
+        assert_eq!(mailbox["mail"][0]["from"], "Alex");
+        assert_eq!(mailbox["mail"][0]["body"], "Meet at the garage.");
 
         // A later list read does not redeliver a message that was already taken.
         let after = kit.request("GET", "/friends", &[B], b"").await;
