@@ -412,57 +412,57 @@ fn the_world_map_sends_2048_in_16_mapd_datagrams() {
 // roam_core asks as the hub reads it, and takes the hub's answer in parts, in any order
 #[test]
 fn the_world_map_on_the_wire_roam_core_asks_and_takes_the_answer() {
-    let deps = repo().join("deps");
-    let wasi = std::fs::read_dir(&deps).ok().and_then(|d| {
-        let mut v: Vec<PathBuf> =
-            d.flatten().filter(|e| e.file_name().to_string_lossy().starts_with("wasi-sdk-")).map(|e| e.path()).collect();
-        v.sort();
-        v.pop()
-    });
-    let Some(wasi) = wasi else {
-        eprintln!("no wasi-sdk in deps/: skipped");
-        return;
-    };
-    if Command::new("node").arg("--version").output().is_err() {
-        eprintln!("no node: skipped");
-        return;
-    }
+    use std::process::Command;
+    use std::path::Path;
+    let deps = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../../deps");
+    let wasi = ["wasi-sdk", "wasi-sdk-25.0", "wasi-sdk-24.0"].into_iter()
+        .map(|d| deps.join(d)).find(|p| p.join("bin/clang").is_file());
+    let Some(wasi) = wasi else { eprintln!("no wasi-sdk in deps/: skipped"); return; };
+    if Command::new("node").arg("--version").output().is_err() { eprintln!("no node: skipped"); return; }
     let w = Path::new(env!("CARGO_TARGET_TMPDIR")).join("roam_hubwire_map.wasm");
-    let out = Command::new(wasi.join("bin/clang"))
-        .current_dir(repo())
-        .args(["--target=wasm32-wasip1-threads", "-pthread", "-O2", "-ffp-contract=off", "-Iruntime", "-o"])
-        .arg(&w)
-        .args(["web/test/roam_hubwire.c", "runtime/roam_core.c"])
+    let out = Command::new(wasi.join("bin/clang")).current_dir(repo())
+        .args(["--target=wasm32-wasip1-threads","-pthread","-O2","-ffp-contract=off","-Iruntime","-o"])
+        .arg(&w).args(["web/test/roam_hubwire.c","runtime/roam_core.c"])
         .arg("-Wl,--import-memory,--export-memory,--shared-memory,--initial-memory=67108864,--max-memory=268435456")
-        .output()
-        .expect("clang");
-    assert!(out.status.success(), "clang: {}", String::from_utf8_lossy(&out.stderr));
-    let run = |args: &[String]| -> String {
-        let o = Command::new("node").arg(repo().join("web/test/wasi-run.mjs")).arg(&w).args(args).output().expect("node");
+        .output().expect("clang");
+    assert!(out.status.success(),"clang: {}",String::from_utf8_lossy(&out.stderr));
+    let run=|args:&[String]|->String{
+        let o=Command::new("node").arg(repo().join("web/test/wasi-run.mjs")).arg(&w).args(args).output().expect("node");
         String::from_utf8_lossy(&o.stdout).trim().to_string()
     };
-    let hex = |b: &[u8]| b.iter().map(|x| format!("{x:02x}")).collect::<String>();
-    // the hub's answer to 300 players (two parts): the session asks with req 1
-    let mut k = Kit::new(RoamOptions { degree: 1, ..RoamOptions::default() });
+    let hex=|b:&[u8]|b.iter().map(|x|format!("{x:02x}")).collect::<String>();
+    let unhex=|h:&str|->Vec<u8>{(0..h.len()/2).map(|i|u8::from_str_radix(&h[2*i..2*i+2],16).unwrap()).collect()};
+
+    // Full MAPD snapshot, sent in reverse part order; the C core must assemble by part index.
+    let mut k=Kit::new(RoamOptions{degree:1,..RoamOptions::default()});
     for i in 0..301 {
-        join(&mut k, i);
-        k.from(W(i), &snap_moving(100 + i, [i as f64 * -3.0, 7.0, 0.0], [0.0; 3], -std::f64::consts::FRAC_PI_2, 2));
+        join(&mut k,i);
+        k.from(W(i),&snap_moving(100+i,[i as f64*-3.0,7.0,0.0],[0.0;3],-std::f64::consts::FRAC_PI_2,2));
     }
-    k.hub.tick();
-    k.clear();
-    k.from(W(0), &mapreq(100, 1));
-    let frames: Vec<String> = k.sent.lock().iter().map(|(_, f)| hex(&f[16..])).collect();
-    assert_eq!(frames.len(), 2);
-    let got = run(&["map".to_string(), frames[1].clone(), frames[0].clone()]);
-    let mut lines = got.lines();
-    let ask = lines.next().unwrap_or("");
-    assert_eq!(ask.strip_prefix("ask ").map(|h| h.len()), Some(2 * (16 + 2 + 4)), "{got}");
-    // its MAPREQ, as the hub reads it: req 1
-    let a: Vec<u8> = (0..ask.len() / 2 - 2).map(|i| u8::from_str_radix(&ask[4 + 2 * i..6 + 2 * i], 16).unwrap()).collect();
-    assert_eq!((a[5], u16::from_le_bytes([a[16], a[17]])), (10, 1));
-    let want: Vec<String> = (2..301).map(|i| format!("{},7,192", -3 * i)).collect();
-    assert_eq!(lines.next().unwrap_or(""), format!("map 1 299 299 {}", want.join(" ")));
-    // one part only: nothing yet
-    let got = run(&["map".to_string(), frames[0].clone()]);
-    assert!(got.ends_with("map 0 0 0"), "{got}");
+    k.hub.tick();k.clear();k.from(W(0),&mapreq_base(100,1,2048,0));
+    let mut first:Vec<String>=k.sent.lock().iter().map(|(_,f)|hex(&f[16..])).collect();
+    assert_eq!(first.len(),3);first.reverse();
+    let got=run(&[vec!["map".to_string()],first.clone()].concat());
+    let mut lines=got.lines();let ask=lines.next().unwrap_or("");
+    assert_eq!(ask.strip_prefix("ask ").map(|h|h.len()),Some(2*(16+6+4)),"{got}");
+    let a=unhex(&ask[4..]);
+    assert_eq!((a[5],u16::from_le_bytes([a[16],a[17]]),u16::from_le_bytes([a[18],a[19]]),u16::from_le_bytes([a[20],a[21]])),(10,1,2048,0));
+    let want:Vec<String>=(2..301).map(|i|format!("{i}: {},7,192,0,0", -3*i)).collect();
+    assert_eq!(lines.next().unwrap_or(""),format!("map 1 299 299 {}",want.join(" ")));
+    let got=run(&["map".to_string(),first[0].clone()]);
+    assert!(got.ends_with("map 0 0 0"),"{got}");
+
+    // Ask again from answer 1: a player goes, another moves; the C core merges the delta into its held snapshot.
+    k.step(300.0);k.from(W(5),&bye(105));
+    k.from(W(6),&snap_moving(106,[-18.0,40.0,0.0],[0.0;3],-std::f64::consts::FRAC_PI_2,2));
+    k.hub.tick();k.clear();k.from(W(0),&mapreq_base(100,2,2048,1));
+    let second:Vec<String>=k.sent.lock().iter().filter(|(_,f)|f[16+5]==18).map(|(_,f)|hex(&f[16..])).collect();
+    assert_eq!(second.len(),1);
+    assert_eq!(mapd_answer(&k),(2,1,298,vec![(5,None),(6,Some((-18,40,192,0,0)))]));
+    let got=run(&[vec!["map".to_string()],first,vec!["ask".to_string()],second].concat());
+    let mut lines=got.lines();let ask2=lines.nth(1).unwrap_or("");
+    let a=unhex(ask2.strip_prefix("ask ").unwrap_or(""));
+    assert_eq!((u16::from_le_bytes([a[16],a[17]]),u16::from_le_bytes([a[20],a[21]])),(2,1),"it asks from answer 1");
+    let want:Vec<String>=(2..301).filter(|&i|i!=5).map(|i|if i==6{ "6: -18,40,192,0,0".to_string() }else{format!("{i}: {},7,192,0,0",-3*i)}).collect();
+    assert_eq!(lines.next().unwrap_or(""),format!("map 2 298 298 {}",want.join(" ")));
 }
