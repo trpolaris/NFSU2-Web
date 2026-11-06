@@ -131,6 +131,7 @@ test('names the page tells it: a notice\'s friend, the profiles', () => {
   assert.match(out, /^\[notice\] player-\w{4} left\n\[app\] Player is the game's own default\n$/);
 });
 
+
 test('names with spaces, signs and other scripts, side by side or inside other words', () => {
   const p = new Privacy('salt');
   for (const n of ['Bob', 'Bob Jr', '[TAG]Bob', '-=Z=-', 'Ракета', '🔥Fire', 'Mr. X', 'Annabel']) p.name(n, 'player');
@@ -139,25 +140,25 @@ test('names with spaces, signs and other scripts, side by side or inside other w
     '[4!] [roam] JOIN: [TAG]Bob joined (peer 2)',
     '[notice] -=Z=- joined free roam',
     '[chat] Ракета said 3 (Hi)',
-    '[horn] 🔥Fire\\'s horn, 4.0 m away',
+    "[horn] 🔥Fire's horn, 4.0 m away",
     '[4!] [roam] f=9 outrun with Mr. X: won',
     '[4!] [roam] Bobby, Annabella and Bob_s stay; Bob, Bob Jr and Annabel go',
     '',
-  ].join('\\n'));
+  ].join('\n'));
   for (const gone of ['Bob Jr', '[TAG]', '-=Z=-', 'Ракета', 'Fire', 'Mr. X', ' Bob,', 'Annabel go'])
-    assert.ok(!out.includes(gone), `${gone} is still in:\\n${out}`);
-  for (const stays of ['Bobby, Annabella and Bob_s stay'])
-    assert.ok(out.includes(stays), `${stays} went:\\n${out}`);
-  assert.match(out, /\\[4!\\] \\[roam\\] JOIN: player-\\w{4} joined \\(peer 1\\)/);
+    assert.ok(!out.includes(gone), gone + ' is still in:\n' + out);
+  assert.ok(out.includes('Bobby, Annabella and Bob_s stay'), 'a partial word was changed');
+  assert.match(out, /\[4!\] \[roam\] JOIN: player-\w{4} joined \(peer 1\)/);
 });
 
 test('a thousand names: the kept copy stays quick without a pattern of every name', () => {
-  const p = new Privacy('salt'), names = Array.from({ length: 4000 }, (_, i) => `Racer${i}x${(i * 7919) % 1000}`);
+  const p = new Privacy('salt'), names = Array.from({ length: 4000 }, (_, i) => 'Racer' + i + 'x' + ((i * 7919) % 1000));
   for (const n of names) p.name(n, 'player');
   const lines = [];
-  for (let i = 0; lines.join('\\n').length < 160 << 10; i++)
-    lines.push(`[4!] [roam] f=${i} slot ${i % 16}: loading ${names[(i * 31) % names.length]}'s CIVIC (89 parts, skin 17, handle 0x4fe)`);
-  const t0 = performance.now(), out = p.scrub(lines.join('\\n'));
-  assert.ok(!/Racer\\d/.test(out));
-  assert.ok(performance.now() - t0 < 1000, `took ${performance.now() - t0} ms`);
+  for (let i = 0; lines.join('\n').length < 160 << 10; i++)
+    lines.push('[4!] [roam] f=' + i + ' slot ' + (i % 16) + ': loading ' + names[(i * 31) % names.length] +
+      "'s CIVIC (89 parts, skin 17, handle 0x4fe)");
+  const t0 = performance.now(), out = p.scrub(lines.join('\n'));
+  assert.ok(!/Racer\d/.test(out));
+  assert.ok(performance.now() - t0 < 1000, 'took ' + (performance.now() - t0) + ' ms');
 });
