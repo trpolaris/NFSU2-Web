@@ -1088,7 +1088,7 @@ function marks(n: number, m: Float32Array, ids: Uint32Array) { quickChat.marks(n
 function friendMessage(message: Record<string, unknown>) {
   friendsPanel?.server(message);
   if (message.op === 'mail' && typeof message.from === 'string' && typeof message.body === 'string') {
-    log.add(`[friends] message from ${message.from}: ${message.body}`);
+    log.add(`[friends] message from ${message.from}`);
   }
 }
 function chatLine(name: string, text: string, me: boolean) {
