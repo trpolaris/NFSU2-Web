@@ -1065,9 +1065,22 @@ impl LanSwitch {
             .collect()
     }
 
-    /// A small page notification to one open peer.
+    /// A small page notification as a WebSocket text frame (not a binary host datagram).
     pub fn send_text(&self, vip: u32, data: Bytes) -> bool {
-        matches!(self.send_to(vip, data, None), SendResult::Sent)
+        let guard = slot(vip).map(|i| self.table[i].load());
+        let Some(p) = guard.as_ref().and_then(|g| g.as_ref()).filter(|p| p.open()) else {
+            self.stats.dropped.inc();
+            return false;
+        };
+        if p.conn.out.buffered() > self.o.online_queue {
+            self.stats.shed.inc();
+            return false;
+        }
+        if !self.send(p, Out::Text(data)) {
+            return false;
+        }
+        p.frames_out.fetch_add(1, Relaxed);
+        true
     }
 
     /// players on the switch now
