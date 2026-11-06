@@ -29,8 +29,10 @@
 +60   expect i:0x86518c == @t0                     # still
 +0    dump photo_orbit
 +0    photo free
++0    photo speed 2                            # twice the default camera translation speed
 +0    photo move 0 1
 +30   photo move 0 0
++0    photo speed 1                            # restore the default
 +10   dump photo_free
 +0    photo off
 +30   expect i:0x890084 == 0
