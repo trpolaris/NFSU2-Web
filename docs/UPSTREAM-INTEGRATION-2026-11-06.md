@@ -15,7 +15,7 @@ This branch ports compatible changes from `th0mk/nfsu2-web` into TRPOLARIS while
 - Kept blocked and recently-met lists at 50.
 - Updated JSON load limits and mutual-friend/request capacity checks.
 - Expanded the load fixture to 300 entries and verifies the 250-friend limit.
-- This does not yet add the upstream start-page Friends route, paging/filter UI, or F9 friend-request screens.
+- This raises the EA Messenger Buddy roster limit only. The TRPOLARIS Rust server does not yet expose the upstream `/friends` HTTP API / OnlineHost bridge, and the current Free Roam hub does not yet prioritize buddy links; start-page paging/filtering and F9 friend-request screens therefore remain unintegrated.
 
 ### Keyboard and controllers
 - Ported the learned Windows AltGr handling: on browsers which synthesize Left Ctrl before Right Alt/AltGraph, the synthetic Ctrl no longer triggers the game's Ctrl binding.
