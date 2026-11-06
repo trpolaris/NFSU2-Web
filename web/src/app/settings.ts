@@ -152,6 +152,8 @@ export const KEYS: readonly KeyDef[] = [
   // the game's language (runtime/language.c; the page fetches ahead only its language pack: datacache.ts).  Not in
   // bundle.m's table: there a lower-case key, so it reaches the runtime as NFSU2_LANGUAGE all the same
   { key: 'language', env: 'NFSU2_LANGUAGE', kind: 'enum', vals: LANGUAGES.join('|'), scope: 'web' },
+  // GPS distance beneath the native direction arrow (runtime/gpsdistance.c).
+  { key: 'gps_distance', env: 'NFSU2_GPS_DISTANCE', kind: 'bool', scope: 'web' },
   // the movies' subtitles (runtime/language.c).  Not in bundle.m's table either
   { key: 'subtitles', env: 'NFSU2_SUBTITLES', kind: 'bool', scope: 'web' },
   // the player's horn, which the others hear too (runtime/horn.c).  Not in bundle.m's table either: NFSU2_HORN there
@@ -214,6 +216,11 @@ export const TEMPLATE = `# NFSU2 settings, read at every launch.
 # with who says each line, where the server has its language pack.
 # [NFSU2_SUBTITLES]
 #subtitles = on
+
+# Distance to the GPS destination under the direction arrow, in the units
+# selected by Speedometer Units. This is a straight-line distance, not a road
+# route, and is hidden when GPS has no active destination. [NFSU2_GPS_DISTANCE]
+#gps_distance = off
 
 # Sound output.  [NOSOUND, inverted]
 #sound = on
