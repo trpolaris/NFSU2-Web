@@ -1531,3 +1531,17 @@ dialog.menu .menu-resume { flex: 0 0 auto; }
   .friends-panel-tools, .friends-panel-columns { grid-template-columns: minmax(0,1fr); }
   .friends-panel-columns > section { padding: 9px; }
 }
+
+
+/* A live friend-to-crew invitation, shown over the game alongside existing notices. */
+.friends-crew-invite {
+  display:flex; align-items:center; justify-content:space-between; gap:12px; width:min(420px,calc(100vw - 28px));
+  margin:0 0 8px; padding:12px 14px; border:1px solid rgba(102,215,176,.42); border-left:3px solid #66d7b0;
+  border-radius:10px; color:#eef8f4; background:rgba(9,19,26,.96); box-shadow:0 10px 28px rgba(0,0,0,.35);
+  font:700 12px/1.4 var(--font);
+}
+.friends-crew-invite button {
+  flex:0 0 auto; padding:7px 12px; border:1px solid rgba(102,215,176,.4); border-radius:7px;
+  color:#b9f2dc; background:rgba(102,215,176,.1); font:800 11px/1.2 var(--font); cursor:pointer;
+}
+.friends-crew-invite button:disabled { opacity:.45; cursor:default; }
