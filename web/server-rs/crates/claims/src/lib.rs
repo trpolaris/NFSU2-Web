@@ -381,6 +381,18 @@ impl Claims {
         }
     }
 
+    /// `owner`'s keyphrase was used (its cloud saves read or saved, /vault): its current name holds
+    /// `HOLD_DAYS` from now.
+    pub fn used(&self, owner: &str, now: i64) {
+        let name = {
+            let g = self.inner.read();
+            g.current(owner, now).map(|k| g.names[k].name.clone())
+        };
+        if let Some(name) = name {
+            self.seen(&name, owner, now);
+        }
+    }
+
     /// a keyphrase gone from the cloud: its names are free.  How many there were.
     pub fn release(&self, owner: &str) -> usize {
         let mut g = self.inner.write();
