@@ -75,8 +75,14 @@ impl Kit {
         std::fs::write(p("repo/web/dist/index.html"), b"<!doctype html>").expect("a file");
         files(&root);
         let s = |r: &str| p(r).to_string_lossy().into_owned();
-        let mut argv: Vec<String> =
-            ["--data", &s("game"), "--state", &s("state"), "--online", "off", "--roam-hub", "off"].iter().map(|a| a.to_string()).collect();
+        let mut argv: Vec<String> = ["--data", &s("game"), "--state", &s("state")].iter().map(|a| a.to_string()).collect();
+        // The option parser intentionally takes the first occurrence, so add defaults only when the test did not ask.
+        if !args.contains(&"--online") {
+            argv.extend(["--online", "off"].iter().map(|a| a.to_string()));
+        }
+        if !args.contains(&"--roam-hub") {
+            argv.extend(["--roam-hub", "off"].iter().map(|a| a.to_string()));
+        }
         argv.extend(args.iter().map(|a| a.to_string()));
         let o = parse(&argv, &|_| None, &s("repo"), &s(""), &RealFs).expect("the options");
         let real_state = std::fs::canonicalize(&o.state).expect("the state folder").to_string_lossy().into_owned();
