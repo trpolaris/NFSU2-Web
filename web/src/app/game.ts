@@ -139,7 +139,7 @@ export class GameSession {
     })).then(i => { s.input = i; });
     if (o.netName !== null)
       void attach('network', () => attachNet(s.proc, {
-        ...common, name: o.netName!, id: o.netId, claim: o.netClaim, block: o.netBlock, notice: o.notice, lobby: o.lobby, say: o.say, chat: o.chat, friend: o.friend, onWelcome: o.networkReady, back: o.netBack, queue: o.netQueue, removed: o.netRemoved,
+        ...common, name: o.netName!, id: o.netId, claim: o.netClaim, block: o.netBlock, notice: o.notice, lobby: o.lobby, say: o.say, chat: o.chat, friend: o.friend, networkReady: o.networkReady, back: o.netBack, queue: o.netQueue, removed: o.netRemoved,
       })).then(n => { s.net = n; });
     return s;
   }
