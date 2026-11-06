@@ -113,7 +113,7 @@ int main(int argc, char **argv){
         rc_receive(&S, 0x0A4D00FDu, 47210, b, n, t += 1000);
         if (!rc_ask_map(&S, t += 1000, RC_MAP_MAX)){ printf("not asked\n"); return 0; }
         for (int i = 2; i < argc; i++){
-            if (!strcmp(argv[i], "ask")){ if (!rc_ask_map(&S, t += 1000000, RC_MAP_MAX)){ printf("not asked\\n"); return 0; } continue; }
+            if (!strcmp(argv[i], "ask")){ if (!rc_ask_map(&S, t += 1000000, RC_MAP_MAX)){ printf("not asked\n"); return 0; } continue; }
             unhex(argv[i], b, &n); rc_receive(&S, 0x0A4D00FDu, 47210, b, n, t += 1000);
         }
         if (c.lobbies){
