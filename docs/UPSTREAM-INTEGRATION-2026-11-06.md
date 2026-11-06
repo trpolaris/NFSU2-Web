@@ -18,7 +18,7 @@ This branch ports compatible changes from `th0mk/nfsu2-web` into TRPOLARIS while
 - Extended RoamHub with mutually accepted friend lists, first-priority links between friends, room labels and Free Roam whereabouts. The page syncs its current room and friend list when its LAN connection becomes ready; a friend who enters Free Roam later inherits the already-synced reciprocal link without another manual refresh.
 - The hub uses one live player per claimed-name owner for friend-priority links, handles multiple open pages for the same owner, preserves the remaining page's links when one tab leaves, and suppresses stale vehicle positions in the Friends presence response. Rust integration tests cover multi-page cleanup, late arrivals, room labels and stale whereabouts.
 - Added server-to-page friend-mail delivery through owner-scoped LAN peers, sent as WebSocket text notifications and displayed in the F9 mailbox. Queued messages are also read by the room-sync request; `HEAD` remains side-effect-free.
-- The separate start-page Friends & crews tab, bumper-contact FriendPrompt, Join action, and race/crew invitations remain to be integrated.
+- The separate start-page Friends & Crews tab, bumper-contact FriendPrompt, Join action, and race/crew invitations have since been integrated in this branch.
 
 ### Keyboard and controllers
 - Ported the learned Windows AltGr handling: on browsers which synthesize Left Ctrl before Right Alt/AltGraph, the synthetic Ctrl no longer triggers the game's Ctrl binding.
@@ -118,7 +118,7 @@ This branch ports compatible changes from `th0mk/nfsu2-web` into TRPOLARIS while
 - Front-bumper FriendPrompt is now integrated for active Free Roam: opposing front bumpers must touch for 3 seconds before the game emits `NET_KIND_FRIEND` (19). The page shows a click-to-send prompt; only the click calls the existing authenticated `/friends` add-request API.
 - The room mailbox reuses bytes 436–503 of the existing 512-byte header: room generation at 436, sixteen little-endian UTF-8 words at 440–503. The page writes all name words before publishing the generation. The writer refuses old short mailboxes; names are capped at 63 UTF-8 bytes without splitting a character.
 - The runtime applies a new room only while the player is actually driving in Free Roam; race, duel and multiplayer-lobby states defer the change. The C and TypeScript layouts are covered by a native compile check and browser unit tests.
-- The upstream keyboard shortcut for FriendPrompt still needs a safe game-key binding check. Delayed Join/Decline and bumper-contact prompts are integrated.
+- FriendPrompt also supports the configurable F key (default F). It checks the live `keys` status bit from `runtime/dinput_kbd.c` before handling it, respects `NFSU2_KEY_FRIEND=off` or a configured replacement, and leaves typing fields/modal dialogs alone. If the live key map is not readable yet, the shortcut fails closed. Delayed Join/Decline and bumper-contact prompts are integrated.
 
 ### GPS Distance HUD
 - Ported upstream's GPS destination distance label beneath the game's native direction arrow. It reports straight-line distance (not road distance) in the current Speedometer Units, updates only when the text changes, and hides when GPS is inactive or a race is running.
@@ -128,7 +128,7 @@ This branch ports compatible changes from `th0mk/nfsu2-web` into TRPOLARIS while
 
 ## Not yet integrated / requires coordinated work
 
-- **Friends UI/gameplay completion:** the authenticated `/friends` API, F9 panel, direct messaging, RoamHub buddy-priority links, room whereabouts, LAN page-mail notifications, 20-row pagination/filtering, start-page Friends & Crews tab, crew invitations, pending Join/Decline queue, and click-to-send bumper-contact FriendPrompt are integrated. The upstream keyboard shortcut remains to be adapted without intercepting a key bound by the game.
+- **Friends UI/gameplay completion:** the authenticated `/friends` API, F9 panel, direct messaging, RoamHub buddy-priority links, room whereabouts, LAN page-mail notifications, 20-row pagination/filtering, start-page Friends & Crews tab, crew invitations, pending Join/Decline queue, click-to-send bumper-contact FriendPrompt, and safe configurable F shortcut are integrated.
 - **Mods/Mod Packs:** built-in catalogue, Blitz rims, maker details, mod toggles, OEM stand-ins and the Shown/Original remote-car view need the runtime modpack module, manifests and save compatibility.
 - **World map/minimap:** current TRPOLARIS map uses a 512-player snapshot. Upstream's 2,048-player live map deltas, smooth markers and car-meet markers/GPS require a coordinated C/TypeScript/Rust protocol change. Upstream uses message type 17 for MAPD while TRPOLARIS uses 17 for typed FreeRoam chat; do not reuse it without an explicit message-ID/version migration.
 - **Multiplayer career credits:** requires race eligibility, friend/crew credit masks, career save/result accounting, lobby protocol and UI changes.
