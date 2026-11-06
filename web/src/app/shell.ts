@@ -1117,7 +1117,7 @@ function friendMessage(message: Record<string, unknown>) {
     }
   };
   card.append(copy, join);
-  $('#toasts').prepend(card);
+  $('#stage .toasts').prepend(card);
   window.setTimeout(() => card.remove(), 20_000);
 }
 function chatLine(name: string, text: string, me: boolean) {
