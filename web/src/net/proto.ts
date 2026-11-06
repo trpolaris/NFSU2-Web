@@ -77,6 +77,9 @@ export const W_PEER_BITS = 36;                // NET_PEER_BITS / 32 words: bit h
 // W_CREWS_RGB their colours (0x00rrggbb; 0: the place's default); the crews, then the colours, then the count
 export const W_CREWS_GEN = 100, W_CREWS = 101, W_CREWS_RGB = 105;
 export const CREW_WORDS = 4;
+// Free Roam room changed by the page: 16 UTF-8 words, then generation.
+export const W_ROOM_GEN = 109, W_ROOM_NAME = 110;
+export const ROOM_WORDS = 16, ROOM_BYTES = 63;
 // header doubles: f64 index = byte offset / 8
 export const D_SWITCH_RTT_MS = 14, D_TX_WAIT_MS_SUM = 15, D_TX_WAIT_MS_MAX = 16;
 
