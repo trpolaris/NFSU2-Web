@@ -52,6 +52,7 @@ import { SavesPanel } from './saves-ui';
 import { saveScreenshot } from './shots';
 import { forgetLink, VaultPanel } from './vault-ui';
 import { FriendsApi, FriendsPanel } from './friends';
+import { FriendPrompt } from './friend-prompt';
 import { Radio, MODES, radioWasOn, type Mode } from '../radio';
 import { canPickMusic, pickMusic } from '../radio-folder';
 import { RadioLink } from './radio-link';
@@ -178,6 +179,7 @@ let players: { now(): void; last(): PlayerCounts | null; fresh(ms: number): Prom
 let saves: SavesPanel;
 let vault: VaultPanel;
 let friendsPanel: FriendsPanel;
+let friendPrompt: FriendPrompt;
 /** the claimed names (claim.ts), and the line under Your name (claim-ui.ts) */
 let claims: NameClaims;
 let nameRow: NameRow;
@@ -778,8 +780,9 @@ async function startGame() {
     // longer than the game), and a closure from this function would keep its
     // scope, and with it this game, reachable
     pendingCrewInvites = []; // invitations belong to this running game, not the next one
+    friendPrompt.start(net && r.env.NFSU2_ROAM === '1');
     session = await GameSession.start({
-      module: loaded!.module, info: loaded!.info, saveDir: SAVE, env: r.env, canvas, stage, audio, displayHz, netName, notice, lobby, say, chat, friend: friendMessage, networkReady: friendsNetworkReady, marks,
+      module: loaded!.module, info: loaded!.info, saveDir: SAVE, env: r.env, canvas, stage, audio, displayHz, netName, notice, lobby, say, bump: friendBump, chat, friend: friendMessage, networkReady: friendsNetworkReady, marks,
       netBack, netQueue, onSaved,
       netId: net ? pageId() : undefined, netClaim: net ? await vault.token().catch(() => null) ?? undefined : undefined, netRemoved,
       netBlock: net && r.env.NFSU2_ROAM === '1' ? blockList(r.env.NFSU2_ROAM_BLOCK ?? '') : undefined,
@@ -787,6 +790,7 @@ async function startGame() {
       toggleFullscreen, padPage: PAD_PAGE, log: logLine, onFatal: stopFatal, onOtherBuild: otherBuild,
     });
   } catch (e) {
+    friendPrompt?.stop();
     log.add(`[app] the game could not start: ${e}`);
     void audio?.close().catch(() => {});
     endStage();
@@ -979,6 +983,7 @@ function onExit(s: GameSession, code: number) {
   log.add(`[app] the game exited with code ${code} after ${seconds.toFixed(1)} s`);
   keeper.end(code, fatal?.code ?? 'exit');
   s.terminate();
+  friendPrompt?.stop();
   session = null;
   quitAt = null;
   lastExit = { code, seconds };
@@ -1088,6 +1093,7 @@ function chat(json: string) {
 }
 function marks(n: number, m: Float32Array, ids: Uint32Array) { quickChat.marks(n, m, ids); }
 /** quick chat's line in the log: a speech balloon, the name, the phrase; in the notices' box, for 8 s */
+function friendBump(json: string) { friendPrompt?.bump(json); }
 function friendsNetworkReady() {
   void friendsPanel?.refresh(true);
 }
@@ -1958,6 +1964,7 @@ export async function boot() {
   window.dispatchEvent(new Event('trp-vault-ready'));
   const friendsApi = new FriendsApi(() => vault ? vault.token() : Promise.resolve(null));
   friendsPanel = new FriendsPanel($('#friends-panel'), friendsApi, logLine, () => resolved().env.NFSU2_ROAM_ROOM ?? '');
+  friendPrompt = new FriendPrompt($('#stage'), { api: friendsApi, toast, log: logLine, refresh: () => { void friendsPanel.refresh(true); } });
   Object.assign(window, {
     __trpFriendsBridge: {
       refresh: () => friendsApi.room(resolved().env.NFSU2_ROAM_ROOM ?? ''),
