@@ -1097,13 +1097,15 @@ impl Hub {
             .filter(|&other_vip| other_vip != vip)
             .collect();
         let mut touched = vec![vip];
-        for old in previous.iter().filter(|old| !owners.iter().any(|new| new.as_ref() == old.as_ref())) {
-            if let Some(other_vip) = self.players().find(|p| p.owner.as_ref().is_some_and(|o| o.as_ref() == old.as_ref())).map(|p| p.vip) {
-                if let Some(list) = self.friends.get_mut(&other_vip) {
-                    list.retain(|owner| owner.as_ref() != me.as_ref());
-                }
-                touched.push(other_vip);
+        let removed_vips: Vec<u32> = previous.iter()
+            .filter(|old| !owners.iter().any(|new| new.as_ref() == old.as_ref()))
+            .filter_map(|old| self.players().find(|p| p.owner.as_ref().is_some_and(|o| o.as_ref() == old.as_ref())).map(|p| p.vip))
+            .collect();
+        for other_vip in removed_vips {
+            if let Some(list) = self.friends.get_mut(&other_vip) {
+                list.retain(|owner| owner.as_ref() != me.as_ref());
             }
+            touched.push(other_vip);
         }
         if owners.is_empty() {
             self.friends.remove(&vip);
