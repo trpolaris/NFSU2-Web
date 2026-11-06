@@ -43,6 +43,8 @@ import {
   wheelOf, withSetUp, type ShifterMode, type WheelInfo, type WheelMap,
 } from './wheel';
 import { eightBitDoFace, HidPadReader, knownPad } from './hidpad';
+import { allPads, useSteamPads } from './steampad';
+export { allPads };
 
 export interface PadSnapshot { connected: boolean; buttons: number; axes: number[]; family: number; name: string; index: number; wheel?: boolean }
 
@@ -61,7 +63,7 @@ export function familyOf(id: string): { family: number; name: string } {
   const s = id.toLowerCase(), w = wheelOf(id)?.layout, e = knownPad(id)?.face;
   if (w === 'ps' || w === 'xbox') return { family: w === 'ps' ? PADF_PLAYSTATION : PADF_XBOX, name };
   if (e) return { family: e === 'xbox' ? PADF_XBOX : PADF_NINTENDO, name };
-  const family = v === '045e' || /xbox|xinput/.test(s) ? PADF_XBOX
+  const family = v === '045e' || v === '28de' || /xbox|xinput/.test(s) ? PADF_XBOX
     : v === '054c' || /dualsense|dualshock|playstation/.test(s) ? PADF_PLAYSTATION
     : v === '057e' || /pro controller|joy-con|nintendo/.test(s) ? PADF_NINTENDO : PADF_GENERIC;
   return { family, name };
@@ -139,7 +141,7 @@ export function deadTwin(g: Gamepad, pads: readonly (Gamepad | null)[]): boolean
 }
 export function drivingPad(): Gamepad | null {
   if (!driver) return null;
-  try { const g = navigator.getGamepads?.()[driver.index]; return g?.connected && g.id === driver.id ? g : null; }
+  try { const g = allPads()[driver.index]; return g?.connected && g.id === driver.id ? g : null; }
   catch { return null; }
 }
 
@@ -245,6 +247,7 @@ export class PadPoller {
   // process's (1 GB+) shared memory reachable or writes into its mailbox
   private h: Int32Array | null;
   private u8: Uint8Array | null;
+  private steam: () => void = () => {};
   private onConnect = (e: GamepadEvent) => {
     this.log(`[pad] connected: ${e.gamepad.id} (index ${e.gamepad.index}, mapping "${e.gamepad.mapping}")`);
     this.poll();
@@ -268,6 +271,7 @@ export class PadPoller {
     addEventListener('gamepadconnected', this.onConnect);
     addEventListener('gamepaddisconnected', this.onDisconnect);
     addEventListener(WHEEL_MAP_EVENT, this.onWheelMap);
+    this.steam = useSteamPads(log);
   }
 
   /** stop for good: listeners removed, the mailbox views dropped */
@@ -276,6 +280,7 @@ export class PadPoller {
     removeEventListener('gamepaddisconnected', this.onDisconnect);
     removeEventListener(WHEEL_MAP_EVENT, this.onWheelMap);
     this.rumble(null);
+    this.steam();
     this.h = null; this.u8 = null;
     if (driver) { driver = null; dispatchEvent(new Event(PAD_DRIVER_EVENT)); }
   }
@@ -288,7 +293,7 @@ export class PadPoller {
 
   poll() {
     if (!this.h) return;
-    const pads = typeof navigator.getGamepads === 'function' ? navigator.getGamepads() : [];
+    const pads = allPads();
     const live = new Set<number>();
     for (const g of pads) if (g && g.connected) { live.add(g.index); if (!this.order.includes(g.index)) this.order.push(g.index); }
     this.order = this.order.filter(i => live.has(i));
