@@ -1757,7 +1757,7 @@ export async function boot() {
   players = watchPlayers((line, crews) => { settings.setStatus(line); settings.setCrewCounts(crews); window.dispatchEvent(new Event('trp-settings-changed')); }, () => !session && !starting, setReach,
     () => { const e = resolved().env; return e.NFSU2_ROAM === '1' ? e.NFSU2_ROAM_ROOM ?? '' : ''; },
     () => crewList(resolved().env.NFSU2_ROAM_CREW ?? '').map(roomHash));
-  window.addEventListener('online', () => { players?.now(); if ($('#menu').open) void friendsPanel.refresh(); });
+  window.addEventListener('online', () => { players?.now(); if ($<HTMLDialogElement>('#menu').open) void friendsPanel.refresh(); });
   window.addEventListener('resize', placeNotices);
   window.addEventListener('resize', placeLobby);
   download = new Predownload(s => saves.showData(s), logLine, () => language(), () => texpack());
