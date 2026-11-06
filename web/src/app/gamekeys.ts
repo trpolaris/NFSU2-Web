@@ -7,7 +7,7 @@ export const KEY_FRIEND = 1;
 export function gameHas(session: GameSession | null | undefined, bit: number): boolean {
   if (!session || bit < 0) return false;
   const status = session.status?.read();
-  if (!status) return true; // fail closed: do not steal a key before the game's live action map is readable
-  const value = status.get('keys') ?? 0;
+  if (!status || !status.has('keys')) return true; // fail closed if the live key map is unreadable or its status slot could not be allocated
+  const value = status.get('keys')!;
   return ((value >>> bit) & 1) === 1;
 }
