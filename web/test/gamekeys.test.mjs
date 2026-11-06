@@ -18,8 +18,11 @@ test('FriendPrompt key uses the PAGE_KEYS bit for the live game mapping', () => 
   assert.equal(gameHas(session, KEY_FRIEND), true);
 });
 
+test('an unknown game map fails closed, so FriendPrompt does not take its shortcut', () => {
+  assert.equal(gameHas({ status: null }, KEY_FRIEND), true);
+});
+
 test('no session or a negative bit never reserves a game key', () => {
   assert.equal(gameHas(null, KEY_FRIEND), false);
-  assert.equal(gameHas({ status: null }, KEY_FRIEND), false);
   assert.equal(gameHas({ status: { read: () => new Map([['keys', 0xffffffff]]) } }, -1), false);
 });

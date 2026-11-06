@@ -7,6 +7,8 @@ import { parseFriendBump, type FriendBump } from './friend-bump';
 
 interface FriendPromptDeps {
   api: FriendsApi;
+  /** current FriendPrompt key code (null: explicitly off) */
+  friendKey(): string | null;
   toast(message: string, ms: number): void;
   log(line: string): void;
   refresh(): void;
@@ -55,7 +57,8 @@ export class FriendPrompt {
   }
 
   private key(event: KeyboardEvent) {
-    if (event.code !== 'KeyF' || !this.enabled || !this.target || event.metaKey || event.ctrlKey || event.altKey || event.isComposing) return;
+    const key = this.deps.friendKey();
+    if (!key || event.code !== key || !this.enabled || !this.target || event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey || event.isComposing) return;
     const target = event.target as HTMLElement | null;
     if (target?.closest?.('input, textarea, select, [contenteditable="true"]') || pageDialog() || gameHas(this.session, KEY_FRIEND)) return;
     event.preventDefault();

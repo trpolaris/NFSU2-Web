@@ -1964,7 +1964,7 @@ export async function boot() {
   window.dispatchEvent(new Event('trp-vault-ready'));
   const friendsApi = new FriendsApi(() => vault ? vault.token() : Promise.resolve(null));
   friendsPanel = new FriendsPanel($('#friends-panel'), friendsApi, logLine, () => resolved().env.NFSU2_ROAM_ROOM ?? '');
-  friendPrompt = new FriendPrompt($('#stage'), { api: friendsApi, toast, log: logLine, refresh: () => { void friendsPanel.refresh(true); } });
+  friendPrompt = new FriendPrompt($('#stage'), { api: friendsApi, friendKey: () => { const key = resolved().env.NFSU2_KEY_FRIEND; return !key ? 'KeyF' : key.toLowerCase() === 'off' ? null : key; }, toast, log: logLine, refresh: () => { void friendsPanel.refresh(true); } });
   Object.assign(window, {
     __trpFriendsBridge: {
       refresh: () => friendsApi.room(resolved().env.NFSU2_ROAM_ROOM ?? ''),
