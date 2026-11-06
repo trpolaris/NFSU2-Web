@@ -127,6 +127,7 @@ impl App {
                     if let Some(m) = meta
                         && nfsu2_headers::etag_matches(inm.as_deref(), &etag(m.cur.rev))
                     {
+                        self.names_used(&id, now);
                         let mut h = self.headers(q, Cache::Store, true);
                         vault_headers(&mut h, m.cur.rev, m.cur.saved, m.prev.map(|p| p.saved));
                         s.head(304, h.0);
@@ -142,6 +143,7 @@ impl App {
                     v.misses.take(&key, &site);
                     return self.not_found(q, s).await;
                 };
+                self.names_used(&id, now);
                 let mut h = self.headers(q, Cache::Store, true);
                 h.set("content-type", "application/octet-stream");
                 h.set("content-length", body.len().to_string());
@@ -180,6 +182,7 @@ impl App {
                 let mut h = self.headers(q, Cache::Store, true);
                 let (code, text) = match put {
                     Put::Saved { meta, created } => {
+                        self.names_used(&id, now);
                         vault_headers(&mut h, meta.cur.rev, meta.cur.saved, meta.prev.map(|p| p.saved));
                         if created { (201, "Saved") } else { (200, "Saved") }
                     }
