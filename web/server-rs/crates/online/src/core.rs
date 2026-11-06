@@ -14,7 +14,7 @@ use std::sync::Arc;
 use nfsu2_util::{Charge, FrameCtx, SwitchSend, Tap};
 use serde_json::{Value, json};
 
-use crate::buddy::{Buddies, BuddyLimits, FriendAsk, FriendReply, PageMailHook};
+use crate::buddy::{Buddies, BuddyLimits};
 use crate::lobby::{Limits, Lobby};
 use crate::stats::{Stats, StatsOptions};
 use crate::timers::{Action, TimerId, Timers};
@@ -209,16 +209,6 @@ impl Core {
             "sessions": sessions, "personas": personas, "racing": racing, "games": l.games, "logins": l.logins,
             "chats": l.chats, "races": l.races, "dropped": l.dropped,
         })
-    }
-
-    /// a page's friends-list request, handled on the Online host's own thread
-    pub fn friends(&mut self, owner: &str, group: &Arc<str>, ask: FriendAsk) -> FriendReply {
-        self.buddies.friends(owner, group, ask)
-    }
-
-    /// where messages for an away friend go: the page-side delivery hook
-    pub fn set_page_mail(&mut self, hook: PageMailHook) {
-        self.buddies.set_page_mail(hook);
     }
 
     /// the browsers in Online mode now (the ones info() counts)
