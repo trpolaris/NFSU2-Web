@@ -5241,6 +5241,7 @@ static void crews_follow(void){
 }
 /* Room changes from a friend invite wait until the player is safely driving
  * in Free Roam. The hub then links this page in the new room on its next HELLO. */
+uint32_t roam_plat_room(char name[64]);
 static uint32_t g_room_gen;
 static void room_follow(void){
     char name[64];
@@ -5254,7 +5255,7 @@ static void room_follow(void){
 #endif
     g_room_gen = gen;
     if (name_blocked(name)){
-        rlog("[roam] f=%ld the room from the page reads as a slur: no room\\n", rh_frame());
+        rlog("[roam] f=%ld the room from the page reads as a slur: no room\n", rh_frame());
         name[0] = 0;
     }
     uint32_t hash = rc_room_hash(name);
@@ -5265,7 +5266,7 @@ static void room_follow(void){
     g_alone_told = 0;
     roam_plat_unlock();
     snprintf(O.room, sizeof O.room, "%s", name);
-    rlog("[roam] f=%ld room changed (the page): %08x -> %08x, %d friend(s) left with the old one\\n",
+    rlog("[roam] f=%ld room changed (the page): %08x -> %08x, %d friend(s) left with the old one\n",
          rh_frame(), previous, hash, left);
 }
 
