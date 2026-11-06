@@ -316,6 +316,22 @@ uint32_t roam_plat_crews(uint32_t crews[RC_CREW_MAX], uint32_t rgb[RC_CREW_MAX])
     }
     return 0;
 }
+
+/* The page's room name is copied between matching generation reads so a
+ * concurrent write cannot expose a partially updated value to Free Roam. */
+uint32_t roam_plat_room(char name[64]){
+    for (int tries = 0; MB && tries < 4; tries++){
+        uint32_t gen = ld(&MB->room_gen);
+        if (!gen) return 0;
+        for (int i = 0; i < 16; i++){
+            uint32_t word = ld(&MB->room_name[i]);
+            for (int k = 0; k < 4; k++) name[4 * i + k] = (char)(word >> (8 * k));
+        }
+        name[63] = 0;
+        if (ld(&MB->room_gen) == gen) return gen;
+    }
+    return 0;
+}
 static uint8_t place(const rc_peer *p){ return p->status == RC_ST_PAUSED ? RC_ST_ROAM : p->status; }
 /* we are in free roam and the friend's car was within NEAR_M of ours (on the
  * ground) when last seen: SNAPs come only from free roam, so its newest state
