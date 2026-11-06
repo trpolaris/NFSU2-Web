@@ -200,8 +200,8 @@ impl FriendsRoute {
                     FriendAsk::Discord(name)
                 }
                 Some("room") => {
-                    let room: String = b.get("room").and_then(Value::as_str).unwrap_or("")
-                        .chars().filter(|c| !c.is_control()).take(64).collect();
+                    let typed = b.get("room").and_then(Value::as_str).unwrap_or("");
+                    let room = if typed.trim().is_empty() { String::new() } else { nfsu2_lan::clean_name(typed) };
                     if let Some(roam) = &self.roam {
                         for vip in self.lan.vips_of_owner(&owner) {
                             roam.room_name(vip, room.clone());
