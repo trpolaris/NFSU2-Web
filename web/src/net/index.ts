@@ -88,6 +88,8 @@ export interface NetOptions {
   onChat?: (json: string) => void;
   /** server-side friend message/request/invite notification */
   onFriend?: (message: Record<string, unknown>) => void;
+  /** the page has just received a LAN address and can sync its page-side friends with the hub */
+  onWelcome?: () => void;
   /** the switch welcomed this page again after the link was lost (a server restart, as for a deploy) */
   onBack?: () => void;
   /** the server is full and this page waits in line for a place: where it is, as the switch last said; null: not
@@ -636,6 +638,7 @@ class Link implements NetLink {
       if (this.full) { this.full = false; this.o.onNotice?.(N('A place on the server freed up: you can play with others now')); }
       if (this.lost) { this.lost = false; this.o.onBack?.(); }
       this.resolveOnline(this.vip);
+      this.o.onWelcome?.();
     } else if (m.t === 'queue' && Number.isInteger(m.pos) && Number.isInteger(m.of)) {
       // the server is full: in line for a place (its welcome comes when it is our turn)
       if (typeof m.ticket === 'string') this.ticket = m.ticket;
