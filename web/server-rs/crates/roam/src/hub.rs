@@ -1115,14 +1115,24 @@ impl Hub {
                 }
             }
         }
-        let theirs: Vec<u32> = owners.iter()
-            .filter_map(|owner| self.players().find(|p| p.owner.as_ref().is_some_and(|o| o.as_ref() == owner.as_ref())).map(|p| p.vip))
+        let owners_set: HashSet<Arc<str>> = owners.iter().cloned().collect();
+        let mut theirs: Vec<u32> = self.players()
+            .filter(|p| p.owner.as_ref().is_some_and(|owner| owners_set.contains(owner)))
+            .map(|p| p.vip)
             .filter(|&other_vip| other_vip != vip)
             .collect();
-        let removed_vips: Vec<u32> = previous.iter()
-            .filter(|old| !owners.iter().any(|new| new.as_ref() == old.as_ref()))
-            .filter_map(|old| self.players().find(|p| p.owner.as_ref().is_some_and(|o| o.as_ref() == old.as_ref())).map(|p| p.vip))
+        theirs.sort_unstable();
+        theirs.dedup();
+        let removed_owners: HashSet<Arc<str>> = previous.iter()
+            .filter(|old| !owners_set.contains(*old))
+            .cloned()
             .collect();
+        let mut removed_vips: Vec<u32> = self.players()
+            .filter(|p| p.owner.as_ref().is_some_and(|owner| removed_owners.contains(owner)))
+            .map(|p| p.vip)
+            .collect();
+        removed_vips.sort_unstable();
+        removed_vips.dedup();
         for other_vip in removed_vips {
             if let Some(list) = self.friends.get_mut(&other_vip) {
                 list.retain(|owner| owner.as_ref() != me.as_ref());
