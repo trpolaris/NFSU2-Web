@@ -162,7 +162,7 @@ pub struct RoamOptions {
     /// a player's view point, this far ahead of where its car points (m): a car in front counts from there too, so it
     /// is linked from farther away than one beside or behind
     pub view_m: f64,
-    /// the world map (MAPREQ): at most this many players a answer, one answer a browser every map_gap_ms at most, of
+    /// the world map (MAPREQ/MAPD): at most this many players per answer, one incremental answer every map_gap_ms at most, of
     /// the players in free roam (or paused there) with a position younger than map_fresh_ms
     pub map_max: usize,
     pub map_gap_ms: f64,
@@ -191,8 +191,8 @@ impl Default for RoamOptions {
             look_ms: 4_000.0,
             away_m: 100.0,
             view_m: 150.0,
-            map_max: 512,
-            map_gap_ms: 1_000.0,
+            map_max: 2048,
+            map_gap_ms: 250.0,
             map_fresh_ms: 5_000.0,
         }
     }
