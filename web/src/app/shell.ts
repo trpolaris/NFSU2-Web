@@ -27,7 +27,7 @@ import { LogRing, downloadBlob, stamp } from './logs';
 import { LastGameKeeper, lastGameEnd, lastGameLine, lastGameToOffer, type LastGame } from './lastgame';
 import { browserBrief, deviceBrief } from './devicelog';
 import { canFullscreen, enterFullscreen, exitFullscreen, fromHomeScreen, homeScreenInstead, isFullscreen, keepScreenOn, measureRefresh, settledSize, trackCanvasSize } from './display';
-import { deviceDefaults, isPhone, markTouch, noPinchZoom, padSeen, phoneScreen, touchFirst } from './device';
+import { deviceDefaults, isPhone, markTouch, noPinchZoom, noteGraphics, padSeen, phoneScreen, touchFirst } from './device';
 import { phoneSeed, phoneUpgrade } from './phonegraphics';
 import { markPad, padPress, pageDialog } from './padnav';
 import { controlsSheet, controlsState as createControlsState, type ControlsSheet, type ControlsState, type Family, type Tab } from './controls';
@@ -289,6 +289,7 @@ function recheckGpu(since = performance.now()) {
     const c = document.visibilityState === 'visible' ? await checkGpu(true) : null;
     if (!c || c.code === 'GPU-ADAPTER-AFTER-LOST') { recheckGpu(since); return; }
     log.add(`[app] the graphics are back after ${((performance.now() - since) / 1000).toFixed(0)} s`);
+    noteGraphics(c.adapter); Object.assign(DEVICE, deviceDefaults());
     setCheck(c);
   }, 10_000);
 }
@@ -313,6 +314,7 @@ async function refreshDiagnostics() {
       checkStorage(),
       checkGameData(),
     ]);
+    noteGraphics(gpu.adapter); Object.assign(DEVICE, deviceDefaults());
     setCheck(gpu);
     const { answer, ...base } = storage;
     setCheck(base);
@@ -1953,7 +1955,10 @@ export async function boot() {
   void saves.refresh();
   void vault.start();
   void instance.whenOwner.then(async () => { await loadSettings(); evaluate(); void settings.refresh(); void saves.refresh(); vault.ownerNow(); });
-  void checkGpu(lastGame?.ended?.why === 'GPU-LOST').then(c => { setCheck(c); if (c.code === 'GPU-ADAPTER-AFTER-LOST') recheckGpu(); });
+  void checkGpu(lastGame?.ended?.why === 'GPU-LOST').then(c => {
+    noteGraphics(c.adapter); Object.assign(DEVICE, deviceDefaults());
+    setCheck(c); if (c.code === 'GPU-ADAPTER-AFTER-LOST') recheckGpu();
+  });
   // Firefox's answer to its storage prompt comes later: the check again then
   void checkStorage().then(({ answer, ...c }) => { setCheck(c); void answer?.then(setCheck); });
   void checkGameData().then(setCheck);
