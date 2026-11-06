@@ -65,6 +65,12 @@ jobs:
           sudo apt-get update
           sudo apt-get install --yes build-essential clang cmake pkg-config
 
+      - name: Check MODPACKS builder and native runtime syntax
+        run: |
+          python3 -m py_compile tools/modpacks.py
+          python3 tools/modpacks.py --help > /dev/null
+          cc -std=c11 -D_POSIX_C_SOURCE=200809L -Iruntime -fsyntax-only runtime/modpacks.c runtime/fileio.c runtime/vinylpacks.c runtime/garage.c runtime/overrides.c runtime/language.c
+
       - name: Install web dependencies
         working-directory: web
         run: npm ci
