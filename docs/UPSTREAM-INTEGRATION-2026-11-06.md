@@ -107,6 +107,11 @@ This branch ports compatible changes from `th0mk/nfsu2-web` into TRPOLARIS while
 - Kept TRPOLARIS's existing 500,000-claim cap and 180-day hold duration unchanged; the upstream 5-million cap and 730-day hold depend on a much larger deployment storage/memory envelope and were not copied without load tests.
 - Successful Cloud Save reads (including ETag/304 and earlier-version reads) and writes now refresh the current claimed name through the existing one-hour activity throttle; failed, missing and conflicting operations do not.
 - Added a Rust regression test for the sweep interval and for expired claims remaining logically free before physical cleanup.
+### Unsaved-career quit warning
+- The first in-game Quit game action asks for confirmation when the current session has not saved yet or its last save is at least 10 minutes old.
+- The warning states the last save time/profile (or that this session has not saved) and explains how to save from the game's pause menu. Cancel leaves the running game open.
+- A recent save keeps the original one-click quit behavior; the existing second-request and forced-close safeguards remain unchanged.
+
 ### Friends list pagination
 - Added compact previous/next controls to the existing F9 Friends roster, showing 20 rows per page without changing the panel's card layout or styling.
 - Filtering resets to page one; the visible page is clamped after a refresh shrinks the list; the pager is hidden for 20 or fewer matches.
