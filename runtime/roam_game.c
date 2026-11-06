@@ -2050,6 +2050,15 @@ static uint32_t fe_clone(CPU *c, uint32_t pkg, uint32_t o, const char *name){
     MR32(l - 4u) += 1;
     return cl;
 }
+
+/* A package-owned HUD string for another native HUD extension. Keep list and
+ * render-object ownership in the same clone path as the multiplayer labels. */
+uint32_t roam_game_clone_hud_text(CPU *c, uint32_t pkg, uint32_t source, const char *name){
+    if (!ok(source, 0x70) || rd32(source + 0x18u) != 2u) return 0;
+    gmem_init(c);
+    return g_gmem ? fe_clone(c, pkg, source, name) : 0;
+}
+
 /* an image's or a string's colour: its drawing data's first four ints
  * (blue, green, red, alpha, as FN_FE_COLOR takes them) */
 static int fe_colour_get(uint32_t o, int32_t col[4]){
