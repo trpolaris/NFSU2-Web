@@ -202,3 +202,23 @@ fn a_file_edited_by_hand() {
     std::fs::write(dir.path().join("names.json"), "{not json").unwrap();
     assert_eq!(Claims::open(dir.path(), NOW).count(NOW), 0);
 }
+
+
+#[test]
+fn pruning_is_rate_limited_but_expired_names_are_not_live() {
+    let c = Claims::in_memory();
+    let a = owner(7);
+    c.claim("Expiry", &a, NOW).unwrap();
+
+    let first_sweep = NOW + 1_000;
+    assert!(!c.prune(first_sweep), "the claim is still live");
+    assert_eq!(c.inner.read().pruned_at, first_sweep);
+
+    let expiry = NOW + HOLD_DAYS * DAY_MS;
+    assert_eq!(c.status("Expiry", None, expiry), Status::Free);
+    assert!(!c.prune(first_sweep + PRUNE_EVERY_MS - 1), "a sweep inside the hourly interval is skipped");
+    assert!(c.inner.read().names.contains_key("expiry"), "the dead entry waits for the next sweep");
+
+    assert!(c.prune(first_sweep + PRUNE_EVERY_MS), "the next hourly sweep removes the dead entry");
+    assert!(!c.inner.read().names.contains_key("expiry"));
+}
