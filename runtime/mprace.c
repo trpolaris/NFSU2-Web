@@ -214,6 +214,7 @@ static struct {
     int      place, prize, paid, raced, owns;
     MpResult res[MPRACE_RESULTS_MAX]; int nres;    /* the race's results, as the game has them */
     int      look_off;                             /* the host: its search for LAN servers called off */
+    int      ol_detours, ol_back;                  /* UI_OLMAIN's Enter opened another icon, not Lobby */
     int      quit_race, fee;                       /* the player quit the race (its pause menu); the fee the bank paid */
     int      paused, quit, lan, hosted, named, carset, created, settings, joined, started, left, career, resumed, crib_go, ndlg, host_gone;
     int      logged_place, perf_logged;
@@ -265,6 +266,21 @@ static int act_ok(const char *s, long f){
     return f - M.scr_at >= SETTLE && (!M.scr_tap || f - M.scr_tap >= RETAP);
 }
 static void acted(long f){ M.scr_tap = f; M.next = f + 4; }
+/* UI_OLMAIN remembers the last Online icon the player picked. During an
+ * automatic race trip, Enter can therefore open another screen instead of
+ * Lobby. Back out of known detours and retry from the first icon. */
+static const char *const OL_DETOURS[] = {
+    "UI_OLCarSelect.fng", "UI_OLCarLot.fng", "UI_OptionsMain.fng", "UI_Options.fng",
+    "UI_Options_PC_Controller.fng", "UI_OLRankings.fng", "UI_OLRankings_Overall.fng",
+    "UI_OLRankings_Monthly.fng", "UI_OLRankings_Personal.fng", "UI_OLEAMessenger.fng",
+    "UI_OL_ViewCar.fng", "UI_OLViewCareer.fng", "UI_OL_News.fng"
+};
+#define OL_TRIES 6
+static const char *ol_detour(void){
+    for (size_t i = 0; i < sizeof OL_DETOURS / sizeof OL_DETOURS[0]; i++)
+        if (on(OL_DETOURS[i])) return OL_DETOURS[i];
+    return 0;
+}
 static void keys(const char *k){ snprintf(M.keys, sizeof M.keys, "%s", k); M.nkeys = (int)strlen(M.keys); M.key_at = 0; }
 static int keys_run(long f){
     if (!M.nkeys) return 0;
@@ -958,8 +974,36 @@ static void step_race(CPU *c, long f){
             M.carset = 1;
             fprintf(stderr, "[mprace] f=%ld the career car 0x%08x\n", autotest_frame(), rd(G_CAREER_CAR));
         }
-        if (act_ok("UI_OLMAIN.fng", f)){ autotest_tap(K_RET, 6); acted(f); }    /* Lobby: the first item */
+        /* Move to the first icon before Enter. After a detour, move one
+         * additional step left: the game wraps its icon scroller. */
+        if (act_ok("UI_OLMAIN.fng", f)){
+            if (M.ol_detours >= OL_TRIES){ fail("the LAN menu's Lobby could not be picked"); return; }
+            const char *sequence = M.ol_back ? "LR" : "LLLLLLLLR";
+            keys(sequence);
+            M.ol_back = 0;
+            acted(f);
+            /* Retap interval starts at the final Enter, not while the key
+             * sequence is still moving through the icons. */
+            M.scr_tap = f + 20L * (long)(strlen(sequence) - 1);
+        }
         return;
+    }
+    {
+        const char *detour = ol_detour();
+        if (detour){
+            if (act_ok(detour, f)){
+                if (!M.ol_back){
+                    M.ol_back = 1;
+                    M.ol_detours++;
+                    fprintf(stderr,
+                        "[mprace] f=%ld Online menu opened %s instead of Lobby; backing out (%d/%d)\n",
+                        autotest_frame(), detour, M.ol_detours, OL_TRIES);
+                }
+                autotest_tap(K_ESC, 6);
+                acted(f);
+            }
+            return;
+        }
     }
     if (cb == CB_LOBBY && okm(ctx, 0x110)){
         if (rd(G_LANSTATE) != 0x11u || rd(G_GAME_IDENT) != 0xffffffffu || rd(G_DLG)) return;
@@ -1144,6 +1188,7 @@ static void step_back(CPU *c, long f){
     }
     static const char *const lan_screens[] = { "UI_PC_LAN.fng", "UI_PC_LAN_ServerSelect.fng", "UI_QRModeSelect.fng", "UI_QRTrackSelect.fng", "UI_QRModeOptions.fng" };
     for (int i = 0; i < 5; i++) if (on(lan_screens[i])){ if (act_ok(lan_screens[i], f)){ autotest_tap(K_ESC, 6); acted(f); } return; }
+    { const char *detour = ol_detour(); if (detour){ if (act_ok(detour, f)){ autotest_tap(K_ESC, 6); acted(f); } return; } }
     if (on("UI_Main.fng")){
         if (!act_ok("UI_Main.fng", f)) return;
         /* the main menu again after the crib's Return to Explore (its save went there instead, unsaved: a 2026-10-27
