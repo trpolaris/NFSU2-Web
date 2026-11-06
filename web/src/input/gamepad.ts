@@ -42,7 +42,7 @@ import {
   describeMap, findHat, guessMap, hatDirs, loadMap, loadShifter, readWheel, Shifter, shifterGear, usbIds, WHEEL_MAP_EVENT,
   wheelOf, withSetUp, type ShifterMode, type WheelInfo, type WheelMap,
 } from './wheel';
-import { eightBitDoFace, HidPadReader } from './hidpad';
+import { eightBitDoFace, HidPadReader, knownPad } from './hidpad';
 
 export interface PadSnapshot { connected: boolean; buttons: number; axes: number[]; family: number; name: string; index: number; wheel?: boolean }
 
@@ -128,9 +128,9 @@ export function androidLayout(g: Gamepad): boolean {
 let driver: { index: number; id: string } | null = null;
 export const PAD_DRIVER_EVENT = 'nfsu2-pad-driver';
 /** whether a controller may drive the pad while others are connected: the standard mapping (Chrome on Android's
- *  too), a steering wheel, or an 8BitDo pad (hidpad.ts) */
+ *  too), a steering wheel, or a pad with a known HID layout (hidpad.ts) */
 export const mayDrive = (g: Gamepad | null, pads?: readonly (Gamepad | null)[]) => !!g &&
-  (g.mapping === 'standard' || !!wheelOf(g.id) || !!eightBitDoFace(g.id) || androidLayout(g)) && !(pads && deadTwin(g, pads));
+  (g.mapping === 'standard' || !!wheelOf(g.id) || !!knownPad(g.id) || androidLayout(g)) && !(pads && deadTwin(g, pads));
 
 /** A Fanatec base can expose a second, same-name HID collection which reports only zero axes. */
 export function deadTwin(g: Gamepad, pads: readonly (Gamepad | null)[]): boolean {
@@ -344,11 +344,11 @@ export class PadPoller {
   private read(g: Gamepad): PadSnapshot {
     let k = this.seen;
     if (!k || k.index !== g.index || k.id !== g.id) {
-      const wheel = wheelOf(g.id), axes0 = axesWhenSeen(g, wheel), face = eightBitDoFace(g.id);
+      const wheel = wheelOf(g.id), axes0 = axesWhenSeen(g, wheel), known = knownPad(g.id);
       const std = g.mapping === 'standard' || (!wheel && androidLayout(g));
       const ends = new Set<number>();
       if (!std) axes0.forEach((v, i) => { if (i > 1 && Math.abs(v) >= 0.9 && Math.abs(v) <= 1.05) ends.add(i); });
-      const hid = !wheel && face && !std ? new HidPadReader(face, axes0) : null;
+      const hid = !wheel && known && !std ? new HidPadReader(known.face, axes0, known.ltFirst, known.maker) : null;
       k = this.seen = { index: g.index, id: g.id, std, axes0, ends, wheel, map: null, hat: std ? -1 : findHat(axes0),
         shifter: new Shifter(), mode: 'off', hid };
       if (g.mapping !== 'standard') {
