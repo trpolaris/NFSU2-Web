@@ -143,14 +143,14 @@ __attribute__((weak)) void host_status_set_n(const int *slot, const double *valu
 
 /* ---- what the page sends (the input thread) ----------------------------------- */
 enum { PH_HELLO = 0, PH_OPEN = 1, PH_HOLD = 2, PH_MOVE = 3, PH_TURN = 4, PH_DRAG = 5, PH_PAN = 6, PH_DOLLY = 7,
-       PH_FOV = 8, PH_ROLL = 9, PH_MODE = 10, PH_RESET = 11, PH_SPIN = 12, PH_SPEED = 13 };
+       PH_FOV = 8, PH_ROLL = 9, PH_MODE = 10, PH_RESET = 11, PH_SPIN = 12, PH_SPEED = 13, PH_LEVEL = 14 };
 /* PH_HOLD's bits: keys and buttons held */
 enum { HB_FWD = 1, HB_BACK = 2, HB_LEFT = 4, HB_RIGHT = 8, HB_UP = 16, HB_DOWN = 32, HB_TL = 64, HB_TR = 128,
        HB_TU = 256, HB_TD = 512, HB_ZIN = 4096, HB_ZOUT = 8192, HB_RL = 16384, HB_RR = 32768, HB_FAST = 65536 };
 #define NONE_SET INT32_MIN
 static struct {
-    atomic_int page, open, hold, move, lift, turn, dx, dy, px, py, dolly, fov, roll, mode, reset, spin, speed;
-} I = { .fov = NONE_SET, .roll = NONE_SET, .mode = -1, .spin = NONE_SET, .speed = NONE_SET };
+    atomic_int page, open, hold, move, lift, turn, dx, dy, px, py, dolly, fov, roll, mode, reset, spin, speed, level;
+} I = { .fov = NONE_SET, .roll = NONE_SET, .mode = -1, .spin = NONE_SET, .speed = NONE_SET, .level = -1 };
 
 /* the page's events (runtime/web/input_web.c, IEV_PHOTO) and the test script's */
 void photo_input(int cmd, int a, int b){
@@ -169,6 +169,7 @@ void photo_input(int cmd, int a, int b){
     case PH_RESET: atomic_store(&I.reset, 1); break;
     case PH_SPIN:  atomic_store(&I.spin, a); break;                               /* automatic turn, 1/10 degree a second */
     case PH_SPEED: atomic_store(&I.speed, a); break;                              /* movement speed, 1/100 multiplier */
+    case PH_LEVEL: atomic_store(&I.level, a); break;                              /* free camera forward: 0 pitch-aligned, 1 keep height */
     default: break;
     }
 }
@@ -181,6 +182,7 @@ static struct {
     const char *lang;
     float yaw, pitch, dist, off[3], eye[3];      /* the view's direction; orbit: from its point; free: from the car's centre */
     float yaw0, pitch0, dist0, off0[3], fov0, fov, roll, spin, speed;
+    int level;                                  /* free camera forward moves along the ground when enabled */
     float se[3], sl[3];                          /* the eye and the point looked at, smoothed, world */
 } P;
 
@@ -271,7 +273,7 @@ static void aim_point(const float *cc, const float *e, const float *f, float *p)
 static void clear_input(void){
     atomic_store(&I.dx, 0); atomic_store(&I.dy, 0); atomic_store(&I.px, 0); atomic_store(&I.py, 0);
     atomic_store(&I.dolly, 0); atomic_store(&I.fov, NONE_SET); atomic_store(&I.roll, NONE_SET);
-    atomic_store(&I.mode, -1); atomic_store(&I.reset, 0); atomic_store(&I.spin, NONE_SET); atomic_store(&I.speed, NONE_SET);
+    atomic_store(&I.mode, -1); atomic_store(&I.reset, 0); atomic_store(&I.spin, NONE_SET); atomic_store(&I.speed, NONE_SET); atomic_store(&I.level, -1);
 }
 
 static void enter(CPU *c){
@@ -298,7 +300,7 @@ static void enter(CPU *c){
     for (int i = 0; i < 3; i++) P.off[i] = P.off0[i] = p[i] - cc[i];
     orbit_from(p, ce);
     P.yaw0 = P.yaw; P.pitch0 = P.pitch; P.dist0 = P.dist;
-    P.fov = P.fov0; P.roll = 0; P.spin = 0.f; P.speed = 1.f; P.free = 0;
+    P.fov = P.fov0; P.roll = 0; P.spin = 0.f; P.speed = 1.f; P.level = 0; P.free = 0;
     memcpy(P.se, ce, sizeof P.se); memcpy(P.sl, p, sizeof P.sl);
     clear_input();
     hush(c);
@@ -326,11 +328,12 @@ static void steer(uint32_t car, float dt){
     float ddx = (float)atomic_exchange(&I.dx, 0) / 10000.f, ddy = (float)atomic_exchange(&I.dy, 0) / 10000.f;
     float pdx = (float)atomic_exchange(&I.px, 0) / 10000.f, pdy = (float)atomic_exchange(&I.py, 0) / 10000.f;
     int fs = atomic_exchange(&I.fov, NONE_SET), rs = atomic_exchange(&I.roll, NONE_SET), md = atomic_exchange(&I.mode, -1);
-    int sn = atomic_exchange(&I.spin, NONE_SET), sp = atomic_exchange(&I.speed, NONE_SET);
+    int sn = atomic_exchange(&I.spin, NONE_SET), sp = atomic_exchange(&I.speed, NONE_SET), lv = atomic_exchange(&I.level, -1);
     float cc[3], d[3];
     centre(car, cc);
     if (sn != NONE_SET) P.spin = clampf((float)sn / 10.f, -SPIN_MAX, SPIN_MAX);
     if (sp != NONE_SET) P.speed = clampf((float)sp / 100.f, 0.1f, 4.f);
+    if (lv >= 0) P.level = lv != 0;
     if (atomic_exchange(&I.reset, 0)){
         P.free = 0; P.spin = 0.f; memcpy(P.off, P.off0, sizeof P.off);
         P.yaw = P.yaw0; P.pitch = P.pitch0; P.dist = P.dist0; P.fov = P.fov0; P.roll = 0;
@@ -366,7 +369,8 @@ static void steer(uint32_t car, float dt){
         P.off[2] = clampf(P.off[2], -CENTRE_Z, ORBIT_UP_M);
         P.dist = clampf(P.dist * expf(-dolly * 0.12f), DIST_MIN, DIST_MAX);
     } else {
-        for (int i = 0; i < 3; i++) P.eye[i] += (d[i] * my + r[i] * mx) * step + d[i] * dolly * 0.5f - r[i] * pdx * 5.f;
+        const float *fw = P.level ? f : d;           /* keep height: forward movement along the ground */
+        for (int i = 0; i < 3; i++) P.eye[i] += (fw[i] * my + r[i] * mx) * step + d[i] * dolly * 0.5f - r[i] * pdx * 5.f;
         P.eye[2] += mz * step + pdy * 5.f;
         float l = sqrtf(P.eye[0] * P.eye[0] + P.eye[1] * P.eye[1] + P.eye[2] * P.eye[2]);
         if (l > FREE_M) for (int i = 0; i < 3; i++) P.eye[i] *= FREE_M / l;
@@ -503,7 +507,7 @@ static void act(CPU *c){
 
 /* the test script's "photo ..." (autotest.c): hello, on, off, orbit, free, reset, hold MASK, move X Y [UP [CLOSER]],
  * turn X Y (-1..1), drag DX DY, pan DX DY (view heights), dolly N (wheel notches), fov DEG, roll DEG, spin DEG/s,
- * speed multiplier (0.1..4) */
+ * speed multiplier (0.1..4), level (0/1) */
 int photo_script(const char *s){
     char w[16] = {0}; float a = 0, b = 0, z = 0, k = 0;
     int n = sscanf(s, "%15s %f %f %f %f", w, &a, &b, &z, &k);
@@ -525,6 +529,7 @@ int photo_script(const char *s){
     else if (!strcasecmp(w, "roll")) photo_input(PH_ROLL, (int)lrintf(a * 100.f), 0);
     else if (!strcasecmp(w, "spin")) photo_input(PH_SPIN, (int)lrintf(a * 10.f), 0);
     else if (!strcasecmp(w, "speed")) photo_input(PH_SPEED, (int)lrintf(a * 100.f), 0);
+    else if (!strcasecmp(w, "level")) photo_input(PH_LEVEL, n > 1 ? (int)a : 1, 0);
     else return 0;
 #undef PACK
     return 1;
