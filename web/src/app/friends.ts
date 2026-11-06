@@ -85,6 +85,7 @@ export class FriendsPanel {
   private lists: FriendLists | null = null;
   private received: FriendLists['mail'] = [];
   private busy = false;
+  private again = false;
   private filter = '';
 
   constructor(private root: HTMLElement, private api: FriendsApi, private log: (line: string) => void, private room: () => string = () => '') {
@@ -156,8 +157,8 @@ export class FriendsPanel {
     void this.refresh();
   }
 
-  async refresh() {
-    if (this.busy) return;
+  async refresh(force = false) {
+    if (this.busy) { if (force) this.again = true; return; }
     this.busy = true;
     this.setNote('Arkadaş listesi yenileniyor…');
     try {
@@ -173,6 +174,10 @@ export class FriendsPanel {
       this.log(`[friends] list refresh failed: ${error}`);
     } finally {
       this.busy = false;
+    }
+    if (this.again) {
+      this.again = false;
+      void this.refresh(true);
     }
   }
 
