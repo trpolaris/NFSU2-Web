@@ -156,7 +156,8 @@ This branch ports compatible changes from `th0mk/nfsu2-web` into TRPOLARIS while
 
 ## Validation status
 
-- For commit `ec3b8385846018ccd99a8b9a9ac0c12849680683`, GitHub Actions passed TypeScript checking, web build, Cargo.lock verification, Rust workspace tests, native GPS formatter/HUD unit tests, server binary build and the synthetic Online protocol load/abuse smoke test.
-- The browser regression suite was still running at the time of this update; check the latest PR checks for its final result before merging.
-- Native/macOS and WASM game binaries and an actual in-game GPS drive have not yet been built/run in this CI session. The GPS native C harness passed, but that is not a substitute for a real game session.
+- Latest integration commit checked: `43bf98faf69d2184aa74ed4c8e09365796683499`.
+- GitHub Actions on that commit has passed TypeScript checking, the web application build, Cargo.lock verification, Rust workspace tests, native GPS distance formatter/HUD unit tests, Free Roam mailbox layout checks, server binary builds, and the synthetic Online protocol load/abuse smoke test.
+- The Chromium browser regression suite is still running; its final result is not yet available. The `image-rs` container build is also still running.
+- Native/macOS and WebAssembly game binaries and an actual in-game GPS drive have not yet been built/run in this CI session. The native C harness passing is not a substitute for a real game session.
 - The PR remains a draft. `main` and production deployment are unchanged.
