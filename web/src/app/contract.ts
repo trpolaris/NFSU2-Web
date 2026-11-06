@@ -66,6 +66,8 @@ export interface NetOptions extends CommonOptions {
   chat?: (json: string) => void;
   /** Free Roam friend notifications delivered by the server */
   friend?: (message: Record<string, unknown>) => void;
+  /** the LAN welcomed this page: sync its claimed-name Friends list with the hub */
+  networkReady?: () => void;
   /** the server's LAN took this page back after the link was lost (a server restart, as for a deploy) */
   back?: () => void;
   /** the server is full: this page's place in line for one (null: not in line) */
