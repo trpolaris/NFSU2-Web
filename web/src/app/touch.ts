@@ -236,6 +236,8 @@ export class TouchControls {
   private drive = 0;
   private frames = 0;
   private statusAt = 0;
+  /** the car goes fast (the game's "fast" status); undefined on older/no-status games keeps Reset visible */
+  private fast: number | undefined;
   /** a finger touched the game; a keyboard or controller was used after the last touch */
   private seen = touchFirst();
   private away = false;
@@ -362,7 +364,8 @@ export class TouchControls {
   /** for tests and logs: what the controls do now (shown: the driving ones, menu: the menu's) */
   state() {
     return { shown: this.mode === 'drive', menu: this.mode === 'menu', drive: this.drive, steering: this.steering, lx: this.lx,
-      buttons: this.padButtons, keys: [...this.keys.keys()], roll: this.sentRoll, menuScale: this.menuScale, menuSent: !!this.menuTo };
+      buttons: this.padButtons, keys: [...this.keys.keys()], roll: this.sentRoll, menuScale: this.menuScale, menuSent: !!this.menuTo,
+      fast: this.fast, stowed: [...this.ctls.values()].filter(c => c.el.classList.contains('stowed')).map(c => c.id) };
   }
 
   /** the game ended: everything let go, nothing of it kept */
@@ -383,7 +386,10 @@ export class TouchControls {
     if (now - this.statusAt > 100) {
       this.statusAt = now;
       const st = s.status?.read();                // null while the game writes it: the last state stands
-      if (st) { this.drive = st.get('drive') ?? 0; this.frames = st.get('frames') ?? 0; }
+      if (st) {
+        this.drive = st.get('drive') ?? 0; this.frames = st.get('frames') ?? 0;
+        this.fast = st.has('fast') ? st.get('fast') : undefined;
+      }
     }
     if (!this.away && (s.input?.padPressed?.() ?? 0) > this.touchedAt) this.away = true;
     if (s.input && s.input !== this.menuTo) { this.menuTo = s.input; this.applyMenuSize(true); }
@@ -409,7 +415,19 @@ export class TouchControls {
     const mode: Mode = !on ? '' : (this.drive & 3) > 0 ? 'drive' : this.frames > 0 ? 'menu' : '';
     this.root.toggleAttribute('data-roam', (this.drive & 3) === 2);
     this.root.toggleAttribute('data-gears', (this.drive & 4) !== 0);
+    this.stow('reset', mode === 'drive' && this.fast === 1);
     this.setMode(mode);
+  }
+
+  /** Hide a control in its original place; a held finger/key is released immediately when it goes away. */
+  private stow(id: string, away: boolean) {
+    const c = this.ctls.get(id);
+    if (!c || c.el.classList.contains('stowed') === away) return;
+    c.el.classList.toggle('stowed', away);
+    if (!away) return;
+    for (const [finger, held] of this.byFinger) if (held === c) this.byFinger.delete(finger);
+    c.fingers.clear();
+    this.up(c, true);
   }
 
   /** the driving controls, the menu's or none: every control let go on a change, the stick and tilt at rest */
@@ -435,7 +453,8 @@ export class TouchControls {
   // ---- fingers on the controls --------------------------------------------------------------
   private ctlAt(x: number, y: number): Ctl | undefined {
     const el = document.elementFromPoint(x, y)?.closest<HTMLElement>('[data-ctl]');
-    return el ? this.ctls.get(el.dataset.ctl!) : undefined;
+    const c = el ? this.ctls.get(el.dataset.ctl!) : undefined;
+    return c && !c.el.classList.contains('stowed') ? c : undefined;
   }
   private onDown = (e: PointerEvent) => {
     e.preventDefault();                       // the game's canvas keeps the focus, no mouse events follow
@@ -443,6 +462,7 @@ export class TouchControls {
     if (e.pointerType === 'touch' && e.isPrimary) this.dropFingers();
     const el = (e.target as HTMLElement).closest<HTMLElement>('[data-ctl]');
     const c = el ? this.ctls.get(el.dataset.ctl!) : undefined;
+    if (c?.el.classList.contains('stowed')) return;
     if (c) { this.byFinger.set(e.pointerId, c); this.press(c, e.pointerId); return; }
     if ((e.target as HTMLElement).closest('.stick')) this.stickDown(e);
   };
