@@ -1092,7 +1092,33 @@ function friendMessage(message: Record<string, unknown>) {
   friendsPanel?.server(message);
   if (message.op === 'mail' && typeof message.from === 'string' && typeof message.body === 'string') {
     log.add(`[friends] message from ${message.from}`);
+    return;
   }
+  if (message.op !== 'crew' || typeof message.name !== 'string' || typeof message.crew !== 'string' || typeof message.room !== 'string') return;
+  const card = document.createElement('div');
+  card.className = 'friends-crew-invite';
+  card.setAttribute('role', 'status');
+  const copy = document.createElement('span');
+  copy.textContent = `${message.name} invites you to crew "${message.crew}"`;
+  const join = document.createElement('button');
+  join.type = 'button';
+  join.textContent = 'Join';
+  join.onclick = async () => {
+    join.disabled = true;
+    try {
+      const bridge = (window as unknown as { __trpSettingsBridge?: { joinCrewInvite?: (name: string, room: string) => Promise<void> } }).__trpSettingsBridge;
+      if (!bridge?.joinCrewInvite) throw new Error('Crew settings are not ready.');
+      await bridge.joinCrewInvite(message.crew as string, message.room as string);
+      toast(`Joined crew ${message.crew}`, 5000);
+      card.remove();
+    } catch (error) {
+      join.disabled = false;
+      toast(String(error), 6000);
+    }
+  };
+  card.append(copy, join);
+  $('#toasts').prepend(card);
+  window.setTimeout(() => card.remove(), 20_000);
 }
 function chatLine(name: string, text: string, me: boolean) {
   const box = $('#notices'), line = document.createElement('div'), b = document.createElement('b');
@@ -1752,6 +1778,7 @@ export async function boot() {
     crews: () => crewsOf(settings.current('roam_crew'), settings.current('roam_crew_colours')),
     crewCount: name => settings.crewCount(roomHash(name)),
     setCrews: async list => { await settings.saveCrewsFromReact(list); window.dispatchEvent(new Event('trp-settings-changed')); },
+    joinCrewInvite: async (name: string, room: string) => { await settings.joinCrewInvite(name, room); window.dispatchEvent(new Event('trp-settings-changed')); },
     quickChat: () => ({ phrases: phrasesOf(settings.current('quick_chat_phrases')), groups: groupsOf(settings.current('quick_chat_groups')) }),
     saveQuickChat: async (phrases, groups) => { await settings.saveQuickChatFromReact(phrases, groups); window.dispatchEvent(new Event('trp-settings-changed')); },
     readOnly: () => !instance.owner,
