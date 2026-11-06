@@ -1504,5 +1504,9 @@
   "This server is currently running for testing only and should not be considered a stable, production-ready service.": "Deze server draait momenteel uitsluitend voor testdoeleinden en mag niet worden beschouwd als een stabiele, productieklare dienst.",
   "The project is still in development and testing. You may encounter bugs, interruptions, or unexpected behavior in gameplay, multiplayer connections, chat, or website features.": "Het project is nog in ontwikkeling en wordt getest. Je kunt bugs, onderbrekingen of onverwacht gedrag tegenkomen in de gameplay, multiplayerverbindingen, chat of websitefuncties.",
   "By continuing, you acknowledge that you are using a test build.": "Door verder te gaan, erken je dat je een testversie gebruikt.",
-  "I understand, continue": "Begrepen, doorgaan"
+  "I understand, continue": "Begrepen, doorgaan",
+  "Steam Controller or Steam Deck: connect it once.": "Steam Controller of Steam Deck: één keer koppelen.",
+  "{names}: connected in this browser.": "{names}: gekoppeld in deze browser.",
+  "Connect a Steam Controller": "Steam Controller koppelen",
+  "Connect another": "Nog een koppelen"
 }
