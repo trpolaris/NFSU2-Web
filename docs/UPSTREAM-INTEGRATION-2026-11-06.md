@@ -100,6 +100,12 @@ This branch ports compatible changes from `th0mk/nfsu2-web` into TRPOLARIS while
 - Added regression cases for names with spaces, punctuation, Unicode/emoji, adjacent names and partial-word collisions, plus a 4,000-name / 160 KiB saved-log performance test.
 - LastGameKeeper measures each saved-log copy and logs a warning once if one takes more than 50 ms.
 
+### Name-claim store contention
+- Ported the upstream hourly expiry-sweep throttle and a one-minute retry window while the name store is full.
+- Name JSON serialization now snapshots live claims and changed-owner metadata under the read lock, then sorts and writes JSON after releasing it, so Online and Free Roam readers do not wait for string formatting.
+- Kept TRPOLARIS's existing 500,000-claim cap and 180-day hold duration unchanged; the upstream 5-million cap and 730-day hold depend on a much larger deployment storage/memory envelope and were not copied without load tests.
+- Added a Rust regression test for the sweep interval and for expired claims remaining logically free before physical cleanup.
+
 ## Not yet integrated / requires coordinated work
 
 - **Friends UI/gameplay completion:** the authenticated `/friends` API, initial F9 panel, direct messaging, RoamHub buddy-priority links, room whereabouts and LAN page-mail notifications are integrated. The separate start-page Friends & crews tab, bumper-contact FriendPrompt, Join action and race/crew invitations remain.
