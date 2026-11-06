@@ -1104,12 +1104,15 @@ impl Hub {
         let old_owner = self.friend_owner.insert(vip, me.clone());
         let mut touched = vec![vip];
         if let Some(old) = old_owner.filter(|old| old.as_ref() != me.as_ref()) {
-            let other_vips: Vec<u32> = self.friends.keys().copied().collect();
-            for other_vip in other_vips {
-                if let Some(list) = self.friends.get_mut(&other_vip) {
-                    list.retain(|owner| owner.as_ref() != old.as_ref());
+            let old_owner_has_other_page = self.friend_owner.values().any(|other| other.as_ref() == old.as_ref());
+            if !old_owner_has_other_page {
+                let other_vips: Vec<u32> = self.friends.keys().copied().collect();
+                for other_vip in other_vips {
+                    if let Some(list) = self.friends.get_mut(&other_vip) {
+                        list.retain(|owner| owner.as_ref() != old.as_ref());
+                    }
+                    touched.push(other_vip);
                 }
-                touched.push(other_vip);
             }
         }
         let theirs: Vec<u32> = owners.iter()
@@ -1161,9 +1164,10 @@ impl Hub {
     pub fn whereabouts(&self, owners: &[Arc<str>]) -> Vec<Option<Whereabouts>> {
         let now = (self.now)();
         owners.iter().map(|owner| {
-            self.players().find(|p| p.owner.as_ref().is_some_and(|o| o.as_ref() == owner.as_ref())
+            self.players().filter(|p| p.owner.as_ref().is_some_and(|o| o.as_ref() == owner.as_ref())
                 && matches!(p.status, 2 | 5) && p.p.is_some()
                 && now - p.pos_at <= self.o.stale_ms && !p.impostor)
+                .last()
                 .map(|p| Whereabouts { room: p.room, room_name: self.room_names.get(&p.vip).cloned() })
         }).collect()
     }
