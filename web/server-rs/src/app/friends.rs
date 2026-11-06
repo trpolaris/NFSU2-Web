@@ -424,8 +424,8 @@ mod tests {
 
     #[test]
     fn crew_invite_names_strip_format_controls_and_preserve_the_empty_default_room() {
-        assert_eq!(tidy_invite_name("  Night\\u{200b}   Owls "), "Night Owls");
-        assert_eq!(tidy_invite_name("Blue\\nRoom"), "Blue Room");
+        assert_eq!(tidy_invite_name("  Night\u{200b}   Owls "), "Night Owls");
+        assert_eq!(tidy_invite_name("Blue\nRoom"), "Blue Room");
         assert_eq!(tidy_invite_name("   "), "");
     }
 
