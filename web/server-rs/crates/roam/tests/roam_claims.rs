@@ -92,7 +92,8 @@ fn mutual_buddies_link_first_without_named_crews_and_survive_another_page_closin
     k.hub.room_name(V(2), "Downtown".to_string());
     k.hub.tick();
 
-    assert!(linked(&k, 0, 2) && linked(&k, 2, 0), "mutual friends should link before nearer strangers");
+    assert!(linked(&k, 1, 2) && linked(&k, 2, 1), "the latest live page for a mutual friend should link before nearer strangers");
+    assert!(!linked(&k, 0, 2) && !linked(&k, 2, 0), "one keyphrase must not consume two priority slots");
     let places = k.hub.whereabouts(std::slice::from_ref(&bianca));
     assert_eq!(places[0].as_ref().map(|p| p.room_name.as_deref()), Some(Some("Downtown")));
 
