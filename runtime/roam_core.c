@@ -1064,7 +1064,7 @@ int rc_ask_map(rc_session *s,int64_t now,int max){
     return 1;
 }
 /* Legacy MAP from a hub predating MAPD: replace the list and give entries stable local indices. */
-static void map_part(rc_session *s,const rc_msg *m){
+static void map_part(rc_session *s,const rc_msg *m,int64_t now){
     if(m->u.map.req!=s->map_req||!s->map_asked_us)return;
     if(s->map_mask&&(m->u.map.nparts!=s->map_nparts||m->u.map.total!=s->map_asm_total))s->map_mask=0;
     s->map_nparts=m->u.map.nparts;s->map_asm_total=m->u.map.total;
@@ -1317,7 +1317,7 @@ void rc_receive(rc_session *s, uint32_t ip, uint16_t port, const uint8_t *buf, i
          * (the hub lists us on theirs at the same time), and stays while it
          * is listed (rc_tick drops the others) */
         if(m.h.type==RC_MSG_MAPD){mapd_part(s,&m,now);return;}
-        if(m.h.type==RC_MSG_MAP){map_part(s,&m);return;}
+        if(m.h.type==RC_MSG_MAP){map_part(s,&m,now);return;}
         if (m.h.type == RC_MSG_LOBBIES){ lobbies_from_hub(s, &m); return; }
         if (m.h.type != RC_MSG_PEERS) return;
         s->hub_heard_us = now; s->hub_lists++;
