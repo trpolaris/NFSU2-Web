@@ -123,7 +123,7 @@ This branch ports compatible changes from `th0mk/nfsu2-web` into TRPOLARIS while
 ### GPS Distance HUD
 - Ported upstream's GPS destination distance label beneath the game's native direction arrow. It reports straight-line distance (not road distance) in the current Speedometer Units, updates only when the text changes, and hides when GPS is inactive or a race is running.
 - Added the gps_distance setting to the existing Game settings group and settings.ini template. It defaults off, is exposed through the current panel's existing More game settings section, and has a Turkish translation. No new page, mod catalogue or replacement UI was introduced.
-- Added the runtime hook and package-owned HUD text cloning helper. The current fork does not include Split Screen/Co-op, so the port intentionally handles Player 1 only; Player 2–4 support must follow a future co-op integration.
+- Added the runtime hook and package-owned HUD text cloning helper to both native and WebAssembly runtime object lists. The current fork does not include Split Screen/Co-op, so the port intentionally handles Player 1 only; Player 2–4 support must follow a future co-op integration.
 - Added native C tests for unit formatting, HUD visibility, route state, race hiding, Player 1 filtering and disabled defaults, plus a browser test for the persisted setting.
 
 ### Art Factory 28–34 vinyl packs
