@@ -74,6 +74,8 @@ export class FriendsApi {
   }
 }
 
+const FRIEND_PAGE_LINES = 20;
+
 const el = <K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: string) => {
   const node = document.createElement(tag);
   if (cls) node.className = cls;
@@ -87,6 +89,7 @@ export class FriendsPanel {
   private busy = false;
   private again = false;
   private filter = '';
+  private page = 0;
 
   constructor(private root: HTMLElement, private api: FriendsApi, private log: (line: string) => void, private room: () => string = () => '') {
     root.classList.add('menu-friends-panel');
@@ -115,7 +118,15 @@ export class FriendsPanel {
       </form>
       <div class="friends-panel-columns">
         <section><h6>GELEN İSTEKLER <span data-friends-asks-count>0</span></h6><ul data-friends-asks></ul></section>
-        <section><h6>ARKADAŞLAR <span data-friends-count>0</span></h6><ul data-friends-list></ul></section>
+        <section>
+          <h6>ARKADAŞLAR <span data-friends-count>0</span></h6>
+          <ul data-friends-list></ul>
+          <nav class="friends-panel-pagination" data-friends-pagination aria-label="Arkadaş listesi sayfaları" hidden>
+            <button type="button" class="friends-row-action" data-friends-prev aria-label="Önceki arkadaş sayfası" disabled>‹</button>
+            <span data-friends-page>1 / 1</span>
+            <button type="button" class="friends-row-action" data-friends-next aria-label="Sonraki arkadaş sayfası" disabled>›</button>
+          </nav>
+        </section>
         <section><h6>GÖNDERİLEN İSTEKLER <span data-friends-sent-count>0</span></h6><ul data-friends-sent></ul></section>
       </div>
       <form class="friends-discord" data-friends-discord><label><span>Discord kullanıcı adın</span><span class="friends-form-row"><input name="discord" maxlength="40" autocomplete="off" placeholder="kullanici.adi"><button class="btn menu-action" type="submit">Kaydet</button></span></label><small>Bu alan yalnızca karşılıklı arkadaşlarına gösterilir.</small></form>`;
@@ -139,6 +150,16 @@ export class FriendsPanel {
       const button = (e.target as HTMLElement).closest<HTMLButtonElement>('button');
       if (!button) return;
       if (button.matches('[data-friends-refresh]')) void this.refresh();
+      if (button.matches('[data-friends-prev]')) {
+        this.page = Math.max(0, this.page - 1);
+        this.renderFriends();
+        return;
+      }
+      if (button.matches('[data-friends-next]')) {
+        this.page += 1;
+        this.renderFriends();
+        return;
+      }
       if (button.matches('[data-friends-mail-clear]')) {
         this.received = [];
         this.renderMail();
@@ -151,6 +172,7 @@ export class FriendsPanel {
       const input = e.target as HTMLInputElement;
       if (input.matches('[data-friends-filter]')) {
         this.filter = input.value.trim().toLocaleLowerCase();
+        this.page = 0;
         this.renderFriends();
       }
     });
@@ -350,7 +372,10 @@ export class FriendsPanel {
     if (!list) return;
     list.replaceChildren();
     const friends = (this.lists?.friends ?? []).filter(f => !this.filter || f.name.toLocaleLowerCase().includes(this.filter));
-    for (const f of friends) {
+    const pageCount = Math.max(1, Math.ceil(friends.length / FRIEND_PAGE_LINES));
+    this.page = Math.min(this.page, pageCount - 1);
+    const start = this.page * FRIEND_PAGE_LINES;
+    for (const f of friends.slice(start, start + FRIEND_PAGE_LINES)) {
       const state = f.where === 'roam'
         ? (f.room ? `Free Roam · ${f.room}` : 'Free Roam')
         : f.where === 'online' ? 'Online lobisi' : 'Çevrimdışı';
@@ -360,5 +385,14 @@ export class FriendsPanel {
       ]));
     }
     if (!list.childElementCount) list.append(el('li', 'friends-empty', this.filter ? 'Eşleşen arkadaş yok.' : 'Henüz arkadaş eklenmemiş.'));
+
+    const pager = this.root.querySelector<HTMLElement>('[data-friends-pagination]');
+    const label = this.root.querySelector<HTMLElement>('[data-friends-page]');
+    const previous = this.root.querySelector<HTMLButtonElement>('[data-friends-prev]');
+    const next = this.root.querySelector<HTMLButtonElement>('[data-friends-next]');
+    if (pager) pager.hidden = friends.length <= FRIEND_PAGE_LINES;
+    if (label) label.textContent = `${this.page + 1} / ${pageCount}`;
+    if (previous) previous.disabled = this.page === 0;
+    if (next) next.disabled = this.page >= pageCount - 1;
   }
 }
