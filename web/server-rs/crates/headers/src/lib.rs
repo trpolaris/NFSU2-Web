@@ -110,9 +110,9 @@ pub fn sha256_source(text: &str) -> String {
 /// need accelerometer and gyroscope).  The rest is switched off for this page and anything it could embed.
 pub const PERMISSIONS_POLICY: &str = concat!(
     "gamepad=(self), fullscreen=(self), keyboard-map=(self), autoplay=(self), cross-origin-isolated=(self), ",
-    "screen-wake-lock=(self), accelerometer=(self), gyroscope=(self), ",
+    "screen-wake-lock=(self), accelerometer=(self), gyroscope=(self), hid=(self), ",
     "bluetooth=(), browsing-topics=(), camera=(), clipboard-read=(), display-capture=(), ",
-    "encrypted-media=(), geolocation=(), hid=(), idle-detection=(), local-fonts=(), ",
+    "encrypted-media=(), geolocation=(), idle-detection=(), local-fonts=(), ",
     "magnetometer=(), microphone=(), midi=(), payment=(), publickey-credentials-get=(), ",
     "serial=(), usb=(), window-management=(), xr-spatial-tracking=()",
 );
