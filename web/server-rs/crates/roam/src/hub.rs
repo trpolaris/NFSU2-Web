@@ -1013,8 +1013,8 @@ impl Hub {
     /// distance in the order they came), map_max of them at most, in datagrams of MAP_PER; one answer to a browser (its
     /// virtual address, whatever its endpoints) every map_gap_ms at most (a page asks again when an answer does not
     /// come).
-    fn map(&mut self, slot: u32, req: u16, now: f64) {
-        let (gap, fresh, max) = (self.o.map_gap_ms, self.o.map_fresh_ms, self.o.map_max);
+    fn map(&mut self, slot: u32, req: u16, most: u16, now: f64) {
+        let (gap, fresh, max) = (self.o.map_gap_ms.max(MAP_V2_GAP_MS), self.o.map_fresh_ms, self.o.map_max.min(most as usize));
         let Some(p) = self.player(slot) else { return };
         if self.map_at.get(&p.vip).is_some_and(|&t| now < t) {
             return;
@@ -1062,6 +1062,64 @@ impl Hub {
         }
         self.map_at.insert(vip, now + gap);
         self.lobbies(slot, req, now);
+    }
+
+    /// Incremental world-map answer. Each browser keeps its own acknowledged base; room candidates are shared for one tick.
+    fn mapd(&mut self, slot: u32, req: u16, most: u16, base: u16, now: f64) {
+        let max = self.o.map_max.min(MAPD_MAX).min(most as usize);
+        let Some(p) = self.player(slot) else { return };
+        if p.impostor || self.map_at.get(&p.vip).is_some_and(|&t| now < t) { return; }
+        let (room, at, vip, port, hub_port, lobbies) = (p.room, p.p.unwrap_or_default(), p.vip, p.port, p.hub_port, p.lobbies);
+        let cands = self.map_cands.remove(&room).unwrap_or_else(|| self.map_room(room, now));
+        let Some(p) = self.player(slot) else { return };
+        let mut links: Vec<u32> = p.links.iter().map(|l| l.slot).collect();
+        links.sort_unstable();
+        let mut list: Vec<MapCand> = cands.iter().filter(|c| {
+            c.slot != slot && links.binary_search(&c.slot).is_err()
+                && !self.player(c.slot).is_some_and(|o| self.apart_from(slot, c.slot, p, o))
+        }).copied().collect();
+        self.map_cands.insert(room, cands);
+        let total = list.len().min(u16::MAX as usize) as u16;
+        if list.len() > max {
+            list.select_nth_unstable_by_key(max, |c| order_key(distance(&at, &c.p)));
+            list.truncate(max);
+            list.sort_unstable_by_key(|c| c.slot);
+        }
+        let mut m = self.maps.remove(&vip).unwrap_or_default();
+        if base != 0 && m.sent.as_ref().is_some_and(|s| s.0 == base) { m.held = m.sent.take(); }
+        let from: &[MapSent] = match &m.held { Some((r,l)) if base != 0 && *r == base => l, _ => &[] };
+        let (mut b, (mut entries, mut ends, mut next)) = (if from.is_empty(){0}else{base}, map_diff(from,&list,now));
+        let mut parts = map_parts(&ends);
+        if parts.len() > wire::MAPD_PARTS {
+            (b,(entries,ends,next))=(0,map_diff(&[],&list,now));
+            parts=map_parts(&ends);
+        }
+        for (k,&(a,z)) in parts.iter().enumerate() {
+            let (s0,s1)=(if a==0{0}else{ends[a-1]},if z==0{0}else{ends[z-1]});
+            let mut frame=vec![0u8;F_DATA+wire::mapd_len(s1-s0)];
+            frame[0]=KIND_UDP;frame[4..8].copy_from_slice(&ROAM_HUB_VIP.to_be_bytes());
+            frame[8..12].copy_from_slice(&vip.to_be_bytes());frame[12..14].copy_from_slice(&hub_port.to_be_bytes());
+            frame[14..16].copy_from_slice(&port.to_be_bytes());
+            wire::write_mapd(&mut frame[F_DATA..],self.id,self.seq,req,b,k as u8,parts.len() as u8,total,(z-a) as u8,&entries[s0..s1]);
+            self.seq=self.seq.wrapping_add(1);(self.send)(vip,Bytes::from(frame));
+        }
+        m.sent=Some((req,next));m.at=now;self.maps.insert(vip,m);
+        self.map_at.insert(vip,now+self.o.map_gap_ms);
+        if lobbies&&!self.lobbies_at.get(&vip).is_some_and(|&t|now<t){
+            self.lobbies_at.insert(vip,now+MAP_LOBBIES_GAP_MS);self.lobbies(slot,req,now);
+        }
+    }
+
+    fn map_room(&self, room: u32, now: f64) -> Vec<MapCand> {
+        let fresh=self.o.map_fresh_ms;
+        let c=|x:f64|(x+0.5).floor().clamp(-32767.0,32767.0) as i16;
+        let v=|x:f64|x.round().clamp(-127.0,127.0) as i8;
+        let mut list:Vec<MapCand>=self.order.iter().filter_map(|&q|{
+            let o=self.player(q)?;let pos=o.p?;
+            let shown=q<wire::MAPD_GONE as u32&&o.room==room&&!o.impostor&&now-o.pos_at<=fresh&&matches!(o.status,2|5);
+            shown.then(||MapCand{slot:q,id:o.id,p:pos,x:c(pos[0]),y:c(pos[1]),heading:o.heading,vx:v(o.v[0]),vy:v(o.v[1])})
+        }).collect();
+        list.sort_unstable_by_key(|c|c.slot);list
     }
 
     /// With the world map's answer, to a player that takes race lobbies: the open lobbies of its room (any player's,
@@ -1270,7 +1328,7 @@ impl Hub {
         // every player gone since the last tick out of the links the tick weighs
         self.purge();
         let gap = self.o.map_gap_ms;
-        self.map_at.retain(|_, t| now - *t < gap);
+        self.map_at.retain(|_, t| now < *t);\n        self.lobbies_at.retain(|_, t| now < *t);\n        self.maps.retain(|_, m| now - m.at < MAP_KEEP_MS);\n        self.map_cands.clear();
         // what the cheat watch did not tell, summed up now and then; and the watches of players gone a while, summed up
         // as of when they went
         let mut gone_for_good = Vec::new();
@@ -2167,6 +2225,43 @@ fn link_many(slots: &[Option<Player>], list: &[u32], w: &Weigh, s: &mut Scratch)
 }
 
 /// whether one of the two players' browsers blocks the other (`Hub::blocks`)
+/// Encode the changes from the browser's held map to the current slot-ordered candidates.
+fn map_diff(from:&[MapSent],list:&[MapCand],now:f64)->(Vec<u8>,Vec<usize>,Vec<MapSent>){
+    let(mut e,mut ends,mut next)=(Vec::new(),Vec::new(),Vec::with_capacity(list.len()));
+    let place=|e:&mut Vec<u8>,c:&MapCand|{
+        e.extend_from_slice(&(c.slot as u16).to_le_bytes());e.extend_from_slice(&c.x.to_le_bytes());e.extend_from_slice(&c.y.to_le_bytes());
+        e.extend_from_slice(&[c.heading,c.vx as u8,c.vy as u8]);
+        MapSent{slot:c.slot,id:c.id,x:c.x,y:c.y,heading:c.heading,vx:c.vx,vy:c.vy,t:now}
+    };
+    let(mut i,mut j)=(0,0);
+    while i<from.len()||j<list.len(){
+        let(a,c)=(from.get(i),list.get(j));let was=e.len();
+        match(a,c){
+            (Some(a),Some(c)) if a.slot==c.slot=>{
+                let dt=(now-a.t)/1000.0;
+                let(dx,dy)=(c.x as f64-(a.x as f64+a.vx as f64*dt),c.y as f64-(a.y as f64+a.vy as f64*dt));
+                let dh=c.heading.wrapping_sub(a.heading).min(a.heading.wrapping_sub(c.heading));
+                next.push(if a.id!=c.id||dx*dx+dy*dy>MAP_TOL_M*MAP_TOL_M||dh>MAP_TOL_H{place(&mut e,c)}else{*a});
+                (i,j)=(i+1,j+1);
+            }
+            (Some(a),c) if c.is_none_or(|c|a.slot<c.slot)=>{e.extend_from_slice(&(a.slot as u16|wire::MAPD_GONE).to_le_bytes());i+=1;}
+            (_,Some(c))=>{next.push(place(&mut e,c));j+=1;}
+            _=>break,
+        }
+        if e.len()>was{ends.push(e.len());}
+    }
+    (e,ends,next)
+}
+fn map_parts(ends:&[usize])->Vec<(usize,usize)>{
+    let mut parts=vec![(0,0)];
+    for(k,&end)in ends.iter().enumerate(){
+        let(a,z)=*parts.last().unwrap();let start=if a==0{0}else{ends[a-1]};
+        if z>a&&(end-start>wire::MAPD_BYTES||z-a==255){parts.push((k,k+1));}
+        else{parts.last_mut().unwrap().1=k+1;}
+    }
+    parts
+}
+
 fn blocked(blocks: &HashMap<u32, Block>, a: &Player, b: &Player) -> bool {
     blocks.get(&a.vip).is_some_and(|k| k.has(b)) || blocks.get(&b.vip).is_some_and(|k| k.has(a))
 }
