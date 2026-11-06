@@ -5923,7 +5923,7 @@ int roam_game_cmd(CPU *c, const char *args, long *wait_start){
         /* "mp waitsmoke K ON [TMO]": native tyre emission on remote slot K,
          * not merely slip values received over the network. */
         long tmo = 3000;
-        sscanf(args + used, "%*s %*s %*s %ld", &tmo);
+        sscanf(args + used, "%*s %*s %ld", &tmo);
         int k = atoi(a1), want = atoi(a2) != 0, have = 0;
         uint32_t car = k >= 0 && k < NSLOT ? g_sl[k].car : 0;
         int active = car && g_sl[k].st == SL_ACTIVE && !g_sl[k].hidden && ok(car, 0x9e0u);
