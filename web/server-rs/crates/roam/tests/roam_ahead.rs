@@ -447,7 +447,7 @@ fn the_world_map_on_the_wire_roam_core_asks_and_takes_the_answer() {
     assert_eq!(ask.strip_prefix("ask ").map(|h|h.len()),Some(2*(16+6+4)),"{got}");
     let a=unhex(&ask[4..]);
     assert_eq!((a[5],u16::from_le_bytes([a[16],a[17]]),u16::from_le_bytes([a[18],a[19]]),u16::from_le_bytes([a[20],a[21]])),(10,1,2048,0));
-    let want:Vec<String>=(2..301).map(|i|format!("{i}: {},7,192,0,0", -3*i)).collect();
+    let want:Vec<String>=(2..301).map(|i|format!("{i}:{},7,192,0,0", -3*i)).collect();
     assert_eq!(lines.next().unwrap_or(""),format!("map 1 299 299 {}",want.join(" ")));
     let got=run(&["map".to_string(),first[0].clone()]);
     assert!(got.ends_with("map 0 0 0"),"{got}");
@@ -463,6 +463,6 @@ fn the_world_map_on_the_wire_roam_core_asks_and_takes_the_answer() {
     let mut lines=got.lines();let ask2=lines.nth(1).unwrap_or("");
     let a=unhex(ask2.strip_prefix("ask ").unwrap_or(""));
     assert_eq!((u16::from_le_bytes([a[16],a[17]]),u16::from_le_bytes([a[20],a[21]])),(2,1),"it asks from answer 1");
-    let want:Vec<String>=(2..301).filter(|&i|i!=5).map(|i|if i==6{ "6: -18,40,192,0,0".to_string() }else{format!("{i}: {},7,192,0,0",-3*i)}).collect();
+    let want:Vec<String>=(2..301).filter(|&i|i!=5).map(|i|if i==6{ "6:-18,40,192,0,0".to_string() }else{format!("{i}:{},7,192,0,0",-3*i)}).collect();
     assert_eq!(lines.next().unwrap_or(""),format!("map 2 298 298 {}",want.join(" ")));
 }
