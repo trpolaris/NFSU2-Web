@@ -78,7 +78,7 @@ function replaceFramed(text: string, names: string[], label: (n: string) => stri
       if (!POST_AT.test(text)) continue;
       const c = i ? text.charCodeAt(i - 1) : 10;
       if (c === 10 || c === 13 || c === 0x2028 || c === 0x2029 ||
-          PRE_END.test(text.slice(text.lastIndexOf('\\n', i - 1) + 1, i))) at.set(i, n);
+          PRE_END.test(text.slice(text.lastIndexOf('\n', i - 1) + 1, i))) at.set(i, n);
     }
   }
   if (!at.size) return text;
