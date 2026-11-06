@@ -1,0 +1,15 @@
+# Engage at a marker after the career was left in a stale transition state (runtime/engage.c): both Career +0x7138
+# and the showcase preview byte are set by hand. After two seconds of settled free roam, both are cleared and a shop's
+# door engages normally. Requires a career save (NFSU2_SAVE_SEED).
+#   node web/tools/run-suite.mjs engagestuck
+0     bot on
++0    waitroam 6000
++0    bot off
++120  poke 0x861e78 1 byte            # Career +0x7138: engaging
++0    poke 0x85ef6c 1 byte            # showcase preview mode
++600  expect b:0x861e78 == 0
++0    expect b:0x85ef6c == 0
++0    shopgo CC_GRAPHICS
++300  tapfe RETURN UI_EngageShopDialog.fng 120 2400
++60   log ENGAGE DONE
++10   quit
