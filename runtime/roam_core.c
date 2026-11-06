@@ -537,7 +537,12 @@ int rc_decode(const uint8_t *buf, int len, rc_msg *m){
         m->u.mapreq.max=!r.err&&r.len-r.n>=2?(uint16_t)rc_get16(&r):RC_MAP_MAX_V1;
         m->u.mapreq.base=!r.err&&r.len-r.n>=2?(uint16_t)rc_get16(&r):0;
         break;
-    case RC_MSG_MAPD: {
+    case RC_MSG_NEARREQ:
+        m->u.nearreq.req=(uint16_t)rc_get16(&r);m->u.nearreq.max=(uint16_t)rc_get16(&r);
+        m->u.nearreq.base=(uint16_t)rc_get16(&r);m->u.nearreq.radius=(uint16_t)rc_get16(&r);
+        if(r.err)return RC_E_SHORT;
+        break;
+    case RC_MSG_MAPD: case RC_MSG_NEARD: {
         m->u.mapd.req=(uint16_t)rc_get16(&r);m->u.mapd.base=(uint16_t)rc_get16(&r);
         m->u.mapd.part=(uint8_t)rc_get8(&r);m->u.mapd.nparts=(uint8_t)rc_get8(&r);
         m->u.mapd.total=(uint16_t)rc_get16(&r);m->u.mapd.n=(uint8_t)rc_get8(&r);
