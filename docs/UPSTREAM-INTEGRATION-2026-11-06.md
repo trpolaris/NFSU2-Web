@@ -105,10 +105,20 @@ This branch ports compatible changes from `th0mk/nfsu2-web` into TRPOLARIS while
 - Name JSON serialization now snapshots live claims and changed-owner metadata under the read lock, then sorts and writes JSON after releasing it, so Online and Free Roam readers do not wait for string formatting.
 - Kept TRPOLARIS's existing 500,000-claim cap and 180-day hold duration unchanged; the upstream 5-million cap and 730-day hold depend on a much larger deployment storage/memory envelope and were not copied without load tests.
 - Added a Rust regression test for the sweep interval and for expired claims remaining logically free before physical cleanup.
+### Friends list pagination
+- Added compact previous/next controls to the existing F9 Friends roster, showing 20 rows per page without changing the panel's card layout or styling.
+- Filtering resets to page one; the visible page is clamped after a refresh shrinks the list; the pager is hidden for 20 or fewer matches.
+- Added browser regression coverage for first/middle/last pages, filtering to one result, empty matches and page clamping after refresh.
+
+### GPS Distance HUD
+- Ported upstream's GPS destination distance label beneath the game's native direction arrow. It reports straight-line distance (not road distance) in the current Speedometer Units, updates only when the text changes, and hides when GPS is inactive or a race is running.
+- Added the gps_distance setting to the existing Game settings group and settings.ini template. It defaults off, is exposed through the current panel's existing More game settings section, and has a Turkish translation. No new page, mod catalogue or replacement UI was introduced.
+- Added the runtime hook and package-owned HUD text cloning helper. The current fork does not include Split Screen/Co-op, so the port intentionally handles Player 1 only; Player 2–4 support must follow a future co-op integration.
+- Added native C tests for unit formatting, HUD visibility, route state, race hiding, Player 1 filtering and disabled defaults, plus a browser test for the persisted setting.
 
 ## Not yet integrated / requires coordinated work
 
-- **Friends UI/gameplay completion:** the authenticated `/friends` API, initial F9 panel, direct messaging, RoamHub buddy-priority links, room whereabouts and LAN page-mail notifications are integrated. The separate start-page Friends & crews tab, bumper-contact FriendPrompt, Join action and race/crew invitations remain.
+- **Friends UI/gameplay completion:** the authenticated `/friends` API, initial F9 panel, direct messaging, RoamHub buddy-priority links, room whereabouts and LAN page-mail notifications are integrated. The existing F9 roster now has 20-row pagination and filtering. The separate start-page Friends & crews tab, bumper-contact FriendPrompt, Join action and race/crew invitations remain.
 - **Mods/Mod Packs:** built-in catalogue, Blitz rims, maker details, mod toggles, OEM stand-ins and the Shown/Original remote-car view need the runtime modpack module, manifests and save compatibility.
 - **World map/minimap:** current TRPOLARIS map uses a 512-player snapshot. Upstream's 2,048-player live map deltas, smooth markers and car-meet markers/GPS require a coordinated C/TypeScript/Rust protocol change. Upstream uses message type 17 for MAPD while TRPOLARIS uses 17 for typed FreeRoam chat; do not reuse it without an explicit message-ID/version migration.
 - **Multiplayer career credits:** requires race eligibility, friend/crew credit masks, career save/result accounting, lobby protocol and UI changes.
@@ -122,6 +132,7 @@ This branch ports compatible changes from `th0mk/nfsu2-web` into TRPOLARIS while
 
 ## Validation status
 
-- GitHub Actions are running for the draft PR. Check the PR's latest head before merging.
-- No native/WASM build, Rust tests, browser suite, or live multiplayer game session has been run in this integration session.
+- For commit `ec3b8385846018ccd99a8b9a9ac0c12849680683`, GitHub Actions passed TypeScript checking, web build, Cargo.lock verification, Rust workspace tests, native GPS formatter/HUD unit tests, server binary build and the synthetic Online protocol load/abuse smoke test.
+- The browser regression suite was still running at the time of this update; check the latest PR checks for its final result before merging.
+- Native/macOS and WASM game binaries and an actual in-game GPS drive have not yet been built/run in this CI session. The GPS native C harness passed, but that is not a substitute for a real game session.
 - The PR remains a draft. `main` and production deployment are unchanged.
