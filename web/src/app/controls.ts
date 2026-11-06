@@ -229,7 +229,7 @@ export function controlsSheet(root: HTMLElement, id: string, opts: { tab?: Tab; 
     </div></div>`;
     mount.append(wheel.box);
     svg = mount.querySelector('svg')!;
-    radios = [...mount.querySelectorAll<HTMLInputElement>('input[type="radio"]')];
+    radios = [...mount.querySelectorAll<HTMLInputElement>('.pad-foot input[type="radio"]')];
     for (const r of radios) r.onchange = () => { if (r.checked) sheet.family(r.value as Family); };
     wheel.relabel();
     requestAnimationFrame(fit);
