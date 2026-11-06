@@ -75,6 +75,8 @@ This branch ports compatible changes from `th0mk/nfsu2-web` into TRPOLARIS while
 - Added a TypeScript range/dead-zone test and extended the Quick Race photo-mode script to cover clockwise/counter-clockwise turning, stop, and Reset. The live game script still needs execution.
 - Added the upstream camera movement-speed control to the existing panel: a 0.1×–4× slider with 1× default, a double-click reset, and a backward-compatible `PH_SPEED` input event. The multiplier applies to keyboard and gamepad camera translation; Shift's existing 3× boost remains multiplicative.
 - Added bounds/monotonicity tests for the speed scale and extended `tests/scripts/photo_mode.txt` to exercise 2× speed then restore 1×. The in-game scenario still needs a real run.
+- Added the upstream Keep height option for the free camera using `PH_LEVEL`: forward movement follows the ground plane instead of the camera pitch; the option is disabled outside Free mode and defaults off on each Photo Mode visit. The existing panel style is retained and the Turkish label is translated.
+- Extended `tests/scripts/photo_mode.txt` to exercise Keep height on/off while the free camera is active. The in-game scenario still needs a real run.
 
 ### Steam Controller and Steam Deck through WebHID
 - Added the upstream WebHID reader for the 2015 Steam Controller (USB/dongle), 2026 Steam Controller and Steam Deck, including their button/axis maps, lizard-mode handoff and supported rumble behavior.
