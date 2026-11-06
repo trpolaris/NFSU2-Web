@@ -51,6 +51,17 @@ This branch ports compatible changes from `th0mk/nfsu2-web` into TRPOLARIS while
 - When a peer is paused or its interpolated pose is held, nitrous and wheel slip are cleared so an absent final network snapshot cannot leave smoke or nitrous effects stuck.
 - Added `mp waitsmoke` as a test assertion and updated the paired `roam_mp_drift_a.txt` / `roam_mp_drift_b.txt` manual scenario to check that effects appear while drifting and stop after braking. This still needs a real two-client game-session run.
 
+### Keyboard focus recovery and modifier repeats
+- The browser may mark a modifier's first keydown as a repeat; the runtime now accepts that first Alt/Shift/Ctrl press rather than silently dropping it.
+- Keys released by a focus/visibility/Meta transition are marked as still physically held; their next browser autorepeat re-presses them in the game, while a real keyup clears the marker.
+- Escape remains intentionally released when the page leaves fullscreen, so the fullscreen shortcut cannot become stuck.
+- Normal non-modifier repeats that begin without a held key are still ignored unless a focus-loss release recorded that key as held.
+
+### Career car record recovery
+- A profile may point the career at a car handle not represented in any of its ten garage slots (distinct from an empty extended slot).
+- Once the prologue is complete, the profile-load repair now selects the first owned car instead, preventing the car lot from treating a missing career car as a valid trade candidate.
+- The prologue/first-car path is preserved; this case only repairs an already-started career with an owned car.
+
 ## Not yet integrated / requires coordinated work
 
 - **Friends UI and API:** the 250-entry server capacity is in place, but start-page pagination/filtering, F9 request management, friend/crew invites, Discord names and online/offline roster UI still need to be wired to the existing Buddy service and custom React/F9 components.
