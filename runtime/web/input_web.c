@@ -212,7 +212,7 @@ static void key_down(const InEv *e){
             static uint8_t told[256];
             if (!told[dik]){
                 told[dik] = 1;
-                fprintf(stderr, "[key] dik=0x%02x's first keydown came as a repeat: taken as a press\\n", dik);
+                fprintf(stderr, "[key] dik=0x%02x's first keydown came as a repeat: taken as a press\n", dik);
             }
         }
         repeat = 0; again = 1;
@@ -221,7 +221,7 @@ static void key_down(const InEv *e){
     g_down[dik].lost = 0;
     int alt = (e->flags & IKF_ALT) != 0;
     if (kbd_log())
-        fprintf(stderr, "[key] host %s dik=0x%02x vk=0x%02x flags 0x%02x chars %d%s%s%s\\n",
+        fprintf(stderr, "[key] host %s dik=0x%02x vk=0x%02x flags 0x%02x chars %d%s%s%s\n",
                 repeat ? "repeat " : "keyDown", dik, e->vk, e->flags, e->nch,
                 (e->flags & IKF_DEAD) ? " (dead key)" : "", (e->flags & IKF_SYNTH) ? " [synthetic]" : "",
                 again ? " (held through a release)" : "");
@@ -254,7 +254,7 @@ static void key_down(const InEv *e){
 static void key_up(const InEv *e){
     unsigned dik = e->dik;
     if (!dik || dik > 255u) return;
-    if (kbd_log() && g_down[dik].down) fprintf(stderr, "[key] host keyUp   dik=0x%02x\\n", dik);
+    if (kbd_log() && g_down[dik].down) fprintf(stderr, "[key] host keyUp   dik=0x%02x\n", dik);
     g_down[dik].lost = 0;
     release(dik, (e->flags & IKF_ALT) != 0);
 }
