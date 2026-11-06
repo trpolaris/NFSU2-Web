@@ -2695,6 +2695,8 @@ static void map_update(CPU *c, uint32_t w, int64_t host){
     mp_map_icons(c,map,pkg,(uint32_t)wm_room(pk),1);
 #endif
     memset(g_wm_seen,0,sizeof g_wm_seen);
+    if(!g_wm.fake){uint32_t sz=0x410u;g_wm.fake=rh_call(c,FN_MALLOC,0,0,1,&sz);if(!ok(g_wm.fake,0x410u))g_wm.fake=0;}
+    if(!g_wm.fake)return;
     int made=0;
     for(int i=0;i<n;i++){
         rc_mapent *v=&g_wm_e[i];unsigned slot=v->id;
@@ -2702,6 +2704,8 @@ static void map_update(CPU *c, uint32_t w, int64_t host){
         g_wm_seen[slot]=1;
         uint32_t marker=g_wm_markers[slot];
         if(!ok(marker,WM_MARK_SZ)){
+            MRF32(g_wm.fake+0x60u)=(float)v->x;MRF32(g_wm.fake+0x64u)=(float)v->y;
+            MR16(g_wm.fake+0x40cu)=(uint16_t)(v->heading<<8);
             marker=wm_mark(c,map,pkg,g_wm.fake);
             if(!marker)continue;
             g_wm_markers[slot]=marker;made++;
