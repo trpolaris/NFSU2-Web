@@ -1640,6 +1640,59 @@ static void t_neard_merge(void){
           s.near_req, s.near_held, (long long)s.near_asked_us, s.near_n, s.near_gen);
 }
 
+/* The hub already emits up to 2048 slot-keyed records in 16 unfragmented MAPD datagrams.
+ * Exercise the full answer through rc_receive so assembly, ordering and the client cap agree. */
+static void t_mapd_capacity_2048(void){
+    rc_session s;
+    rc_config cf; memset(&cf, 0, sizeof cf);
+    cf.self_id = 0x902; cf.port = 47212; cf.max_players = 8; cf.rate_hz = 20;
+    cf.test_mode = 1; cf.hub_ip = HUB_IP; cf.hub_port = HUB_PORT;
+    rc_io io = { 0, 0, 0, 0 };
+    rc_session_init(&s, &cf, &io);
+    s.hub_since = 1; s.hub_heard_us = 1000000; s.hub_was = 2;
+    CHECK(RC_MAP_MAX == 2048 && RC_MAP_MAX_V1 == 512 && RC_MAPD_PARTS == 16,
+          "World Map native capacity is 2048 while the legacy MAPREQ default remains 512");
+    const int64_t asked = 2000000;
+    CHECK(rc_ask_map(&s, asked, RC_MAP_MAX, RC_MAPREQ_PARKED),
+          "the native client requests the hub's full 2048-entry World Map");
+    uint8_t data[RC_MAPD_BYTES], packet[RC_MAX_DGRAM];
+    rc_msg m; memset(&m, 0, sizeof m);
+    m.h.type = RC_MSG_MAPD; m.h.sender = 0xB0C;
+    m.u.mapd.req = s.map_req; m.u.mapd.base = 0;
+    m.u.mapd.nparts = RC_MAPD_PARTS; m.u.mapd.total = RC_MAP_MAX; m.u.mapd.n = 128;
+    m.u.mapd.data = data; m.u.mapd.len = sizeof data;
+    int last = 0;
+    for (int part = 0; part < RC_MAPD_PARTS; part++){
+        for (int j = 0; j < 128; j++){
+            uint16_t id = (uint16_t)(part * 128 + j + 1);
+            int16_t x = (int16_t)id, y = (int16_t)-(int)id;
+            uint8_t *e = data + j * RC_MAPD_PLACE;
+            e[0] = (uint8_t)id; e[1] = (uint8_t)(id >> 8);
+            e[2] = (uint8_t)x; e[3] = (uint8_t)((uint16_t)x >> 8);
+            e[4] = (uint8_t)y; e[5] = (uint8_t)((uint16_t)y >> 8);
+            e[6] = (uint8_t)id; e[7] = 1; e[8] = (uint8_t)-1;
+        }
+        m.u.mapd.part = (uint8_t)part;
+        int n = rc_encode(&m, packet, sizeof packet);
+        CHECK(n == RC_HDR + 9 + RC_MAPD_BYTES + RC_CRC,
+              "MAPD part %d encodes as one sub-1200-byte datagram (%d bytes)", part, n);
+        if (n <= 0) continue;
+        rc_receive(&s, HUB_IP, HUB_PORT, packet, n, 2050000 + part * 1000);
+        last = part;
+        if (part < RC_MAPD_PARTS - 1)
+            CHECK(s.map_n == 0 && s.map_gen == 0,
+                  "World Map part %d is held until all 16 pieces arrive", part);
+    }
+    CHECK(last == RC_MAPD_PARTS - 1 && s.map_n == RC_MAP_MAX && s.map_total == RC_MAP_MAX &&
+          s.map_held == s.map_req && s.map_gen == 1 && !s.map_asked_us && !s.map_mask,
+          "all 16 MAPD parts assemble 2048 entries (%d / %u, gen %u)", s.map_n, s.map_total, s.map_gen);
+    CHECK(s.map_e[0].id == 1 && s.map_e[0].x == 1 && s.map_e[0].y == -1 &&
+          s.map_e[0].vx == 1 && s.map_e[0].vy == -1 &&
+          s.map_e[RC_MAP_MAX - 1].id == 2048 && s.map_e[RC_MAP_MAX - 1].x == 2048 &&
+          s.map_e[RC_MAP_MAX - 1].y == -2048,
+          "the full MAPD snapshot preserves first and last slot keys and positions");
+}
+
 /* ---- MAPD and minimap wire compatibility ----------------------------------------------- */
 static void t_mapd_codec(void){
     rc_msg m; uint8_t b[RC_MAX_DGRAM], legacy[RC_MAX_DGRAM];
@@ -1694,6 +1747,7 @@ int main(int argc, char **argv){
     t_roundtrip();
     t_room_reset();
     t_neard_merge();
+    t_mapd_capacity_2048();
     t_mapd_codec();
     t_fuzz(fuzz);
     t_session();
