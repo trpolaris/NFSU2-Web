@@ -2288,7 +2288,7 @@ static struct { uint32_t hud, copy[NSLOT], hash[NSLOT]; int ncopy; int said, sto
 #define MMC_MAX         (NSLOT + 8)
 static struct { uint32_t hud; int n; uint32_t obj[MMC_MAX]; int32_t orig[MMC_MAX][3]; } g_mmc;
 /* NEARD's proximity snapshot, copied under the session lock and extrapolated
- * on the game thread. The renderer consumes these stable marker positions. */
+ * on the game thread. These positions are the input for the pending HUD marker renderer. */
 #define NEAR_ASK_US       1000000
 #define NEAR_STALE_US     2500000
 static struct {
