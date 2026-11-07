@@ -64,7 +64,7 @@ const TUNNEL_PACK = TUNNEL_TRACKS.map(p => `modpacks/open-tunnel/${p}`);
 /** Select only a complete, explicitly requested tunnel overlay; incomplete packs fall back as a unit. */
 export function withTunnelOverlay(files: DataFile[], enabled: boolean): DataFile[] {
   const names = new Set(files.map(f => parts(f).join('/')));
-  const use = enabled && TUNNEL_PACK.every(p => names.has(p));
+  const use = enabled && TUNNEL_PACK.every(p => names.has(p) && files.some(f => parts(f).join('/') === p && f.size > 0));
   return files.filter(f => {
     const p = parts(f).join('/');
     if (p.startsWith('modpacks/open-tunnel/')) return use && TUNNEL_PACK.includes(p);
