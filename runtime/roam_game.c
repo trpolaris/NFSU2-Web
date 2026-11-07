@@ -2501,7 +2501,9 @@ static void crew_arrows(CPU *c, uint32_t w){
 #define WM_SPARE        16            /* objects left to the package itself */
 static struct { int done, said, copies, asks, others; uint32_t map, gen, fake; int64_t asked;
                 int col_ok; int32_t col[3]; } g_wm;                   /* AIRACERINDICATOR_0's colour as the map opened (b, g, r) */
-static struct { int16_t x, y; uint8_t heading; } g_wm_e[RC_MAP_MAX];
+static rc_mapent g_wm_e[RC_MAP_MAX];
+static uint32_t g_wm_markers[RC_MAPD_GONE];
+static uint8_t g_wm_seen[RC_MAPD_GONE];
 /* the open map's screen, 0 while it is not made (or not this screen) */
 static uint32_t wm_screen(uint32_t pk){
     uint32_t h = rd32(pk + PKG_SCREEN), s = ok(h, 0x18) ? rd32(h + 0x14u) : 0;
@@ -2650,7 +2652,7 @@ static void map_update(CPU *c, uint32_t w, int64_t host){
     if (!ok(map, 0x2c) || !ok(pkg, 24)){ g_wm.done = 0; return; }
     if (g_wm.done && map != g_wm.map) g_wm.done = 0;                    /* another map (opened again) */
     if (!g_wm.done){
-        g_wm.done = 1; g_wm.map = map; g_wm.copies = 0; g_wm.asks = 0; g_wm.others = 0;
+        g_wm.done = 1; g_wm.map = map; g_wm.copies = 0; g_wm.asks = 0; g_wm.asked = 0; g_wm.others = 0; memset(g_wm_markers,0,sizeof g_wm_markers); memset(g_wm_seen,0,sizeof g_wm_seen);
         int32_t col[4] = {0}; uint32_t o0 = wm_find(c, pkg, "AIRACERINDICATOR_0");      /* (before a crew's colour) */
         g_wm.col_ok = o0 && fe_colour_get(o0, col);
         for (int i = 0; i < 3; i++) g_wm.col[i] = col[i];
@@ -2675,36 +2677,57 @@ static void map_update(CPU *c, uint32_t w, int64_t host){
     mp_map_labels(c, map);
 #endif
     crew_map_labels(c, map);
-    if (g_wm.asks < 0) return;                                          /* answered */
-    /* the other players: asked for, and marked when the answer is in */
-    int n = -1, total = 0;
+    /* Ask for deltas continuously; the hub answers a page at its configured map gap. */
+    int n=-1,total=0;
     roam_plat_lock();
-    if (g_s.map_gen != g_wm.gen){
-        n = g_s.map_n < RC_MAP_MAX ? g_s.map_n : RC_MAP_MAX; total = g_s.map_total;
-        for (int i = 0; i < n; i++){ g_wm_e[i].x = g_s.map_e[i].x; g_wm_e[i].y = g_s.map_e[i].y; g_wm_e[i].heading = g_s.map_e[i].heading; }
-    } else if (g_wm.asks < WM_ASKS && (!g_wm.asks || host - g_wm.asked > WM_ASK_US) && rc_ask_map(&g_s, host)){
-        g_wm.asks++; g_wm.asked = host;
+    if(g_s.map_gen!=g_wm.gen){
+        n=g_s.map_n<RC_MAP_MAX?g_s.map_n:RC_MAP_MAX;total=g_s.map_total;
+        memcpy(g_wm_e,g_s.map_e,(size_t)n*sizeof *g_wm_e);
+        g_wm.gen=g_s.map_gen;
+    }
+    if((!g_s.map_asked_us||host-g_s.map_asked_us>WM_ASK_US)&&(!g_wm.asked||host-g_wm.asked>=WM_LIVE_US)){
+        if(rc_ask_map(&g_s,host,RC_MAP_MAX))g_wm.asked=host;
     }
     roam_plat_unlock();
-    if (n < 0) return;
-    g_wm.asks = -1;
+    if(n<0)return;
 #if MPRACES
-    mp_map_icons(c, map, pkg, (uint32_t)wm_room(pk), 1);
+    mp_map_icons(c,map,pkg,(uint32_t)wm_room(pk),1);
 #endif
-    if (!g_wm.fake){ uint32_t sz = 0x410u; g_wm.fake = rh_call(c, FN_MALLOC, 0, 0, 1, &sz); if (!ok(g_wm.fake, 0x410u)) g_wm.fake = 0; }
-    int room = wm_room(pk), made = 0;                                  /* the nearest ones (the hub's order) */
-    if (n > room) n = room;
-    for (int i = 0; g_wm.fake && i < n; i++){
-        MRF32(g_wm.fake + 0x60u) = (float)g_wm_e[i].x; MRF32(g_wm.fake + 0x64u) = (float)g_wm_e[i].y;
-        MR16(g_wm.fake + 0x40cu) = (uint16_t)(g_wm_e[i].heading << 8);
-        if (!wm_mark(c, map, pkg, g_wm.fake)) break;
-        made++;
+    memset(g_wm_seen,0,sizeof g_wm_seen);
+    if(!g_wm.fake){uint32_t sz=0x410u;g_wm.fake=rh_call(c,FN_MALLOC,0,0,1,&sz);if(!ok(g_wm.fake,0x410u))g_wm.fake=0;}
+    if(!g_wm.fake)return;
+    int made=0;
+    for(int i=0;i<n;i++){
+        rc_mapent *v=&g_wm_e[i];unsigned slot=v->id;
+        if(slot>=RC_MAPD_GONE)continue;
+        g_wm_seen[slot]=1;
+        uint32_t marker=g_wm_markers[slot];
+        if(!ok(marker,WM_MARK_SZ)){
+            MRF32(g_wm.fake+0x60u)=(float)v->x;MRF32(g_wm.fake+0x64u)=(float)v->y;
+            MR16(g_wm.fake+0x40cu)=(uint16_t)(v->heading<<8);
+            marker=wm_mark(c,map,pkg,g_wm.fake);
+            if(!marker)continue;
+            g_wm_markers[slot]=marker;made++;
+        }
+        double dt=(double)(host-v->at_us)/1000000.0;
+        if(dt<0.0||dt>2.0)dt=0.0;
+        MRF32(marker+0x10u)=(float)(v->x+(double)v->vx*dt);
+        MRF32(marker+0x14u)=(float)(v->y+(double)v->vy*dt);
+        MR16(marker+0x18u)=(uint16_t)(v->heading<<8);
+        uint32_t obj=rd32(marker+0xcu);
+        if(ok(obj,0x20))gcall1(c,FN_FE_SHOW,0,obj);
     }
-    int copies = made ? wm_dress(c, map, pkg, room) : 0;
-    if (made) gcall0(c, FN_WM_PLACE, map);
-    g_wm.others = made;
-    rlog("[roam] f=%ld world map: %d other players in free roam marked (the hub knows %d past your friends; room for %d), %d copies more\n",
-            rh_frame(), made, total, room, copies);
+    for(unsigned slot=0;slot<RC_MAPD_GONE;slot++){
+        uint32_t marker=g_wm_markers[slot];
+        if(!marker||g_wm_seen[slot])continue;
+        uint32_t obj=rd32(marker+0xcu);
+        if(ok(obj,0x20))gcall1(c,FN_FE_HIDE,0,obj);
+    }
+    int room=wm_room(pk),copies=made?wm_dress(c,map,pkg,room):0;
+    if(n)gcall0(c,FN_WM_PLACE,map);
+    g_wm.others=n;
+    rlog("[roam] f=%ld world map: %d other players updated by MAPD (total %d), %d new markers, %d copies\n",
+         rh_frame(),n,total,made,copies);
 }
 
 /* ---- per-frame --------------------------------------------------------------------------------- */
