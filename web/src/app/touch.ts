@@ -235,6 +235,7 @@ export class TouchControls {
   private ticks = true;
   private drive = 0;
   private frames = 0;
+  private netrace = 0;
   private statusAt = 0;
   /** the car goes fast (the game's "fast" status); undefined on older/no-status games keeps Reset visible */
   private fast: number | undefined;
@@ -378,7 +379,7 @@ export class TouchControls {
     this.session = null;
     // Do not retain the previous game's input closure (and its 1 GB WebAssembly memory) after Play ends.
     this.menuTo = null;
-    this.drive = this.frames = 0;
+    this.drive = this.frames = this.netrace = 0;
   }
 
   private frame() {
@@ -390,6 +391,7 @@ export class TouchControls {
       const st = s.status?.read();                // null while the game writes it: the last state stands
       if (st) {
         this.drive = st.get('drive') ?? 0; this.frames = st.get('frames') ?? 0;
+        this.netrace = st.get('netrace') ?? 0;
         this.fast = st.has('fast') ? st.get('fast') : undefined;
       }
     }
@@ -416,6 +418,7 @@ export class TouchControls {
     const on = !!this.session && this.seen && !this.away;
     const mode: Mode = !on ? '' : (this.drive & 3) > 0 ? 'drive' : this.frames > 0 ? 'menu' : '';
     this.root.toggleAttribute('data-roam', (this.drive & 3) === 2);
+    this.root.toggleAttribute('data-netrace', this.netrace > 0);
     this.root.toggleAttribute('data-gears', (this.drive & 4) !== 0);
     this.stow('reset', mode === 'drive' && this.fast === 1);
     this.setMode(mode);
