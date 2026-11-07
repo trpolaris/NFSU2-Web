@@ -3,7 +3,7 @@
 # should create one Car meets marker, label, selection item and GPS trigger.
 #
 # Run from the repository root:
-# node web/tools/roam-pair.mjs --page app --solo --crowd 24 --crowd-args "--speed 0 --spread 6" \
+# node web/tools/roam-pair.mjs --page app --solo --crowd 24 --crowd-args "--speed 0 --spread 6 --room CarMeetTest" \
 #   --a MeetHost:roam_crowd_meet.txt --env NFSU2_ROAM=1 --env NFSU2_ROAM_ROOM=CarMeetTest
 #
 # After MEET READY, manually select the "Car meets" legend row and confirm its nearest
