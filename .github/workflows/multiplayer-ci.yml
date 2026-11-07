@@ -14,6 +14,8 @@ on:
       - 'runtime/**'
       - 'app/registry-defaults.txt'
       - 'tools/**'
+      - 'tests/**'
+      - 'docs/**'
   pull_request:
     branches:
       - main
@@ -23,6 +25,8 @@ on:
       - 'runtime/**'
       - 'app/registry-defaults.txt'
       - 'tools/**'
+      - 'tests/**'
+      - 'docs/**'
   workflow_dispatch:
 
 permissions:
