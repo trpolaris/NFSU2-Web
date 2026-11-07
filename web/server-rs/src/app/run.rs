@@ -136,8 +136,10 @@ fn car_bans_from_env() -> Option<(CarBans, mpsc::UnboundedReceiver<CarBan>)> {
     if kw.is_none() && rating.is_none() { return None; }
     let (tx, rx) = mpsc::unbounded_channel();
     let call = Arc::new(move |c: CarBan| { let _ = tx.send(c); });
-    log::line(&format!("[ban] automatic race bans enabled: {}{}", kw.map(|v| format!("{v:.0} kW or more")).unwrap_or_default(),
-        if kw.is_some() && rating.is_some() { " or " } else { "" }) );
+    let mut thresholds = Vec::new();
+    if let Some(v) = kw { thresholds.push(format!("{v:.0} kW or more")); }
+    if let Some(v) = rating { thresholds.push(format!("rating {v:.0} or more")); }
+    log::line(&format!("[ban] automatic race bans enabled: {}", thresholds.join(" or ")));
     Some((CarBans { kw, rating, call }, rx))
 }
 
