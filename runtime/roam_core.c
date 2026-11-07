@@ -1186,6 +1186,28 @@ int rc_peer_crew(const rc_session *s, int i){
     }
     return -1;
 }
+static void drop_peer(rc_session *s, int i, const char *why);
+int rc_set_room(rc_session *s, uint32_t room){
+    if (!s || room == s->conf.room) return 0;
+    s->conf.room = room;
+    int left = 0;
+    for (int i = 0; i < RC_TABLE; i++){
+        if (s->peer[i].state == RC_PS_FREE) continue;
+        left += s->peer[i].state == RC_PS_EST;
+        drop_peer(s, i, "the room changed");
+    }
+    /* A response from the previous room must not repopulate either map. */
+    s->map_n = 0; s->map_total = 0; s->map_held = 0;
+    s->map_mask = 0; s->map_asked_us = 0; s->map_gen++;
+    s->near_n = 0; s->near_total = 0; s->near_held = 0;
+    s->near_asked_us = 0; s->near_gen++;
+    s->lobbies_n = 0; s->lobbies_req = 0; s->lobbies_gen++;
+    s->noted_room = 0;
+    s->hub_hello_tx = INT64_MIN / 4;
+    for (int i = 0; i < RC_TABLE; i++)
+        if (s->peer[i].state != RC_PS_FREE) s->peer[i].last_hello_tx = INT64_MIN / 4;
+    return left;
+}
 static int group_count(const rc_session *s){
     int n = 0;
     for (int i = 0; i < RC_TABLE; i++) if (s->peer[i].state == RC_PS_EST && in_group(s, &s->peer[i])) n++;
