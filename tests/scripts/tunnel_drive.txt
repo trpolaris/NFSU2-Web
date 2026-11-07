@@ -1,5 +1,5 @@
 # Optional tunnel overlay in an existing free-roam career.
-# roam-pair: --page app --seed <career-save> --env NFSU2_OPEN_TUNNEL=1
+# roam-pair: --page app --solo --a Tunnel:tunnel_drive.txt --seed <career-save> --env NFSU2_OPEN_TUNNEL=1 --drive-route tests/scripts/tunnel-route.json
 # Requires the MODPACKS/open-tunnel pack; original TRACKS must remain installed.
 0 bot on
 +0 waitroam 6000
