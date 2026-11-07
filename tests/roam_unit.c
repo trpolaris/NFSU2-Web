@@ -1554,6 +1554,7 @@ static void t_room_reset(void){
     rc_io io = { 0, 0, 0, 0 };
     rc_session_init(&s, &cf, &io);
     s.peer[0].state = RC_PS_EST; s.peer[0].configured = 1; s.peer[0].id = 2;
+    s.peer[0].ip = 0x7f000002u; s.peer[0].port = 41002;
     snprintf(s.peer[0].name, sizeof s.peer[0].name, "OldRoomPeer");
     s.map_n = 4; s.map_total = 8; s.map_held = 3; s.map_mask = 5; s.map_asked_us = 1234;
     s.near_n = 3; s.near_total = 6; s.near_held = 7; s.near_asked_us = 5678;
@@ -1562,8 +1563,9 @@ static void t_room_reset(void){
     uint32_t mg = s.map_gen, ng = s.near_gen, lg = s.lobbies_gen;
     CHECK(rc_set_room(&s, 0x22222222u) == 1, "room change returns the number of established peers");
     CHECK(s.conf.room == 0x22222222u && s.peer[0].state == RC_PS_CANDIDATE &&
-          s.peer[0].id == 0 && s.peer[0].configured && s.peer[0].ip == 0,
-          "room change clears established identity but preserves configured peer for re-handshake");
+          s.peer[0].id == 0 && s.peer[0].configured &&
+          s.peer[0].ip == 0x7f000002u && s.peer[0].port == 41002,
+          "room change clears established identity but preserves configured endpoint for re-handshake");
     CHECK(!s.map_n && !s.map_total && !s.map_held && !s.map_mask && !s.map_asked_us && s.map_gen == mg + 1,
           "room change invalidates pending World Map state");
     CHECK(!s.near_n && !s.near_total && !s.near_held && !s.near_asked_us && s.near_gen == ng + 1,
