@@ -164,7 +164,7 @@ export class HidPadReader {
  */
 export function oneS2016Android(g: Pick<Gamepad, 'id' | 'mapping' | 'buttons'>, ua = globalThis.navigator?.userAgent ?? '',
                                 touch = globalThis.navigator?.maxTouchPoints ?? 0): boolean {
-  if (g.mapping !== 'standard' || g.buttons.length !== 16 || !/\\(STANDARD GAMEPAD Vendor: 045e Product: 02e0\\)$/i.test(g.id)) return false;
+  if (g.mapping !== 'standard' || g.buttons.length !== 16 || !g.id.toLowerCase().endsWith('(standard gamepad vendor: 045e product: 02e0)')) return false;
   return /Android/.test(ua) || (/X11; Linux/.test(ua) && touch > 0);
 }
 
@@ -191,9 +191,9 @@ export class OneS2016Reader {
   }
 
   describe(): string {
-    return 'Xbox\\'s One S with its 2016 firmware under Chrome on Android: Chrome maps it as if Android had not, so its ' +
-      'buttons are read from where Chrome put them and the right stick from its trigger places; its triggers, View, ' +
-      'Menu, stick buttons and Xbox button never reach the browser (Throttle and Brake can go on buttons in the game\\'s ' +
-      'Joypad Configuration)';
+    return "Xbox's One S with its 2016 firmware under Chrome on Android: Chrome maps it as if Android had not, so its " +
+      "buttons are read from where Chrome put them and the right stick from its trigger places; its triggers, View, " +
+      "Menu, stick buttons and Xbox button never reach the browser (Throttle and Brake can go on buttons in the game's " +
+      "Joypad Configuration)";
   }
 }
