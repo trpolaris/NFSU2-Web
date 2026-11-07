@@ -2496,6 +2496,7 @@ static void crew_arrows(CPU *c, uint32_t w){
 #define G_WM_COUNT      0x00835f70u   /* the car markers' running count: AIRACERINDICATOR_<n> */
 #define PKG_SCREEN      0x40u         /* FEPackage: +0x40 an object whose +0x14 is the package's screen */
 #define WM_ASK_US       1500000       /* no answer from the hub in this time: asked again, WM_ASKS times at most */
+#define WM_LIVE_US      250000        /* keep the map moving with incremental answers */
 #define WM_ASKS         3
 #define FE_LIST_MAX     1024          /* the FE renderer's list of a package's objects to draw */
 #define WM_SPARE        16            /* objects left to the package itself */
@@ -2686,7 +2687,7 @@ static void map_update(CPU *c, uint32_t w, int64_t host){
         g_wm.gen=g_s.map_gen;
     }
     if((!g_s.map_asked_us||host-g_s.map_asked_us>WM_ASK_US)&&(!g_wm.asked||host-g_wm.asked>=WM_LIVE_US)){
-        if(rc_ask_map(&g_s,host,RC_MAP_MAX))g_wm.asked=host;
+        if(rc_ask_map(&g_s,host,RC_MAP_MAX,RC_MAPREQ_PARKED))g_wm.asked=host;
     }
     roam_plat_unlock();
     if(n<0)return;
