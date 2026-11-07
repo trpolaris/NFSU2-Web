@@ -15,7 +15,7 @@ const S = await load('web/src/app/settings.ts'), D = await load('web/src/host/da
 const tracks = ['TRACKS/L4RA.BUN', 'TRACKS/STREAML4RA.BUN', 'TRACKS/ROUTESL4RA/PathsFreeRoam.bin'];
 const pack = tracks.map(p => `MODPACKS/open-tunnel/${p}`);
 const files = [...tracks, ...pack, 'MODPACKS/other/file.bin', 'GLOBAL/GlobalB.lzc'].map(path => ({path, size: 10, mtime: 1}));
-const ahead = (enabled, entries = files) => D.aheadFiles(entries, 'english', {texpack: '', songs: '', openTunnel: enabled}).map(f => f.path).sort();
+const ahead = (enabled, entries = files) => D.aheadFiles(entries, 'english', '', enabled).map(f => f.path).sort();
 
 test('tunnel is disabled by default and can be enabled and disabled in saved settings', () => {
   const env = ini => S.resolveEnv(ini, {}, {}).env.NFSU2_OPEN_TUNNEL;
@@ -24,8 +24,9 @@ test('tunnel is disabled by default and can be enabled and disabled in saved set
   assert.equal(env('open_tunnel = off'), '0');
 });
 test('preload uses originals by default and only the complete selected overlay when enabled', () => {
-  assert.deepEqual(ahead(false), [...tracks, 'GLOBAL/GlobalB.lzc'].sort());
-  assert.deepEqual(ahead(true), [...pack, 'GLOBAL/GlobalB.lzc'].sort());
+  const other = ['MODPACKS/other/file.bin', 'GLOBAL/GlobalB.lzc'];
+  assert.deepEqual(ahead(false), [...tracks, ...other].sort());
+  assert.deepEqual(ahead(true), [...pack, ...other].sort());
   assert.deepEqual(ahead(true, files.filter(f => f.path !== pack[2])), ahead(false));
-  assert.deepEqual(ahead(true, files.map(f => ({...f, path: f.path.toLowerCase()}))), [...pack, 'GLOBAL/GlobalB.lzc'].map(p => p.toLowerCase()).sort());
+  assert.deepEqual(ahead(true, files.map(f => ({...f, path: f.path.toLowerCase()}))), [...pack, ...other].map(p => p.toLowerCase()).sort());
 });
