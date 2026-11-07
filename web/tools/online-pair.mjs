@@ -301,6 +301,7 @@ const COMMON = {
   NFSU2_STATUS_EVERY: '600', NOMOVIES: '1', SNDSYNC: '0', GPUVS: '1', NFSU2_OL_NAME: '', NFSU2_OL_PASS: PASSWORD,
 };
 for (const kv of opts('env')) COMMON[kv.slice(0, kv.indexOf('='))] = kv.slice(kv.indexOf('=') + 1);
+if (SAY && COMMON.NFSU2_ROAM_SAY === undefined) COMMON.NFSU2_ROAM_SAY = '1';
 const stamp = Date.now().toString(36);
 // the scripts are answered by this tool (Playwright's request interception) at a path of the page's own
 // origin (the server's Content-Security-Policy refuses data: URLs; it serves only the repository's tests/)
