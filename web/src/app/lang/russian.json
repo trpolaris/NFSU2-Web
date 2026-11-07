@@ -1552,5 +1552,8 @@
   "This server is currently running for testing only and should not be considered a stable, production-ready service.": "Сейчас этот сервер работает только для тестирования и не должен рассматриваться как стабильный готовый к эксплуатации сервис.",
   "The project is still in development and testing. You may encounter bugs, interruptions, or unexpected behavior in gameplay, multiplayer connections, chat, or website features.": "Проект всё ещё находится на стадии разработки и тестирования. В игре, многопользовательском подключении, чате или функциях сайта возможны ошибки, перебои и неожиданное поведение.",
   "By continuing, you acknowledge that you are using a test build.": "Продолжая, вы подтверждаете, что используете тестовую версию.",
-  "I understand, continue": "Понятно, продолжить"
+  "I understand, continue": "Понятно, продолжить",
+  "Too many players are connected from your network: playing with others waits for a free place, or use another network.": "Из вашей сети подключено слишком много игроков: игра с другими начнётся, когда освободится место, или используйте другую сеть.",
+  "Your antivirus or network is probably blocking the connection to other players. Allow this site in it, or try another network or a VPN.": "Скорее всего, соединение с другими игроками блокирует ваш антивирус или сеть. Разрешите этот сайт в антивирусе или попробуйте другую сеть или VPN.",
+  "Your connection to other players keeps dropping. Your network may be limiting it: try another network or a VPN.": "Соединение с другими игроками постоянно обрывается. Возможно, его ограничивает ваша сеть: попробуйте другую сеть или VPN."
 }

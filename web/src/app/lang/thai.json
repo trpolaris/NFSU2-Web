@@ -1437,5 +1437,8 @@
   "This server is currently running for testing only and should not be considered a stable, production-ready service.": "ขณะนี้เซิร์ฟเวอร์นี้เปิดให้ใช้งานเพื่อการทดสอบเท่านั้น และไม่ควรถือว่าเป็นบริการที่เสถียรพร้อมใช้งานจริง",
   "The project is still in development and testing. You may encounter bugs, interruptions, or unexpected behavior in gameplay, multiplayer connections, chat, or website features.": "โปรเจกต์ยังอยู่ในขั้นตอนการพัฒนาและทดสอบ คุณอาจพบข้อผิดพลาด การหยุดชะงัก หรือการทำงานที่ไม่คาดคิดในเกม การเชื่อมต่อหลายผู้เล่น แชต หรือฟีเจอร์ของเว็บไซต์",
   "By continuing, you acknowledge that you are using a test build.": "เมื่อดำเนินการต่อ แสดงว่าคุณรับทราบว่ากำลังใช้รุ่นทดสอบ",
-  "I understand, continue": "รับทราบ ดำเนินการต่อ"
+  "I understand, continue": "รับทราบ ดำเนินการต่อ",
+  "Too many players are connected from your network: playing with others waits for a free place, or use another network.": "มีผู้เล่นเชื่อมต่อจากเครือข่ายของคุณมากเกินไป: ต้องรอที่ว่างก่อนจึงจะเล่นกับผู้อื่นได้ หรือใช้เครือข่ายอื่น",
+  "Your antivirus or network is probably blocking the connection to other players. Allow this site in it, or try another network or a VPN.": "แอนตี้ไวรัสหรือเครือข่ายของคุณอาจบล็อกการเชื่อมต่อกับผู้เล่นอื่นอยู่ อนุญาตเว็บไซต์นี้ หรือลองใช้เครือข่ายอื่นหรือ VPN",
+  "Your connection to other players keeps dropping. Your network may be limiting it: try another network or a VPN.": "การเชื่อมต่อกับผู้เล่นอื่นหลุดอยู่เรื่อย ๆ เครือข่ายของคุณอาจจำกัดอยู่: ลองใช้เครือข่ายอื่นหรือ VPN"
 }
