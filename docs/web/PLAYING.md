@@ -123,7 +123,7 @@ The start page shows these keys under **Controls**, and F9, Controls shows them 
   stands still, the HUD goes and the camera comes loose from the car. Orbit (the first) turns around a point at your
   car, which you can move up to 10 m from it; Free flies up to 20 m from the car. Drag with the mouse (or the arrow
   keys) to turn, W A S D to move, Q and E for down and up, the wheel to come closer or go farther, Z and X to zoom,
-  C and V to tilt, Shift to go faster, Tab for orbit or free, R to start over, H to hide the panel. F12, Enter or
+  C and V to tilt continuously through full rotations, Shift to go faster, Tab for orbit or free, R to start over, H to hide the panel. F12, Enter or
   Space takes the photo, Esc leaves. On a controller: the right stick turns, the left stick moves, LB and RB are down
   and up, the triggers closer and farther, the D-pad zooms and tilts, Y is orbit or free, X starts over, A takes the
   photo, B leaves, View hides the panel. On a touch screen: drag to turn, two fingers to move, pinch for closer or
