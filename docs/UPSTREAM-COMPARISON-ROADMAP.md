@@ -195,7 +195,7 @@ TRPOLARIS Minimap prototipinde:
 |---|---|---|---|
 | P0 | PR #21 stabilizasyonu | Son PR head üzerinde tam Multiplayer & Regression CI çalıştırmak; iptal edilen koşuyu yeşil sonuçla değiştirmek. | PR head'inde CI başarılı, derleme/test hatası yok. |
 | P0 | Gerçek oyun testi | Mod pack, vinyl pack, GPS HUD, FriendPrompt, crew daveti ve Save/Load akışını gerçek oyunla doğrulamak. | İki istemcili ve kariyer kayıtlı test senaryoları geçer; bulgular kaydedilir. |
-| P0 | MODPACKS asset üretimi | Uyumlu underground2.net varlıklarından `MODPACKS/` üretip dosya manifest ve oyun açılışını kontrol etmek. | Paket açılır; eksik/yanlış boyutlu varlık yok; Body Shop ve uzak araçlarda tutarlı sonuç. |
+| P0 | MODPACKS rim shop özelliğini yeniden etkinleştirme | Runtime'da zorunlu kapalı olan `g.on[]` kararını, UI ayarlarını ve save/remote-car davranışını birlikte yeniden tasarla. | Güvenli ayar kaydı, native/WASM testleri, uyumlu paket üretimi ve iki istemcili Body Shop/remote-car/save doğrulaması geçer. |
 | P1 | World Map MAPD | Port edildi; yeni CI ve gerçek oyun oda/marker testleri bekleniyor. | Legacy MAPREQ snapshot ve yeni MAPD delta birleştirmesi geçer; oda değişimi temizlenir; 2.048 oyuncu testi tamamlanır. |
 | P1 | Minimap NEARD | Rust grid/dispatch, C protocol/merge, aktif polling, Player ikon/visual renderer, interpolation/extrapolation, stale/duplicate temizliği ve diagnostics port edildi. | Native/WASM oyun build'i; marker yön/konum, HUD rebuild, oda değişimi, paket kaybı ve 2+ istemcili oyun testi geçer. |
 | P1 | Car Meet | Park kümesi, meet marker/label/item, legend seçimi ve GPS trigger kodu port edildi; `roam mp meet` diagnostics ve 24 sabit istemcili test senaryosu eklendi. | 24 oyuncu 60 s park sonrası meet görünür; legend hide/show çalışır; seçilen meet GPS hedeflenir ve 40 m içinde rota temizlenir. |
@@ -209,7 +209,7 @@ TRPOLARIS Minimap prototipinde:
 
 **MAPD kapasite uygulaması:** Rust hub'da MAPD yolu için `mapd_limit` 2.048 kayıt (yükseklikli isteklerde 1.664), legacy `map()` yolu için `legacy_map_limit` 690 kayıt kullanır. `RoamOptions::default().map_max` 512'dir; `NFSU2_ROAM_MAP_MAX` ile 1–2.048 arasında açıkça yükseltilebilir. Hub unit testleri 2.048/1.664 limitlerini, varsayılanı, clamp davranışını, 690 legacy sınırını ve 16 parçalı tam snapshot paket bütçesini doğrular. Bu, kod ve otomatik test kapsamıdır; 2.048 gerçek oyunculu yük testi değildir.
 
-**Önerilen sıra:** Son PR HEAD'in Multiplayer & Regression CI'sini tamamla; native/WASM oyun build'lerini al; ardından World Map/NEARD marker'larını gerçek oyunda ve iki istemcide doğrula; sonra Car Meet/GPS akışını gerçek oyunda tamamla. 4.096 World Map ve 24.000 hub oyuncusu gibi büyük limitler profil ve yük testi olmadan etkinleştirilmemeli.
+**Önerilen sıra:** Son PR HEAD'in Multiplayer & Regression CI'sini tamamla; native/WASM oyun build'lerini al; ardından World Map/NEARD marker'larını gerçek oyunda ve iki istemcide doğrula; sonra Car Meet/GPS akışını gerçek oyunda tamamla. MODPACKS rim mağaza akışını yeniden etkinleştirme ve 24k switch kapasitesi için yük profili daha sonraki ayrı işlerdir. 24k adres üst sınırını 24k Free Roam oyuncusu gibi sunma.
 
 
 ## 10. Upstream delta audit — 7 Kasım 2026
