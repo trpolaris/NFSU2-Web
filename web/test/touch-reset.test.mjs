@@ -49,7 +49,7 @@ const js = (await esbuild.build({ entryPoints: [path.join(ROOT, 'web/src/app/tou
 const { TouchControls } = await import('data:text/javascript;base64,' + Buffer.from(js).toString('base64'));
 
 // a game in free roam (drive 2) whose speed state is controlled by each test
-function setup() {
+function setup(raceChatOn) {
   mock.timers.enable({ apis: ['setTimeout'] });
   const status = new Map([['drive', 2], ['frames', 100], ['fast', 0]]);
   const sent = [];
@@ -57,7 +57,9 @@ function setup() {
     status: { read: () => status },
     input: { key: (code, down) => sent.push([code, down]), touchPad() {}, menuScale() {}, padPressed: () => 0, viewRoll() {} },
   });
-  const tc = new TouchControls(new El(), { toast() {}, log() {} });
+  const deps = { toast() {}, log() {} };
+  if (raceChatOn) deps.raceChatOn = raceChatOn;
+  const tc = new TouchControls(new El(), deps);
   tc.start(session(), false);
   // a frame: the timers run as the page's clock goes (late: they lag behind it, as on a busy page)
   const frame = (late = false) => { now += 17; if (!late) mock.timers.tick(17); raf?.(); };
@@ -113,5 +115,33 @@ test('a page/status without the fast field keeps Reset visible', () => {
     x.status.delete('fast');
     x.until(() => x.tc.state().fast === undefined);
     assert.ok(!x.tc.state().stowed.includes('reset'), 'legacy/no-speed status does not hide Reset');
+  } finally { done(x); }
+});
+
+test('race Quick Chat is exposed independently of Free Roam touch controls', () => {
+  const x = setup(() => true);
+  try {
+    x.set('drive', 1);
+    assert.ok(!x.tc.root.hasAttribute('data-roam'), 'the race is not treated as Free Roam');
+    x.set('netrace', 1);
+    assert.ok(x.tc.root.hasAttribute('data-netrace'), 'the race status exposes the Quick Chat control');
+    assert.equal(x.tc.state().netrace, 1);
+    x.set('netrace', 2);
+    assert.equal(x.tc.state().netrace, 2, 'the control stays available on race results');
+    x.set('netrace', 0);
+    assert.ok(!x.tc.root.hasAttribute('data-netrace'), 'the race control leaves when the race ends');
+  } finally { done(x); }
+});
+
+test('race Quick Chat is hidden when the phrase setting is off, without disabling Free Roam chat', () => {
+  const x = setup(() => false);
+  try {
+    x.set('drive', 1);
+    x.set('netrace', 1);
+    assert.ok(x.tc.root.hasAttribute('data-no-race-chat'), 'the race-specific control is marked disabled');
+    x.set('netrace', 0);
+    x.set('drive', 2);
+    assert.ok(x.tc.root.hasAttribute('data-roam'), 'Free Roam remains active');
+    assert.ok(x.tc.root.hasAttribute('data-no-race-chat'), 'the setting is unchanged');
   } finally { done(x); }
 });
