@@ -19,7 +19,7 @@ Bu belge, proje ana README'sinin yerine geçmez. Entegrasyon çalışmalarının
 | World Map protokol dalı | `integration/world-map-mapd`, HEAD `ecf7f03` | [Dal](https://github.com/trpolaris/NFSU2-Web/tree/integration/world-map-mapd) |
 | Minimap/NEARD çalışma dalı | `feature/world-map-meets`, HEAD `1bb6b23` | [Dal](https://github.com/trpolaris/NFSU2-Web/tree/feature/world-map-meets) |
 
-**Önemli:** `main` ile entegrasyon dalı aynı değildir. PR #21 hâlâ açık taslaktır ve birleştirilmemiştir. World Map/Minimap deneysel dalları otomatik olarak dahil edilmedi; MAPD, NEARD ve seçilen native runtime parçaları PR #21'e seçici olarak port edildi. `main` ve üretim sunucusu değişmedi.
+**7 Kasım 2026 güncel kontrolü:** PR #21 HEAD `f8766aac110d44d7483978c3da7f844f2761a6e8`, 425 commit ve 171 değişen dosyadır. PR açık/taslak, merge edilmedi. `main` HEAD `82616f9d9367203bda308005c07f6970f0ab4995` olarak kaldı; production deploy yapılmadı. MAPD kapasite ayrımı, WebSocket bağlantı nedeni tanılaması ve `/lan?check` preflight kodu bu HEAD'de mevcuttur. World Map/Minimap deneysel dalları otomatik birleştirilmedi; uyumlu parçalar PR #21'e seçici port edildi.
 
 - [main ile ana entegrasyon dalının farkı](https://github.com/trpolaris/NFSU2-Web/compare/main...integration/upstream-2026-11-06)
 - [main ile World Map dalının farkı](https://github.com/trpolaris/NFSU2-Web/compare/main...integration/world-map-mapd)
@@ -121,6 +121,17 @@ Bu bölümdeki çalışmalar `integration/upstream-2026-11-06` dalındadır ve [
 
 **Dosyalar:** [MODPACKS.md](https://github.com/trpolaris/NFSU2-Web/blob/integration/upstream-2026-11-06/docs/web/MODPACKS.md) · [runtime/modpacks.c](https://github.com/trpolaris/NFSU2-Web/blob/integration/upstream-2026-11-06/runtime/modpacks.c) · [tools/modpacks.py](https://github.com/trpolaris/NFSU2-Web/blob/integration/upstream-2026-11-06/tools/modpacks.py) · [modpack test senaryoları](https://github.com/trpolaris/NFSU2-Web/tree/integration/upstream-2026-11-06/tests/scripts)
 
+### 3.8 WebSocket bağlantı teşhisi ve LAN preflight
+
+- WebSocket bağlantısı art arda üç kez hiç açılamazsa istemci aynı origin'deki `GET /lan?check` endpoint'inden neden sorgular.
+- Sunucu `ok`, `busy`, `fast` veya `page` durumlarından birini döndürür; kontrol bağlantı bütçesi/rate-limit kotası tüketmez.
+- Sonraki WebSocket de sunucu kabul edebileceği halde açılmazsa ağ, antivirüs veya tarayıcı eklentisi kaynaklı engel kullanıcıya bildirilir.
+- Bağlantı açıldıktan sonra ping gönderip pong alamayan üç ardışık bağlantı için ayrı “bağlantı sürekli kopuyor” tanılaması vardır.
+- Bildirim oyun oturumu başına sınırlanır; oyuncu bağlantı yokken LAN/Online ekranını tekrar açarsa bilinen neden yeniden gösterilir.
+- `web/test/net-trouble.test.mjs` reddedilen upgrade, ağ engeli, sunucu yeniden başlatma sonrası başarılı bağlantı, `fast`/eski sunucu davranışı ve sessiz bağlantı senaryolarını kapsar.
+
+**Önemli dosyalar:** [net/index.ts](https://github.com/trpolaris/NFSU2-Web/blob/integration/upstream-2026-11-06/web/src/net/index.ts) · [lan.rs](https://github.com/trpolaris/NFSU2-Web/blob/integration/upstream-2026-11-06/web/server-rs/src/app/lan.rs) · [net trouble regression](https://github.com/trpolaris/NFSU2-Web/blob/integration/upstream-2026-11-06/web/test/net-trouble.test.mjs)
+
 ### 3.7 Cloud Save, isim sahipliği ve çıkış güvenliği
 
 - Name-claim deposunda süre aşımı temizliğinin sıklığı ve kilit altında JSON serileştirme maliyeti düzenlendi.
@@ -198,7 +209,9 @@ TRPOLARIS Minimap prototipinde:
 | P3 | Co-op / Split Screen | 2–4 oyunculuk render, bellek, input, kamera, kariyer ve yarış sistemleri. | Her oyuncunun kontrol/kamera/kayıt davranışı doğrulanır; yalnızca dosya kopyasıyla yapılmaz. |
 | P3 | Diğer upstream özellikleri | Çoklu lobby/Quick Chat iyileştirmeleri, gizli Special vinyls, araç filtresi/unique unlock, Visual Reputation Remover, hava durumu senkronizasyonu, pause-menu save, save recovery, Last.fm/EA Trax, country RTT ve kalan çarpışma/efekt düzeltmeleri. | Her özellik için ayrı protokol, runtime, UI ve regresyon senaryosu tamamlanır. |
 
-**Önerilen sıra:** PR #21'in güncel CI'sini ve native C protocol testlerini yeşile getir; native/WASM oyun build'lerini tamamla; ardından World Map/NEARD marker'larını gerçek oyunda ve iki istemcide doğrula; sonra Car Meet/GPS akışını gerçek oyunda tamamla. 4.096 World Map ve 24.000 hub oyuncusu gibi büyük limitler profil ve yük testi olmadan etkinleştirilmemeli.
+**MAPD kapasite uygulaması:** Rust hub'da MAPD yolu için `mapd_limit` 2.048 kayıt (yükseklikli isteklerde 1.664), legacy `map()` yolu için `legacy_map_limit` 690 kayıt kullanır. `RoamOptions::default().map_max` 512'dir; `NFSU2_ROAM_MAP_MAX` ile 1–2.048 arasında açıkça yükseltilebilir. Hub unit testleri 2.048/1.664 limitlerini, varsayılanı, clamp davranışını, 690 legacy sınırını ve 16 parçalı tam snapshot paket bütçesini doğrular. Bu, kod ve otomatik test kapsamıdır; 2.048 gerçek oyunculu yük testi değildir.
+
+**Önerilen sıra:** Son PR HEAD'in Multiplayer & Regression CI'sini tamamla; native/WASM oyun build'lerini al; ardından World Map/NEARD marker'larını gerçek oyunda ve iki istemcide doğrula; sonra Car Meet/GPS akışını gerçek oyunda tamamla. 4.096 World Map ve 24.000 hub oyuncusu gibi büyük limitler profil ve yük testi olmadan etkinleştirilmemeli.
 
 ---
 
@@ -206,9 +219,8 @@ TRPOLARIS Minimap prototipinde:
 
 | Dal / çalışma | Son görünen durum | Yorum |
 |---|---|---|
-| PR #21 Multiplayer & Regression CI, code snapshot `7d9a6f15` | [Çalışıyor](https://github.com/trpolaris/NFSU2-Web/actions/runs/42374350459) | Current HEAD native runtime syntax, TypeScript, web build ve Cargo.lock geçti; Rust workspace testleri sürüyor. |
-| PR #21 Multiplayer & Regression CI, code snapshot `243b7a4d` | [Beklemede/çalışıyor](https://github.com/trpolaris/NFSU2-Web/actions/runs/42373691932) | Car Meet crowd script'i dahil son HEAD'in native syntax, Rust, protocol ve web regresyonlarını doğrulayacak. |
-| PR #21 image-rs, code snapshot `7d9a6f15` | [Başarılı](https://github.com/trpolaris/NFSU2-Web/actions/runs/42374350450) | Container image build bu exact HEAD üzerinde geçti; Multiplayer testleri ayrı takip ediliyor. |
+| PR #21 Multiplayer & Regression CI, HEAD `f8766aac` | [Çalışıyor](https://github.com/trpolaris/NFSU2-Web/actions/runs/42384566039) | Native runtime syntax, TypeScript, web build, Cargo.lock, Rust workspace, GPS, mailbox, MAPD/NEARD core, server build ve synthetic Online smoke testleri geçti; Chromium web regression adımı son kontrolde sürüyordu. Tam başarı henüz ilan edilmedi. |
+| PR #21 image-rs, HEAD `f8766aac` | [Başarılı](https://github.com/trpolaris/NFSU2-Web/actions/runs/42384565976) | Container image build bu exact HEAD üzerinde geçti. |
 | World Map MAPD ve Minimap NEARD | Ayrı çalışma dallarından seçici port edildi | Bu eski dal CI kayıtları PR #21'in güncel HEAD testlerinin yerine geçmez. |
 
 Daha eski ara commit'lerde TypeScript, web build, Cargo.lock, Rust testleri, GPS native C testleri, mailbox layout kontrolü ve sentetik Online yük testi gibi adımların geçtiği kayıtlar bulunabilir. Ancak **eski commit'in yeşil olması yeni HEAD'in de yeşil olduğu anlamına gelmez.** Sonuçlar daima ilgili dalın son commit'i ve o commit'e ait Actions run üzerinden okunmalıdır.
