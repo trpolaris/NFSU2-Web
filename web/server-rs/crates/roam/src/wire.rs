@@ -734,7 +734,7 @@ mod map_protocol_tests {
             entries.extend_from_slice(&20i16.to_le_bytes());
             entries.extend_from_slice(&[3u8, 4, 5]);
             let mut b = vec![0u8; mapd_len(entries.len())];
-            write_mapd(&mut b, kind, 7, 11, 2, 1, 0, 1, 1, 1, 0, &entries);
+            write_mapd(&mut b, kind, 7, 11, 2, 1, 0, 1, 1, 1, &entries);
             assert_eq!(b[5], kind);
             assert_eq!(u16_le(&b, 16), 2);
             assert_eq!(u16_le(&b, 18), 1);
