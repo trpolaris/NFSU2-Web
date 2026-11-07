@@ -167,6 +167,8 @@ pub struct RoamOptions {
     pub map_max: usize,
     pub map_gap_ms: f64,
     pub map_fresh_ms: f64,
+    /// Minimum interval between nearby-player NEARD replies for one virtual client.
+    pub near_gap_ms: f64,
 }
 
 impl Default for RoamOptions {
@@ -194,6 +196,7 @@ impl Default for RoamOptions {
             map_max: 512,
             map_gap_ms: 1_000.0,
             map_fresh_ms: 5_000.0,
+            near_gap_ms: 150.0,
         }
     }
 }
