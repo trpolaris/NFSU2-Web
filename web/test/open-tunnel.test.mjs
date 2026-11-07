@@ -28,5 +28,6 @@ test('preload uses originals by default and only the complete selected overlay w
   assert.deepEqual(ahead(false), [...tracks, ...other].sort());
   assert.deepEqual(ahead(true), [...pack, ...other].sort());
   assert.deepEqual(ahead(true, files.filter(f => f.path !== pack[2])), ahead(false));
+  assert.deepEqual(ahead(true, files.map(f => f.path === pack[1] ? { ...f, size: 0 } : f)), ahead(false));
   assert.deepEqual(ahead(true, files.map(f => ({...f, path: f.path.toLowerCase()}))), [...pack, ...other].map(p => p.toLowerCase()).sort());
 });
