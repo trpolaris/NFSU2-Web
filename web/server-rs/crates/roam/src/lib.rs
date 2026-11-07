@@ -169,6 +169,37 @@ pub struct RoamOptions {
     pub map_fresh_ms: f64,
     /// Minimum interval between nearby-player NEARD replies for one virtual client.
     pub near_gap_ms: f64,
+    /// Optional server-side automatic race-ban policy. Disabled when None.
+    pub car_bans: Option<CarBans>,
+}
+
+/// A lobby race reported by a player whose car crossed the configured server-side ban threshold.
+#[derive(Clone, Debug, PartialEq)]
+pub struct CarBan {
+    pub vip: u32,
+    pub name: String,
+    pub car: String,
+    pub car_type: u8,
+    pub kw: f64,
+    pub kg: f64,
+    pub kmh: f64,
+    pub rating: f64,
+    pub kind: String,
+    pub laps: u8,
+    pub place: String,
+    pub lobby: u32,
+    pub race: u32,
+}
+
+/// Configurable server-side race-ban thresholds. The callback is invoked on the hub thread and must not block.
+#[derive(Clone)]
+pub struct CarBans {
+    pub kw: Option<f64>,
+    pub rating: Option<f64>,
+    pub call: Arc<dyn Fn(CarBan) + Send + Sync>,
+}
+impl std::fmt::Debug for CarBans {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result { f.write_str("CarBans") }
 }
 
 impl Default for RoamOptions {
@@ -197,6 +228,7 @@ impl Default for RoamOptions {
             map_gap_ms: 1_000.0,
             map_fresh_ms: 5_000.0,
             near_gap_ms: 150.0,
+            car_bans: None,
         }
     }
 }
