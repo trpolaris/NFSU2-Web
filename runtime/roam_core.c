@@ -380,7 +380,13 @@ int rc_encode(const rc_msg *m, uint8_t *out, int cap){
         if (m->u.duel.op < 1 || m->u.duel.op >= RC_DUEL__N || !m->u.duel.to || !m->u.duel.duel) return -1;
         rc_put8(&w, m->u.duel.op); rc_put8(&w, m->u.duel.arg); rc_put32(&w, m->u.duel.to); rc_put32(&w, m->u.duel.duel);
         break;
-    case RC_MSG_MAPREQ: rc_put16(&w, m->u.mapreq.req); break;
+    case RC_MSG_MAPREQ: rc_put16(&w,m->u.mapreq.req);rc_put16(&w,m->u.mapreq.max);rc_put16(&w,m->u.mapreq.base);break;
+    case RC_MSG_NEARREQ: rc_put16(&w,m->u.nearreq.req);rc_put16(&w,m->u.nearreq.max);rc_put16(&w,m->u.nearreq.base);rc_put16(&w,m->u.nearreq.radius);break;
+    case RC_MSG_MAPD: case RC_MSG_NEARD:
+        if(m->u.mapd.nparts<1||m->u.mapd.nparts>RC_MAPD_PARTS||m->u.mapd.part>=m->u.mapd.nparts||m->u.mapd.len>RC_MAPD_BYTES)return -1;
+        rc_put16(&w,m->u.mapd.req);rc_put16(&w,m->u.mapd.base);rc_put8(&w,m->u.mapd.part);rc_put8(&w,m->u.mapd.nparts);
+        rc_put16(&w,m->u.mapd.total);rc_put8(&w,m->u.mapd.n);rc_putb(&w,m->u.mapd.data,m->u.mapd.len);
+        break;
     case RC_MSG_MAP:
         if (m->u.map.nparts < 1 || m->u.map.nparts > RC_MAP_PARTS || m->u.map.part >= m->u.map.nparts || m->u.map.n > RC_MAP_PER) return -1;
         rc_put16(&w, m->u.map.req); rc_put8(&w, m->u.map.part); rc_put8(&w, m->u.map.nparts);
@@ -1027,33 +1033,95 @@ static void lobbies_from_hub(rc_session *s, const rc_msg *m){
     }
     s->lobbies_n = n; s->lobbies_gen++;
 }
-int rc_ask_map(rc_session *s, int64_t now){
-    if (s->closed || !s->conf.hub_ip || !s->hub_heard_us || !hub_mode(s, now)) return 0;
-    rc_msg m; hdr(s, &m, RC_MSG_MAPREQ);
-    m.u.mapreq.req = ++s->map_req;
-    s->map_mask = 0; s->map_nparts = 0; s->map_asked_us = now;
-    tx_to(s, s->conf.hub_ip, s->conf.hub_port, &m);
+int rc_ask_map(rc_session *s,int64_t now,int max){
+    if(s->closed||!s->conf.hub_ip||!s->hub_heard_us||!hub_mode(s,now))return 0;
+    rc_msg m;hdr(s,&m,RC_MSG_MAPREQ);
+    m.u.mapreq.req=++s->map_req;
+    m.u.mapreq.max=(uint16_t)(max<0?0:max>RC_MAP_MAX?RC_MAP_MAX:max);
+    m.u.mapreq.base=s->map_held;
+    s->map_mask=0;s->map_nparts=0;s->map_asked_us=now;
+    tx_to(s,s->conf.hub_ip,s->conf.hub_port,&m);
     return 1;
 }
-/* a part of the hub's answer to our last question: a complete answer
- * replaces the last one */
-static void map_part(rc_session *s, const rc_msg *m){
-    if (m->u.map.req != s->map_req || !s->map_asked_us) return;
-    if (s->map_mask && (m->u.map.nparts != s->map_nparts || m->u.map.total != s->map_asm_total)) s->map_mask = 0;   /* not the same answer */
-    s->map_nparts = m->u.map.nparts; s->map_asm_total = m->u.map.total;
-    memcpy(s->map_asm + (size_t)m->u.map.part * RC_MAP_PER * RC_MAP_ENTRY, m->u.map.data, (size_t)m->u.map.n * RC_MAP_ENTRY);
-    s->map_part_n[m->u.map.part] = m->u.map.n;
-    s->map_mask |= (uint8_t)(1u << m->u.map.part);
-    if (s->map_mask != (1u << s->map_nparts) - 1u) return;
-    int n = 0;
-    for (int j = 0; j < s->map_nparts; j++)
-        for (int k = 0; k < s->map_part_n[j]; k++){
-            const uint8_t *e = s->map_asm + ((size_t)j * RC_MAP_PER + (size_t)k) * RC_MAP_ENTRY;
-            s->map_e[n].x = (int16_t)(e[0] | e[1] << 8); s->map_e[n].y = (int16_t)(e[2] | e[3] << 8); s->map_e[n].heading = e[4];
-            n++;
+/* Legacy MAP from a hub predating MAPD: replace the list and give entries stable local indices. */
+static void map_part(rc_session *s,const rc_msg *m,int64_t now){
+    if(m->u.map.req!=s->map_req||!s->map_asked_us)return;
+    if(s->map_mask&&(m->u.map.nparts!=s->map_nparts||m->u.map.total!=s->map_asm_total))s->map_mask=0;
+    s->map_nparts=m->u.map.nparts;s->map_asm_total=m->u.map.total;
+    memcpy(s->map_asm+(size_t)m->u.map.part*RC_MAP_PER*RC_MAP_ENTRY,m->u.map.data,(size_t)m->u.map.n*RC_MAP_ENTRY);
+    s->map_part_n[m->u.map.part]=m->u.map.n;s->map_mask|=(uint16_t)(1u<<m->u.map.part);
+    if(s->map_mask!=((1u<<s->map_nparts)-1u))return;
+    int n=0;
+    for(int j=0;j<s->map_nparts;j++)for(int k=0;k<s->map_part_n[j];k++){
+        const uint8_t *e=s->map_asm+((size_t)j*RC_MAP_PER+(size_t)k)*RC_MAP_ENTRY;
+        s->map_e[n].id=(uint16_t)n;s->map_e[n].x=(int16_t)(e[0]|e[1]<<8);s->map_e[n].y=(int16_t)(e[2]|e[3]<<8);
+        s->map_e[n].heading=e[4];s->map_e[n].vx=s->map_e[n].vy=0;s->map_e[n].at_us=now;
+        n++;
+    }
+    s->map_n=n;s->map_total=s->map_asm_total;s->map_held=0;s->map_gen++;
+    s->map_mask=0;s->map_asked_us=0;
+}
+/* Apply one complete MAPD answer to the held map, merging its slot-keyed changes. */
+static void mapd_part(rc_session *s,const rc_msg *m,int64_t now){
+    if(m->u.mapd.req!=s->map_req||!s->map_asked_us)return;
+    if(s->map_mask&&(m->u.mapd.nparts!=s->map_nparts||m->u.mapd.total!=s->map_asm_total||m->u.mapd.base!=s->map_asm_base))s->map_mask=0;
+    s->map_nparts=m->u.mapd.nparts;s->map_asm_total=m->u.mapd.total;s->map_asm_base=m->u.mapd.base;
+    memcpy(s->map_asm+(size_t)m->u.mapd.part*RC_MAPD_BYTES,m->u.mapd.data,m->u.mapd.len);
+    s->map_part_n[m->u.mapd.part]=m->u.mapd.n;s->map_part_len[m->u.mapd.part]=m->u.mapd.len;
+    s->map_mask|=(uint16_t)(1u<<m->u.mapd.part);
+    if(s->map_mask!=((1u<<s->map_nparts)-1u))return;
+    s->map_mask=0;s->map_asked_us=0;
+    if(s->map_asm_base&&s->map_asm_base!=s->map_held)return;
+    int n=0,i=0,held=s->map_asm_base?s->map_n:0;
+    for(int j=0;j<s->map_nparts;j++){
+        const uint8_t *e=s->map_asm+(size_t)j*RC_MAPD_BYTES;
+        for(int k=0;k<s->map_part_n[j];k++){
+            uint16_t key=(uint16_t)(e[0]|(uint16_t)e[1]<<8),id=(uint16_t)(key&~RC_MAPD_GONE);
+            while(i<held&&s->map_e[i].id<id){if(n<RC_MAP_MAX)s->map_tmp[n++]=s->map_e[i];i++;}
+            if(i<held&&s->map_e[i].id==id)i++;
+            if(key&RC_MAPD_GONE){e+=2;continue;}
+            if(n<RC_MAP_MAX){
+                rc_mapent *t=&s->map_tmp[n++];t->id=id;
+                t->x=(int16_t)(e[2]|e[3]<<8);t->y=(int16_t)(e[4]|e[5]<<8);
+                t->heading=e[6];t->vx=(int8_t)e[7];t->vy=(int8_t)e[8];t->at_us=now;
+            }
+            e+=RC_MAPD_PLACE;
         }
-    s->map_n = n; s->map_total = s->map_asm_total; s->map_gen++;
-    s->map_mask = 0; s->map_asked_us = 0;                    /* answered: a repeat of a part changes nothing */
+    }
+    for(;i<held&&n<RC_MAP_MAX;i++)s->map_tmp[n++]=s->map_e[i];
+    memcpy(s->map_e,s->map_tmp,(size_t)n*sizeof *s->map_e);
+    s->map_n=n;s->map_total=s->map_asm_total;s->map_held=s->map_req;s->map_gen++;
+}
+int rc_ask_near(rc_session *s,int64_t now,int max,int radius_m){
+    if(s->closed||!s->conf.hub_ip||!s->hub_heard_us||!hub_mode(s,now))return 0;
+    rc_msg m;hdr(s,&m,RC_MSG_NEARREQ);
+    m.u.nearreq.req=++s->near_req;if(!m.u.nearreq.req)m.u.nearreq.req=++s->near_req;
+    m.u.nearreq.max=(uint16_t)(max<0?0:max>RC_NEAR_MAX?RC_NEAR_MAX:max);
+    m.u.nearreq.base=s->near_held;
+    m.u.nearreq.radius=(uint16_t)(radius_m<0?0:radius_m>RC_NEAR_M?RC_NEAR_M:radius_m);
+    s->near_asked_us=now;tx_to(s,s->conf.hub_ip,s->conf.hub_port,&m);return 1;
+}
+/* The minimap's answer is one MAPD-shaped datagram; merge its changes by slot. */
+static void near_answer(rc_session *s,const rc_msg *m,int64_t now){
+    if(m->u.mapd.req!=s->near_req||!s->near_asked_us||m->u.mapd.nparts!=1)return;
+    s->near_asked_us=0;
+    if(m->u.mapd.base&&m->u.mapd.base!=s->near_held)return;
+    int n=0,i=0,held=m->u.mapd.base?s->near_n:0;const uint8_t *e=m->u.mapd.data;
+    for(int k=0;k<m->u.mapd.n;k++){
+        uint16_t key=(uint16_t)(e[0]|(uint16_t)e[1]<<8),id=(uint16_t)(key&~RC_MAPD_GONE);
+        while(i<held&&s->near_e[i].id<id){if(n<RC_NEAR_MAX)s->near_tmp[n++]=s->near_e[i];i++;}
+        if(i<held&&s->near_e[i].id==id)i++;
+        if(key&RC_MAPD_GONE){e+=2;continue;}
+        if(n<RC_NEAR_MAX){
+            rc_mapent *t=&s->near_tmp[n++];t->id=id;
+            t->x=(int16_t)(e[2]|e[3]<<8);t->y=(int16_t)(e[4]|e[5]<<8);
+            t->heading=e[6];t->vx=(int8_t)e[7];t->vy=(int8_t)e[8];t->at_us=now;
+        }
+        e+=RC_MAPD_PLACE;
+    }
+    for(;i<held&&n<RC_NEAR_MAX;i++)s->near_tmp[n++]=s->near_e[i];
+    memcpy(s->near_e,s->near_tmp,(size_t)n*sizeof *s->near_e);
+    s->near_n=n;s->near_total=m->u.mapd.total;s->near_held=s->near_req;s->near_gen++;
 }
 int rc_established(const rc_session *s){ int n = 0; for (int i = 0; i < RC_TABLE; i++) if (s->peer[i].state == RC_PS_EST) n++; return n; }
 /* an established peer counts for the group (max_players) unless the hub
@@ -1259,6 +1327,8 @@ void rc_receive(rc_session *s, uint32_t ip, uint16_t port, const uint8_t *buf, i
         /* the hub's list of the players near us: each one is a candidate
          * (the hub lists us on theirs at the same time), and stays while it
          * is listed (rc_tick drops the others) */
+        if(m.h.type==RC_MSG_MAPD){mapd_part(s,&m,now);return;}
+        if(m.h.type==RC_MSG_NEARD){near_answer(s,&m,now);return;}
         if (m.h.type == RC_MSG_MAP){ map_part(s, &m); return; }
         if (m.h.type == RC_MSG_LOBBIES){ lobbies_from_hub(s, &m); return; }
         if (m.h.type != RC_MSG_PEERS) return;
