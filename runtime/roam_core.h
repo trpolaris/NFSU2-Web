@@ -89,6 +89,7 @@ enum { RC_MSG_HELLO = 1, RC_MSG_PEERS = 2, RC_MSG_SNAP = 3, RC_MSG_CFG = 4, RC_M
         * past our peers, RC_MAP_MAX at most).  A hub before them ignores a
         * MAPREQ, and only a core that asked gets a MAP */
        RC_MSG_MAPREQ = 10, RC_MSG_MAP = 11,
+        RC_MSG_MAPD = 18,
        /* a multiplayer race from free roam (roam_game.c mp_*): LOBBY between
         * players (op RC_LOBBY_*), only to a peer whose HELLO carries
         * RC_HF_LOBBY; the host's ADVERT also to the hub (to 0), which keeps
@@ -110,7 +111,7 @@ enum { RC_MSG_HELLO = 1, RC_MSG_PEERS = 2, RC_MSG_SNAP = 3, RC_MSG_CFG = 4, RC_M
         * racer's place in them, by its player's id, its time and how far it came.  The server compares the players'
         * games' results for a racer far ahead of the others (a teleport to the finish, a speed hack).  A hub before it
         * ignores the type, and no player is sent one */
-       RC_MSG_RACERES = 16 };
+       RC_MSG_RACERES = 16, RC_MSG_NEARREQ = 19, RC_MSG_NEARD = 20 };
 /* RACEREP flags */
 #define RC_RR_HOST       0x01       /* the reporter hosted the race */
 #define RC_RR_QUIT       0x02       /* ...left it with its pause menu's Quit */
