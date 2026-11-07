@@ -1138,7 +1138,27 @@ async function acceptCrewInvite(invite: PendingCrewInvite, join?: HTMLButtonElem
     quickChat.setCrews(next.map(crew => ({ name: crew.name, id: roomHash(crew.name) })));
     session.net.crews?.(next.map(crew => roomHash(crew.name)), rgbWords(next));
     const roomReady = session.net.room?.(invite.room) ?? false;
-    if (roomReady) void friendsPanel?.refresh(true);
+    if (roomReady) {
+      // A crew invite can move the running game to another world as well as save settings.ini.
+      liveWorld = invite.room;
+      menuWorldCounts = new Map();
+      menuWorldAsk++;
+      const wantedSolid = noGhost(liveWorld) ? true : resolved().env.NFSU2_ROAM_COLLIDE !== '0';
+      if (solidCars !== null && session.net.solid && solidCars !== wantedSolid) {
+        solidCars = wantedSolid;
+        session.net.solid(wantedSolid);
+      }
+      const solid = document.querySelector<HTMLButtonElement>('#menu [data-act="solid"]');
+      if (solid) solid.textContent = ghostLabel();
+      const worldsTab = document.querySelector<HTMLButtonElement>('#menu [data-menu-tab="worlds"]');
+      if (worldsTab) worldsTab.hidden = false;
+      if (menuOn('worlds')) {
+        drawMenuWorlds();
+        void refreshMenuWorldCounts();
+      }
+      void friendsPanel?.refresh(true);
+      log.add(`[app] crew invitation changed the live world to ${worldName(liveWorld)}`);
+    }
     const crewsButton = document.querySelector<HTMLElement>('#menu [data-act="crews"]');
     if (crewsButton) crewsButton.textContent = crewsLabel();
     removeQueuedCrewInvite(invite);
@@ -1439,7 +1459,6 @@ async function switchMenuWorld(room: string) {
     await writeFile(SAVE, 'settings.ini', text);
     if (session !== game) return;
     settingsText = text;
-    void settings.refresh();
   } catch (e) {
     game.net.room(previous);
     liveWorld = previous;
@@ -1448,6 +1467,7 @@ async function switchMenuWorld(room: string) {
     drawMenuWorlds();
     return;
   }
+  await settings.refresh().catch(error => log.add(`[app] settings refresh after world change: ${error}`));
   if (solidCars !== null && game.net.solid) {
     // The saved setting remains the player's preference; World 4 overrides it only while active.
     const wantedSolid = noGhost(next) ? true : resolved().env.NFSU2_ROAM_COLLIDE !== '0';
