@@ -52,8 +52,8 @@
 //        [--fresh Neo]  that page starts from a fresh profile all the same (a new career's prologue beside
 //                    --seed's careers: tests/scripts/mprace_nocar_b.txt)
 //        [--seed-for Bob:<save tree>]  that page starts from its own save instead (two careers' cars in one
-//        [--drive-route <json>]  follow a JSON list of world-map [x, y] points from trace data using keyboard input
 //                    race: mprace_lobby_a.txt + mprace_card_b.txt at a race open in its career)
+//        [--drive-route <json>]  follow a JSON list of world-map [x, y] points from trace data using keyboard input
 //
 // Without --base it starts its own server (web/tools/server-cmd.mjs, --dev on the given
 // ports, the game folder from --data or NFSU2_DATA) and stops it at the end.
