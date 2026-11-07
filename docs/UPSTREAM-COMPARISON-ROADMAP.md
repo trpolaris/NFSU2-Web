@@ -228,6 +228,15 @@ Bu kontrol, PR #21 HEAD `c5009706c3f77cf5623e1b3f4522759a5efa0bb4` ile upstream 
 | [Claim store 5M cap](https://github.com/th0mk/nfsu2-web/commit/d740043fa34a99465df7d92879111743d054f694) | **Bilinçli olarak ertelendi** | PR #21 500.000 claim sınırını koruyor. 5M kapasite ancak gerçek bellek/serileştirme/yük testi sonrasında değerlendirilecek. |
 | [iPhone WebKit memory/worker fixes](https://github.com/th0mk/nfsu2-web/commit/9a9254560a8a36a1d3dcfd19fd245281e56009f3) | **Eksik / cihaz doğrulaması gerekli** | Fork'un memory ve process katmanı var; upstream'in worker başlangıç ve WebKit cached-read düzeltmeleri birebir eşdeğer kabul edilmiyor. iPhone Safari/WebKit testleriyle port edilmeli. |
 
+
+### 10.1 Port ilerleme kaydı — 7 Kasım 2026
+
+- **Name filter:** Upstream `b58448b` değişikliğinin altı dosyalı seti (C header, Rust implementation/cross-check/tests, browser implementation/tests) entegrasyon dalına taşındı. Port commit'leri: `6d708fa`, `325ba57`, `27cb012`, `fe3f9c5`, `3fee033`, `e72efab`. Bu değişiklik; yeni Nazi kelime varyantlarını, 1488 ayraçlı yazımlarını, phrase filtrelerini ve `Nazli`/`Nazilli` yanlış pozitif korumasını kapsar. Tam doğrulama güncel HEAD CI sonucuna bağlıdır.
+- **Remote engine textures:** Upstream `cba97c8` davranışının fork'a uyarlanmış runtime kısmı port edildi. `overrides.c` list kapasitesini aşmadan ve aynı hash'i çoğaltmadan `<CAR>_ENGINE` texture hash'ini iki texture listesine ekler; `roam_game.c` yalnızca uzak araç yükleme çağrısı çevresinde bayrağı açar. Manuel oyun doğrulaması henüz yapılmadı.
+- **Server race bans:** Upstream `eeb3bdf` port edilmedi. Bu özellik fork'un `RoamOptions`, race event, ban ownership ve control socket API'lerine birden fazla dosyada müdahale ediyor; mevcut TRPOLARIS ban modeline bağlanmadan upstream `autoban.rs` dosyasını kopyalamak güvenli değil.
+- **iPhone WebKit:** Upstream worker fallback, cached-read ve shared-memory büyüme yarışlarının her biri ayrı port gerektiriyor. Fork'un worker/process mimarisi farklı olduğu için dosya bazında kör kopyalama yapılmadı.
+- **5M claims:** 500.000 sınırı bilinçli olarak korundu; yük testi yokken yükseltilmedi.
+
 ### Doğrulama notları
 
 - `runtime/dispatch.c` PR dalı ve upstream `main` arasında aynı içerik SHA'sına sahip; PATCH_MAX=64 değişikliği zaten mevcut.
