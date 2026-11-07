@@ -1546,6 +1546,34 @@ static void t_say(void){
           "say inbox: %d kept, %u dropped, %d taken", kept, g_n[1].say_dropped, taken);
 }
 
+/* A room transition must evict every old-room link and invalidate queued network state. */
+static void t_room_reset(void){
+    rc_session s;
+    rc_config cf; memset(&cf, 0, sizeof cf);
+    cf.self_id = 1; cf.room = 0x11111111u; cf.max_players = 8; cf.rate_hz = 20;
+    rc_io io = { 0, 0, 0, 0 };
+    rc_session_init(&s, &cf, &io);
+    s.peer[0].state = RC_PS_EST; s.peer[0].configured = 1; s.peer[0].id = 2;
+    snprintf(s.peer[0].name, sizeof s.peer[0].name, "OldRoomPeer");
+    s.map_n = 4; s.map_total = 8; s.map_held = 3; s.map_mask = 5; s.map_asked_us = 1234;
+    s.near_n = 3; s.near_total = 6; s.near_held = 7; s.near_asked_us = 5678;
+    s.lobbies_n = 2; s.lobbies_req = 9;
+    s.n_duel_in = 1; s.n_lobby_in = 1; s.n_say_in = 1;
+    uint32_t mg = s.map_gen, ng = s.near_gen, lg = s.lobbies_gen;
+    CHECK(rc_set_room(&s, 0x22222222u) == 1, "room change returns the number of established peers");
+    CHECK(s.conf.room == 0x22222222u && s.peer[0].state == RC_PS_FREE,
+          "room change updates the room and drops its previous peer");
+    CHECK(!s.map_n && !s.map_total && !s.map_held && !s.map_mask && !s.map_asked_us && s.map_gen == mg + 1,
+          "room change invalidates pending World Map state");
+    CHECK(!s.near_n && !s.near_total && !s.near_held && !s.near_asked_us && s.near_gen == ng + 1,
+          "room change invalidates pending Minimap state");
+    CHECK(!s.lobbies_n && !s.lobbies_req && s.lobbies_gen == lg + 1 &&
+          !s.n_duel_in && !s.n_lobby_in && !s.n_say_in,
+          "room change clears old-room lobby and message inboxes");
+    CHECK(rc_set_room(&s, 0x22222222u) == 0 && s.map_gen == mg + 1 && s.near_gen == ng + 1,
+          "setting the same room is an idempotent no-op");
+}
+
 /* ---- MAPD and minimap wire compatibility ----------------------------------------------- */
 static void t_mapd_codec(void){
     rc_msg m; uint8_t b[RC_MAX_DGRAM], legacy[RC_MAX_DGRAM];
@@ -1598,6 +1626,7 @@ int main(int argc, char **argv){
     printf("roam_unit: core %d, protocol %d\n", RC_CORE_VER, RC_PROTO_VER);
     t_layout();
     t_roundtrip();
+    t_room_reset();
     t_mapd_codec();
     t_fuzz(fuzz);
     t_session();
