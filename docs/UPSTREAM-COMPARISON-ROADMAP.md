@@ -134,7 +134,7 @@ Bu bölümdeki çalışmalar `integration/upstream-2026-11-06` dalındadır ve [
 
 ## 4. Ayrı dallardaki deneysel World Map ve Minimap çalışmaları
 
-Bu deneysel dallar kaynak referansıdır; yalnızca uyumlu ve uyarlanmış parçalar PR #21'e taşındı. MAPD/NEARD protokolü, hub sorgusu ve NEARD-only oyuncuların oyun içi minimap marker renderer'ı entegre edildi. Minimap kod entegrasyonu tamamlandı; gerçek oyun, iki istemci, HUD rebuild ve Car Meet/GPS davranış doğrulaması hâlâ açık.
+Bu deneysel dallar kaynak referansıdır; yalnızca uyumlu ve uyarlanmış parçalar PR #21'e taşındı. MAPD/NEARD protokolü, hub sorgusu, NEARD-only oyuncuların oyun içi minimap marker renderer'ı ve Car Meet/legend/selection/GPS kodu ana entegrasyon dalında bulunuyor. `roam mp near [all]` ve `roam mp meet` tanılamaları ile 24 sabit istemcili Car Meet senaryosu eklendi. Kod entegrasyonu tamamlandı; gerçek oyun ve çok istemcili görsel doğrulama hâlâ açık.
 
 ### 4.1 World Map — MAPD protokolü
 
@@ -173,9 +173,10 @@ TRPOLARIS Minimap prototipinde:
 - Oyun içi renderer port edildi: NEARD oyuncuları için stand-in oyuncu kayıtları, Player tipi ikonlar, `AIRACERINDICATOR_0` kopyaları ve visual pool yönetimi oluşturuluyor. Konumlar hız/başlık verisiyle güncelleniyor; yüklü arkadaş araçlarının yakınındaki çift işaretçiler eleniyor; stale/out-of-range ikonlar gizleniyor; HUD/icon listesi rebuild algılanıp eski pointer'lar tekrar kullanılmıyor.
 - `NFSU2_ROAM_NEAR` varsayılan 64, 0–96 aralığında; 0 özelliği kapatır. `roam mp near [all]` marker, cevap, havuz ve mesafe tanılaması verir.
 - Açık işler: native/WASM oyun derlemesi ve gerçek oyun ekranında ikon yön/konum testi; paket kaybı, oda değişimi ve 2+ gerçek istemciyle doğrulama.
-- Car Meet park takibi, World Map etiket/seçim ve GPS kodu mevcut; gerçek oyunda marker/sayım/hedef davranışı doğrulanmalıdır.
+- Car Meet runtime kodu; 25 m hareket toleransı içinde 60 saniye park eden oyuncuları toplar, 50 m içindeki en az 24 oyuncudan meet kümesi oluşturur, yıldız/label/legend satırı ve seçim item'i üretir. `roam mp meet` açık harita üzerinde marker, ikon/label görünürlüğü, seçili item ve GPS trigger koordinatlarını raporlar.
+- `tests/scripts/roam_crowd_meet.txt` 24 sabit crowd istemcisiyle (speed 0, spread 6 m) hub'ın 60 saniyelik parked penceresini bekler ve meet marker/label/item/trigger tanılamasını alır. Gerçek oyunda Car meets legend satırını göster/gizle, meet seç, GPS hedefini sür ve 40 m içinde otomatik temizlenmeyi doğrula.
 
-**Kaynak dal:** [feature/world-map-meets](https://github.com/trpolaris/NFSU2-Web/tree/feature/world-map-meets). Kaynak dal otomatik birleştirilmedi; NEARD renderer kodu seçilerek ana entegrasyon dalına uyarlandı. Car Meet'in park takibi/marker/legend/GPS parçaları ayrı doğrulama ve uyarlama gerektiriyor.
+**Kaynak dal:** [feature/world-map-meets](https://github.com/trpolaris/NFSU2-Web/tree/feature/world-map-meets). Kaynak dal otomatik birleştirilmedi; NEARD renderer ve Car Meet marker/legend/selection/GPS parçaları seçilerek ana entegrasyon dalına uyarlandı. `roam mp near`, `roam mp meet` ve manuel oyun senaryoları mevcut; son davranış doğrulaması gerçek oyun oturumunda yapılmalı.
 
 ---
 
@@ -188,7 +189,7 @@ TRPOLARIS Minimap prototipinde:
 | P0 | MODPACKS asset üretimi | Uyumlu underground2.net varlıklarından `MODPACKS/` üretip dosya manifest ve oyun açılışını kontrol etmek. | Paket açılır; eksik/yanlış boyutlu varlık yok; Body Shop ve uzak araçlarda tutarlı sonuç. |
 | P1 | World Map MAPD | Port edildi; yeni CI ve gerçek oyun oda/marker testleri bekleniyor. | Legacy MAPREQ snapshot ve yeni MAPD delta birleştirmesi geçer; oda değişimi temizlenir; 2.048 oyuncu testi tamamlanır. |
 | P1 | Minimap NEARD | Rust grid/dispatch, C protocol/merge, aktif polling, Player ikon/visual renderer, interpolation/extrapolation, stale/duplicate temizliği ve diagnostics port edildi. | Native/WASM oyun build'i; marker yön/konum, HUD rebuild, oda değişimi, paket kaybı ve 2+ istemcili oyun testi geçer. |
-| P1 | Car Meet | Park etmiş oyuncu kümesini belirleme, meet işaretçisini çizme ve GPS hedefi/varış davranışı. | 20 oyunculuk meet senaryosu, legend gizleme ve GPS hedefleme gerçek oyunda çalışır. |
+| P1 | Car Meet | Park kümesi, meet marker/label/item, legend seçimi ve GPS trigger kodu port edildi; `roam mp meet` diagnostics ve 24 sabit istemcili test senaryosu eklendi. | 24 oyuncu 60 s park sonrası meet görünür; legend hide/show çalışır; seçilen meet GPS hedeflenir ve 40 m içinde rota temizlenir. |
 | P2 | World Map kapasite artışı | 4.096 marker ve daha fazla MAPD parçası için istemci bellek, marker havuzu ve UDP veri boyutunu ölçmek. | Bellek/CPU/packet limitleri ölçülür; yük testi ve cihaz profilleri onaylanır. |
 | P2 | Hub kapasitesi | 24.000 oyuncu hedefini bağlantı, bellek, paket/s, thread yoğunluğu, container ve ağ topolojisiyle test etmek. | Kademeli yük testleri, kaynak bütçesi ve düşürme/koruma stratejisi belgelenir. |
 | P2 | Multiplayer kariyer kredileri | Yarışa katılım uygunluğu, arkadaş/crew credit maskeleri, sonuç ve kariyer kaydı, lobby/UI. | Kayıt bozulmadan tek/çok oyunculu yarış sonucuna doğru kredi yazılır. |
@@ -205,8 +206,9 @@ TRPOLARIS Minimap prototipinde:
 
 | Dal / çalışma | Son görünen durum | Yorum |
 |---|---|---|
-| PR #21 Multiplayer & Regression CI, code snapshot `2d77f6d` | [Çalışıyor](https://github.com/trpolaris/NFSU2-Web/actions/runs/42372265035) | MODPACKS/native runtime syntax, TypeScript, web build ve Cargo.lock geçti; Rust workspace testleri henüz sürüyor. |
-| PR #21 image-rs, code snapshot `2d77f6d` | [Başarılı](https://github.com/trpolaris/NFSU2-Web/actions/runs/42372265007) | Container image build bu HEAD'de geçti; bu sonuç Multiplayer testlerinin yerine geçmez. |
+| PR #21 Multiplayer & Regression CI, code snapshot `6c0f3ffe` | [Çalışıyor](https://github.com/trpolaris/NFSU2-Web/actions/runs/42373606320) | MODPACKS/native runtime syntax, TypeScript, web build ve Cargo.lock geçti; Rust workspace testleri sürüyor. Ardından yeni crowd script'i commit'i `243b7a4d` için ayrı run açıldı. |
+| PR #21 Multiplayer & Regression CI, code snapshot `243b7a4d` | [Beklemede/çalışıyor](https://github.com/trpolaris/NFSU2-Web/actions/runs/42373691932) | Car Meet crowd script'i dahil son HEAD'in native syntax, Rust, protocol ve web regresyonlarını doğrulayacak. |
+| PR #21 image-rs, code snapshot `243b7a4d` | [Çalışıyor](https://github.com/trpolaris/NFSU2-Web/actions/runs/42373691806) | Container image build bu exact HEAD için sürüyor. |
 | World Map MAPD ve Minimap NEARD | Ayrı çalışma dallarından seçici port edildi | Bu eski dal CI kayıtları PR #21'in güncel HEAD testlerinin yerine geçmez. |
 
 Daha eski ara commit'lerde TypeScript, web build, Cargo.lock, Rust testleri, GPS native C testleri, mailbox layout kontrolü ve sentetik Online yük testi gibi adımların geçtiği kayıtlar bulunabilir. Ancak **eski commit'in yeşil olması yeni HEAD'in de yeşil olduğu anlamına gelmez.** Sonuçlar daima ilgili dalın son commit'i ve o commit'e ait Actions run üzerinden okunmalıdır.
