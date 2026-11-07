@@ -59,6 +59,15 @@ fn env_num(name: &str, def: u64) -> u64 {
     std::env::var(name).ok().and_then(|v| v.trim().parse().ok()).unwrap_or(def)
 }
 
+/// the World Map MAPD ceiling: 512 by default; 2048 maximum, or 1664 for height-bearing requests.
+/// Zero and invalid values keep the conservative default; legacy MAP is capped separately in the hub.
+fn map_max_from_env(value: Option<&str>, default: usize) -> usize {
+    value.and_then(|v| v.trim().parse::<u64>().ok())
+        .filter(|&v| v > 0)
+        .unwrap_or(default as u64)
+        .min(2048) as usize
+}
+
 /// the state folder: made private to this server's user (the files inside are 0600 too)
 fn state_folder(o: &Options) -> String {
     if let Err(e) = std::fs::DirBuilder::new().recursive(true).mode(0o700).create(&o.state) {
@@ -130,10 +139,8 @@ pub async fn run(o: Options, cores: usize) {
     // (its lines: the cap on the players' links going down while the server is busy and back up, at most one every 5 s)
     // World Map MAPD can be raised to 2048 records explicitly; the default remains 512 to bound per-player traffic.
     let roam_defaults = RoamOptions::default();
-    let roam_options = RoamOptions {
-        map_max: env_num("NFSU2_ROAM_MAP_MAX", roam_defaults.map_max as u64).min(2048) as usize,
-        ..roam_defaults
-    };
+    let map_max = map_max_from_env(std::env::var("NFSU2_ROAM_MAP_MAX").ok().as_deref(), roam_defaults.map_max);
+    let roam_options = RoamOptions { map_max, ..roam_defaults };
     let roam = o.roam_hub.then(|| RoamHub::spawn_with(roam_options, Arc::new(|line: &str| log::line(line)), claims.clone()));
     // keyphrase saves: a folder in the state folder (none with --vault-gb 0)
     let vault = (o.vault_gb > 0.0).then(|| {
@@ -563,4 +570,21 @@ pub async fn run(o: Options, cores: usize) {
     }
 
     std::future::pending::<()>().await;
+}
+
+#[cfg(test)]
+mod map_max_env_tests {
+    use super::map_max_from_env;
+
+    #[test]
+    fn map_max_env_keeps_a_conservative_default_and_clamps_the_wire_limit() {
+        assert_eq!(map_max_from_env(None, 512), 512);
+        assert_eq!(map_max_from_env(Some(""), 512), 512);
+        assert_eq!(map_max_from_env(Some("not-a-number"), 512), 512);
+        assert_eq!(map_max_from_env(Some("0"), 512), 512);
+        assert_eq!(map_max_from_env(Some(" 1024 "), 512), 1024);
+        assert_eq!(map_max_from_env(Some("2048"), 512), 2048);
+        assert_eq!(map_max_from_env(Some("4096"), 512), 2048);
+        assert_eq!(map_max_from_env(Some("18446744073709551616"), 512), 512);
+    }
 }
