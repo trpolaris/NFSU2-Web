@@ -159,7 +159,7 @@ export interface NetSubsystem extends Subsystem {
   /** free roam's solid cars, switched while the game runs (the page menu) */
   solid?(on: boolean): void;
   /** quick chat: the player says phrase p (quickchat.ts); false: the game has no free roam */
-  say?(p: number): boolean;
+  say?(p: number, race?: boolean): boolean;
   /** typed FreeRoam room or Crew chat; crewId is the selected Crew hash (0 for All) */
   chat?(text: string, scope: 'room' | 'crew', crewId?: number): boolean;
   /** free roam's crews, changed while the game runs (the page menu): their hashes, in the player's order, and their
