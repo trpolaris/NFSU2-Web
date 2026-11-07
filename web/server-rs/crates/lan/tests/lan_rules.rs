@@ -485,14 +485,14 @@ async fn with_a_store_an_address_nobody_came_back_for_is_gone_for_the_hosts() {
     sw.close().await;
 }
 
-// addresses: 6000 on 10.77.0.0/17, handed out round twenty-four of its /24s; never .0, .1 or .252 and up; full past them
+// addresses: 24000 on 10.77.0.0/17, handed out round ninety-six of its /24s; never .0, .1 or .252 and up; full past them
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-async fn addresses_6000_round_the_twenty_four_24s_full_past_them() {
+async fn addresses_24000_round_the_ninety_six_24s_full_past_them() {
     let _s = serial().await;
     let lan = LanSwitch::new(LanOptions { max_peers: 24000, ..LanOptions::default() }, "", None, None, None, None);
     let mut got = Vec::new();
     let now = nfsu2_util::now_ms();
-    for i in 0..6000 {
+    for i in 0..24000 {
         let v = lan.allocate();
         assert!(v != 0, "address {i}");
         got.push(v);
@@ -504,7 +504,7 @@ async fn addresses_6000_round_the_twenty_four_24s_full_past_them() {
     assert_eq!(first, want);
     assert_eq!(ip_str(got[24]), "10.77.0.3");
     assert_eq!(ip_str(got[5999]), "10.77.23.251");
-    assert_eq!(got.iter().collect::<HashSet<_>>().len(), 6000, "all distinct");
+    assert_eq!(got.iter().collect::<HashSet<_>>().len(), 24000, "all distinct");
     let mut sorted = got.clone();
     sorted.sort();
     let mut all = all_vips();

@@ -51,13 +51,13 @@ services:
       - ${NFSU2_MODULE:-./module}:/module:ro
       - state:/state
     # what the systemd unit (nfsu2-web.service) allows the server, as far as a container goes: nothing to write
-    # but its state, no capabilities, no swap, 65536 open files (the Rust image's 6000 players take up to 48000
+    # but its state, no capabilities, no swap, 262144 open files (the Rust image's 24000 players take up to 192000
     # connections, 8 each); 8 GB of memory, not the unit's 3 GB (the live Node server reached 2.6 GB with 110 players)
     read_only: true
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]
-    mem_limit: 8g
-    memswap_limit: 8g
+    mem_limit: 16g
+    memswap_limit: 16g
     ulimits: { nofile: 65536 }
     # the game's share of the VPS's CPU, with Caddy's (or cloudflared's): web/deploy/nfsu2.slice
     cgroup_parent: ${NFSU2_SLICE:-nfsu2.slice}
@@ -71,7 +71,7 @@ configs:
   caddyfile:
     # web/deploy/Caddyfile for NFSU2_HOST.  Caddy names no software (no Server or Via header, also not on its
     # redirects and errors), closes a connection for any other name (the bare address, a scanner's made-up name)
-    # without an answer, and opens at most 47900 connections to the server (the Rust image takes 48000 with 6000
+    # without an answer, and opens at most 191900 connections to the server (the Rust image takes 192000 with 24000
     # players).  It believes no proxy in front: the client's address is the one that connected, and a
     # CF-Connecting-IP a client sends is replaced by it (behind Cloudflare's proxy: compose.cloudflare.yml).  The
     # admin API (127.0.0.1:2019) stays off: nothing reconfigures Caddy while it runs.
