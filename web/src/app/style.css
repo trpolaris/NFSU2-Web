@@ -1291,7 +1291,7 @@ dialog.menu {
 .menu-tab small { color: #4b5c58; font: 700 9px/1 var(--font); }
 .menu-tab:hover { color: #f1fffb; background: rgba(255,255,255,.035); border-color: rgba(255,255,255,.07); }
 .menu-tab:active { transform: scale(.975); }
-.menu-tab.is-active[data-menu-tab="chat"], .menu-tab.is-active[data-menu-tab="multiplayer"] {
+.menu-tab.is-active[data-menu-tab="chat"], .menu-tab.is-active[data-menu-tab="multiplayer"], .menu-tab.is-active[data-menu-tab="worlds"] {
   color: #00ffcc; border-left-color: #00ffcc; background: rgba(0,255,204,.085);
   box-shadow: 0 0 15px rgba(0,255,204,.12), inset 0 0 15px rgba(0,255,204,.045);
 }
