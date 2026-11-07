@@ -193,6 +193,8 @@ export class Encoder {
     const c = this.ctlW, u32 = this.u32;
     const cap = u32[c + P.C.rqCap], base = u32[c + P.C.rqPtr];
     let tail = u32[c + P.C.rqTail];
+    // The queue may describe bytes beyond this page's current shared-memory buffer after a grow.
+    if (!(base + cap <= this.u8.length)) return tail;
     let n = 0;
     while (((limit - tail) | 0) > 0) {
       const p = base + (tail & (cap - 1)), w = p >> 2;

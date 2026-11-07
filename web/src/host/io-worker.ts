@@ -111,7 +111,9 @@ function readKept(cf: CacheFile, pos: number, end: number, dst: { ptr: number; l
     if (e instanceof TypeError) { readsKept = false; return -1; }
     throw e;
   }
-  return off === end ? end - pos : -1;
+  if (off !== end) return -1;
+  sum.local += last - first + 1;
+  return end - pos;
 }
 function blocksInMemory(n: DNode, first: number, last: number): boolean {
   for (let bi = first; bi <= last; bi++) if (!memBlocks.has(n.path + '#' + bi)) return false;
