@@ -1574,6 +1574,64 @@ static void t_room_reset(void){
           "setting the same room is an idempotent no-op");
 }
 
+/* The hub's NEARD is accepted only for the outstanding request and
+ * merges its slot-keyed updates/removals without disturbing other entries. */
+static void t_neard_merge(void){
+    rc_session s;
+    rc_config cf; memset(&cf, 0, sizeof cf);
+    cf.self_id = 0x901; cf.port = 47211; cf.max_players = 8; cf.rate_hz = 20;
+    cf.test_mode = 1; cf.hub_ip = HUB_IP; cf.hub_port = HUB_PORT;
+    rc_io io = { 0, 0, 0, 0 };
+    rc_session_init(&s, &cf, &io);
+    s.hub_since = 1; s.hub_heard_us = 1000000; s.hub_was = 2;
+    const int64_t asked = 2000000, arrived = 2050000;
+    CHECK(rc_ask_near(&s, asked, RC_NEAR_MAX, 350), "NEARREQ is sent while the hub answers");
+    uint8_t data[2 * RC_MAPD_PLACE] = {
+        2,0, 0x10,0, 0x20,0, 64, 3, (uint8_t)-2,
+        8,0, 0x30,0, 0x40,0, 96, (uint8_t)-1, 4
+    };
+    rc_msg m; memset(&m, 0, sizeof m);
+    m.h.type = RC_MSG_NEARD; m.h.sender = 0xB0B;
+    m.u.mapd.req = s.near_req; m.u.mapd.base = 0; m.u.mapd.total = 2;
+    m.u.mapd.part = 0; m.u.mapd.nparts = 1; m.u.mapd.n = 2;
+    m.u.mapd.data = data; m.u.mapd.len = sizeof data;
+    uint8_t packet[RC_MAX_DGRAM];
+    int n = rc_encode(&m, packet, sizeof packet);
+    CHECK(n > 0, "NEARD full answer encodes");
+    rc_receive(&s, HUB_IP, HUB_PORT, packet, n, arrived);
+    CHECK(s.near_n == 2 && s.near_total == 2 && s.near_held == s.near_req && s.near_gen == 1,
+          "NEARD full answer updates the held list (%d / %u)", s.near_n, s.near_total);
+    CHECK(s.near_e[0].id == 2 && s.near_e[0].x == 16 && s.near_e[0].y == 32 &&
+          s.near_e[0].heading == 64 && s.near_e[0].vx == 3 && s.near_e[0].vy == -2 &&
+          s.near_e[0].at_us == arrived, "NEARD player position and velocity decoded");
+    CHECK(s.near_e[1].id == 8 && s.near_e[1].x == 48 && s.near_e[1].y == 64,
+          "NEARD second player decoded");
+    uint32_t gen = s.near_gen;
+    CHECK(rc_ask_near(&s, arrived + 1000, RC_NEAR_MAX, 350), "second NEARREQ is sent");
+    uint8_t delta[2 * RC_MAPD_PLACE] = {
+        2,0, 0x18,0, 0x28,0, 80, 5, 1,
+        (uint8_t)(8 | (RC_MAPD_GONE & 0xff)), (uint8_t)(RC_MAPD_GONE >> 8)
+    };
+    memset(&m, 0, sizeof m);
+    m.h.type = RC_MSG_NEARD; m.h.sender = 0xB0B;
+    m.u.mapd.req = s.near_req; m.u.mapd.base = s.near_held; m.u.mapd.total = 1;
+    m.u.mapd.part = 0; m.u.mapd.nparts = 1; m.u.mapd.n = 2;
+    m.u.mapd.data = delta; m.u.mapd.len = sizeof delta;
+    n = rc_encode(&m, packet, sizeof packet);
+    CHECK(n > 0, "NEARD delta encodes");
+    rc_receive(&s, HUB_IP, HUB_PORT, packet, n, arrived + 51000);
+    CHECK(s.near_gen == gen + 1 && s.near_n == 1 && s.near_total == 1 &&
+          s.near_e[0].id == 2 && s.near_e[0].x == 24 && s.near_e[0].y == 40 &&
+          s.near_e[0].vx == 5 && s.near_e[0].vy == 1,
+          "NEARD delta updates one player and removes the gone slot");
+    /* An unsolicited/old request must not mutate the held snapshot. */
+    gen = s.near_gen;
+    m.u.mapd.req = (uint16_t)(s.near_req - 1);
+    n = rc_encode(&m, packet, sizeof packet);
+    rc_receive(&s, HUB_IP, HUB_PORT, packet, n, arrived + 52000);
+    CHECK(s.near_gen == gen && s.near_n == 1, "stale NEARD request is ignored");
+}
+
 /* ---- MAPD and minimap wire compatibility ----------------------------------------------- */
 static void t_mapd_codec(void){
     rc_msg m; uint8_t b[RC_MAX_DGRAM], legacy[RC_MAX_DGRAM];
@@ -1627,6 +1685,7 @@ int main(int argc, char **argv){
     t_layout();
     t_roundtrip();
     t_room_reset();
+    t_neard_merge();
     t_mapd_codec();
     t_fuzz(fuzz);
     t_session();
