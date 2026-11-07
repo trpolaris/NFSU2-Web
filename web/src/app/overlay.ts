@@ -78,7 +78,7 @@ export class FpsOverlay {
   private lastPaint = 0;
   reader: StatusReader | null = null;
   extra: () => Record<string, number> = () => ({});
-  memory: WebAssembly.Memory | null = null;
+  memory: GameMemory | null = null;
   /** latest game frame rate (for tests and the page) */
   gameFps = 0;
   pageFps = 0;
