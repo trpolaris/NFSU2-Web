@@ -715,11 +715,13 @@ mod map_protocol_tests {
     #[test]
     fn mapreq_keeps_legacy_and_accepts_delta_forms() {
         let legacy = request(MSG_MAPREQ, &9u16.to_le_bytes());
-        assert!(matches!(decode(&legacy).unwrap().2, Msg::MapReq { req: 9, max: MAP_MAX_V1, base: None }));
+        assert!(matches!(decode(&legacy).unwrap().2, Msg::MapReq { req: 9, max: MAP_MAX_V1, base: None, flags: 0 }));
         let full = request(MSG_MAPREQ, &[9u16.to_le_bytes(), 300u16.to_le_bytes()].concat());
         assert!(matches!(decode(&full).unwrap().2, Msg::MapReq { req: 9, max: 300, base: None, .. }));
         let delta = request(MSG_MAPREQ, &[9u16.to_le_bytes(), 300u16.to_le_bytes(), 4u16.to_le_bytes()].concat());
-        assert!(matches!(decode(&delta).unwrap().2, Msg::MapReq { req: 9, max: 300, base: Some(4), .. }));
+        assert!(matches!(decode(&delta).unwrap().2, Msg::MapReq { req: 9, max: 300, base: Some(4), flags: 0 }));
+        let parked = request(MSG_MAPREQ, &[9u16.to_le_bytes(), 300u16.to_le_bytes(), 4u16.to_le_bytes(), MAPREQ_PARKED.to_le_bytes()].concat());
+        assert!(matches!(decode(&parked).unwrap().2, Msg::MapReq { req: 9, max: 300, base: Some(4), flags: MAPREQ_PARKED }));
     }
 
     #[test]
@@ -746,6 +748,7 @@ mod map_protocol_tests {
             assert_eq!(b[5], kind);
             assert_eq!(u16_le(&b, 16), 2);
             assert_eq!(u16_le(&b, 18), 1);
+            assert_eq!(u16_le(&b, 14), 0);
             assert_eq!(u32_le(&b, b.len() - CRC), crc32fast::hash(&b[..b.len() - CRC]));
         }
     }
