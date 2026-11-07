@@ -6,7 +6,7 @@ python3 tools/open_tunnel.py /path/to/original/TRACKS /path/to/game/MODPACKS/ope
 Writes L4RA.BUN, STREAML4RA.BUN and ROUTESL4RA/PathsFreeRoam.bin to a NEW
 output directory. Keep the original files in game/TRACKS: never overwrite them.
 Restart the server after installing the pack, then enable Open Construction Tunnel
-in the Mods tab (open_tunnel = on in settings.ini) and launch the game. It is off
+in Settings > Mods (open_tunnel = on in settings.ini) and launch the game. It is off
 by default; missing pack files fall back to the original map. To migrate a prior
 installation, move its three patched files into MODPACKS/open-tunnel/TRACKS and
 restore all three original TRACKS files from the backup first.
