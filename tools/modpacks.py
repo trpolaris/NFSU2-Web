@@ -5,11 +5,10 @@ loads all of it, so a friend's car with a mod's part looks the same on every
 screen; each mod's switch (a settings.ini key) only decides whether its parts
 are offered in the shops (runtime/modpacks.c).
 
-    tools/modpacks.py <game folder> --ug2net <underground2.net folder> [--brands BLITZ,...] [--out <folder>]
+    tools/modpacks.py <game folder> --mod <mod folder> [--brands BLITZ,...] [--out <folder>]
 
-<underground2.net folder> is the underground2.net mod (nfsmods.xyz/mod/2004,
-by the underground2.net team) extracted: the folder with "1 - Mod Files" in
-it, or that folder itself.  Of it, only the rim brands named (default: BLITZ)
+<mod folder> is the PC mod with the rims, extracted: the folder with
+"1 - Mod Files" in it, or that folder itself.  Of it, only the rim brands named (default: BLITZ)
 are taken, each with all of its rims: their parts in the mod's car part
 database, the brand's model pack, the rims' textures and the brand's icon.
 Nothing the mod changes in the game's own parts is taken: the mod also takes
@@ -256,7 +255,7 @@ def unlisted(path, rels):
     return len(head), bytes(head), hit
 
 
-def ug2net_root(path):
+def mod_root(path):
     if find(path, 'CARS') and find(path, 'GLOBAL'): return path
     sub = next((os.path.join(path, n) for n in sorted(os.listdir(path)) if find(os.path.join(path, n), '1 - Mod Files/GLOBAL')), None)
     mod = find(sub, '1 - Mod Files') if sub else find(path, '1 - Mod Files')
@@ -274,15 +273,15 @@ class Strings:
 
 
 def main():
-    ap = argparse.ArgumentParser(usage='tools/modpacks.py <game folder> --ug2net <underground2.net folder> [--brands BLITZ,...] [--out <folder>]')
+    ap = argparse.ArgumentParser(usage='tools/modpacks.py <game folder> --mod <mod folder> [--brands BLITZ,...] [--out <folder>]')
     ap.add_argument('game')
-    ap.add_argument('--ug2net', metavar='MOD', help='the underground2.net mod (nfsmods.xyz/mod/2004), extracted')
+    ap.add_argument('--mod', metavar='MOD', help='the PC mod with the rims, extracted')
     ap.add_argument('--brands', default='BLITZ', help='its new rim brands to take (comma-separated)')
     ap.add_argument('--out', metavar='DIR', help='where MODPACKS/ goes (default: the game folder)')
     a = ap.parse_args()
-    if not a.ug2net: sys.exit(__doc__)
+    if not a.mod: sys.exit(__doc__)
     if not find(a.game, 'SPEED2.EXE'): sys.exit(f'{a.game}: no SPEED2.EXE, not the game folder')
-    mod = ug2net_root(a.ug2net)
+    mod = mod_root(a.mod)
     game_db = PartDB(find(a.game, 'GLOBAL/GLOBALB.LZC') or find(a.game, 'GLOBAL/GLOBALB.BUN'))
     mod_db = PartDB(find(mod, 'GLOBAL/GLOBALB.LZC'))
     game_keys = {p['key'] for p in game_db.parts}
