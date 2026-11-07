@@ -60,12 +60,14 @@
 #define RC_MAP_ENTRY     5          /* a MAP entry: x, y (int16, m), heading (u8, 256 a turn) */
 #define RC_MAP_PER       230        /* entries per MAP datagram at most */
 #define RC_MAP_PARTS     3          /* MAP datagrams per answer at most */
-#define RC_MAP_MAX       512        /* entries per answer at most (the hub's nearest) */
+#define RC_MAP_MAX       512        /* entries per answer at most (bounded native marker storage) */
+#define RC_MAP_MAX_V1    512        /* legacy MAPREQ without max: an older client */
 #define RC_MAPD_GONE     0x8000u    /* a MAPD entry key with this bit: the player went */
 #define RC_MAPD_PLACE    9          /* slot, x, y, heading, velocity x, y */
 #define RC_MAPD_BYTES    1152       /* entry bytes per MAPD datagram */
 #define RC_MAPD_PARTS    16         /* MAPD datagrams per answer at most */
 #define RC_NEAR_MAX      128        /* NEARD entries per answer at most: one datagram */
+#define RC_NEAR_M        1000       /* a NEARREQ's radius at most (m) */
 #define RC_LOBBY_MAX     6          /* players in a race lobby: the game's network race takes 6 */
 #define RC_LOBBY_INBOX   16         /* LOBBY messages held for the game side */
 #define RC_LOBBIES_ENTRY 11         /* a LOBBIES entry: x, y (int16, m), race (u32), n, max, state (u8) */
@@ -331,7 +333,9 @@ typedef struct {
         struct { uint32_t t0, t1, t2; } ping;          /* PING: t0 only */
         struct { uint8_t reason; } bye;
         struct { uint8_t op, arg; uint32_t to, duel; } duel;      /* to: the player it is for */
-        struct { uint16_t req; } mapreq;
+        struct { uint16_t req, max, base; } mapreq;
+        struct { uint16_t req, base, total, len; uint8_t part, nparts, n; const uint8_t *data; } mapd;
+        struct { uint16_t req, max, base, radius; } nearreq;
         struct { uint16_t req, total; uint8_t part, nparts, n; const uint8_t *data; } map;   /* data: n entries */
         rc_lobby lobby;
         struct { uint16_t req; uint8_t n; const uint8_t *data; } lobbies;   /* data: n entries */
@@ -450,6 +454,10 @@ typedef struct {
     /* joins, leaves and notes for the log (peer = table index or -1) */
     void (*event)(void *user, int ev, int peer, const char *text);
 } rc_io;
+
+/* A world-map player as sent by the hub (MAPD); the page moves it on at its velocity. */
+typedef struct { uint16_t id; int16_t x, y; uint8_t heading; int8_t vx, vy; int64_t at_us; } rc_mapent;
+
 enum { RC_EV_JOIN = 1, RC_EV_LEAVE = 2, RC_EV_NOTE = 3, RC_EV_CFG = 4, RC_EV_RESTART = 5 };
 
 typedef struct {
@@ -554,18 +562,19 @@ typedef struct {
     struct { uint32_t from; uint8_t op, arg; uint32_t duel; } duel_in[RC_DUEL_INBOX];
     int       n_duel_in;
     uint32_t  duel_dropped;        /* the inbox was full */
-    /* the world map's other players (rc_ask_map): our last question, the
-     * answer's parts so far, and the last complete answer (map_gen +1 for
-     * each); entry k of part j at j * RC_MAP_PER + k */
-    uint16_t  map_req;  int64_t map_asked_us;
-    uint8_t   map_mask, map_nparts;  uint8_t map_part_n[RC_MAP_PARTS];  uint16_t map_asm_total;
-    uint8_t   map_asm[RC_MAP_PARTS * RC_MAP_PER * RC_MAP_ENTRY];
-    uint32_t  map_gen;  int map_n;  uint16_t map_total;
-    /* The minimap's nearby players, as of the last complete NEARD answer. */
+    /* Legacy MAP assembly and incremental MAPD state. The same ordered array is
+     * exposed to the world-map renderer after each complete response. */
+    uint16_t  map_req; int64_t map_asked_us;
+    uint16_t  map_mask; uint8_t map_nparts; uint8_t map_part_n[RC_MAPD_PARTS];
+    uint16_t  map_part_len[RC_MAPD_PARTS], map_asm_total, map_asm_base;
+    uint8_t   map_asm[RC_MAPD_PARTS * RC_MAPD_BYTES];
+    uint16_t  map_held;
+    uint32_t  map_gen; int map_n; uint16_t map_total;
+    rc_mapent map_e[RC_MAP_MAX], map_tmp[RC_MAP_MAX];
+    /* Nearby-player NEARD delta state. */
     uint16_t near_req, near_held; int64_t near_asked_us;
     uint32_t near_gen; int near_n; uint16_t near_total;
     rc_mapent near_e[RC_NEAR_MAX], near_tmp[RC_NEAR_MAX];
-    struct { int16_t x, y; uint8_t heading; } map_e[RC_MAP_PARTS * RC_MAP_PER];
     /* LOBBY messages for us (to our id) from established peers, oldest
      * first, until the game side takes them (rc_take_lobby) */
     struct { uint32_t from; rc_lobby l; } lobby_in[RC_LOBBY_INBOX];
