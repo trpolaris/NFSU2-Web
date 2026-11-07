@@ -1561,8 +1561,9 @@ static void t_room_reset(void){
     s.n_duel_in = 1; s.n_lobby_in = 1; s.n_say_in = 1;
     uint32_t mg = s.map_gen, ng = s.near_gen, lg = s.lobbies_gen;
     CHECK(rc_set_room(&s, 0x22222222u) == 1, "room change returns the number of established peers");
-    CHECK(s.conf.room == 0x22222222u && s.peer[0].state == RC_PS_FREE,
-          "room change updates the room and drops its previous peer");
+    CHECK(s.conf.room == 0x22222222u && s.peer[0].state == RC_PS_CANDIDATE &&
+          s.peer[0].id == 0 && s.peer[0].configured && s.peer[0].ip == 0,
+          "room change clears established identity but preserves configured peer for re-handshake");
     CHECK(!s.map_n && !s.map_total && !s.map_held && !s.map_mask && !s.map_asked_us && s.map_gen == mg + 1,
           "room change invalidates pending World Map state");
     CHECK(!s.near_n && !s.near_total && !s.near_held && !s.near_asked_us && s.near_gen == ng + 1,
@@ -1623,13 +1624,18 @@ static void t_neard_merge(void){
     CHECK(s.near_gen == gen + 1 && s.near_n == 1 && s.near_total == 1 &&
           s.near_e[0].id == 2 && s.near_e[0].x == 24 && s.near_e[0].y == 40 &&
           s.near_e[0].vx == 5 && s.near_e[0].vy == 1,
-          "NEARD delta updates one player and removes the gone slot");
+          "NEARD delta merge: req=%u held=%u asked=%lld n=%d total=%u first=%u at %d,%d vel %d,%d",
+          s.near_req, s.near_held, (long long)s.near_asked_us, s.near_n, s.near_total,
+          s.near_n ? s.near_e[0].id : 0, s.near_n ? s.near_e[0].x : 0, s.near_n ? s.near_e[0].y : 0,
+          s.near_n ? s.near_e[0].vx : 0, s.near_n ? s.near_e[0].vy : 0);
     /* An unsolicited/old request must not mutate the held snapshot. */
     gen = s.near_gen;
     m.u.mapd.req = (uint16_t)(s.near_req - 1);
     n = rc_encode(&m, packet, sizeof packet);
     rc_receive(&s, HUB_IP, HUB_PORT, packet, n, arrived + 52000);
-    CHECK(s.near_gen == gen && s.near_n == 1, "stale NEARD request is ignored");
+    CHECK(s.near_gen == gen && s.near_n == 1 && !s.near_asked_us,
+          "stale NEARD request ignored: req=%u held=%u asked=%lld n=%d gen=%u",
+          s.near_req, s.near_held, (long long)s.near_asked_us, s.near_n, s.near_gen);
 }
 
 /* ---- MAPD and minimap wire compatibility ----------------------------------------------- */
