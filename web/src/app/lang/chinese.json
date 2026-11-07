@@ -11,9 +11,11 @@
   "Secure, isolated page": "安全且隔離的頁面",
   "This address is not secure, so {browser} turns off what the game needs. Open the server's https:// address instead.": "此網址不安全，因此{browser}會關閉遊戲所需的功能。請改為開啟伺服器的 https:// 網址。",
   "The page is not cross-origin isolated (no SharedArrayBuffer). Open it from the NFSU2 web server, not another server.": "此頁面未啟用跨來源隔離（沒有 SharedArrayBuffer）。請從 NFSU2 網頁伺服器開啟，而不是其他伺服器。",
-  "Shared 4 GB WebAssembly memory is not available: {error}": "無法使用 4 GB 共用 WebAssembly 記憶體：{error}",
+  "Shared WebAssembly memory is not available: {error}": "無法使用共用 WebAssembly 記憶體：{error}",
+  "The JavaScript optimizer is off for this site, and the game can't run without it. In Chrome: Settings, Privacy and security, JavaScript optimization and security, allow this site (Android's Advanced Protection turns it off). In Edge: add this site as an exception to Enhanced security.": "此網站的 JavaScript 最佳化已關閉，遊戲沒有它就無法執行。Chrome：設定、隱私權和安全性、JavaScript 最佳化與安全性，允許此網站（Android 的進階保護會關閉它）。Edge：將此網站加入「增強式安全性」的例外。",
+  "Chrome gave the game its software graphics, which run on the processor, so the game will be very slow. Turn on chrome://flags/#enable-vulkan and chrome://flags/#default-angle-vulkan, then restart Chrome.": "Chrome 給遊戲的是在處理器上執行的軟體繪圖，因此遊戲會非常慢。請啟用 chrome://flags/#enable-vulkan 和 chrome://flags/#default-angle-vulkan，然後重新啟動 Chrome。",
   "This browser is too old for the game (no Atomics.waitAsync). Update {browser}.": "此瀏覽器版本過舊，無法執行遊戲（沒有 Atomics.waitAsync）。請更新{browser}。",
-  "HTTPS or localhost, cross-origin isolated, threads and 4 GB memory available.": "HTTPS 或 localhost、已跨來源隔離，且可使用執行緒與 4 GB 記憶體。",
+  "HTTPS or localhost, cross-origin isolated, threads and shared memory available.": "HTTPS 或 localhost、已跨來源隔離，且可使用執行緒與共用記憶體。",
   "Graphics (WebGPU)": "圖形（WebGPU）",
   "Off because this address is not secure (see above).": "已關閉，因為此網址不安全（見上方）。",
   "Firefox for Android has no WebGPU yet, which the game needs. Play in Chrome.": "Android 版 Firefox 還沒有遊戲所需的 WebGPU。請改用 Chrome 遊玩。",
@@ -1435,5 +1437,12 @@
   "This server is currently running for testing only and should not be considered a stable, production-ready service.": "此伺服器目前僅供測試使用，不應視為穩定且已可正式提供服務的版本。",
   "The project is still in development and testing. You may encounter bugs, interruptions, or unexpected behavior in gameplay, multiplayer connections, chat, or website features.": "本專案仍處於開發與測試階段。遊戲、多玩家連線、聊天或網站功能可能出現錯誤、中斷或非預期行為。",
   "By continuing, you acknowledge that you are using a test build.": "繼續使用即表示你了解目前使用的是測試版本。",
-  "I understand, continue": "我知道了，繼續"
+  "I understand, continue": "我知道了，繼續",
+  "Steam Controller or Steam Deck: connect it once.": "Steam Controller 或 Steam Deck：只需連接一次。",
+  "{names}: connected in this browser.": "{names}：已連接到此瀏覽器。",
+  "Connect a Steam Controller": "連接 Steam Controller",
+  "Connect another": "再連接一個",
+  "Too many players are connected from your network: playing with others waits for a free place, or use another network.": "從你的網路連線的玩家太多：要等有空位時才能與他人同玩，或改用其他網路。",
+  "Your antivirus or network is probably blocking the connection to other players. Allow this site in it, or try another network or a VPN.": "你的防毒軟體或網路可能封鎖了與其他玩家的連線。請在其中允許這個網站，或改用其他網路或 VPN。",
+  "Your connection to other players keeps dropping. Your network may be limiting it: try another network or a VPN.": "你與其他玩家的連線一直中斷。可能是你的網路限制了它：請改用其他網路或 VPN。"
 }

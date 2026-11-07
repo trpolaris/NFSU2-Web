@@ -427,3 +427,75 @@ test('Fanatec direct-drive bases use their wheel and pedal axes, not the generic
   assert.equal(+m.lock.toFixed(4), +(270 / 2520).toFixed(4));
   assert.equal(W.wheelOf('FANATEC ClubSport Pedals V3 (Vendor: 0eb7 Product: 183b)'), null);
 });
+
+test('Fanatec pedal sets on their own USB are identified and mapped to the wheel axes', () => {
+  const id = 'FANATEC ClubSport Pedals V3 (Vendor: 0eb7 Product: 183b)';
+  assert.equal(W.wheelOf(id), null);
+  assert.ok(W.isPedals(id));
+  assert.deepEqual(W.pedalsOf(id, W.pedalSetOf(id), 4), {
+    gas: { axis: 0, rest: -1, full: 1, pad: id },
+    brake: { axis: 1, rest: -1, full: 1, pad: id },
+  });
+  const map = { ...W.guessMap(W.wheelOf(G29), G29_REST, 25), ...W.pedalsOf(id, W.pedalSetOf(id), 4) };
+  const idle = W.readWheel(G29_REST, [], map, 9, key => key === id ? [0, 0, 0, 0] : undefined);
+  assert.deepEqual(idle.axes.slice(4), [0, 0]);
+  const active = W.readWheel(G29_REST, [], map, 9, key => key === id ? [1, 0.5, 0, 0] : undefined);
+  assert.deepEqual(active.axes.slice(4), [0.75, 1]);
+});
+
+test('WheelLearn can assign gas and brake axes from a separate USB device', () => {
+  const id = 'VNM Simulation Pedals (Vendor: 1234 Product: 5678)';
+  const base = { steer: 0, centre: 0, lock: 1, gas: null, brake: null, buttons: [] };
+  const learn = new W.WheelLearn(base, [id]);
+  const feed = (own, extra, time) => learn.feed(own, time, [extra]);
+  feed([0, 0], [0, 0], 0);
+  feed([0, 0], [0, 0], 700);
+  feed([0.5, 0], [0, 0], 710);
+  feed([0.5, 0], [0, 0], 1410);
+  feed([0, 0], [0.4, 0], 1420);
+  feed([0, 0], [1, 0], 1430);
+  feed([0, 0], [1, 0], 2130);
+  feed([0, 0], [1, 1], 2140);
+  feed([0, 0], [1, 1], 2840);
+  const result = learn.map();
+  assert.ok(result);
+  assert.equal(result.gas.pad, id);
+  assert.equal(result.brake.pad, id);
+  assert.deepEqual([result.gas.axis, result.brake.axis], [0, 1]);
+  assert.deepEqual([result.gas.rest, result.gas.full, result.brake.rest, result.brake.full], [-1, 1, -1, 1]);
+});
+
+test('a saved USB pedal mapping is used only while that pedal controller is connected', () => {
+  const id = 'FANATEC ClubSport Pedals V3 (Vendor: 0eb7 Product: 183b)';
+  const guess = W.guessMap(W.wheelOf(G29), G29_REST, 25);
+  const kept = { ...guess, ...W.pedalsOf(id, W.pedalSetOf(id), 4), learned: true };
+  const present = W.withSetUp(guess, kept, key => key === id);
+  const absent = W.withSetUp(guess, kept, () => false);
+  assert.equal(present.gas.pad, id);
+  assert.equal(present.brake.pad, id);
+  assert.equal(absent.gas.pad, undefined);
+  assert.equal(absent.brake.pad, undefined);
+  assert.deepEqual([absent.gas.axis, absent.brake.axis], [guess.gas.axis, guess.brake.axis]);
+});
+
+test('separate USB pedals do not become the primary controller and drive the connected wheel', async () => {
+  const G2 = await load('web/src/input/gamepad.ts', '\\n// a wheel with its own USB pedals');
+  const P2 = await load('web/src/input/proto.ts', '\\n// a wheel with its own USB pedals');
+  await withPads(async (pads) => {
+    const buf = new SharedArrayBuffer(4096), h = new Int32Array(buf), f = new Float32Array(buf), logs = [];
+    const pedals = fakePad('FANATEC ClubSport Pedals V3 (Vendor: 0eb7 Product: 183b)', 0, '', [0, 0, 0, 0], 0);
+    const wheel = fakePad(G29, 1, '', G29_REST, 25);
+    pads.push(pedals, wheel);
+    const poller = new G2.PadPoller(h, new Uint8Array(buf), 0, () => {}, s => logs.push(s));
+    const axis = i => f[P2.IM_PAD_AXIS + i];
+    poller.poll();
+    assert.equal(G2.drivingPad(), wheel);
+    assert.deepEqual([axis(P2.PAD_AXIS_LT), axis(P2.PAD_AXIS_RT)], [0, 0]);
+    pedals.axes[0] = 1; pedals.axes[1] = 0.5; poller.poll();
+    assert.deepEqual([axis(P2.PAD_AXIS_LT), axis(P2.PAD_AXIS_RT)], [0.75, 1]);
+    pedals.axes[0] = -1; pedals.axes[1] = -1; pads[0] = null; poller.poll();
+    assert.deepEqual([axis(P2.PAD_AXIS_LT), axis(P2.PAD_AXIS_RT)], [0, 0]);
+    assert.ok(logs.some(s => /gas axis 0 of FANATEC ClubSport Pedals V3/.test(s)));
+    poller.dispose();
+  });
+});

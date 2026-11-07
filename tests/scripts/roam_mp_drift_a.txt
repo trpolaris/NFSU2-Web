@@ -47,5 +47,7 @@
 +90   up LEFT
 +0    up UP
 +0    log stop
-+400  untrace
-+10   quit
++0    down DOWN
++240  up DOWN
++1200 untrace
++0    quit

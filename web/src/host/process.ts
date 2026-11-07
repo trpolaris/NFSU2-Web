@@ -3,6 +3,7 @@
 import { CTL_EXIT, CTL_INTS, CTL_NEXT_TID, CTL_POOL, MAX_THREADS, POOL_IDLE, POOL_NONE, POOL_RUN_MAIN, RPC_BYTES, type BootConfig, type ToPage } from './proto';
 import { tzEnv } from './tz';
 import { movieCodec } from './movie';
+import { allocMemory, memoryTries } from './memory';
 
 export interface ProcessOptions {
   module: WebAssembly.Module;
@@ -41,6 +42,7 @@ function memoryPagesOf(mod: WebAssembly.Module): number | null {
  *  ~55 MB more of WebKit's page process.  12 at first, fewer than any game ends with: its first second starts 10
  *  threads, and with 8 or 10 workers at first the 10th waited up to 15 ms for one. */
 const POOL_START = 12, POOL_SPARE = 2;
+const POOL_START_MS = 45_000;
 
 export async function startProcess(o: ProcessOptions): Promise<GameProcess> {
   const pool = Math.min(o.pool ?? 24, MAX_THREADS);
@@ -49,7 +51,13 @@ export async function startProcess(o: ProcessOptions): Promise<GameProcess> {
   // which movies the I/O worker opens (the page decides before the game starts: shell.ts; a test page here)
   cfg.env.NFSU2_MOVIE_CODEC = await movieCodec(cfg.env);
   const initial = o.initialPages ?? memoryPagesOf(o.module) ?? 16384;
-  const memory = new WebAssembly.Memory({ initial, maximum: 65536, shared: true });
+  // A growing 4 GB reservation may fail on 32-bit Chrome or Safari even when the game's 1 GB fits.
+  // Retry at the same initial size without growth; never start below the module's required pages.
+  let got: ReturnType<typeof allocMemory>;
+  try { got = allocMemory(memoryTries(initial)); }
+  catch (e) { const note = (e as { note?: string } | null)?.note; if (note) o.onNote?.(note); throw e; }
+  const { memory } = got;
+  o.onNote?.(got.note);
   const ctlBuf = new SharedArrayBuffer(CTL_INTS * 4), rpc = new SharedArrayBuffer(RPC_BYTES);
   const ctl = new Int32Array(ctlBuf);
   ctl[CTL_NEXT_TID] = 1;
@@ -79,7 +87,7 @@ export async function startProcess(o: ProcessOptions): Promise<GameProcess> {
   const io = new Worker(new URL('/host/io-worker.js', import.meta.url), { type: 'module', name: 'io' });
   workers.push(io);
   await new Promise<void>((res, rej) => {
-    io.onmessage = (e) => { if (e.data.t === 'io-ready') res(); else if (e.data.t === 'io-error') rej(new Error(e.data.msg)); };
+    io.onmessage = (e) => { if (e.data.t === 'io-ready') res(); else if (e.data.t === 'io-error') { io.terminate(); rej(new Error(e.data.msg)); } };
     io.postMessage({ memory, ctl: ctlBuf, rpc, cfg });
   });
   io.onmessage = (e) => { if (e.data.t === 'saved') o.onSaved?.(e.data.path); else if (e.data.t === 'log') o.onNote?.(e.data.s); };
@@ -104,7 +112,20 @@ export async function startProcess(o: ProcessOptions): Promise<GameProcess> {
     mostBusy = Math.max(mostBusy, started - starting - idle);
     for (let n = idle + starting; n < POOL_SPARE && started < pool; n++) void startWorker();
   };
-  await Promise.all(Array.from({ length: Math.max(1, Math.min(o.poolStart ?? POOL_START, pool)) }, startWorker));
+  let poolLate: ReturnType<typeof setTimeout> | undefined;
+  try {
+    await Promise.race([
+      Promise.all(Array.from({ length: Math.max(1, Math.min(o.poolStart ?? POOL_START, pool)) }, startWorker)),
+      new Promise<never>((_, reject) => {
+        poolLate = setTimeout(() => reject(new Error(`the game's threads did not start in ${POOL_START_MS / 1000} s`)), POOL_START_MS);
+      }),
+    ]);
+  } catch (e) {
+    for (const w of workers) w.terminate();
+    throw e;
+  } finally {
+    if (poolLate) clearTimeout(poolLate);
+  }
   // slot 0 runs the process entry
   Atomics.store(ctl, CTL_POOL, POOL_RUN_MAIN); Atomics.notify(ctl, CTL_POOL);
 

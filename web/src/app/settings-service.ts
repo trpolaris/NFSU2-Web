@@ -2,14 +2,14 @@
 import { checkSetting, DEFAULTS, keyDef, resolveEnv, settingsPut, TEMPLATE, type Resolved } from './settings';
 import { readText, writeFile } from './savefs';
 import { playHorn, stopHorn } from './horn-preview';
-import { CREW_MAX, crewsValue, rgbsValue, type Crew } from './crews';
+import { CREW_MAX, checkCrew, crewsOf, crewsValue, freeColour, rgbsValue, type Crew } from './crews';
 import { onlineName } from './claim';
 import { DEFAULT_GROUPS, DEFAULT_PHRASES, groupsOf, PHRASES, phrasesOf, SLOTS } from './phrases';
 import { LANGUAGES, N, NATIVE, t, tn, tvars, type Language, type Msg } from './i18n';
 
 
 /** Safe, allow-listed keys used by portable launcher profiles; never export unknown settings.ini lines. */
-export const PROFILE_SETTING_KEYS = ['render', 'fps', 'audio_latency', 'language', 'subtitles', 'sound', 'intro', 'gamepad', 'rumble', 'ui_textures'] as const;
+export const PROFILE_SETTING_KEYS = ['render', 'fps', 'audio_latency', 'language', 'subtitles', 'sound', 'intro', 'gamepad', 'rumble', 'ui_textures', 'ug2net_parts', 'others_mod_parts'] as const;
 const PROFILE_SETTING_SET = new Set<string>(PROFILE_SETTING_KEYS);
 
 type Control =
@@ -63,11 +63,16 @@ const GROUPS: Group[] = [
     { key: 'movies', label: N('Movies'), help: N('Intro, story and FMV movies.'), c: { t: 'switch' } },
     { key: 'subtitles', label: N('Subtitles'), help: N('The movies\' lines as text. English\'s are VileStuff\'s English Subtitles Fixed, with who says each line.'), link: { text: N('English Subtitles Fixed'), href: 'https://nfsmods.xyz/mod/5286' }, c: { t: 'switch' } },
     { key: 'autosave', label: N('Autosave'), help: N('Sets each profile\'s Save option in the game to Autosave once, so races, purchases and changes are saved without asking. Prompt or Off chosen afterwards in the game\'s Options, Gameplay stays.'), c: { t: 'switch' } },
+    { key: 'gps_distance', label: N('GPS distance'), help: N('Shows a straight-line distance to your GPS destination beneath the arrow, using Speedometer Units. Hidden while GPS has no active route.'), c: { t: 'switch' }, more: true },
     { key: 'intro', label: N('Startup movies'), help: N('The EA and THX logos, the PSA and the intro. Skippable: Enter, Esc, Space, a left click, or A, B or Start ends each one. Original: as in the game, where only the intro ends early.'), c: { t: 'seg', opts: [['skippable', N('Skippable')], ['original', N('Original')], ['off', N('Off')]] }, more: true },
     { key: 'sound', label: N('Sound'), help: N('All sound output.'), c: { t: 'switch' }, more: true },
     { key: 'background', label: N('When the tab is in the background'), help: N('Pause freezes the game and its sound, as alt-tab does on Windows. In LAN and Online play it keeps running, without sound.'), c: { t: 'seg', opts: [['pause', N('Pause')], ['run', N('Keep running')]] }, more: true },
     { key: 'audio_latency', label: N('Output latency'), help: N('Lowest reacts fastest; Robust survives a busy PC best.'), c: { t: 'seg', opts: [['interactive', N('Lowest')], ['balanced', N('Balanced')], ['playback', N('Robust')]] }, more: true },
     { key: 'seed_registry', label: N('Highest graphics for a new save'), help: N('The game\'s own graphics options at their highest, at this screen\'s resolution. Off lets the game run its own hardware check.'), c: { t: 'switch' }, more: true },
+  ] },
+  { title: N('Mods'), more: N('More mod settings'), items: [
+    { key: 'ug2net_parts', label: N('underground2.net Rims'), help: N('Adds the 24 Blitz rims to the Body Shop. All clients load the shared parts so other players see the same wheels; this switch controls whether the shop offers them.'), link: { text: N('Mod details'), href: 'https://nfsmods.xyz/mod/2004' }, c: { t: 'switch' } },
+    { key: 'others_mod_parts', label: N('Other players’ mod parts'), help: N('Shown uses the mod parts fitted to other players’ cars. Original replaces them with compatible stock stand-ins. Your own car is unchanged.'), c: { t: 'seg', opts: [['shown', N('Shown')], ['original', N('Original')]] } },
   ] },
   { title: N('Display'), more: N('More display settings'), items: [
     { key: 'fullscreen', label: N('Full screen on Play'), help: N('Off plays in this browser window; the menu (F9) has full screen while you play. Hold Esc to leave it. On by default on phones.'), c: { t: 'switch' } },
@@ -389,6 +394,33 @@ export class SettingsService {
       names ? (checkedNames && checkedNames.ok ? checkedNames.value : names) : null,
       [['roam_crew_colours', colours ? (checkedColours && checkedColours.ok ? checkedColours.value : colours) : null]],
     );
+  }
+
+  /** Accept a live friend invite and save crew + room in one settings.ini write. */
+  async joinCrewInvite(name: string, room: string) {
+    if (this.ro()) throw new Error(t(READ_ONLY));
+    const current = crewsOf(this.current('roam_crew'), this.current('roam_crew_colours'));
+    const checkedCrew = checkCrew(name, current.map(crew => crew.name));
+    if (!checkedCrew.ok) throw new Error(checkedCrew.why ? t(checkedCrew.why, { name: checkedCrew.name ?? '' }) : t('Crew invite is not valid.'));
+    const next = [...current, { name: checkedCrew.name, rgb: freeColour(current) }];
+    const names = crewsValue(next.map(crew => crew.name));
+    const colours = rgbsValue(next);
+    const checkedNames = checkSetting('roam_crew', names);
+    const checkedColours = checkSetting('roam_crew_colours', colours);
+    const normalizedRoom = room.trim();
+    const checkedRoom = normalizedRoom ? checkSetting('roam_room', normalizedRoom) : null;
+    if (checkedNames && !checkedNames.ok) throw new Error(t('Not saved: {key} = {why}.', { key: 'roam_crew', why: tvars(checkedNames.why, checkedNames.v) }));
+    if (checkedColours && !checkedColours.ok) throw new Error(t('Not saved: {key} = {why}.', { key: 'roam_crew_colours', why: tvars(checkedColours.why, checkedColours.v) }));
+    if (checkedRoom && !checkedRoom.ok) throw new Error(t('Not saved: {key} = {why}.', { key: 'roam_room', why: tvars(checkedRoom.why, checkedRoom.v) }));
+    await this.put(
+      'roam_room',
+      normalizedRoom ? (checkedRoom && checkedRoom.ok ? checkedRoom.value : normalizedRoom) : null,
+      [
+        ['roam_crew', names ? (checkedNames && checkedNames.ok ? checkedNames.value : names) : null],
+        ['roam_crew_colours', colours ? (checkedColours && checkedColours.ok ? checkedColours.value : colours) : null],
+      ],
+    );
+    return next;
   }
 
 

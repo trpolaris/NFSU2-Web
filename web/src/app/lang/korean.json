@@ -11,9 +11,11 @@
   "Secure, isolated page": "안전하고 격리된 페이지",
   "This address is not secure, so {browser} turns off what the game needs. Open the server's https:// address instead.": "이 주소는 안전하지 않아서 {browser}에서 게임에 필요한 기능을 꺼 두었어요. 대신 서버의 https:// 주소를 여세요.",
   "The page is not cross-origin isolated (no SharedArrayBuffer). Open it from the NFSU2 web server, not another server.": "이 페이지는 교차 출처 격리가 되어 있지 않아요(SharedArrayBuffer 없음). 다른 서버가 아닌 NFSU2 웹 서버에서 여세요.",
-  "Shared 4 GB WebAssembly memory is not available: {error}": "4 GB 공유 WebAssembly 메모리를 사용할 수 없어요: {error}",
+  "Shared WebAssembly memory is not available: {error}": "공유 WebAssembly 메모리를 사용할 수 없어요: {error}",
+  "The JavaScript optimizer is off for this site, and the game can't run without it. In Chrome: Settings, Privacy and security, JavaScript optimization and security, allow this site (Android's Advanced Protection turns it off). In Edge: add this site as an exception to Enhanced security.": "이 사이트에서 JavaScript 최적화가 꺼져 있어서 게임을 실행할 수 없어요. Chrome: 설정, 개인 정보 보호 및 보안, JavaScript 최적화 및 보안에서 이 사이트를 허용하세요(Android 고급 보호가 이 기능을 꺼요). Edge: 이 사이트를 향상된 보안의 예외로 추가하세요.",
+  "Chrome gave the game its software graphics, which run on the processor, so the game will be very slow. Turn on chrome://flags/#enable-vulkan and chrome://flags/#default-angle-vulkan, then restart Chrome.": "Chrome이 게임에 프로세서에서 실행되는 소프트웨어 그래픽을 줘서 게임이 아주 느려요. chrome://flags/#enable-vulkan과 chrome://flags/#default-angle-vulkan을 켜고 Chrome을 다시 시작하세요.",
   "This browser is too old for the game (no Atomics.waitAsync). Update {browser}.": "이 브라우저는 게임을 실행하기에 너무 오래됐어요(Atomics.waitAsync 없음). {browser} 업데이트가 필요해요.",
-  "HTTPS or localhost, cross-origin isolated, threads and 4 GB memory available.": "HTTPS 또는 localhost, 교차 출처 격리, 스레드와 4 GB 메모리를 사용할 수 있어요.",
+  "HTTPS or localhost, cross-origin isolated, threads and shared memory available.": "HTTPS 또는 localhost, 교차 출처 격리, 스레드와 공유 메모리를 사용할 수 있어요.",
   "Graphics (WebGPU)": "그래픽(WebGPU)",
   "Off because this address is not secure (see above).": "이 주소가 안전하지 않아서 꺼져 있어요(위 참고).",
   "Firefox for Android has no WebGPU yet, which the game needs. Play in Chrome.": "Android용 Firefox에는 게임에 필요한 WebGPU가 아직 없어요. Chrome에서 플레이하세요.",
@@ -1435,5 +1437,8 @@
   "This server is currently running for testing only and should not be considered a stable, production-ready service.": "이 서버는 현재 테스트 목적으로만 운영되며 안정적인 정식 서비스로 간주해서는 안 됩니다.",
   "The project is still in development and testing. You may encounter bugs, interruptions, or unexpected behavior in gameplay, multiplayer connections, chat, or website features.": "프로젝트는 아직 개발 및 테스트 단계입니다. 게임 플레이, 멀티플레이어 연결, 채팅 또는 웹사이트 기능에서 오류, 접속 중단이나 예상치 못한 동작이 발생할 수 있습니다.",
   "By continuing, you acknowledge that you are using a test build.": "계속 진행하면 테스트 버전을 사용하고 있음을 확인하는 것입니다.",
-  "I understand, continue": "확인했습니다. 계속"
+  "I understand, continue": "확인했습니다. 계속",
+  "Too many players are connected from your network: playing with others waits for a free place, or use another network.": "내 네트워크에서 접속한 플레이어가 너무 많아요: 자리가 날 때까지 다른 플레이어와의 플레이는 대기해요. 다른 네트워크를 써도 돼요.",
+  "Your antivirus or network is probably blocking the connection to other players. Allow this site in it, or try another network or a VPN.": "백신 프로그램이나 네트워크에서 다른 플레이어와의 연결을 막고 있는 것 같아요. 이 사이트를 허용하거나, 다른 네트워크나 VPN을 써 보세요.",
+  "Your connection to other players keeps dropping. Your network may be limiting it: try another network or a VPN.": "다른 플레이어와의 연결이 계속 끊겨요. 네트워크에서 제한하고 있을 수 있어요: 다른 네트워크나 VPN을 써 보세요."
 }

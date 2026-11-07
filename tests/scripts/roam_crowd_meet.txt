@@ -1,0 +1,44 @@
+# Car Meet: 24 stationary players at (1780, -884), about 85 m from the new-career spawn,
+# within one 50 m cluster and outside the spawn exclusion; the GPS run therefore needs a drive.
+# The fixture supplies two equal positions one second apart, so every bot reports zero velocity.
+# Simulated clients are parked (speed 0) for the hub's 60 s PARKED window; the world map
+# should create one Car meets marker, label, selection item and GPS trigger.
+#
+# Run from the repository root:
+# node web/tools/roam-pair.mjs --page app --solo --crowd 24 --crowd-args "--track tests/fixtures/roam_meet_stationary.csv --room CarMeetTest" \
+#   --a MeetHost:roam_crowd_meet.txt --env NFSU2_ROAM=1 --env NFSU2_ROAM_ROOM=CarMeetTest
+#
+# After MEET READY, manually select the "Car meets" legend row and confirm its nearest
+# marker. The route should target that meet and auto-clear within 40 m. Save the screen
+# and log output; repeat with the Car meets legend row hidden to test marker/label hiding.
+0     tapuntil RETURN MC_Background.fng 120 4000
++120  tap LEFT
++30   tap RETURN
++240  tap BACK
++8    tap BACK
++8    tap BACK
++8    tap BACK
++20   type ${ROAM_PROFILE}
++60   tap RETURN
++240  tap RETURN
++0    waitfng GarageMain.fng 3000
++300  tap LEFT
++60   tap RETURN                      # Career
++300  tap RETURN                      # Start New Career
++0    waitfng UI_EngageMessageDialog.fng 8000
++120  tap RETURN                      # SMS: Continue
++0    roam waitroam 3000
++0    roam smsauto on
++0    roam mp waitpeers 24 30000
++0    roam mp waitcars 24 30000
++65000ms roam mp status                # wait beyond the hub's 60 s parked threshold
++0    tap M
++90   tap M
++1800 roam mp meet
++0    roam mp map
++0    dump meet_candidates
++0    log MEET READY - select Car meets legend row, confirm a marker, then drive to its GPS target
++10000ms roam mp meet
++0    dump meet_after_selection
++0    roam mp map
++10   quit

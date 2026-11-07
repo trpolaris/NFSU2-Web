@@ -11,9 +11,11 @@
   "Secure, isolated page": "Veilige, geïsoleerde pagina",
   "This address is not secure, so {browser} turns off what the game needs. Open the server's https:// address instead.": "Dit adres is niet beveiligd, dus schakelt {browser} uit wat het spel nodig heeft. Open in plaats daarvan het https://-adres van de server.",
   "The page is not cross-origin isolated (no SharedArrayBuffer). Open it from the NFSU2 web server, not another server.": "De pagina is niet cross-origin-geïsoleerd (geen SharedArrayBuffer). Open de pagina via de NFSU2-webserver, niet via een andere server.",
-  "Shared 4 GB WebAssembly memory is not available: {error}": "Gedeeld WebAssembly-geheugen van 4 GB is niet beschikbaar: {error}",
+  "Shared WebAssembly memory is not available: {error}": "Gedeeld WebAssembly-geheugen is niet beschikbaar: {error}",
+  "The JavaScript optimizer is off for this site, and the game can't run without it. In Chrome: Settings, Privacy and security, JavaScript optimization and security, allow this site (Android's Advanced Protection turns it off). In Edge: add this site as an exception to Enhanced security.": "De JavaScript-optimalisatie staat uit voor deze site, en het spel werkt niet zonder. In Chrome: Instellingen, Privacy en beveiliging, JavaScript-optimalisatie en -beveiliging, sta deze site toe (de Geavanceerde bescherming van Android zet die uit). In Edge: voeg deze site toe als uitzondering bij Verbeterde beveiliging.",
+  "Chrome gave the game its software graphics, which run on the processor, so the game will be very slow. Turn on chrome://flags/#enable-vulkan and chrome://flags/#default-angle-vulkan, then restart Chrome.": "Chrome gaf het spel zijn softwarematige grafische weergave, die op de processor draait, dus het spel wordt erg traag. Zet chrome://flags/#enable-vulkan en chrome://flags/#default-angle-vulkan aan en start Chrome opnieuw.",
   "This browser is too old for the game (no Atomics.waitAsync). Update {browser}.": "Deze browser is te oud voor het spel (geen Atomics.waitAsync). Werk {browser} bij.",
-  "HTTPS or localhost, cross-origin isolated, threads and 4 GB memory available.": "HTTPS of localhost, cross-origin-geïsoleerd, threads en 4 GB geheugen beschikbaar.",
+  "HTTPS or localhost, cross-origin isolated, threads and shared memory available.": "HTTPS of localhost, cross-origin-geïsoleerd, threads en gedeeld geheugen beschikbaar.",
   "Graphics (WebGPU)": "Grafische hardware (WebGPU)",
   "Off because this address is not secure (see above).": "Uit omdat dit adres niet beveiligd is (zie hierboven).",
   "Firefox for Android has no WebGPU yet, which the game needs. Play in Chrome.": "Firefox voor Android heeft nog geen WebGPU, en dat heeft het spel nodig. Speel in Chrome.",
@@ -1504,5 +1506,12 @@
   "This server is currently running for testing only and should not be considered a stable, production-ready service.": "Deze server draait momenteel uitsluitend voor testdoeleinden en mag niet worden beschouwd als een stabiele, productieklare dienst.",
   "The project is still in development and testing. You may encounter bugs, interruptions, or unexpected behavior in gameplay, multiplayer connections, chat, or website features.": "Het project is nog in ontwikkeling en wordt getest. Je kunt bugs, onderbrekingen of onverwacht gedrag tegenkomen in de gameplay, multiplayerverbindingen, chat of websitefuncties.",
   "By continuing, you acknowledge that you are using a test build.": "Door verder te gaan, erken je dat je een testversie gebruikt.",
-  "I understand, continue": "Begrepen, doorgaan"
+  "I understand, continue": "Begrepen, doorgaan",
+  "Steam Controller or Steam Deck: connect it once.": "Steam Controller of Steam Deck: één keer koppelen.",
+  "{names}: connected in this browser.": "{names}: gekoppeld in deze browser.",
+  "Connect a Steam Controller": "Steam Controller koppelen",
+  "Connect another": "Nog een koppelen",
+  "Too many players are connected from your network: playing with others waits for a free place, or use another network.": "Er zijn te veel spelers verbonden vanaf je netwerk: spelen met anderen wacht op een vrije plek, of gebruik een ander netwerk.",
+  "Your antivirus or network is probably blocking the connection to other players. Allow this site in it, or try another network or a VPN.": "Je antivirus of netwerk blokkeert waarschijnlijk de verbinding met andere spelers. Sta deze site daarin toe, of probeer een ander netwerk of een VPN.",
+  "Your connection to other players keeps dropping. Your network may be limiting it: try another network or a VPN.": "Je verbinding met andere spelers valt steeds weg. Misschien beperkt je netwerk hem: probeer een ander netwerk of een VPN."
 }

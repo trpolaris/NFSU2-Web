@@ -118,6 +118,7 @@ static const struct { const char *name, *key, *def; } OPTS[] = {
     { "NFSU2_ROAM_CREW_RGB",    "CrewColours", "" },
     { "NFSU2_ROAM_MAX_PLAYERS", "MaxPlayers", ""  },
     { "NFSU2_ROAM_MAX_CARS",    "MaxCars",    ""  },
+    { "NFSU2_ROAM_NEAR",         "Near",       "64" },  /* minimap arrows beyond loaded friend cars (0: off) */
     { "NFSU2_ROAM_RATE",        "Rate",       ""  },
     { "NFSU2_ROAM_DELAY",       "Delay",      ""  },
     { "NFSU2_ROAM_EXTRAP",      "Extrap",     ""  },

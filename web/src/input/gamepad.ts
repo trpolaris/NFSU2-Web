@@ -39,10 +39,12 @@ import {
   PADF_GENERIC, PADF_NINTENDO, PADF_PLAYSTATION, PADF_XBOX,
 } from './proto';
 import {
-  describeMap, findHat, guessMap, hatDirs, loadMap, loadShifter, readWheel, Shifter, shifterGear, usbIds, WHEEL_MAP_EVENT,
-  wheelOf, withSetUp, type ShifterMode, type WheelInfo, type WheelMap,
+  describeMap, findHat, guessMap, hatDirs, isPedals, loadMap, loadShifter, pedalSetOf, pedalsOf, readWheel, Shifter,
+  shifterGear, usbIds, WHEEL_MAP_EVENT, wheelOf, withSetUp, type OtherAxes, type ShifterMode, type WheelInfo, type WheelMap,
 } from './wheel';
-import { eightBitDoFace, HidPadReader } from './hidpad';
+import { eightBitDoFace, HidPadReader, knownPad, OneS2016Reader, oneS2016Android } from './hidpad';
+import { allPads, useSteamPads } from './steampad';
+export { allPads };
 
 export interface PadSnapshot { connected: boolean; buttons: number; axes: number[]; family: number; name: string; index: number; wheel?: boolean }
 
@@ -53,15 +55,15 @@ const BUTTON_OF: (number | -1)[] = [PAD_A, PAD_B, PAD_X, PAD_Y, PAD_LB, PAD_RB, 
 /** the controller family and a display name from Gamepad.id: Chrome writes
  *  "Name (STANDARD GAMEPAD Vendor: 054c Product: 0ce6)", Firefox "054c-0ce6-Name"
  *  (on Linux and macOS without the leading zeros: "54c-ce6-Name").
- *  A wheel's family is its buttons' (a G29's are PlayStation's, a G920's Xbox's), an 8BitDo pad's its labels'. */
+ *  A wheel's family is its buttons' (a G29's are PlayStation's, a G920's Xbox's), a known HID pad's its labels'. */
 export function familyOf(id: string): { family: number; name: string } {
   const v = usbIds(id)?.vendor;
   let name = id.replace(/\s*\((?:STANDARD GAMEPAD\s*)?(?:Vendor:[^)]*)?\)\s*$/i, '').replace(/^[0-9a-f]{1,4}-[0-9a-f]{1,4}-/i, '').trim();
   if (!name) name = 'Game Controller';
-  const s = id.toLowerCase(), w = wheelOf(id)?.layout, e = eightBitDoFace(id);
+  const s = id.toLowerCase(), w = wheelOf(id)?.layout, e = knownPad(id)?.face;
   if (w === 'ps' || w === 'xbox') return { family: w === 'ps' ? PADF_PLAYSTATION : PADF_XBOX, name };
   if (e) return { family: e === 'xbox' ? PADF_XBOX : PADF_NINTENDO, name };
-  const family = v === '045e' || /xbox|xinput/.test(s) ? PADF_XBOX
+  const family = v === '045e' || v === '28de' || /xbox|xinput/.test(s) ? PADF_XBOX
     : v === '054c' || /dualsense|dualshock|playstation/.test(s) ? PADF_PLAYSTATION
     : v === '057e' || /pro controller|joy-con|nintendo/.test(s) ? PADF_NINTENDO : PADF_GENERIC;
   return { family, name };
@@ -91,9 +93,10 @@ export function mapStandard(g: Gamepad, notStick?: ReadonlySet<number>): PadSnap
 
 /** a steering wheel -> the virtual pad (wheel.ts): the wheel on LX, the brake and gas pedals on LT and RT; its
  *  shifter's gears through shift (the lever's state, and what the player picked for it) */
-export function mapWheel(g: Gamepad, m: WheelMap, hat: number, shift?: { shifter: Shifter; mode: ShifterMode }): PadSnapshot {
+export function mapWheel(g: Gamepad, m: WheelMap, hat: number, shift?: { shifter: Shifter; mode: ShifterMode },
+                          otherAxes?: OtherAxes): PadSnapshot {
   const pressed = g.buttons.map(b => !!b && (b.pressed || b.value > 0.5));
-  const { buttons: own, axes } = readWheel(g.axes, pressed, m, hat);
+  const { buttons: own, axes } = readWheel(g.axes, pressed, m, hat, otherAxes);
   const buttons = own | (shift && m.gears ? shift.shifter.buttons(shifterGear(pressed, m.gears), shift.mode, performance.now()) : 0);
   const { family, name } = familyOf(g.id);
   return { connected: true, buttons, axes, family, name, index: g.index, wheel: true };
@@ -102,6 +105,13 @@ export function mapWheel(g: Gamepad, m: WheelMap, hat: number, shift?: { shifter
 /** an 8BitDo pad without the standard mapping -> the virtual pad (hidpad.ts) */
 export function mapHid(g: Gamepad, r: HidPadReader): PadSnapshot {
   const { buttons, axes } = r.read(g.axes, g.buttons.map(b => !!b && (b.pressed || b.value > 0.5)));
+  const { family, name } = familyOf(g.id);
+  return { connected: true, buttons, axes, family, name, index: g.index };
+}
+
+/** Xbox One S 2016 firmware under Chrome on Android -> the virtual pad (hidpad.ts) */
+export function mapOneS2016(g: Gamepad, r: OneS2016Reader): PadSnapshot {
+  const { buttons, axes } = r.read(g.axes, g.buttons);
   const { family, name } = familyOf(g.id);
   return { connected: true, buttons, axes, family, name, index: g.index };
 }
@@ -128,9 +138,9 @@ export function androidLayout(g: Gamepad): boolean {
 let driver: { index: number; id: string } | null = null;
 export const PAD_DRIVER_EVENT = 'nfsu2-pad-driver';
 /** whether a controller may drive the pad while others are connected: the standard mapping (Chrome on Android's
- *  too), a steering wheel, or an 8BitDo pad (hidpad.ts) */
+ *  too), a steering wheel, or a pad with a known HID layout (hidpad.ts) */
 export const mayDrive = (g: Gamepad | null, pads?: readonly (Gamepad | null)[]) => !!g &&
-  (g.mapping === 'standard' || !!wheelOf(g.id) || !!eightBitDoFace(g.id) || androidLayout(g)) && !(pads && deadTwin(g, pads));
+  (g.mapping === 'standard' || !!wheelOf(g.id) || !!knownPad(g.id) || androidLayout(g)) && !(pads && deadTwin(g, pads));
 
 /** A Fanatec base can expose a second, same-name HID collection which reports only zero axes. */
 export function deadTwin(g: Gamepad, pads: readonly (Gamepad | null)[]): boolean {
@@ -139,7 +149,7 @@ export function deadTwin(g: Gamepad, pads: readonly (Gamepad | null)[]): boolean
 }
 export function drivingPad(): Gamepad | null {
   if (!driver) return null;
-  try { const g = navigator.getGamepads?.()[driver.index]; return g?.connected && g.id === driver.id ? g : null; }
+  try { const g = allPads()[driver.index]; return g?.connected && g.id === driver.id ? g : null; }
   catch { return null; }
 }
 
@@ -149,7 +159,12 @@ export function drivingPad(): Gamepad | null {
  *  mapping, its reader */
 interface Seen {
   index: number; id: string; std: boolean; axes0: number[]; ends: Set<number>; wheel: WheelInfo | null; map: WheelMap | null;
-  hat: number; shifter: Shifter; mode: ShifterMode; hid: HidPadReader | null;
+  hat: number; shifter: Shifter; mode: ShifterMode; hid: HidPadReader | null; oneS: OneS2016Reader | null; others: string;
+}
+
+/** Other non-standard, non-wheel controllers may be separate pedals for the active wheel. */
+function pedalsBeside(pads: readonly (Gamepad | null)[]): string {
+  return pads.filter(p => !!p?.connected && p.mapping !== 'standard' && !wheelOf(p.id)).map(p => p!.id).join('\n');
 }
 
 /**
@@ -245,6 +260,7 @@ export class PadPoller {
   // process's (1 GB+) shared memory reachable or writes into its mailbox
   private h: Int32Array | null;
   private u8: Uint8Array | null;
+  private steam: () => void = () => {};
   private onConnect = (e: GamepadEvent) => {
     this.log(`[pad] connected: ${e.gamepad.id} (index ${e.gamepad.index}, mapping "${e.gamepad.mapping}")`);
     this.poll();
@@ -268,6 +284,7 @@ export class PadPoller {
     addEventListener('gamepadconnected', this.onConnect);
     addEventListener('gamepaddisconnected', this.onDisconnect);
     addEventListener(WHEEL_MAP_EVENT, this.onWheelMap);
+    this.steam = useSteamPads(log);
   }
 
   /** stop for good: listeners removed, the mailbox views dropped */
@@ -276,6 +293,7 @@ export class PadPoller {
     removeEventListener('gamepaddisconnected', this.onDisconnect);
     removeEventListener(WHEEL_MAP_EVENT, this.onWheelMap);
     this.rumble(null);
+    this.steam();
     this.h = null; this.u8 = null;
     if (driver) { driver = null; dispatchEvent(new Event(PAD_DRIVER_EVENT)); }
   }
@@ -288,7 +306,7 @@ export class PadPoller {
 
   poll() {
     if (!this.h) return;
-    const pads = typeof navigator.getGamepads === 'function' ? navigator.getGamepads() : [];
+    const pads = allPads();
     const live = new Set<number>();
     for (const g of pads) if (g && g.connected) { live.add(g.index); if (!this.order.includes(g.index)) this.order.push(g.index); }
     this.order = this.order.filter(i => live.has(i));
@@ -297,14 +315,14 @@ export class PadPoller {
     const c = this.chosen, cg = c && byIndex(c.index);
     let pick = cg?.connected && cg.id === c!.id ? c!.index : undefined;
     if (pick === undefined) { this.chosen = null; pick = this.order.find(i => mayDrive(byIndex(i), pads)) ?? this.order.find(i => mayDrive(byIndex(i))); }
-    if (pick === undefined) pick = this.order[0];
+    if (pick === undefined) pick = this.order.find(i => !isPedals(byIndex(i)?.id ?? ''));
     const g = pick === undefined ? null : byIndex(pick);
     if (g?.index !== driver?.index || g?.id !== driver?.id) {
       if (g && driver) this.log(`[pad] ${g.id} drives now${this.chosen ? ' (a button pressed on it)' : ''}`);
       driver = g && { index: g.index, id: g.id };
       dispatchEvent(new Event(PAD_DRIVER_EVENT));
     }
-    const s: PadSnapshot = g ? this.read(g) : { connected: false, buttons: 0, axes: [0, 0, 0, 0, 0, 0], family: PADF_GENERIC, name: '', index: -1 };
+    const s: PadSnapshot = g ? this.read(g, pads) : { connected: false, buttons: 0, axes: [0, 0, 0, 0, 0, 0], family: PADF_GENERIC, name: '', index: -1 };
     this.rumble(g);
     const pressed = s.buttons & ~this.pressedBefore;
     this.pressedBefore = s.buttons;
@@ -341,16 +359,18 @@ export class PadPoller {
    *  an end when it showed up, and with Chrome's hat switch as its D-pad.  The first two axes (the left stick, in
    *  every browser's placement) are always a stick: Chrome shows a controller once a stick is pushed past half way,
    *  so it may sit at an end then, and it steered nothing until a reload. */
-  private read(g: Gamepad): PadSnapshot {
+  private read(g: Gamepad, pads: readonly (Gamepad | null)[]): PadSnapshot {
     let k = this.seen;
     if (!k || k.index !== g.index || k.id !== g.id) {
-      const wheel = wheelOf(g.id), axes0 = axesWhenSeen(g, wheel), face = eightBitDoFace(g.id);
+      const wheel = wheelOf(g.id), axes0 = axesWhenSeen(g, wheel), known = knownPad(g.id);
       const std = g.mapping === 'standard' || (!wheel && androidLayout(g));
       const ends = new Set<number>();
       if (!std) axes0.forEach((v, i) => { if (i > 1 && Math.abs(v) >= 0.9 && Math.abs(v) <= 1.05) ends.add(i); });
-      const hid = !wheel && face && !std ? new HidPadReader(face, axes0) : null;
+      const hid = !wheel && known && !std ? new HidPadReader(known.face, axes0, known.ltFirst, known.maker) : null;
+      const oneS = !wheel && oneS2016Android(g) ? new OneS2016Reader() : null;
       k = this.seen = { index: g.index, id: g.id, std, axes0, ends, wheel, map: null, hat: std ? -1 : findHat(axes0),
-        shifter: new Shifter(), mode: 'off', hid };
+        shifter: new Shifter(), mode: 'off', hid, oneS, others: '' };
+      if (oneS) this.log(`[pad] ${g.id}: read as ${oneS.describe()}`);
       if (g.mapping !== 'standard') {
         this.log(`[pad] ${g.id}: no standard mapping in this browser; ${g.axes.length} axes at ` +
           `[${axes0.map(v => v.toFixed(2)).join(' ')}], ${g.buttons.length} buttons`);
@@ -360,6 +380,7 @@ export class PadPoller {
           `${k.hat >= 0 ? `, the D-pad on axis ${k.hat}` : ''}`);
       }
     }
+    if (k.oneS) return mapOneS2016(g, k.oneS);
     if (k.hid) return mapHid(g, k.hid);
     if (k.hat < 0 && !k.std) {
       k.hat = findHat(g.axes);
@@ -367,13 +388,26 @@ export class PadPoller {
     }
     if (k.wheel && g.mapping === 'standard') return { ...mapStandard(g), wheel: true };
     if (k.wheel) {
+      const beside = pedalsBeside(pads);
+      if (k.map && k.others !== beside) k.map = null;
       if (!k.map) {
-        const guess = guessMap(k.wheel, k.axes0, g.buttons.length), kept = loadMap(g.id);
-        k.map = kept ? withSetUp(guess, kept) : guess;
+        let guess = guessMap(k.wheel, k.axes0, g.buttons.length);
+        const kept = loadMap(g.id);
+        const knownPedals = beside ? pads.find(p => !!p?.connected && !!pedalSetOf(p.id)) : undefined;
+        if (knownPedals) {
+          const set = pedalSetOf(knownPedals.id);
+          if (set) guess = { ...guess, ...pedalsOf(knownPedals.id, set, knownPedals.axes.length) };
+        }
+        k.map = kept ? withSetUp(guess, kept, id => pads.some(p => !!p?.connected && p.id === id)) : guess;
+        k.others = beside;
         k.mode = loadShifter(g.id);
         this.log(`[pad] ${g.id}: a steering wheel, ${describeMap(k.map, k.hat)}${k.map.gears ? `; the shifter: ${k.mode}` : ''}`);
       }
-      return mapWheel(g, k.map, k.hat, k);
+      const otherAxes: OtherAxes = id => {
+        for (const pad of pads) if (pad?.connected && pad.id === id) return pad.axes;
+        return undefined;
+      };
+      return mapWheel(g, k.map, k.hat, k, otherAxes);
     }
     const s = mapStandard(g, k.std ? undefined : k.ends);
     if (!k.std && k.hat >= 0) s.buttons |= hatDirs(g.axes[k.hat]);

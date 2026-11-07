@@ -102,6 +102,22 @@ static int manual_gearbox(int race){
     uint8_t g = MR8(p + PL_GEARBOX);
     return g == 1u || g == 3u;
 }
+
+#define PL_CAR      4u
+#define CAR_SPEED   0x430u
+/* Hysteresis for the touch Reset button: hide above 30 km/h, bring it back
+ * only below 25 km/h. Its slot stays fixed in the page so the other buttons
+ * never slide under a thumb. */
+static int touch_fast(void){
+    static int on;
+    uint32_t p = mem_is_committed(G_PLAYER0 + 3u) ? MR32(G_PLAYER0) : 0u;
+    uint32_t car = p && mem_is_committed(p + 7u) ? MR32(p + PL_CAR) : 0u;
+    if (!car || !mem_is_committed(car + CAR_SPEED + 3u)) return on = 0;
+    float kmh = MRF32(car + CAR_SPEED) * 3.6f;
+    if (!__builtin_isfinite(kmh)) return on = 0;
+    if (kmh < 0.f) kmh = -kmh;
+    return on = on ? kmh >= 25.f : kmh > 30.f;
+}
 static int drive_state(void){
     unsigned flow = mem_is_committed(0x8654a7u) ? MR32(0x8654a4u) : 0u;
     const char *top = autotest_top_fng();
@@ -185,7 +201,9 @@ void status_web_frame(void){
     present_prev = presents;
 
     static int slot = -2, last = -1, rslot = -2, rlast = -1, pslot = -2, plast = -1, sslot = -2, slast = -1;
+    static int fslot = -2, flast = -1;
     if (slot == -2){ slot = host_status_slot("drive"); rslot = host_status_slot("rate"); pslot = host_status_slot("pause"); sslot = host_status_slot("sms"); }
+    if (fslot == -2) fslot = host_status_slot("fast");
     int v = drive_state();
     if (v != last && slot >= 0){ last = v; host_status_set(slot, v); }
     int r = hfr_rate_now();
@@ -194,6 +212,8 @@ void status_web_frame(void){
     if (p != plast && pslot >= 0){ plast = p; host_status_set(pslot, p); }
     int m = sms_delivered();
     if (m != slast && sslot >= 0){ slast = m; host_status_set(sslot, m); }
+    int fast = (v & 3) ? touch_fast() : 0;
+    if (fast != flast && fslot >= 0){ flast = fast; host_status_set(fslot, fast); }
     roam_state();
 }
 

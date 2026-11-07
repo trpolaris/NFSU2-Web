@@ -87,6 +87,8 @@ const CASES = [
   ['Firefox on Intel integrated graphics', { ua: UA.firefoxWin, gpu: adapter(undefined, {}), webgl: 'Intel(R) HD Graphics 400' }, 'warn', 'GPU-INTEGRATED-FIREFOX'],
   ['Firefox on a graphics card', { ua: UA.firefoxWin, gpu: adapter(undefined, {}), webgl: 'NVIDIA GeForce GTX 980 Direct3D11 vs_5_0 ps_5_0' }, 'ok', undefined],
   ['Chrome on a graphics card', { ua: UA.chromeWin, gpu: adapter() }, 'ok', undefined],
+  ['Chrome on Linux handed SwiftShader by WebGPU', { ua: UA.chromeLinux, gpu: adapter(['texture-compression-bc'], { vendor: 'google', architecture: 'swiftshader', description: '' }) }, 'warn', 'GPU-SOFTWARE'],
+  ['Chrome on Windows handed a fallback adapter', { ua: UA.chromeWin, gpu: adapter(undefined, { vendor: 'google', architecture: '', description: '', isFallbackAdapter: true }) }, 'warn', 'GPU-SOFTWARE'],
 ];
 
 for (const [name, b, state, code] of CASES) {
@@ -114,4 +116,12 @@ test('graphics check: the titles and the browser\'s name in the text', async () 
   assert.equal(c.label, 'Graphics: Intel (integrated)');
   c = await gpuCheck({ ua: UA.firefoxWin, gpu: adapter(undefined, {}), webgl: 'Intel(R) Arc(TM) A750 Graphics' });
   assert.equal([c.state, c.label].join(' '), 'ok Graphics: Intel');
+});
+
+
+test('the JavaScript optimizer disabled is distinguished from network failures', () => {
+  assert.ok(C.noJit(new Error('CompileError: WebAssembly.compileStreaming(): exnref not supported by the Wasm interpreter')));
+  assert.ok(C.noJit(new ReferenceError('WebAssembly is not defined')));
+  assert.ok(!C.noJit(new TypeError('Failed to fetch')));
+  assert.ok(!C.noJit(new Error('/game.wasm: HTTP 503')));
 });

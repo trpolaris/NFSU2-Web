@@ -15,7 +15,7 @@
   <a href="https://github.com/trpolaris/NFSU2-Web/releases"><img src="https://img.shields.io/github/v/release/trpolaris/NFSU2-Web?display_name=tag&label=Releases" alt="GitHub Release"></a>
 </p>
 
-[🎮 Özellikler](#-nfsu2-web) · [🖥️ Kontrol Merkezi](#️-trpolaris-control-center) · [🧭 Player Hub](#-trpolaris-player-hub) · [🏗️ Mimari](#️-sistem-mimarisi) · [⚙️ Kurulum](#-kurulum) · [🧪 Testler](#-geliştirme-ve-testler) · [🗺️ Geliştirme Durumu](#-geliştirme-durumu-ve-teknik-yol-haritasi)
+[🎮 Özellikler](#-nfsu2-web) · [🖥️ Kontrol Merkezi](#️-trpolaris-control-center) · [🧭 Player Hub](#-trpolaris-player-hub) · [🏗️ Mimari](#️-sistem-mimarisi) · [⚙️ Kurulum](#-kurulum) · [🧪 Testler](#-geliştirme-ve-testler) · [🗺️ Geliştirme Durumu](#-geliştirme-durumu-ve-teknik-yol-haritasi) · [🔬 Upstream Karşılaştırması](docs/UPSTREAM-COMPARISON-ROADMAP.md)
 
 **Ana dal:** `main` · **Sunucu:** Rust · **Oyun çalışma zamanı:** WebAssembly
 
@@ -606,6 +606,7 @@ CI ayrıca Rust sunucusunu derler, sentetik Online protokol yük/kötüye kullan
 | [Rust Sunucu Rehberi](web/server-rs/README.md) | Backend bileşenleri, build, test ve performans ölçümleri. |
 | [Control Center Rehberi](control-center/README.md) | Windows uygulaması ve kaynak kodundan derleme. |
 | [Multiplayer Doğrulama](docs/MULTIPLAYER-VALIDATION.md) | Online, LAN, Free Roam ve yük doğrulama senaryoları. |
+| [Upstream Karşılaştırması ve Entegrasyon Yol Haritası](docs/UPSTREAM-COMPARISON-ROADMAP.md) | TRPOLARIS ile upstream mimari farkları, PR #21 değişiklikleri, World Map/Minimap dalları, gerçek CI durumu ve sıradaki geliştirmeler. |
 
 
 ---
@@ -613,6 +614,9 @@ CI ayrıca Rust sunucusunu derler, sentetik Online protokol yük/kötüye kullan
 <a id="development-status"></a>
 
 ## 🗺️ Geliştirme durumu ve teknik yol haritası
+
+> **Güncel upstream entegrasyon kaydı — 7 Kasım 2026:** TRPOLARIS ile `th0mk/nfsu2-web` karşılaştırması ve PR #21'deki değişiklikler ayrı bir raporda toplanmıştır. [Upstream karşılaştırması ve entegrasyon yol haritası](docs/UPSTREAM-COMPARISON-ROADMAP.md) dosyası; ana entegrasyon PR'ını, ayrı World Map/Minimap dallarını, CI durumlarını ve sıradaki işleri açıklar. PR #21 hâlâ taslaktır; `main` ve üretim dağıtımı değiştirilmemiştir.
+
 
 > **Durum kaydı: 3 Kasım 2026.** Bu bölüm aktif React geçiş dalını, son commit'i, CI durumunu, eski DOM servis sınırlarını ve sıradaki geliştirme sırasını açıklar. Buradaki bütün geliştirmeler `main` dalına alınmış veya canlı sunucuya dağıtılmış değildir.
 

@@ -29,6 +29,7 @@ export const NET_KIND_LAN_ICMP = 5;           // LAN play: an ICMP message
 export const NET_KIND_NOTICE = 16;            // TX ring only, never sent: a line of text the page shows over the game, a friend's name first, ended by 0x1F (none: the game's own line)
 export const NET_KIND_LOBBY = 17;             // TX ring only, never sent: the free-roam race lobby's panel, its state as JSON ("{}": none)
 export const NET_KIND_SAY = 18;               // TX ring only, never sent: quick chat, a phrase said (a friend's or the player's), as JSON
+export const NET_KIND_FRIEND = 19;            // TX ring only: front bumper contact for 3 s or parted, as JSON
 export const NET_KIND_BUNDLE = 32;            // page and switch only (nfsu2-lan): several frames in one message
 export const NET_BUNDLE_MAX = 32 << 10;       // bytes in one bundle the page sends at most (the switch takes 64 KB)
 export const NET_KIND_COMPACT = 33;           // switch to page only (nfsu2-lan compact.rs): a bundle without what the page puts back
@@ -77,6 +78,9 @@ export const W_PEER_BITS = 36;                // NET_PEER_BITS / 32 words: bit h
 // W_CREWS_RGB their colours (0x00rrggbb; 0: the place's default); the crews, then the colours, then the count
 export const W_CREWS_GEN = 100, W_CREWS = 101, W_CREWS_RGB = 105;
 export const CREW_WORDS = 4;
+// Free Roam room changed by the page: 16 UTF-8 words, then generation.
+export const W_ROOM_GEN = 109, W_ROOM_NAME = 110;
+export const ROOM_WORDS = 16, ROOM_BYTES = 63;
 // header doubles: f64 index = byte offset / 8
 export const D_SWITCH_RTT_MS = 14, D_TX_WAIT_MS_SUM = 15, D_TX_WAIT_MS_MAX = 16;
 

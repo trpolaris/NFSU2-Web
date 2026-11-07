@@ -19,6 +19,8 @@ interface LobbyState {
    *  lately, the seconds until it closes; fee: what quitting the race costs; even: the race evens out the cars
    *  (their engines) */
   names?: string[]; me?: number; max?: number; t?: number; closes?: number; away?: number; fee?: number; even?: number;
+  /** fastest other car's race-adjusted rating divided by ours; 0/undefined when unknown */
+  car?: string[]; vs?: number;
   why?: string; step?: string; text?: string;
   /** trip, once the race's results came: their rows in order; prize: what ours won */
   res?: RaceResult[]; prize?: number;
@@ -28,6 +30,26 @@ interface RaceResult { n: string; f: number; t?: number; p?: number; me?: number
 
 /** a race's time as the game shows it: 1:02.34 */
 const raceTime = (s: number) => `${Math.floor(s / 60)}:${(s % 60).toFixed(2).padStart(5, '0')}`;
+
+const SVGNS = 'http://www.w3.org/2000/svg';
+function speedometer(vs: number): SVGSVGElement {
+  const svg = document.createElementNS(SVGNS, 'svg'), cx = 12, cy = 12, r = 10;
+  svg.setAttribute('viewBox', '0 0 24 14');
+  svg.setAttribute('class', 'lobby-gauge');
+  svg.setAttribute('aria-hidden', 'true');
+  const pt = (k: number, rr: number) => {
+    const a = (90 - Math.max(-1, Math.min(1, Math.log(k) / Math.log(1.6))) * 80) * Math.PI / 180;
+    return `${(cx + rr * Math.cos(a)).toFixed(2)} ${(cy - rr * Math.sin(a)).toFixed(2)}`;
+  };
+  const path = (d: string, cls: string) => {
+    const e = document.createElementNS(SVGNS, 'path');
+    e.setAttribute('d', d); e.setAttribute('class', cls); svg.append(e);
+  };
+  path(`M${pt(1 / 1.6, r)} A${r} ${r} 0 0 1 ${pt(1.25, r)}`, 'track');
+  path(`M${pt(1.25, r)} A${r} ${r} 0 0 1 ${pt(1.6, r)}`, 'red');
+  path(`M${cx} ${cy} L${pt(vs, r - 2)}`, 'needle');
+  return svg;
+}
 
 // The game's own English in the state (roam_game.c race_kind, mpw_text, mp_note; mprace.c's steps), translated here:
 // in English the page shows it as the game sent it.
@@ -141,6 +163,14 @@ export class LobbyPanel {
     return ol;
   }
 
+  /** a compact race-adjusted performance comparison for the lobby's cars */
+  private gauge(s: LobbyState): HTMLElement | null {
+    if (!(s.vs && s.vs > 0)) return null;
+    const d = el('div', 'lobby-speed');
+    d.append(speedometer(s.vs), el('span', 'lobby-speed-label', t('Speed compared to your car')));
+    return d;
+  }
+
   /** a key and what it does */
   private act(key: string | null, what: string) {
     const d = el('div', 'lobby-act');
@@ -158,15 +188,19 @@ export class LobbyPanel {
         kids.push(...this.title(s), el('div', 'lobby-why', t('Multiplayer only here: {why}', { why: game(s.why ?? 'not open in your career') })),
           this.act('Enter', t('Open a lobby')));
         break;
-      case 'join':
-        kids.push(...this.title(s, host), this.places(s), this.act('Enter', t('Join')));
+      case 'join': {
+        kids.push(...this.title(s, host), this.places(s));
+        const gauge = this.gauge(s); if (gauge) kids.push(gauge);
+        kids.push(this.act('Enter', t('Join')));
         break;
+      }
       case 'full':
         kids.push(...this.title(s, host), this.places(s), el('div', 'lobby-why', t('This lobby is full.')), this.act('Enter', t('Open another')));
         break;
       case 'lobby': {
         const mine = s.me === 0;
         kids.push(...this.title(s, mine ? undefined : host), this.places(s, s.st === 'asked'));
+        const gauge = this.gauge(s); if (gauge) kids.push(gauge);
         if (s.st === 'count') kids.push(el('div', 'lobby-count', t('Starting in {n}', { n: s.t ?? 0 })));
         else if (s.st === 'asked') kids.push(this.act(null, t('Joining {host}\'s {kind}…', { host, kind: game(s.kind ?? 'race') })));
         else if (mine && names.length >= 2) kids.push(this.act('Enter', t('Start the race')), s.away

@@ -217,4 +217,11 @@ test('adding: a profile of the same name goes with its covers (in any case), all
   assert.deepEqual([...fs2.m.keys()], [at('MEH')]);
   assert.deepEqual([...fs2.m.get(at('MEH'))], [...meh]);
   assert.deepEqual(fs2.writes, [at('MEH'), `-${DIR}/MEH Magazine 2`]);
+
+  // Replacing a profile without its community-parts sidecar must not attach the old car parts to the new career.
+  const fs3 = folder({ [at('MEH')]: profile('MEH', { career: ['RX7'] }), [`${DIR}/MEH/MODPARTS.DAT`]: 'old mod parts',
+    [`${DIR}/MEH/GARAGE.DAT`]: 'keep garage' });
+  await addProfiles(fs3, await readBackup(meh, 'MEH'));
+  assert.deepEqual(sorted(fs3.m.keys()), sorted([at('MEH'), `${DIR}/MEH/GARAGE.DAT`]));
+  assert.deepEqual(fs3.writes, [at('MEH'), `-${DIR}/MEH/MODPARTS.DAT`]);
 });

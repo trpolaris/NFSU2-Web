@@ -630,11 +630,12 @@ int main(int argc, char **argv){
      * from its environment), the Mac build from the environment */
     setenv("NFSU2_ROAM", "1", 1); setenv("NFSU2_ROAM_NAME", "Engine", 1); setenv("NFSU2_ROAM_PORT", "47210", 1);
     setenv("NFSU2_ROAM_PEERS", "127.0.0.1:47391", 1); setenv("NFSU2_ROAM_DISCOVERY", "0", 1); setenv("NFSU2_ROAM_MAX_CARS", "3", 1);
+    setenv("NFSU2_ROAM_NEAR", "32", 1);
     setenv("NFSU2_ROAM_HARNESS", "1", 1);
     snprintf(W.ini_path, sizeof W.ini_path, "%s/NFSU2FreeRoam.ini", od);
     FILE *ini = fopen(W.ini_path, "w");
     fprintf(ini, "[FreeRoam]\nEnable = 1\nName = Engine   ; the same name as the Mac build\nPort = 47210\nPeers = 127.0.0.1:47391\n"
-                 "Discovery = 0\nMaxCars = 3\nNetThread = 1\nLog = 1\nTestMode = 1\n");
+                 "Discovery = 0\nMaxCars = 3\nNear = 32\nNetThread = 1\nLog = 1\nTestMode = 1\n");
     fclose(ini);
     g_aenv[g_naenv][0] = "NFSU2_ROAM_TEST_ID"; g_aenv[g_naenv++][1] = "1D0E5E1D";
     if (mode_fault == 3){ g_aenv[g_naenv][0] = "NFSU2_ROAM_TEST_FAULT_SEH"; g_aenv[g_naenv++][1] = "300"; }
@@ -807,6 +808,16 @@ int main(int argc, char **argv){
     snprintf(p, sizeof p, "%s/NFSU2FreeRoam.log", od); FILE *la = fopen(p, "r");
     fflush(stderr); snprintf(p, sizeof p, "%s/mac.log", od); FILE *lb = fopen(p, "r");
     char x[800], y[800]; int nl = 0, nsame = 0;
+    int near_plugin = 0, near_mac = 0;
+    while (la && fgets(x, sizeof x, la))
+        if (strstr(x, "free-roam multiplayer ON:") && strstr(x, "32 nearby minimap arrows")) near_plugin = 1;
+    if (la) rewind(la);
+    while (lb && fgets(y, sizeof y, lb))
+        if (strstr(y, "free-roam multiplayer ON:") && strstr(y, "32 nearby minimap arrows")) near_mac = 1;
+    if (lb) rewind(lb);
+    check(near_plugin && near_mac,
+          "minimap Near setting: Windows ASI INI and Mac environment both resolve to 32 (plugin %d, Mac %d)",
+          near_plugin, near_mac);
     char ga[400][300]; int nga = 0;
     while (la && fgets(x, sizeof x, la)) if (strlen(x) > 13 && !strncmp(x + 13, "[roam] f=", 9) && nga < 400){ x[strcspn(x, "\r\n")] = 0; snprintf(ga[nga++], 300, "%s", x + 13); }
     int k2 = 0;

@@ -3,7 +3,8 @@ use super::*;
 const NOW: i64 = 1_800_000_000_000;
 
 fn owner(n: u8) -> Owner {
-    owner_of_token(&format!("{}{}", n, "A".repeat(42))).expect("a token")
+    // Always a 43-byte base64url token, including for two/three-digit test ids.
+    owner_of_token(&format!("{:03X}{}", n, "A".repeat(40))).expect("a token")
 }
 
 // the Online form is runtime/online.c's clean(): the same cases as its comment gives
@@ -95,6 +96,36 @@ fn a_claim_holds_180_days_after_the_last_game() {
     assert_eq!(c.status("Alex", Some(&b), gone), Status::Free);
     assert!(c.mine(&a, gone).is_none());
     assert!(c.claim("Alex", &b, gone).is_ok());
+}
+
+#[test]
+fn a_vault_use_holds_its_current_name() {
+    let c = Claims::in_memory();
+    let (a, b) = (owner(11), owner(12));
+    c.claim("Alex", &a, NOW).unwrap();
+
+    let later = NOW + 90 * DAY_MS;
+    c.used(&a, later);
+    assert_eq!(c.mine(&a, later).unwrap().until, later + HOLD_DAYS * DAY_MS);
+
+    // Another keyphrase's cloud save must not extend this owner's claim.
+    c.used(&b, later + DAY_MS);
+    assert_eq!(c.mine(&a, later).unwrap().until, later + HOLD_DAYS * DAY_MS);
+
+    // Only the current name is extended after the owner changes names.
+    c.claim("Racer", &a, later + 2 * DAY_MS).unwrap();
+    c.used(&a, later + 3 * DAY_MS);
+    assert_eq!(
+        c.status("Alex", Some(&a), later + 3 * DAY_MS),
+        Status::Yours {
+            until: later + 2 * DAY_MS + GRACE_DAYS * DAY_MS,
+            current: false
+        }
+    );
+    assert_eq!(
+        c.mine(&a, later + 3 * DAY_MS).unwrap().until,
+        later + 3 * DAY_MS + HOLD_DAYS * DAY_MS
+    );
 }
 
 #[test]
@@ -201,4 +232,24 @@ fn a_file_edited_by_hand() {
     assert_eq!(c.mine(&a, NOW + 2).unwrap().name, "Newer");
     std::fs::write(dir.path().join("names.json"), "{not json").unwrap();
     assert_eq!(Claims::open(dir.path(), NOW).count(NOW), 0);
+}
+
+
+#[test]
+fn pruning_is_rate_limited_but_expired_names_are_not_live() {
+    let c = Claims::in_memory();
+    let a = owner(7);
+    c.claim("Expiry", &a, NOW).unwrap();
+
+    let first_sweep = NOW + 1_000;
+    assert!(!c.prune(first_sweep), "the claim is still live");
+    assert_eq!(c.inner.read().pruned_at, first_sweep);
+
+    let expiry = NOW + HOLD_DAYS * DAY_MS;
+    assert_eq!(c.status("Expiry", None, expiry), Status::Free);
+    assert!(!c.prune(first_sweep + PRUNE_EVERY_MS - 1), "a sweep inside the hourly interval is skipped");
+    assert!(c.inner.read().names.contains_key("expiry"), "the dead entry waits for the next sweep");
+
+    assert!(c.prune(expiry + PRUNE_EVERY_MS), "the next hourly sweep after expiry removes the dead entry");
+    assert!(!c.inner.read().names.contains_key("expiry"));
 }

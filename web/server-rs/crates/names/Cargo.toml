@@ -8,7 +8,7 @@ publish.workspace = true
 
 [dependencies]
 unicode-normalization.workspace = true
-icu_properties = "=2.3.0"
+unicode-general-category.workspace = true
 
 [dev-dependencies]
 serde_json.workspace = true

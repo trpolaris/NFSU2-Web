@@ -3,6 +3,8 @@ import { createRoot } from 'react-dom/client';
 import { checkCrew, CREW_BIG, CREW_COLOUR_NAMES, CREW_MAX, CREW_PALETTE, freeColour } from '../app/crews';
 import { dateLocale, language, LANGUAGES, NATIVE, onLanguage, setLanguage, t } from '../app/i18n';
 import { fmtBytes } from '../app/checks';
+import { askWorlds, roomHash } from '../app/players';
+import { isMain, isOwn, noGhost, WORLDS, worldName, worldOf, worldRooms } from '../app/worlds';
 import { TEST_NOTICE_TEXT } from '../app/test-notice';
 import { CATS, DEFAULT_GROUPS, DEFAULT_PHRASES, PHRASES } from '../app/phrases';
 import { createPortal, flushSync } from 'react-dom';
@@ -269,6 +271,9 @@ function OnlineReactControls() {
   const claimHostRef = useRef(null);
   const [values, setValues] = useState({ roam: 'off', online: 'off', roam_collide: 'off', quick_chat: 'off', roam_max_cars: '32' });
   const [textValues, setTextValues] = useState({ roam_name: '', roam_room: '', roam_block: '' });
+  const [worldCounts, setWorldCounts] = useState(new Map());
+  const [ownWorldOpen, setOwnWorldOpen] = useState(false);
+  const [ownWorldDraft, setOwnWorldDraft] = useState('');
   const [crewList, setCrewListState] = useState([]);
   const [crewDraft, setCrewDraft] = useState('');
   const [quickChatDraft, setQuickChatDraft] = useState({ phrases: [...DEFAULT_PHRASES], groups: [...DEFAULT_GROUPS] });
@@ -301,6 +306,9 @@ function OnlineReactControls() {
         roam_block: bridge.current('roam_block'),
       };
       setTextValues(nextTextValues);
+      const customWorld = isOwn(nextTextValues.roam_room);
+      setOwnWorldOpen(customWorld);
+      setOwnWorldDraft(customWorld ? nextTextValues.roam_room : '');
       const nameBridge = window.__trpNameRowBridge;
       if (nameBridge) setNameClaim(nameBridge.updateName(nextTextValues.roam_name));
       setCrewListState(bridge.crews());
@@ -351,6 +359,30 @@ function OnlineReactControls() {
   };
 
   const saveText = async key => saveValidated(key, textValues[key]);
+
+  useEffect(() => {
+    if (!ready) return;
+    let active = true;
+    const refreshWorlds = async () => {
+      if (document.visibilityState !== 'visible') return;
+      const counts = await askWorlds(worldRooms(textValues.roam_room), 4000);
+      if (active && counts) setWorldCounts(counts);
+    };
+    void refreshWorlds();
+    const timer = window.setInterval(() => void refreshWorlds(), 15_000);
+    const onVisible = () => { if (document.visibilityState === 'visible') void refreshWorlds(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [ready, textValues.roam_room]);
+
+  const worldCountLabel = room => {
+    const n = worldCounts.get(roomHash(room));
+    return Number.isInteger(n) ? `${worldName(room)} · ${t('{n} in free roam', { n })}` : worldName(room);
+  };
 
   const saveCrewList = async next => {
     const bridge = window.__trpSettingsBridge;
@@ -586,15 +618,37 @@ function OnlineReactControls() {
           <div className="trp-online-name-claim-widget" ref={claimHostRef} />
         </div>
         <label className="trp-online-text-card">
-          <span className="trp-online-text-label" data-i18n>Room</span>
-          <span className="trp-online-text-help" data-i18n>Leave empty to drive with everyone. A room name shows only matching Free Roam players.</span>
+          <span className="trp-online-text-label" data-i18n>World</span>
+          <span className="trp-online-text-help" data-i18n>Choose the main world, a quieter public world, or give your own world a name.</span>
           <span className="trp-online-text-entry">
-            <input type="text" maxLength={63} autoComplete="off" value={textValues.roam_room}
+            <select aria-label="World" value={ownWorldOpen ? '#own' : (worldOf(textValues.roam_room) ? WORLDS[worldOf(textValues.roam_room) - 1] : '')}
               disabled={!ready || readOnly || !!busy}
-              onChange={event => setTextValues(current => ({ ...current, roam_room: event.target.value }))}
-              onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); void saveText('roam_room'); } }} />
-            <button type="button" disabled={!ready || readOnly || !!busy} onClick={() => void saveText('roam_room')} data-i18n>Save</button>
+              onChange={event => {
+                const value = event.target.value;
+                if (value === '#own') {
+                  setOwnWorldOpen(true);
+                  setOwnWorldDraft(isOwn(textValues.roam_room) ? textValues.roam_room : '');
+                } else {
+                  setOwnWorldOpen(false);
+                  setOwnWorldDraft('');
+                  void saveValidated('roam_room', value);
+                }
+              }}>
+              <option value="">{worldCountLabel('')}</option>
+              {WORLDS.map(world => <option key={world} value={world}>{worldCountLabel(world)}</option>)}
+              <option value="#own" data-i18n>Own name</option>
+            </select>
           </span>
+          {ownWorldOpen && <span className="trp-online-text-entry">
+            <input type="text" maxLength={63} autoComplete="off" spellCheck={false} value={ownWorldDraft}
+              placeholder="World name" aria-label="World name"
+              disabled={!ready || readOnly || !!busy}
+              onChange={event => setOwnWorldDraft(event.target.value)}
+              onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); void saveValidated('roam_room', ownWorldDraft); } }} />
+            <button type="button" disabled={!ready || readOnly || !!busy} onClick={() => void saveValidated('roam_room', ownWorldDraft)} data-i18n>Save</button>
+          </span>}
+          {noGhost(textValues.roam_room) && values.roam === 'on' &&
+            <p className="trp-online-setting-message" data-i18n>Ghost mode stays off in World 4.</p>}
         </label>
         <label className="trp-online-text-card trp-online-block-card">
           <span className="trp-online-text-label" data-i18n>Blocked players</span>
@@ -610,6 +664,199 @@ function OnlineReactControls() {
       </div>
       {message && <p className="trp-online-setting-message" role="status">{message}</p>}
     </div>
+  );
+}
+
+function FriendsDashboardPanel() {
+  const reduceMotion = useReducedMotion();
+  const root = useRef(null);
+  const [lists, setLists] = useState(null);
+  const [crews, setCrews] = useState([]);
+  const [filter, setFilter] = useState('');
+  const [player, setPlayer] = useState('');
+  const [page, setPage] = useState(0);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState('');
+  const [ready, setReady] = useState(false);
+
+  const refresh = useCallback(async () => {
+    const bridge = window.__trpFriendsBridge;
+    if (!bridge) return;
+    try {
+      const result = await bridge.refresh();
+      setLists(result);
+      setReady(true);
+      setCrews(window.__trpSettingsBridge?.crews?.() || []);
+    } catch (error) {
+      setMessage(String(error));
+    }
+  }, []);
+
+  useEffect(() => {
+    const onReady = () => void refresh();
+    window.addEventListener('trp-friends-ready', onReady);
+    void refresh();
+    const interval = window.setInterval(() => void refresh(), 60000);
+    return () => {
+      window.removeEventListener('trp-friends-ready', onReady);
+      window.clearInterval(interval);
+    };
+  }, [refresh]);
+
+  useLayoutEffect(() => {
+    if (root.current && typeof window.__trpTranslateReact === 'function') {
+      window.__trpTranslateReact(root.current);
+    }
+  }, [lists, crews, filter, player, message, ready]);
+
+  const act = async (op, name) => {
+    const bridge = window.__trpFriendsBridge;
+    if (!bridge || busy || !name) return;
+    setBusy(true);
+    setMessage('');
+    try {
+      const result = await bridge.act(op, name);
+      if (result) {
+        setLists(result);
+        const labels = {
+          asked: 'Friend request sent.',
+          friends: 'You are friends now.',
+          ok: 'Done.',
+          full: 'A friends list is full (250 at most).',
+          rate: 'Wait a moment.',
+          blocked: 'This player is blocked.',
+        };
+        setMessage(labels[result.done] || 'Friends list updated.');
+        if (op === 'ask') setPlayer('');
+      } else setMessage('Friends are unavailable. Claim your name and connect to the server first.');
+    } catch (error) {
+      setMessage(String(error));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const inviteCrew = async (name, crew) => {
+    const bridge = window.__trpFriendsBridge;
+    if (!bridge || busy) return;
+    setBusy(true);
+    setMessage('');
+    try {
+      const result = await bridge.crew(name, crew);
+      if (result) {
+        setLists(result);
+        const labels = {
+          sent: 'Crew invite sent.',
+          away: 'That friend is no longer in Free Roam.',
+          none: 'Crew invites can only be sent to a mutual friend.',
+          claim: 'Claim your player name before sending crew invites.',
+          name: 'That crew or room name is not valid.',
+          rate: 'Crew invite limit reached. Wait a moment.',
+        };
+        setMessage(labels[result.done] || 'Crew invite could not be sent.');
+      } else setMessage('Friends are unavailable. Connect to the server first.');
+    } catch (error) {
+      setMessage(String(error));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const matching = (lists?.friends || []).filter(friend =>
+    !filter || friend.name.toLocaleLowerCase().includes(filter.toLocaleLowerCase()));
+  const pages = Math.max(1, Math.ceil(matching.length / 20));
+  const currentPage = Math.min(page, pages - 1);
+  const visible = matching.slice(currentPage * 20, currentPage * 20 + 20);
+
+  useEffect(() => { setPage(0); }, [filter]);
+  useEffect(() => {
+    const pagesNow = Math.max(1, Math.ceil(matching.length / 20));
+    setPage(current => Math.min(current, pagesNow - 1));
+  }, [lists, filter]);
+
+  return (
+    <motion.section ref={root} className="trp-friends-dashboard-panel"
+      initial={reduceMotion ? false : { opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }} transition={{ duration: reduceMotion ? 0 : .24 }}>
+      <div className="trp-friends-dashboard-heading">
+        <div>
+          <div className="trp-eyebrow"><Users size={13} /> <span data-i18n>DRIVER NETWORK / SOCIAL</span></div>
+          <h2 data-i18n>Friends &amp; Crews</h2>
+          <p data-i18n>Manage the same EA Messenger friends and crew settings used by the game.</p>
+        </div>
+        <div className="trp-friends-dashboard-actions">
+          <span className="trp-friends-count">{lists?.friends?.length ?? '—'} <span data-i18n>friends</span></span>
+          <button type="button" className="trp-friends-refresh" disabled={busy} onClick={() => void refresh()} data-i18n>Refresh</button>
+        </div>
+      </div>
+
+      {!ready && <p className="trp-friends-note" role="status" data-i18n>Loading friends…</p>}
+      {ready && !lists && <p className="trp-friends-note" role="status" data-i18n>Friends are unavailable. Claim your name in Cloud Saves and connect to the server.</p>}
+      {lists && !lists.me && <p className="trp-friends-note" role="status" data-i18n>Claim a player name in Cloud Saves before adding friends.</p>}
+
+      <div className="trp-friends-tools">
+        <form className="trp-friends-add" onSubmit={event => { event.preventDefault(); void act('ask', player.trim()); }}>
+          <label htmlFor="trp-friend-add" data-i18n>Add a player</label>
+          <div><input id="trp-friend-add" value={player} maxLength={32} autoComplete="off" onChange={event => setPlayer(event.target.value)} placeholder="Player name" data-i18n-attr="placeholder" />
+          <button type="submit" disabled={busy || !player.trim() || !lists?.me} data-i18n>Send request</button></div>
+        </form>
+        <label className="trp-friends-filter"><span data-i18n>Filter friends</span>
+          <input type="search" value={filter} onChange={event => setFilter(event.target.value)} placeholder="Search names" data-i18n-attr="placeholder" />
+        </label>
+      </div>
+
+      <div className="trp-friends-dashboard-columns">
+        <section className="trp-friends-dashboard-list">
+          <h3><span data-i18n>Incoming requests</span><b>{lists?.asks?.length || 0}</b></h3>
+          {!lists?.asks?.length && <p className="trp-friends-empty" data-i18n>No pending requests.</p>}
+          {(lists?.asks || []).slice(0, 8).map(name => (
+            <div className="trp-friend-dashboard-row" key={name}>
+              <span>{name}</span>
+              <div><button type="button" disabled={busy} onClick={() => void act('accept', name)} data-i18n>Accept</button>
+              <button type="button" disabled={busy} onClick={() => void act('decline', name)} data-i18n>Decline</button></div>
+            </div>
+          ))}
+        </section>
+
+        <section className="trp-friends-dashboard-list trp-friends-roster">
+          <h3><span data-i18n>Friends</span><b>{matching.length}</b></h3>
+          {!matching.length && <p className="trp-friends-empty" data-i18n>No friends match this filter.</p>}
+          {visible.map(friend => {
+            const where = friend.where === 'roam' ? 'Free Roam' : friend.where === 'online' ? 'Online lobby' : 'Offline';
+            const room = friend.where === 'roam' && friend.room ? ' · ' + friend.room : '';
+            return <div className="trp-friend-dashboard-row" key={friend.name}>
+              <span><strong>{friend.name}</strong><small><span data-i18n>{where}</span>{room}</small></span>
+              <span className={'trp-friend-presence ' + (friend.where || 'offline')} />
+              {friend.where === 'roam' && crews.length > 0 && <span className="trp-friend-crew-actions">
+                <select aria-label={'Crew for ' + friend.name} defaultValue={crews[0].name}>
+                  {crews.map(crew => <option value={crew.name} key={crew.name}>{crew.name}</option>)}
+                </select>
+                <button type="button" disabled={busy} data-i18n onClick={event => {
+                  const selected = event.currentTarget.parentElement?.querySelector('select')?.value || crews[0].name;
+                  void inviteCrew(friend.name, selected);
+                }}>Invite</button>
+              </span>}
+            </div>;
+          })}
+          {matching.length > 20 && <div className="trp-friends-pagination">
+            <button type="button" aria-label="Previous friends page" disabled={currentPage === 0} onClick={() => setPage(p => Math.max(0, p - 1))}>‹</button>
+            <span>{currentPage + 1} / {pages}</span>
+            <button type="button" aria-label="Next friends page" disabled={currentPage >= pages - 1} onClick={() => setPage(p => Math.min(pages - 1, p + 1))}>›</button>
+          </div>}
+        </section>
+
+        <section className="trp-friends-dashboard-list trp-crews-roster">
+          <h3><span data-i18n>Your crews</span><b>{crews.length}</b></h3>
+          {!crews.length && <p className="trp-friends-empty" data-i18n>No crews configured. Agree on a crew name with your friends and add it in Online settings.</p>}
+          {crews.map(crew => <div className="trp-crew-dashboard-row" key={crew.name}>
+            <i style={{ backgroundColor: '#' + crew.rgb }} />
+            <span>{crew.name}</span>
+          </div>)}
+        </section>
+      </div>
+      {message && <p className="trp-friends-note" role="status" data-i18n>{message}</p>}
+      <p className="trp-friends-footnote" data-i18n>These are the same friend records used by F9. Your friends list supports up to 250 players.</p>
+    </motion.section>
   );
 }
 
@@ -659,6 +906,7 @@ function OnlineDashboard() {
         </div>
         <OnlineReactControls />
       </motion.section>
+      <FriendsDashboardPanel />
     </motion.div>
   );
 }

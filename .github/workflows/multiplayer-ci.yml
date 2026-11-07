@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - 'feature/**'
+      - 'integration/**'
     tags:
       - 'v*'
     paths:
@@ -64,6 +65,14 @@ jobs:
           sudo apt-get update
           sudo apt-get install --yes build-essential clang cmake pkg-config
 
+      - name: Check MODPACKS builder and native runtime syntax
+        run: |
+          python3 -m py_compile tools/modpacks.py tools/vinylpacks.py
+          python3 tools/modpacks.py --help > /dev/null
+          python3 tools/vinylpacks.py --help > /dev/null
+          cc -std=c11 -D_POSIX_C_SOURCE=200809L -Iruntime -fsyntax-only runtime/modpacks.c runtime/fileio.c runtime/vinylpacks.c runtime/garage.c runtime/overrides.c runtime/language.c runtime/specialties.c
+          cc -std=c11 -D_POSIX_C_SOURCE=200809L -Iruntime -fsyntax-only runtime/roam_game.c
+
       - name: Install web dependencies
         working-directory: web
         run: npm ci
@@ -83,6 +92,26 @@ jobs:
         run: |
           mkdir -p out/ci
           cargo test --manifest-path web/server-rs/Cargo.toml --workspace 2>&1 | tee out/ci/rust-tests.log
+
+      - name: Test GPS distance HUD and unit conversion
+        run: |
+          cc -std=c11 -Wall -Wextra -Werror -Iruntime tests/gpsdistance_unit.c -o /tmp/gpsdistance_unit
+          /tmp/gpsdistance_unit
+          cc -std=c11 -D_POSIX_C_SOURCE=200809L -Wall -Wextra -Werror -Iruntime tests/gpsdistance_hud_unit.c -lm -o /tmp/gpsdistance_hud_unit
+          /tmp/gpsdistance_hud_unit
+          /tmp/gpsdistance_hud_unit unset
+          /tmp/gpsdistance_hud_unit off
+          /tmp/gpsdistance_hud_unit false
+
+      - name: Test Free Roam mailbox layout
+        run: |
+          cc -std=c11 -Wall -Wextra -Werror tests/net_mailbox_layout.c -o /tmp/net_mailbox_layout
+          /tmp/net_mailbox_layout
+
+      - name: Test Free Roam protocol core (MAPD, NEARREQ and compatibility)
+        run: |
+          cc -O1 -g -fsanitize=address,undefined -Iruntime tests/roam_unit.c runtime/roam_core.c runtime/roam_bsd.c -lm -o /tmp/roam_unit
+          /tmp/roam_unit 50000
 
       - name: Build server binaries for Node integration tests
         run: |

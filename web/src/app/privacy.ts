@@ -32,6 +32,65 @@ const WORD = '[\\p{L}\\p{N}_]';
 const PRE = String.raw`(?:^|f=\d+ |JOIN: |LEAVE: |with |behind |for |as |profile |name |\[notice\] |\[chat\] |\[carsfx\] |\[horn\] |\[roam\] {1,3}|autosave: |quick chat: |lobby [0-9a-f]{8}: |slot \d+:? |loading |car [0-9a-f]{4}(?: \(ours\))?, |NAME=|ROOM=|CREW=|"|'|NFS Underground 2/(?:[^/"\n]+/)?)`;
 const POST = String.raw`(?:'s |'s$|'| joined| left| quit| said| lost the connection| is | turned free roam off| called off| challenges|: | \(|, |"|/|$)`;
 const IPV4 = /(?<![\w./:-])(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})(?![\w/]|\.\d)/g;
+const TOKEN = /[\p{L}\p{N}_]+|[^\p{L}\p{N}_]/gu;
+const WORD_AT = new RegExp(WORD, 'uy');
+const WORD_ONE = new RegExp('^' + WORD + '$', 'u');
+const PRE_END = new RegExp(PRE + '$', 'u');
+const POST_AT = new RegExp(POST, 'muy');
+
+const wordAt = (s: string, i: number) => { WORD_AT.lastIndex = i; return WORD_AT.test(s); };
+const byLength = (a: string, b: string) => b.length - a.length;
+
+/** Replace whole-name matches outside PRE/POST frames without compiling a large alternation per saved log. */
+function replaceAnywhere(text: string, names: string[], label: (n: string) => string): string {
+  const byStart = new Map<string, string[]>();
+  const tok = new RegExp(TOKEN.source, 'gu');
+  for (const n of names.sort(byLength)) {
+    tok.lastIndex = 0;
+    const first = tok.exec(n)?.[0];
+    if (!first) continue;
+    const list = byStart.get(first);
+    if (list) list.push(n); else byStart.set(first, [n]);
+  }
+  let out = '', last = 0, afterWord = false, m: RegExpExecArray | null;
+  tok.lastIndex = 0;
+  while ((m = tok.exec(text))) {
+    const p = m.index;
+    let hit: string | undefined;
+    if (!afterWord) for (const n of byStart.get(m[0]) ?? [])
+      if (text.startsWith(n, p) && !wordAt(text, p + n.length)) { hit = n; break; }
+    if (hit) {
+      out += text.slice(last, p) + label(hit);
+      last = tok.lastIndex = p + hit.length;
+      afterWord = WORD_ONE.test([...hit.slice(-2)].pop()!);
+    } else afterWord = wordAt(m[0], 0);
+  }
+  return last ? out + text.slice(last) : text;
+}
+
+/** Replace framed names (the short/ambiguous ones) without a large regex alternation. */
+function replaceFramed(text: string, names: string[], label: (n: string) => string): string {
+  const at = new Map<number, string>();
+  for (const n of names.sort(byLength)) {
+    for (let i = text.indexOf(n); i >= 0; i = text.indexOf(n, i + 1)) {
+      if (at.has(i)) continue;
+      POST_AT.lastIndex = i + n.length;
+      if (!POST_AT.test(text)) continue;
+      const c = i ? text.charCodeAt(i - 1) : 10;
+      if (c === 10 || c === 13 || c === 0x2028 || c === 0x2029 ||
+          PRE_END.test(text.slice(text.lastIndexOf('\n', i - 1) + 1, i))) at.set(i, n);
+    }
+  }
+  if (!at.size) return text;
+  let out = '', last = 0;
+  for (const p of [...at.keys()].sort((a, b) => a - b)) {
+    if (p < last) continue;
+    const n = at.get(p)!;
+    out += text.slice(last, p) + label(n);
+    last = p + n.length;
+  }
+  return out + text.slice(last);
+}
 
 /** 4 characters of a 32-bit FNV-1a hash of the salt and the name */
 function hash4(salt: string, s: string): string {
@@ -39,7 +98,6 @@ function hash4(salt: string, s: string): string {
   for (const ch of `${salt}\0${s}`) { h ^= ch.codePointAt(0)!; h = Math.imul(h, 0x01000193) >>> 0; }
   return (h % 1679616).toString(36).padStart(4, '0');   // 36^4
 }
-const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 function browserSalt(): string {
   const fresh = () => Array.from(crypto.getRandomValues(new Uint8Array(12)), b => b.toString(16).padStart(2, '0')).join('');
@@ -133,16 +191,10 @@ export class Privacy {
       const plain = new RegExp(`^${WORD}+$`, 'u').test(n);
       ((/^\d+$/.test(n) || [...n].length < 3 || (plain && words.has(n))) ? framed : anywhere).push(n);
     }
-    const byLength = (a: string, b: string) => b.length - a.length;
+    const named = (n: string) => label(n, this.names.get(n)!);
     let out = text;
-    if (anywhere.length) {
-      const re = new RegExp(`(?<!${WORD})(?:${anywhere.sort(byLength).map(escape).join('|')})(?!${WORD})`, 'gu');
-      out = out.replace(re, n => label(n, this.names.get(n)!));
-    }
-    if (framed.length) {
-      const re = new RegExp(`(?<=${PRE})(?:${framed.sort(byLength).map(escape).join('|')})(?=${POST})`, 'gmu');
-      out = out.replace(re, n => label(n, this.names.get(n)!));
-    }
+    if (anywhere.length) out = replaceAnywhere(out, anywhere, named);
+    if (framed.length) out = replaceFramed(out, framed, named);
     // addresses: ours, the virtual LAN's, any other; the adapter made from ours
     out = out.replace(/(?<![\d.])10\.77\.\d{1,3}\.\d{1,3}(?!\d)/g, a => this.ours.has(a) ? 'vlan-you' : `vlan-${hash4(salt, a)}`);
     out = out.replace(IPV4, (a, ...o: string[]) => {

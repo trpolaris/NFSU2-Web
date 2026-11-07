@@ -68,6 +68,8 @@ int      roam_plat_solid(void);
 int      roam_plat_quickchat(void);
 int      roam_plat_say_pick(void);
 int      roam_plat_said(const char *json);
+/* Free Roam front-bumper event for the game page, JSON {id,name,on}; session lock held */
+int      roam_plat_friend(const char *json);
 /* where the names of the players who said something lately are this frame:
  * ids[i] at xys[3i], xys[3i + 1] (parts of the picture from its top left
  * corner) with the name's scale xys[3i + 2]; n = 0: none.  The page's lines

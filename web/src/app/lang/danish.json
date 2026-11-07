@@ -11,9 +11,11 @@
   "Secure, isolated page": "Sikker, isoleret side",
   "This address is not secure, so {browser} turns off what the game needs. Open the server's https:// address instead.": "Denne adresse er ikke sikker, så {browser} slår det fra, som spillet har brug for. Åbn serverens https://-adresse i stedet.",
   "The page is not cross-origin isolated (no SharedArrayBuffer). Open it from the NFSU2 web server, not another server.": "Siden er ikke cross-origin-isoleret (ingen SharedArrayBuffer). Åbn den fra NFSU2-webserveren, ikke fra en anden server.",
-  "Shared 4 GB WebAssembly memory is not available: {error}": "Delt WebAssembly-hukommelse på 4 GB er ikke tilgængelig: {error}",
+  "Shared WebAssembly memory is not available: {error}": "Delt WebAssembly-hukommelse er ikke tilgængelig: {error}",
+  "The JavaScript optimizer is off for this site, and the game can't run without it. In Chrome: Settings, Privacy and security, JavaScript optimization and security, allow this site (Android's Advanced Protection turns it off). In Edge: add this site as an exception to Enhanced security.": "JavaScript-optimeringen er slået fra for dette websted, og spillet kan ikke køre uden den. I Chrome: Indstillinger, Privatliv og sikkerhed, JavaScript-optimering og sikkerhed, tillad dette websted (Androids Avanceret beskyttelse slår den fra). I Edge: tilføj dette websted som en undtagelse under Forbedret sikkerhed.",
+  "Chrome gave the game its software graphics, which run on the processor, so the game will be very slow. Turn on chrome://flags/#enable-vulkan and chrome://flags/#default-angle-vulkan, then restart Chrome.": "Chrome gav spillet sin softwaregrafik, som kører på processoren, så spillet bliver meget langsomt. Slå chrome://flags/#enable-vulkan og chrome://flags/#default-angle-vulkan til, og genstart Chrome.",
   "This browser is too old for the game (no Atomics.waitAsync). Update {browser}.": "Denne browser er for gammel til spillet (ingen Atomics.waitAsync). Opdater {browser}.",
-  "HTTPS or localhost, cross-origin isolated, threads and 4 GB memory available.": "HTTPS eller localhost, cross-origin-isoleret, tråde og 4 GB hukommelse tilgængelig.",
+  "HTTPS or localhost, cross-origin isolated, threads and shared memory available.": "HTTPS eller localhost, cross-origin-isoleret, tråde og delt hukommelse tilgængelig.",
   "Graphics (WebGPU)": "Grafik (WebGPU)",
   "Off because this address is not secure (see above).": "Slået fra, fordi denne adresse ikke er sikker (se ovenfor).",
   "Firefox for Android has no WebGPU yet, which the game needs. Play in Chrome.": "Firefox til Android har endnu ikke WebGPU, som spillet har brug for. Spil i Chrome.",
@@ -1504,5 +1506,12 @@
   "This server is currently running for testing only and should not be considered a stable, production-ready service.": "Denne server kører i øjeblikket kun til testformål og bør ikke betragtes som en stabil, produktionsklar tjeneste.",
   "The project is still in development and testing. You may encounter bugs, interruptions, or unexpected behavior in gameplay, multiplayer connections, chat, or website features.": "Projektet er stadig under udvikling og test. Du kan opleve fejl, afbrydelser eller uventet adfærd i spillet, multiplayerforbindelser, chatten eller webstedets funktioner.",
   "By continuing, you acknowledge that you are using a test build.": "Ved at fortsætte bekræfter du, at du bruger en testversion.",
-  "I understand, continue": "Jeg forstår, fortsæt"
+  "I understand, continue": "Jeg forstår, fortsæt",
+  "Steam Controller or Steam Deck: connect it once.": "Steam Controller eller Steam Deck: forbind den én gang.",
+  "{names}: connected in this browser.": "{names}: forbundet i denne browser.",
+  "Connect a Steam Controller": "Forbind en Steam Controller",
+  "Connect another": "Forbind en til",
+  "Too many players are connected from your network: playing with others waits for a free place, or use another network.": "For mange spillere er forbundet fra dit netværk: spil med andre venter på en ledig plads, eller brug et andet netværk.",
+  "Your antivirus or network is probably blocking the connection to other players. Allow this site in it, or try another network or a VPN.": "Dit antivirus eller netværk blokerer sandsynligvis forbindelsen til andre spillere. Tillad denne side, eller prøv et andet netværk eller en VPN.",
+  "Your connection to other players keeps dropping. Your network may be limiting it: try another network or a VPN.": "Din forbindelse til andre spillere bliver ved med at falde ud. Dit netværk begrænser den måske: prøv et andet netværk eller en VPN."
 }

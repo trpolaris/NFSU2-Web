@@ -45,6 +45,9 @@ What to expect
 --------------
 - Up to 33 players in a group, the nearest 5 friends' cars shown at once (the
   game's own paint slots; the Mac and browser versions show 32).
+- `Near = 64` adds up to 64 nearby-player minimap arrows for players whose cars
+  are not currently loaded as friend cars. Set it to `0` to turn these extra
+  arrows off; values from `1` to `96` set the cap.
 - Friends' cars are ghosts (you drive through them, and they through yours).
   Collide = 1 makes them solid: experimental.
 - While friends are in your free roam, the "outrun" challengers are off

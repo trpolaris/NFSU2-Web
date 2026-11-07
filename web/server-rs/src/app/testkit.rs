@@ -10,6 +10,7 @@ use tokio::net::TcpStream;
 
 use nfsu2_http::Limits;
 use nfsu2_lan::{LanOptions, LanSwitch};
+use nfsu2_online::{OnlineHost, OnlineOptions};
 
 use super::{App, etag};
 use crate::options::{RealFs, parse};
@@ -66,7 +67,7 @@ impl Kit {
         let dir = tempfile::tempdir().expect("a temporary folder");
         let root = std::fs::canonicalize(dir.path()).expect("its real path");
         let p = |r: &str| root.join(r);
-        for d in ["game/GLOBAL", "game/TRACKS", "repo/web/dist", "repo/out/web", "state"] {
+        for d in ["game/GLOBAL", "game/TRACKS", "repo/web/dist", "repo/out/web", "state", "state/online"] {
             std::fs::create_dir_all(p(d)).expect("a folder");
         }
         std::fs::write(p("game/SPEED2.EXE"), b"MZ the game").expect("a file");
@@ -74,8 +75,14 @@ impl Kit {
         std::fs::write(p("repo/web/dist/index.html"), b"<!doctype html>").expect("a file");
         files(&root);
         let s = |r: &str| p(r).to_string_lossy().into_owned();
-        let mut argv: Vec<String> =
-            ["--data", &s("game"), "--state", &s("state"), "--online", "off", "--roam-hub", "off"].iter().map(|a| a.to_string()).collect();
+        let mut argv: Vec<String> = ["--data", &s("game"), "--state", &s("state")].iter().map(|a| a.to_string()).collect();
+        // The option parser intentionally takes the first occurrence, so add defaults only when the test did not ask.
+        if !args.contains(&"--online") {
+            argv.extend(["--online", "off"].iter().map(|a| a.to_string()));
+        }
+        if !args.contains(&"--roam-hub") {
+            argv.extend(["--roam-hub", "off"].iter().map(|a| a.to_string()));
+        }
         argv.extend(args.iter().map(|a| a.to_string()));
         let o = parse(&argv, &|_| None, &s("repo"), &s(""), &RealFs).expect("the options");
         let real_state = std::fs::canonicalize(&o.state).expect("the state folder").to_string_lossy().into_owned();
@@ -86,8 +93,16 @@ impl Kit {
             Arc::new(nfsu2_vault::Vault::open(opts).expect("the vault"))
         });
         let bans = Arc::new(nfsu2_bans::Bans::open(std::path::Path::new(&o.state)).expect("the bans"));
-        let names = vault.as_ref().map(|_| super::names::NamesRoute::new(Arc::new(nfsu2_claims::Claims::in_memory()), None));
-        let app = Arc::new(App::new(o, real_state, key, lan, None, None, vault, names, bans, 2, 0, compress_threads));
+        // The Friends route and Online Buddy host must share one Claims store, as production does.
+        let claims = vault.as_ref().map(|_| Arc::new(nfsu2_claims::Claims::in_memory()));
+        let online = o.online.then(|| OnlineHost::spawn(OnlineOptions {
+            state_dir: Some(std::path::PathBuf::from(&o.state).join("online")),
+            log: Arc::new(|_: &str, _: Option<&str>| {}),
+            tap: None,
+            claims: claims.clone(),
+        }));
+        let names = claims.clone().map(|c| super::names::NamesRoute::new(c, None));
+        let app = Arc::new(App::new(o, real_state, key, lan, online, None, vault, names, bans, 2, 0, compress_threads));
         app.refresh_manifest().await.expect("the manifest");
         let (listener, _) = nfsu2_http::bind("127.0.0.1", 0, None).await.expect("a port");
         let addr = listener.local_addr().expect("its address");

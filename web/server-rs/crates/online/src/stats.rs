@@ -1077,17 +1077,22 @@ pub(crate) mod tests {
             .spawn(move || {
                 let st = Stats::new(StatsOptions::new(Some(d.clone()), clocks(Rc::new(Cell::new(T0))), quiet()));
                 let alpha = st.p.get("alpha").map(|r| (r.all[0], r.all[1].is_some()));
-                let b = crate::buddy::Buddies::new(Some(d.clone()), Default::default());
+                let _b = crate::buddy::Buddies::new(Some(d.clone()), Default::default());
+                let buddies = crate::buddy::shelf_reread(&d);
                 let bad = Stats::new(StatsOptions::new(Some(bad), clocks(Rc::new(Cell::new(T0))), quiet()));
-                (alpha, b.serialize(), bad.p.len())
+                (alpha, buddies, bad.p.len())
             })
             .unwrap();
         let (alpha, buddies, bad) = t.join().expect("read on the online host's stack");
         // (the array in "1" is a count block of none of the fields, as `clean` makes it)
         assert_eq!(alpha, Some((Some(Counts { races: 2.0, rw: 1.0, ..Default::default() }), true)));
+        assert_eq!(buddies.len(), 1, "the deep and malformed sibling records are skipped");
+        let list = crate::jsonparse::parse(&buddies[0]).unwrap();
+        assert_eq!(list.get("name").and_then(Value::as_str), Some("Alpha"));
         assert_eq!(
-            buddies,
-            r#"{"v":3,"note":"NFSU2 online Messenger lists (persona names; friend requests and messages waiting for their persona)","personas":[{"name":"Alpha","seen":"2026-10","B":["Bravo"]}]}"#
+            list.get("B").and_then(Value::as_array).and_then(|a| a.first()).and_then(Value::as_str),
+            Some("Bravo"),
+            "the valid friend entry survives the nested value"
         );
         assert_eq!(bad, 0);
     }

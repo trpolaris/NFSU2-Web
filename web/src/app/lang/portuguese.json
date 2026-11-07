@@ -11,9 +11,11 @@
   "Secure, isolated page": "Página segura e isolada",
   "This address is not secure, so {browser} turns off what the game needs. Open the server's https:// address instead.": "Este endereço não é seguro, então {browser} desativa o que o jogo precisa. Abra o endereço https:// do servidor no lugar dele.",
   "The page is not cross-origin isolated (no SharedArrayBuffer). Open it from the NFSU2 web server, not another server.": "A página não tem isolamento de origem cruzada (sem SharedArrayBuffer). Abra-a pelo servidor web do NFSU2, não por outro servidor.",
-  "Shared 4 GB WebAssembly memory is not available: {error}": "A memória compartilhada de 4 GB do WebAssembly não está disponível: {error}",
+  "Shared WebAssembly memory is not available: {error}": "A memória compartilhada do WebAssembly não está disponível: {error}",
+  "The JavaScript optimizer is off for this site, and the game can't run without it. In Chrome: Settings, Privacy and security, JavaScript optimization and security, allow this site (Android's Advanced Protection turns it off). In Edge: add this site as an exception to Enhanced security.": "O otimizador de JavaScript está desativado para este site, e o jogo não roda sem ele. No Chrome: Configurações, Privacidade e segurança, Otimização e segurança do JavaScript, permita este site (a Proteção Avançada do Android o desativa). No Edge: adicione este site como exceção na Segurança aprimorada.",
+  "Chrome gave the game its software graphics, which run on the processor, so the game will be very slow. Turn on chrome://flags/#enable-vulkan and chrome://flags/#default-angle-vulkan, then restart Chrome.": "O Chrome deu ao jogo seus gráficos por software, que rodam no processador, então o jogo vai ficar muito lento. Ative chrome://flags/#enable-vulkan e chrome://flags/#default-angle-vulkan e reinicie o Chrome.",
   "This browser is too old for the game (no Atomics.waitAsync). Update {browser}.": "Este navegador é antigo demais para o jogo (sem Atomics.waitAsync). Atualize {browser}.",
-  "HTTPS or localhost, cross-origin isolated, threads and 4 GB memory available.": "HTTPS ou localhost, isolamento de origem cruzada, threads e 4 GB de memória disponíveis.",
+  "HTTPS or localhost, cross-origin isolated, threads and shared memory available.": "HTTPS ou localhost, isolamento de origem cruzada, threads e memória compartilhada disponíveis.",
   "Graphics (WebGPU)": "Gráficos (WebGPU)",
   "Off because this address is not secure (see above).": "Desativado porque este endereço não é seguro (veja acima).",
   "Firefox for Android has no WebGPU yet, which the game needs. Play in Chrome.": "O Firefox para Android ainda não tem o WebGPU, necessário para o jogo. Jogue no Chrome.",
@@ -1527,5 +1529,8 @@
   "This server is currently running for testing only and should not be considered a stable, production-ready service.": "Este servidor está funcionando atualmente apenas para testes e não deve ser considerado um serviço estável e pronto para produção.",
   "The project is still in development and testing. You may encounter bugs, interruptions, or unexpected behavior in gameplay, multiplayer connections, chat, or website features.": "O projeto ainda está em desenvolvimento e fase de testes. Podem ocorrer erros, interrupções ou comportamentos inesperados no jogo, nas conexões multijogador, no chat ou nos recursos do site.",
   "By continuing, you acknowledge that you are using a test build.": "Ao continuar, você confirma que está usando uma versão de teste.",
-  "I understand, continue": "Entendi, continuar"
+  "I understand, continue": "Entendi, continuar",
+  "Too many players are connected from your network: playing with others waits for a free place, or use another network.": "Há jogadores demais conectados pela sua rede: para jogar com os outros, é preciso esperar uma vaga livre, ou use outra rede.",
+  "Your antivirus or network is probably blocking the connection to other players. Allow this site in it, or try another network or a VPN.": "Seu antivírus ou sua rede provavelmente está bloqueando a conexão com os outros jogadores. Permita este site ou tente outra rede ou uma VPN.",
+  "Your connection to other players keeps dropping. Your network may be limiting it: try another network or a VPN.": "Sua conexão com os outros jogadores cai o tempo todo. Talvez sua rede esteja limitando: tente outra rede ou uma VPN."
 }

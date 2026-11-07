@@ -47,7 +47,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
+#ifdef __APPLE__
 #include <mach/mach_time.h>
+#else
+#include <time.h>
+#endif
 
 void dispatch_indirect(CPU *c, uint32_t addr);
 long autotest_frame(void);
@@ -102,9 +106,15 @@ static inline FILE *rh_fopen(const char *p){
 #define rh_fflush        fflush
 
 static inline uint64_t rh_ns(void){
+#ifdef __APPLE__
     static mach_timebase_info_data_t tb;
     if (!tb.denom) mach_timebase_info(&tb);
     return mach_absolute_time() * tb.numer / tb.denom;
+#else
+    struct timespec ts;
+    if (clock_gettime(CLOCK_MONOTONIC, &ts) != 0) return 0;
+    return (uint64_t)ts.tv_sec * UINT64_C(1000000000) + (uint64_t)ts.tv_nsec;
+#endif
 }
 /* call a guest function (any convention) from the main-loop hook; the CPU
  * state is restored afterwards */

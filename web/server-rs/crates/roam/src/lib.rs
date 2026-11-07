@@ -121,7 +121,7 @@ use nfsu2_util::cpu::{Busy, QuotaBusy, WorkersBusy};
 use nfsu2_util::{FrameCtx, Host, SwitchSend};
 use tokio::sync::oneshot;
 
-pub use hub::Hub;
+pub use hub::{Hub, Whereabouts};
 pub use wire::{decode_roam, encode_peers, encode_peers_crews};
 
 /// 10.77.0.253, runtime/web/net_proto.h NET_ROAM_HUB
@@ -162,11 +162,44 @@ pub struct RoamOptions {
     /// a player's view point, this far ahead of where its car points (m): a car in front counts from there too, so it
     /// is linked from farther away than one beside or behind
     pub view_m: f64,
-    /// the world map (MAPREQ): at most this many players a answer, one answer a browser every map_gap_ms at most, of
-    /// the players in free roam (or paused there) with a position younger than map_fresh_ms
+    /// the server-side ceiling for World Map MAPD snapshots/deltas: 512 by default, up to 2048 (1664 when a
+    /// parked request carries height). Legacy MAP answers are separately capped at three 230-entry datagrams.
     pub map_max: usize,
     pub map_gap_ms: f64,
     pub map_fresh_ms: f64,
+    /// Minimum interval between nearby-player NEARD replies for one virtual client.
+    pub near_gap_ms: f64,
+    /// Optional server-side automatic race-ban policy. Disabled when None.
+    pub car_bans: Option<CarBans>,
+}
+
+/// A lobby race reported by a player whose car crossed the configured server-side ban threshold.
+#[derive(Clone, Debug, PartialEq)]
+pub struct CarBan {
+    pub vip: u32,
+    pub name: String,
+    pub car: String,
+    pub car_type: u8,
+    pub kw: f64,
+    pub kg: f64,
+    pub kmh: f64,
+    pub rating: f64,
+    pub kind: String,
+    pub laps: u8,
+    pub place: String,
+    pub lobby: u32,
+    pub race: u32,
+}
+
+/// Configurable server-side race-ban thresholds. The callback is invoked on the hub thread and must not block.
+#[derive(Clone)]
+pub struct CarBans {
+    pub kw: Option<f64>,
+    pub rating: Option<f64>,
+    pub call: Arc<dyn Fn(CarBan) + Send + Sync>,
+}
+impl std::fmt::Debug for CarBans {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result { f.write_str("CarBans") }
 }
 
 impl Default for RoamOptions {
@@ -194,6 +227,8 @@ impl Default for RoamOptions {
             map_max: 512,
             map_gap_ms: 1_000.0,
             map_fresh_ms: 5_000.0,
+            near_gap_ms: 150.0,
+            car_bans: None,
         }
     }
 }
@@ -231,6 +266,9 @@ enum Cmd {
     Info(oneshot::Sender<serde_json::Value>),
     Vips(oneshot::Sender<HashSet<u32>>),
     Blocks(u32, Vec<String>),
+    Friends(u32, Arc<str>, Vec<Arc<str>>),
+    RoomName(u32, String),
+    Where(Vec<Arc<str>>, oneshot::Sender<Vec<Option<Whereabouts>>>),
     Stop,
 }
 
@@ -305,8 +343,8 @@ impl RoamHub {
         self.in_roam.load(Ordering::Relaxed)
     }
 
-    /// the hub's `in_rooms()` of one room: how many browsers of the room (roam_core's rc_room_hash, not 0) drive in
-    /// free roam, or are paused there (as of the hub's last tick)
+    /// the hub's `in_rooms()` of one room (0: the main world): how many browsers drive in free roam, or are paused
+    /// there (as of the hub's last tick)
     pub fn in_room(&self, room: u32) -> usize {
         self.in_rooms.lock().map_or(0, |m| m.get(&room).copied().unwrap_or(0))
     }
@@ -321,6 +359,23 @@ impl RoamHub {
     /// the switch's way to its browsers
     pub fn attach_switch(&self, send: SwitchSend) {
         let _ = self.tx.send(Cmd::Attach(send));
+    }
+
+    /// Browser `vip`'s page supplies its mutually accepted friends to the hub for link priority.
+    pub fn friends(&self, vip: u32, me: Arc<str>, owners: Vec<Arc<str>>) {
+        let _ = self.tx.send(Cmd::Friends(vip, me, owners));
+    }
+
+    /// The room name typed by browser `vip`, for friends' Join labels.
+    pub fn room_name(&self, vip: u32, name: String) {
+        let _ = self.tx.send(Cmd::RoomName(vip, name));
+    }
+
+    /// Where each keyphrase plays in Free Roam, if anywhere.
+    pub fn whereabouts(&self, owners: Vec<Arc<str>>) -> oneshot::Receiver<Vec<Option<Whereabouts>>> {
+        let (tx, rx) = oneshot::channel();
+        let _ = self.tx.send(Cmd::Where(owners, tx));
+        rx
     }
 }
 
@@ -389,6 +444,9 @@ fn run(
                 let _ = tx.send(hub.vips());
             }),
             Cmd::Blocks(vip, names) => guard(|| hub.blocks(vip, names)),
+            Cmd::Friends(vip, me, owners) => guard(|| hub.friends(vip, me, owners)),
+            Cmd::RoomName(vip, name) => guard(|| hub.room_name(vip, name)),
+            Cmd::Where(owners, tx) => guard(|| { let _ = tx.send(hub.whereabouts(&owners)); }),
             Cmd::Stop => {
                 // no more ticks, so no more lists: the switch's send goes too (it holds the switch, which holds
                 // this hub)

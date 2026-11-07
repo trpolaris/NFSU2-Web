@@ -11,9 +11,11 @@
   "Secure, isolated page": "Sichere, isolierte Seite",
   "This address is not secure, so {browser} turns off what the game needs. Open the server's https:// address instead.": "Diese Adresse ist nicht sicher, deshalb schaltet {browser} ab, was das Spiel braucht. Öffne stattdessen die https://-Adresse des Servers.",
   "The page is not cross-origin isolated (no SharedArrayBuffer). Open it from the NFSU2 web server, not another server.": "Die Seite ist nicht cross-origin-isoliert (kein SharedArrayBuffer). Öffne sie über den NFSU2-Webserver, nicht über einen anderen Server.",
-  "Shared 4 GB WebAssembly memory is not available: {error}": "Gemeinsamer WebAssembly-Speicher mit 4 GB ist nicht verfügbar: {error}",
+  "Shared WebAssembly memory is not available: {error}": "Gemeinsamer WebAssembly-Speicher ist nicht verfügbar: {error}",
+  "The JavaScript optimizer is off for this site, and the game can't run without it. In Chrome: Settings, Privacy and security, JavaScript optimization and security, allow this site (Android's Advanced Protection turns it off). In Edge: add this site as an exception to Enhanced security.": "Der JavaScript-Optimierer ist für diese Website aus, und ohne ihn läuft das Spiel nicht. In Chrome: Einstellungen, Datenschutz und Sicherheit, JavaScript-Optimierung und -Sicherheit, erlaube diese Website (der Erweiterte Schutz von Android schaltet ihn aus). In Edge: füge diese Website als Ausnahme bei Erweiterte Sicherheit hinzu.",
+  "Chrome gave the game its software graphics, which run on the processor, so the game will be very slow. Turn on chrome://flags/#enable-vulkan and chrome://flags/#default-angle-vulkan, then restart Chrome.": "Chrome hat dem Spiel seine Software-Grafik gegeben, die auf dem Prozessor läuft, deshalb wird das Spiel sehr langsam. Schalte chrome://flags/#enable-vulkan und chrome://flags/#default-angle-vulkan ein und starte Chrome dann neu.",
   "This browser is too old for the game (no Atomics.waitAsync). Update {browser}.": "Dieser Browser ist zu alt für das Spiel (kein Atomics.waitAsync): {browser} braucht ein Update.",
-  "HTTPS or localhost, cross-origin isolated, threads and 4 GB memory available.": "HTTPS oder localhost, cross-origin-isoliert, Threads und 4 GB Speicher verfügbar.",
+  "HTTPS or localhost, cross-origin isolated, threads and shared memory available.": "HTTPS oder localhost, cross-origin-isoliert, Threads und gemeinsamer Speicher verfügbar.",
   "Graphics (WebGPU)": "Grafik (WebGPU)",
   "Off because this address is not secure (see above).": "Aus, weil diese Adresse nicht sicher ist (siehe oben).",
   "Firefox for Android has no WebGPU yet, which the game needs. Play in Chrome.": "In Firefox für Android fehlt WebGPU noch, aber das Spiel braucht es. Spiel in Chrome.",
@@ -1504,5 +1506,12 @@
   "This server is currently running for testing only and should not be considered a stable, production-ready service.": "Dieser Server läuft derzeit ausschließlich zu Testzwecken und ist nicht als stabiler, produktionsreifer Dienst zu verstehen.",
   "The project is still in development and testing. You may encounter bugs, interruptions, or unexpected behavior in gameplay, multiplayer connections, chat, or website features.": "Das Projekt befindet sich weiterhin in der Entwicklung und Testphase. Beim Spielen, bei Mehrspieler-Verbindungen, im Chat oder bei Website-Funktionen können Fehler, Unterbrechungen oder unerwartetes Verhalten auftreten.",
   "By continuing, you acknowledge that you are using a test build.": "Wenn du fortfährst, bestätigst du, dass du eine Testversion verwendest.",
-  "I understand, continue": "Verstanden, weiter"
+  "I understand, continue": "Verstanden, weiter",
+  "Steam Controller or Steam Deck: connect it once.": "Steam Controller oder Steam Deck: einmal verbinden.",
+  "{names}: connected in this browser.": "{names}: in diesem Browser verbunden.",
+  "Connect a Steam Controller": "Steam Controller verbinden",
+  "Connect another": "Weiteren verbinden",
+  "Too many players are connected from your network: playing with others waits for a free place, or use another network.": "Zu viele Spieler sind aus deinem Netzwerk verbunden: Das Spielen mit anderen wartet auf einen freien Platz, oder nutze ein anderes Netzwerk.",
+  "Your antivirus or network is probably blocking the connection to other players. Allow this site in it, or try another network or a VPN.": "Dein Antivirenprogramm oder Netzwerk blockiert wahrscheinlich die Verbindung zu anderen Spielern. Erlaube dort diese Seite, oder versuche ein anderes Netzwerk oder ein VPN.",
+  "Your connection to other players keeps dropping. Your network may be limiting it: try another network or a VPN.": "Deine Verbindung zu anderen Spielern bricht immer wieder ab. Vielleicht begrenzt dein Netzwerk sie: Versuche ein anderes Netzwerk oder ein VPN."
 }

@@ -14,6 +14,11 @@ pub(crate) const MSG_SNAP: u8 = 3;
 pub(crate) const MSG_BYE: u8 = 8;
 pub(crate) const MSG_MAPREQ: u8 = 10;
 pub(crate) const MSG_MAP: u8 = 11;
+/// Incremental world-map delta. Type 17 remains reserved for TRPOLARIS typed FreeRoam chat.
+pub(crate) const MSG_MAPD: u8 = 18;
+/// Minimap request and MAPD-shaped nearby-player answer.
+pub(crate) const MSG_NEARREQ: u8 = 19;
+pub(crate) const MSG_NEARD: u8 = 20;
 pub(crate) const MSG_LOBBY: u8 = 12;
 pub(crate) const MSG_LOBBIES: u8 = 13;
 /// a player's report of a multiplayer race (roam_core.h RC_MSG_RACEREP): only to the hub, which logs it
@@ -59,6 +64,17 @@ pub(crate) const LOBBY_PLAYERS: usize = 6;
 /// a MAP entry: x, y (i16 LE, m), heading (u8, 256 a turn); at most MAP_PER of them a datagram (roam_core.h)
 pub(crate) const MAP_ENTRY: usize = 5;
 pub(crate) const MAP_PER: usize = 230;
+pub(crate) const MAP_MAX_V1: u16 = 512;
+pub(crate) const MAPD_GONE: u16 = 0x8000;
+/// A placed player's key carries this bit when its SNAPs have stayed within 25 m for one minute.
+pub(crate) const MAPD_PARKED: u16 = 0x4000;
+pub(crate) const MAPREQ_PARKED: u16 = 1;
+pub(crate) const MAPD_PLACE: usize = 9;
+/// A MAPD answer requested with MAPREQ_PARKED also carries z (i16 LE) after velocity.
+pub(crate) const MAPD_PLACE_Z: usize = 11;
+pub(crate) const HF_MAPZ: u16 = 0x0800;
+pub(crate) const MAPD_BYTES: usize = 1152;
+pub(crate) const MAPD_PARTS: usize = 16;
 pub(crate) const HDR: usize = 16;
 pub(crate) const CRC: usize = 4;
 
@@ -93,9 +109,15 @@ pub(crate) enum Msg<'a> {
         clock: u8,
     },
     /// the world map's question (roam_core.h RC_MSG_MAPREQ): req is echoed in the answer
+    /// World-map request: legacy requests omit max/base, while newer clients ask for deltas.
     MapReq {
         req: u16,
+        max: u16,
+        base: Option<u16>,
+        flags: u16,
     },
+    /// Nearby-player minimap request (radius in metres).
+    NearReq { req: u16, max: u16, base: u16, radius: u16 },
     /// a race lobby (roam_core.h RC_MSG_LOBBY), checked as roam_core.c's lobby_ok: what the hub keeps of one sent to
     /// it (to 0)
     Lobby {
@@ -349,7 +371,11 @@ pub(crate) fn decode(d: &[u8]) -> Option<(u8, u32, Msg<'_>)> {
             }
             Msg::Snap { sender, status, p, v: velocity(d, 38), heading: heading(d, 50), t_us: u32_le(d, 22), clock: d[21] }
         }
-        MSG_MAPREQ if end == HDR + 2 => Msg::MapReq { req: u16_le(d, 16) },
+        MSG_MAPREQ if end == HDR + 2 => Msg::MapReq { req: u16_le(d, 16), max: MAP_MAX_V1, base: None, flags: 0 },
+        MSG_MAPREQ if end == HDR + 4 => Msg::MapReq { req: u16_le(d, 16), max: u16_le(d, 18), base: None, flags: 0 },
+        MSG_MAPREQ if end == HDR + 6 => Msg::MapReq { req: u16_le(d, 16), max: u16_le(d, 18), base: Some(u16_le(d, 20)), flags: 0 },
+        MSG_MAPREQ if end == HDR + 8 => Msg::MapReq { req: u16_le(d, 16), max: u16_le(d, 18), base: Some(u16_le(d, 20)), flags: u16_le(d, 22) },
+        MSG_NEARREQ if end == HDR + 8 => Msg::NearReq { req: u16_le(d, 16), max: u16_le(d, 18), base: u16_le(d, 20), radius: u16_le(d, 22) },
         MSG_LOBBY => {
             // op arg state max, to, lobby, race, x y, t, n, a reserved byte, then n ids (roam_core.c rc_encode)
             if end < HDR + 24 {
@@ -411,7 +437,7 @@ pub fn decode_roam(d: &[u8]) -> Option<RoamMsg> {
         },
         Msg::Snap { sender, status, p, .. } => RoamMsg::Snap { sender, status, p },
         Msg::Bye => RoamMsg::Bye { sender },
-        Msg::MapReq { .. } | Msg::Lobby { .. } | Msg::RaceRep(_) | Msg::RaceRes(_) | Msg::Chat { .. } | Msg::Other => RoamMsg::Other { kind, sender },
+        Msg::MapReq { .. } | Msg::NearReq { .. } | Msg::Lobby { .. } | Msg::RaceRep(_) | Msg::RaceRes(_) | Msg::Chat { .. } | Msg::Other => RoamMsg::Other { kind, sender },
     })
 }
 
@@ -548,6 +574,38 @@ pub(crate) fn write_chat(
     b[len - CRC..].copy_from_slice(&crc.to_le_bytes());
 }
 
+/// Length of a MAPD datagram carrying `bytes` bytes of variable-sized entries.
+pub(crate) fn mapd_len(bytes: usize) -> usize {
+    HDR + 9 + bytes + CRC
+}
+
+/// Writes a MAPD/NEARD datagram. `kind` must be MSG_MAPD or MSG_NEARD.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn write_mapd(
+    b: &mut [u8], kind: u8, sender: u32, seq: u16, req: u16, base: u16,
+    part: u8, nparts: u8, total: u16, n: u8, flags: u16, entries: &[u8],
+) {
+    debug_assert!(kind == MSG_MAPD || kind == MSG_NEARD);
+    debug_assert_eq!(b.len(), mapd_len(entries.len()));
+    let len = b.len();
+    b[..4].copy_from_slice(b"N2FR");
+    b[4] = 1;
+    b[5] = kind;
+    b[6..8].copy_from_slice(&(len as u16).to_le_bytes());
+    b[8..12].copy_from_slice(&sender.to_le_bytes());
+    b[12..14].copy_from_slice(&seq.to_le_bytes());
+    b[14..16].copy_from_slice(&flags.to_le_bytes());
+    b[16..18].copy_from_slice(&req.to_le_bytes());
+    b[18..20].copy_from_slice(&base.to_le_bytes());
+    b[20] = part;
+    b[21] = nparts;
+    b[22..24].copy_from_slice(&total.to_le_bytes());
+    b[24] = n;
+    b[25..25 + entries.len()].copy_from_slice(entries);
+    let crc = crc32fast::hash(&b[..len - CRC]);
+    b[len - CRC..].copy_from_slice(&crc.to_le_bytes());
+}
+
 /// A MAP datagram, written into its own buffer.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn write_map(b: &mut [u8], sender: u32, seq: u16, req: u16, part: u8, nparts: u8, total: u16, list: &[(i16, i16, u8)]) {
@@ -632,5 +690,68 @@ mod chat_tests {
         assert_eq!(&b[24..24 + name.len()], name);
         assert_eq!(&b[24 + name.len()..len - CRC], text);
         assert_eq!(u32_le(&b, len - CRC), crc32fast::hash(&b[..len - CRC]));
+    }
+}
+
+
+#[cfg(test)]
+mod map_protocol_tests {
+    use super::*;
+
+    fn request(kind: u8, payload: &[u8]) -> Vec<u8> {
+        let len = HDR + payload.len() + CRC;
+        let mut b = vec![0u8; len];
+        b[..4].copy_from_slice(b"N2FR");
+        b[4] = 1;
+        b[5] = kind;
+        b[6..8].copy_from_slice(&(len as u16).to_le_bytes());
+        b[8..12].copy_from_slice(&7u32.to_le_bytes());
+        b[16..16 + payload.len()].copy_from_slice(payload);
+        let crc = crc32fast::hash(&b[..len - CRC]);
+        b[len - CRC..].copy_from_slice(&crc.to_le_bytes());
+        b
+    }
+
+    #[test]
+    fn mapreq_keeps_legacy_and_accepts_delta_forms() {
+        let legacy = request(MSG_MAPREQ, &9u16.to_le_bytes());
+        assert!(matches!(decode(&legacy).unwrap().2, Msg::MapReq { req: 9, max: MAP_MAX_V1, base: None, flags: 0 }));
+        let full = request(MSG_MAPREQ, &[9u16.to_le_bytes(), 300u16.to_le_bytes()].concat());
+        assert!(matches!(decode(&full).unwrap().2, Msg::MapReq { req: 9, max: 300, base: None, .. }));
+        let delta = request(MSG_MAPREQ, &[9u16.to_le_bytes(), 300u16.to_le_bytes(), 4u16.to_le_bytes()].concat());
+        assert!(matches!(decode(&delta).unwrap().2, Msg::MapReq { req: 9, max: 300, base: Some(4), flags: 0 }));
+        let parked = request(MSG_MAPREQ, &[9u16.to_le_bytes(), 300u16.to_le_bytes(), 4u16.to_le_bytes(), MAPREQ_PARKED.to_le_bytes()].concat());
+        assert!(matches!(decode(&parked).unwrap().2, Msg::MapReq { req: 9, max: 300, base: Some(4), flags: MAPREQ_PARKED }));
+    }
+
+    #[test]
+    fn nearreq_uses_its_own_message_id_and_exact_payload_length() {
+        let payload = [9u16.to_le_bytes(), 64u16.to_le_bytes(), 2u16.to_le_bytes(), 350u16.to_le_bytes()].concat();
+        let valid = request(MSG_NEARREQ, &payload);
+        assert!(matches!(decode(&valid).unwrap().2, Msg::NearReq { req: 9, max: 64, base: 2, radius: 350 }));
+        assert_eq!(valid[5], 19);
+        let mut bad = payload.clone();
+        bad.push(0);
+        assert!(decode(&request(MSG_NEARREQ, &bad)).is_none());
+    }
+
+    #[test]
+    fn mapd_writer_preserves_type_and_crc_for_both_delta_channels() {
+        for kind in [MSG_MAPD, MSG_NEARD] {
+            let flags = if kind == MSG_MAPD { HF_MAPZ } else { 0 };
+            let mut entries = Vec::new();
+            entries.extend_from_slice(&1u16.to_le_bytes());
+            entries.extend_from_slice(&10i16.to_le_bytes());
+            entries.extend_from_slice(&20i16.to_le_bytes());
+            entries.extend_from_slice(&[3u8, 4, 5]);
+            if flags & HF_MAPZ != 0 { entries.extend_from_slice(&30i16.to_le_bytes()); }
+            let mut b = vec![0u8; mapd_len(entries.len())];
+            write_mapd(&mut b, kind, 7, 11, 2, 1, 0, 1, 1, 1, flags, &entries);
+            assert_eq!(b[5], kind);
+            assert_eq!(u16_le(&b, 16), 2);
+            assert_eq!(u16_le(&b, 18), 1);
+            assert_eq!(u16_le(&b, 14), flags);
+            assert_eq!(u32_le(&b, b.len() - CRC), crc32fast::hash(&b[..b.len() - CRC]));
+        }
     }
 }
