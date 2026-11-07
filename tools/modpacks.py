@@ -54,7 +54,7 @@ KIND_RIM, KIND_BRAND = 28, 67
 A_TEXTURE, A_OUTER, A_INNER, A_BRAND = (bstring_hash(n) for n in ('TEXTURE_NAME', 'OUTER_RADIUS', 'INNER_RADIUS', 'BRAND_NAME'))
 RIM_ATTRS = {A_TEXTURE, A_OUTER, A_INNER, A_BRAND}     # a rim's attributes: all plain values (no string indices)
 OWNER_WHEELS = bstring_hash('WHEELS')
-UG2NET = ('NFSU2_UG2NET_PARTS',)                       # the underground2.net row's switch (web/src/app/settings.ts)
+RIMS_SWITCH = ('NFSU2_MOD_RIMS',)                      # the optional rim pack's switch (web/src/app/settings.ts)
 IMG_BASE = 0x30000000                                  # the new textures' TextureInfo image offsets (each its own)
 
 
@@ -285,7 +285,7 @@ def main():
     game_db = PartDB(find(a.game, 'GLOBAL/GLOBALB.LZC') or find(a.game, 'GLOBAL/GLOBALB.BUN'))
     mod_db = PartDB(find(mod, 'GLOBAL/GLOBALB.LZC'))
     game_keys = {p['key'] for p in game_db.parts}
-    mods = list(UG2NET)
+    mods = list(RIMS_SWITCH)
     S = Strings()
     parts, texts, want_tex, geo = [], {}, {}, []
     mod_lang = lang_texts(find(mod, 'LANGUAGES/English.bin'))
