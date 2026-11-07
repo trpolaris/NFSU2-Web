@@ -532,7 +532,33 @@ int rc_decode(const uint8_t *buf, int len, rc_msg *m){
         if (r.err) return RC_E_SHORT;
         if (m->u.duel.op < 1 || m->u.duel.op >= RC_DUEL__N || !m->u.duel.to || !m->u.duel.duel) return RC_E_FIELD;
         break;
-    case RC_MSG_MAPREQ: m->u.mapreq.req = (uint16_t)rc_get16(&r); break;
+    case RC_MSG_MAPREQ:
+        m->u.mapreq.req=(uint16_t)rc_get16(&r);
+        m->u.mapreq.max=!r.err&&r.len-r.n>=2?(uint16_t)rc_get16(&r):RC_MAP_MAX_V1;
+        m->u.mapreq.base=!r.err&&r.len-r.n>=2?(uint16_t)rc_get16(&r):0;
+        break;
+    case RC_MSG_NEARREQ:
+        m->u.nearreq.req=(uint16_t)rc_get16(&r);m->u.nearreq.max=(uint16_t)rc_get16(&r);
+        m->u.nearreq.base=(uint16_t)rc_get16(&r);m->u.nearreq.radius=(uint16_t)rc_get16(&r);
+        if(r.err)return RC_E_SHORT;
+        break;
+    case RC_MSG_MAPD: case RC_MSG_NEARD: {
+        m->u.mapd.req=(uint16_t)rc_get16(&r);m->u.mapd.base=(uint16_t)rc_get16(&r);
+        m->u.mapd.part=(uint8_t)rc_get8(&r);m->u.mapd.nparts=(uint8_t)rc_get8(&r);
+        m->u.mapd.total=(uint16_t)rc_get16(&r);m->u.mapd.n=(uint8_t)rc_get8(&r);
+        if(r.err)return RC_E_SHORT;
+        if(m->u.mapd.nparts<1||m->u.mapd.nparts>RC_MAPD_PARTS||m->u.mapd.part>=m->u.mapd.nparts)return RC_E_FIELD;
+        uint32_t len=0;
+        for(int k=0;k<m->u.mapd.n;k++){
+            if(!r_have(&r,len+2))return RC_E_SHORT;
+            uint16_t key=(uint16_t)(r.p[r.n+len]|(uint16_t)r.p[r.n+len+1]<<8);
+            len+=(key&RC_MAPD_GONE)?2u:RC_MAPD_PLACE;
+        }
+        if(len>RC_MAPD_BYTES)return RC_E_FIELD;
+        if(!r_have(&r,len))return RC_E_SHORT;
+        m->u.mapd.data=r.p+r.n;m->u.mapd.len=(uint16_t)len;r.n+=len;
+        break;
+    }
     case RC_MSG_MAP:
         m->u.map.req = (uint16_t)rc_get16(&r); m->u.map.part = (uint8_t)rc_get8(&r); m->u.map.nparts = (uint8_t)rc_get8(&r);
         m->u.map.total = (uint16_t)rc_get16(&r); m->u.map.n = (uint8_t)rc_get8(&r);
