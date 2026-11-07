@@ -148,7 +148,7 @@ pub(super) async fn post_json(url: &str, body: &str) -> Result<Vec<u8>, String> 
         Some((h, p)) if p.bytes().all(|c| c.is_ascii_digit()) => (h, p.parse::<u16>().map_err(|e| e.to_string())?),
         _ => (hostport, if tls { 443 } else { 80 }),
     };
-    let req = format!("POST {path} HTTP/1.1\\r\\nHost: {hostport}\\r\\nUser-Agent: nfsu2-server\\r\\nContent-Type: application/json\\r\\nContent-Length: {}\\r\\nConnection: close\\r\\n\\r\\n{body}", body.len());
+    let req = format!("POST {path} HTTP/1.1\r\nHost: {hostport}\r\nUser-Agent: nfsu2-server\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len());
     let tcp = tokio::net::TcpStream::connect((host, port)).await.map_err(|e| format!("{host}:{port}: {e}"))?;
     if tls {
         let roots = rustls::RootCertStore::from_iter(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());

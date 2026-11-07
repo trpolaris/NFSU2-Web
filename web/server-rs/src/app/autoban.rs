@@ -26,7 +26,7 @@ pub async fn post_race_ban(id: impl std::fmt::Display, race: &CarBan, name: &str
     let id = id.to_string();
     let car = format!("{} (type {})", race.car, race.car_type);
     let details = format!("{:.0} kW, rated {:.0}, {:.0} kg, {:.0} km/h", race.kw, race.rating, race.kg, race.kmh);
-    let title = format!("### Race ban #{id} · {name}\\nRaced a car past the server's configured thresholds: **{car}**, **{details}**");
+    let title = format!("### Race ban #{id} · {name}\nRaced a car past the server's configured thresholds: **{car}**, **{details}**");
     let laps = if race.laps > 1 { format!(" · {} laps", race.laps) } else { String::new() };
     let foot = format!("-# Automatic · lobby {}{} · {} · 2 weeks", race.kind, laps, race.place);
     let body = json!({
