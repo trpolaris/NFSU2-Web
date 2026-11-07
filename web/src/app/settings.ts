@@ -207,7 +207,8 @@ export const TEMPLATE = `# NFSU2 settings, read at every launch.
 # (Brazil's), polish or turkish.  French, German, Italian, Spanish, Japanese
 # and Russian come with their dubbed voices and movies where the server has
 # the language packs; Russian, Portuguese, Polish and Turkish take their text
-# from them too.  [NFSU2_LANGUAGE]
+# from them too. If unset, the browser's language is used when supported, else English.
+# [NFSU2_LANGUAGE]
 #language = turkish
 
 # The movies' subtitles: the PSA, the tutorials and the story, in every
