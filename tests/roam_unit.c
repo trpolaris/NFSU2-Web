@@ -1609,7 +1609,7 @@ static void t_neard_merge(void){
           "NEARD second player decoded");
     uint32_t gen = s.near_gen;
     CHECK(rc_ask_near(&s, arrived + 1000, RC_NEAR_MAX, 350), "second NEARREQ is sent");
-    uint8_t delta[2 * RC_MAPD_PLACE] = {
+    uint8_t delta[RC_MAPD_PLACE + 2] = {
         2,0, 0x18,0, 0x28,0, 80, 5, 1,
         (uint8_t)(8 | (RC_MAPD_GONE & 0xff)), (uint8_t)(RC_MAPD_GONE >> 8)
     };
