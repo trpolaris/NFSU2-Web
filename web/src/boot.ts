@@ -3,8 +3,9 @@
 // first, before the module entry points, and explains the likely block with a Reload action.
 // Its texts are embedded at build time because the page's language files may not have loaded yet.
 
+import { lastLanguage } from './app/i18n';
+
 declare const BOOT_TEXTS: Record<string, Record<string, string>>;
-export {};
 
 const WAIT_MS = 15_000;
 const N = (s: string) => s;
@@ -19,8 +20,7 @@ function show() {
   if (!status || !sub || !reload) return;
 
   shown = true;
-  let lang = 'english';
-  try { lang = localStorage.getItem('nfsu2-page-language') || lang; } catch { /* English when storage is unavailable */ }
+  const lang = lastLanguage();
   const t = (key: string) => BOOT_TEXTS[lang]?.[key] ?? key;
   const previous = [status.textContent, sub.textContent, reload.textContent, reload.hidden] as const;
 
