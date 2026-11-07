@@ -23,6 +23,7 @@ use std::time::Duration;
 use bytes::Bytes;
 use nfsu2_bans::{Target, kick_message, parse_for, span, when};
 use nfsu2_lan::{CLOSE_BANNED, CLOSE_KICKED, Who, vip_num};
+use nfsu2_roam::CarBan;
 use nfsu2_util::{log, now_ms, vip_str};
 use serde_json::{Value, json};
 use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
@@ -147,6 +148,43 @@ fn quoted(msg: &str) -> String {
 }
 
 impl App {
+    /// Apply the operator-configured automatic race ban to the reporting player's current page/address.
+    pub async fn auto_race_ban(&self, race: CarBan) {
+        const FOR_MS: i64 = 14 * 24 * 60 * 60 * 1000;
+        let now = now_ms();
+        let all = self.lan.who().await;
+        let Some(w) = all.iter().find(|w| w.vip == race.vip && w.name == race.name && w.left.is_none()) else {
+            log::line(&format!("[ban] automatic race ban skipped: {} \"{}\" is no longer on the switch", vip_str(race.vip), race.name));
+            return;
+        };
+        if w.ident.is_none() && w.browser.is_none() {
+            log::line(&format!("[ban] automatic race ban skipped: {} \"{}\" has no address or page identity", vip_str(w.vip), w.name));
+            return;
+        }
+        if self.bans.list(now).iter().any(|b| self.bans.covers(b, w.ident.as_deref(), w.browser.as_deref(), now)) {
+            log::line(&format!("[ban] automatic race ban skipped: {} \"{}\" is already banned", vip_str(w.vip), w.name));
+            return;
+        }
+        let msg = "Cheating in multiplayer races";
+        let target = Target { name: &w.name, addr: w.ident.as_deref(), page: w.browser.as_deref() };
+        let until = Some(now + FOR_MS);
+        let (ban, replaced) = match self.bans.add(target, msg, until, now) {
+            Ok(v) => v,
+            Err(e) => { log::error(&format!("[ban] automatic race ban of \"{}\": {e}", w.name)); return; }
+        };
+        let notice = Bytes::from(ban.message());
+        let removed: Vec<&Who> = all.iter()
+            .filter(|x| x.left.is_none() && self.bans.covers(&ban, x.ident.as_deref(), x.browser.as_deref(), now))
+            .filter(|x| self.lan.expel(x.vip, notice.clone(), CLOSE_BANNED))
+            .collect();
+        log::line(&format!(
+            "[ban] automatic race ban #{} \"{}\" for 2 weeks; car {} (type {}), {:.0} kW, rating {:.0}, {:.0} kg, {:.0} km/h; lobby {:08x}, race {:08x}; removed: {}{}",
+            ban.id, w.name, race.car, race.car_type, race.kw, race.rating, race.kg, race.kmh,
+            race.lobby, race.race, listed(&removed),
+            if replaced.is_empty() { String::new() } else { format!("; replaced {}", replaced.iter().map(|n| format!("#{n}")).collect::<Vec<_>>().join(", ")) }
+        ));
+    }
+
     /// One command (the module doc): Ok(the answer), Err(why not).
     pub async fn control(&self, words: &[String]) -> Result<String, String> {
         let word = |i: usize| words.get(i).map(String::as_str).unwrap_or("");
