@@ -13,7 +13,7 @@
 //   gears     with a manual gearbox, gear down and up above the left thumb: the controller's X and A, as on a pad
 //             (Ctrl and Shift on the keyboard would be modifiers too)
 //   small     pause, camera, look back, reset; in free roam also the map, messages, horn, quick chat (quickchat.ts) and
-//             start an event
+//             start an event; quick chat also appears during multiplayer races and on their results
 //   horizon   while tilt steers, the game's 3D view turns against the phone's tilt from straight ahead, so the road's
 //             horizon stays level with the real one (the HUD stays on the phone; runtime/overrides.c sub_005c7ec0).
 //             Not in a cutscene (a race's start); faded in and out.  A switch in the Controls sheet's touch tab.
