@@ -1,18 +1,15 @@
-// FreeRoam chat combines the original phrase picker with typed room/Crew messages, live-player mentions and
-// server-enforced moderation. Players read game phrases in their own language and can type to one another.
-// Each player picks sixteen of the library's
-// (phrases.ts) on the start page, in four groups of four (settings.ini quick_chat_phrases, quick_chat_groups).
-//   pick   keys 1-4 open a group and 1-4 again says its phrase; a controller's right stick the same (a flick up, right,
-//          down or left: the game leaves that stick unused); on a touch screen the chat button shows all sixteen and a
-//          tap says one.  Esc, PICK_MS without a pick, or no longer driving in free roam closes it.  At most BURST
-//          phrases in WINDOW_MS (runtime/roam_game.c keeps the same limit): then the picker asks to wait.
-//   wire   a phrase is its number in the library: the game sends it to the players around (roam_game.c say_*: within
-//          250 m, or in our race lobby) and back to this page as said by the player.  A number this page has no phrase
-//          for (a newer page's) is not shown.
-//   show   a line over the car of each player who said something, where the game draws the name over it: the game
-//          tells where in each frame it draws (marks(), the renderer's GwMarks), so the line moves with the car in the
-//          same picture; the player's own over their car.  Also the chat log on the left, in the notices' place, and
-//          beside the player's name in a race lobby's card.
+// FreeRoam chat combines typed room/Crew messages, live-player mentions and server-enforced moderation with the
+// original phrase picker. The sixteen fixed phrases also work in multiplayer races (Online, LAN and FreeRoam lobbies).
+// Players read game phrases in their own language; typed messages remain a FreeRoam feature.
+// Each player picks sixteen phrases from the library (phrases.ts) on the start page, in four groups of four.
+//   pick   keys 1-4 open a group and 1-4 again says its phrase; a controller's right stick works the same; touch shows
+//          all sixteen. The picker opens while driving in FreeRoam or in a multiplayer race, including results.
+//          Esc, PICK_MS without a pick, or leaving those states closes it. At most BURST phrases in WINDOW_MS.
+//   wire   FreeRoam phrases use roam_game.c say_* (nearby players or our race lobby); race phrases use racehorn.c qc_*
+//          over the game's existing LAN race peer path. Both return the same NET_KIND_SAY page notification.
+//   show   FreeRoam phrases appear over the car and in the chat/lobby; race phrases appear in the chat log only because
+//          the game does not expose racer-name positions to the page. Unknown phrase numbers and blocked players are
+//          not shown.
 import type { GameSession } from './game';
 import { N, language, onLanguage, t } from './i18n';
 import { hasChatProfanity } from './chat-filter';
