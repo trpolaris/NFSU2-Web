@@ -204,3 +204,62 @@ test('Xbox\'s Bluetooth controllers in Firefox on a Mac: their own layout, LT be
   // where Chrome places them by usage (no mapping of its own): LT on 3, RT on 4, as Chromium's MapperXboxBluetooth
   assert.deepEqual(D.placeHidAxes([c, c, c, -1, -1, c, 0, 0, 0, H], true), { lx: 0, ly: 1, rx: 2, ry: 5, lt: 3, rt: 4, hat: 9 });
 });
+
+
+const ONE_S_2016_ANDROID = 'Xbox Wireless Controller (STANDARD GAMEPAD Vendor: 045e Product: 02e0)';
+function oneSButtons(values = {}) {
+  return Array.from({ length: 16 }, (_, i) => {
+    const value = values[i] ?? 0;
+    return { pressed: value > 0.5, value };
+  });
+}
+
+test('Xbox One S 2016 under Chrome Android is detected only for its exact standard 16-button mapping', () => {
+  const g = (id = ONE_S_2016_ANDROID, mapping = 'standard', n = 16) => ({
+    id, mapping, buttons: Array.from({ length: n }, () => ({ pressed: false, value: 0 })),
+  });
+  assert.ok(D.oneS2016Android(g(), ANDROID_UA, 5));
+  assert.ok(D.oneS2016Android(g(), DESKTOP_SITE_UA, 5)); // Android tablets using desktop-site mode
+  assert.ok(!D.oneS2016Android(g(), DESKTOP_SITE_UA, 0)); // ordinary Linux desktop
+  assert.ok(!D.oneS2016Android(g(), 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/141', 0));
+  assert.ok(!D.oneS2016Android(g(ONE_S_2016_ANDROID, '', 16), ANDROID_UA, 5));
+  assert.ok(!D.oneS2016Android(g(ONE_S_2016_ANDROID, 'standard', 17), ANDROID_UA, 5));
+  assert.ok(!D.oneS2016Android(g('45e-2e0-Xbox Wireless Controller'), ANDROID_UA, 5));
+  assert.ok(!D.oneS2016Android(g('Xbox Wireless Controller (STANDARD GAMEPAD Vendor: 045e Product: 0b20)'), ANDROID_UA, 5));
+});
+
+test('Xbox One S 2016 reader restores face, shoulder and D-pad buttons and reads the right stick from Chrome trigger slots', () => {
+  const r = new D.OneS2016Reader();
+  const b = oneSButtons({ 0: 1, 1: 1, 3: 1, 4: 1, 8: 1, 9: 1, 12: 1, 14: 1 });
+  const result = r.read([0.25, -0.5, 0, 0], b);
+  assert.equal(result.buttons, bit(P.PAD_A, P.PAD_B, P.PAD_X, P.PAD_Y, P.PAD_LB, P.PAD_RB, P.PAD_DUP, P.PAD_DLEFT));
+  assert.deepEqual(result.axes, [0.25, -0.5, 0, 0, 0, 0]); // unobserved trigger slots are not a live stick yet
+
+  const moved = oneSButtons({ 6: 0.75, 7: 1 });
+  assert.deepEqual(r.read([0, 0, 0, 0], moved).axes, [0, 0, 0.5, 1, 0, 0]);
+  assert.deepEqual(r.read([0, 0, 0, 0], oneSButtons()).axes, [0, 0, -1, -1, 0, 0]);
+});
+
+test('Xbox One S 2016 mapping is used by the gamepad poller on Android', async () => {
+  await onBrowser(ANDROID_UA, 5, async (pads) => {
+    const buf = new SharedArrayBuffer(P.IM_BYTES), h = new Int32Array(buf), u8 = new Uint8Array(buf);
+    const values = { 0: 1, 1: 1, 3: 1, 4: 1, 8: 1, 9: 1, 12: 1, 15: 1, 6: 0.75, 7: 0.25 };
+    const g = {
+      id: ONE_S_2016_ANDROID, index: 0, mapping: 'standard', connected: true,
+      axes: [0.25, -0.5, 0, 0], buttons: oneSButtons(values),
+    };
+    pads.push(g);
+    const logs = [];
+    const poller = new G.PadPoller(h, u8, 0, () => {}, s => logs.push(s));
+    try {
+      poller.poll();
+      assert.equal(h[P.IM_PAD_CONNECTED], 1);
+      assert.equal(h[P.IM_PAD_BUTTONS], bit(P.PAD_A, P.PAD_B, P.PAD_X, P.PAD_Y, P.PAD_LB, P.PAD_RB, P.PAD_DUP, P.PAD_DRIGHT));
+      assert.deepEqual(Array.from({ length: 6 }, (_, i) => +new Float32Array([h[P.IM_PAD_AXIS + i]])[0].toFixed(2)),
+        [0.25, -0.5, 0.5, -0.5, 0, 0]);
+      assert.ok(logs.some(s => /read as Xbox's One S with its 2016 firmware under Chrome on Android/.test(s)));
+    } finally {
+      poller.dispose();
+    }
+  });
+});
