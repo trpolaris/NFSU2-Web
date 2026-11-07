@@ -60,7 +60,7 @@ fn nfc_as_node(s: &str) -> String {
     out
 }
 
-/// an address the switch hands out ("10.77.x.y" in 10.77.0-23.x of 10.77.0.0/19, host byte 2-251), else 0
+/// an address the switch hands out ("10.77.x.y" in 10.77.0-95.x of 10.77.0.0/17, host byte 2-251), else 0
 pub fn vip_num(s: &str) -> u32 {
     // /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/, each part at most 255
     let mut v: u32 = 0;

@@ -4,9 +4,9 @@
 //!
 //! # The protocol
 //!
-//! Every browser that joins gets an address on 10.77.0.0/19 (`MASK`): 250 in each of 10.77.0-23.x (`NETS`, host
-//! bytes 2-251, so none ends in .0 or .255 and 10.77.0.1 and .253 stay the server's own), `ADDRS` (6000) in all,
-//! handed out in turn across the twenty-four (`vip_at`: 10.77.0.2, 10.77.1.2, ..., 10.77.23.2, 10.77.0.3, ...), so two
+//! Every browser that joins gets an address on 10.77.0.0/17 (`MASK`): 250 in each of 10.77.0-95.x (`NETS`, host
+//! bytes 2-251, so none ends in .0 or .255 and 10.77.0.1 and .253 stay the server's own), `ADDRS` (24000) in all,
+//! handed out in turn across the ninety-six (`vip_at`: 10.77.0.2, 10.77.1.2, ..., 10.77.95.2, 10.77.0.3, ...), so two
 //! players are rarely in the same /24 and anything that still takes the network for a /24 (or for the /20 it was
 //! before) shows at once, not only past 250 (or 4000) players.  Binary frames carry the game's network traffic; the
 //! switch only routes them and never looks inside:
@@ -245,11 +245,11 @@ use conn::{Conn, Out};
 
 pub use text::{clean_name, vip_num};
 
-/// 10.77.0.0/19's mask, which the welcome tells the page
-pub const MASK: &str = "255.255.224.0";
-/// the /24s of it that addresses are handed out in: 10.77.0-23.x
-pub const NETS: usize = 24;
-/// addresses the switch hands out: host bytes 2-251 in each of the twenty-four /24s
+/// 10.77.0.0/17's mask, which the welcome tells the page
+pub const MASK: &str = "255.255.128.0";
+/// the /24s of it that addresses are handed out in: 10.77.0-95.x
+pub const NETS: usize = 96;
+/// addresses the switch hands out: host bytes 2-251 in each of the ninety-six /24s
 pub const ADDRS: usize = NETS * 250;
 pub const BROADCAST: u32 = 0xFFFF_FFFF;
 /// the close codes of a kick and a ban (the crate doc's Kicks and bans): the page stays off the switch after them
@@ -1499,7 +1499,7 @@ pub struct ReservedView {
     pub site: Option<String>,
 }
 
-/// the i-th address in the order they are handed out (round the twenty-four /24s: the crate doc says why)
+/// the i-th address in the order they are handed out (round the ninety-six /24s: the crate doc says why)
 pub fn vip_at(i: usize) -> u32 {
     BASE | ((i % NETS) << 8) as u32 | ((i / NETS) as u32 + 2)
 }
