@@ -45,6 +45,7 @@ import { turnOnAutosave } from './profile';
 import { crewControl, showCrewCounts } from './crew-control';
 import { putKey, SettingsService } from './settings-service';
 import { askCrews, queueText, roomHash, serverAnswers, watchPlayers, type PlayerCounts } from './players';
+import { noGhost } from './worlds';
 import { checkCrew, CREW_MAX, crewList, crewsOf, crewsValue, rgbsValue, rgbWords, type Crew } from './crews';
 import { queueCrewInvite, removeCrewInvite, type PendingCrewInvite } from './crew-invite-queue';
 import { privacy, SCRUB_NOTE } from './privacy';
@@ -694,6 +695,7 @@ async function startGame() {
     NFSU2_WIDTH: String(size.w & ~1), NFSU2_HEIGHT: String(size.h & ~1), NFSU2_DISPLAY_HZ: String(displayHz),
   };
   const r = resolved(host);
+  if (r.env.NFSU2_ROAM === '1' && noGhost(r.env.NFSU2_ROAM_ROOM ?? '')) r.env.NFSU2_ROAM_COLLIDE = 'on';
   if (playAs) r.env.NFSU2_ROAM_NAME = playAs;
   // the names this game goes by, for the log as it leaves the browser (privacy.ts)
   privacy.name(r.env.NFSU2_ROAM_NAME, 'you');

@@ -3,6 +3,8 @@ import { createRoot } from 'react-dom/client';
 import { checkCrew, CREW_BIG, CREW_COLOUR_NAMES, CREW_MAX, CREW_PALETTE, freeColour } from '../app/crews';
 import { dateLocale, language, LANGUAGES, NATIVE, onLanguage, setLanguage, t } from '../app/i18n';
 import { fmtBytes } from '../app/checks';
+import { askWorlds, roomHash } from '../app/players';
+import { isMain, isOwn, noGhost, WORLDS, worldName, worldOf, worldRooms } from '../app/worlds';
 import { TEST_NOTICE_TEXT } from '../app/test-notice';
 import { CATS, DEFAULT_GROUPS, DEFAULT_PHRASES, PHRASES } from '../app/phrases';
 import { createPortal, flushSync } from 'react-dom';
@@ -269,6 +271,9 @@ function OnlineReactControls() {
   const claimHostRef = useRef(null);
   const [values, setValues] = useState({ roam: 'off', online: 'off', roam_collide: 'off', quick_chat: 'off', roam_max_cars: '32' });
   const [textValues, setTextValues] = useState({ roam_name: '', roam_room: '', roam_block: '' });
+  const [worldCounts, setWorldCounts] = useState(new Map());
+  const [ownWorldOpen, setOwnWorldOpen] = useState(false);
+  const [ownWorldDraft, setOwnWorldDraft] = useState('');
   const [crewList, setCrewListState] = useState([]);
   const [crewDraft, setCrewDraft] = useState('');
   const [quickChatDraft, setQuickChatDraft] = useState({ phrases: [...DEFAULT_PHRASES], groups: [...DEFAULT_GROUPS] });
@@ -301,6 +306,9 @@ function OnlineReactControls() {
         roam_block: bridge.current('roam_block'),
       };
       setTextValues(nextTextValues);
+      const customWorld = isOwn(nextTextValues.roam_room);
+      setOwnWorldOpen(customWorld);
+      setOwnWorldDraft(customWorld ? nextTextValues.roam_room : '');
       const nameBridge = window.__trpNameRowBridge;
       if (nameBridge) setNameClaim(nameBridge.updateName(nextTextValues.roam_name));
       setCrewListState(bridge.crews());
@@ -351,6 +359,30 @@ function OnlineReactControls() {
   };
 
   const saveText = async key => saveValidated(key, textValues[key]);
+
+  useEffect(() => {
+    if (!ready) return;
+    let active = true;
+    const refreshWorlds = async () => {
+      if (document.visibilityState !== 'visible') return;
+      const counts = await askWorlds(worldRooms(textValues.roam_room), 4000);
+      if (active && counts) setWorldCounts(counts);
+    };
+    void refreshWorlds();
+    const timer = window.setInterval(() => void refreshWorlds(), 15_000);
+    const onVisible = () => { if (document.visibilityState === 'visible') void refreshWorlds(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [ready, textValues.roam_room]);
+
+  const worldCountLabel = room => {
+    const n = worldCounts.get(roomHash(room));
+    return Number.isInteger(n) ? `${worldName(room)} · ${t('{n} in free roam', { n })}` : worldName(room);
+  };
 
   const saveCrewList = async next => {
     const bridge = window.__trpSettingsBridge;
@@ -586,15 +618,37 @@ function OnlineReactControls() {
           <div className="trp-online-name-claim-widget" ref={claimHostRef} />
         </div>
         <label className="trp-online-text-card">
-          <span className="trp-online-text-label" data-i18n>Room</span>
-          <span className="trp-online-text-help" data-i18n>Leave empty to drive with everyone. A room name shows only matching Free Roam players.</span>
+          <span className="trp-online-text-label" data-i18n>World</span>
+          <span className="trp-online-text-help" data-i18n>Choose the main world, a quieter public world, or give your own world a name.</span>
           <span className="trp-online-text-entry">
-            <input type="text" maxLength={63} autoComplete="off" value={textValues.roam_room}
+            <select aria-label="World" value={ownWorldOpen ? '#own' : (worldOf(textValues.roam_room) ? WORLDS[worldOf(textValues.roam_room) - 1] : '')}
               disabled={!ready || readOnly || !!busy}
-              onChange={event => setTextValues(current => ({ ...current, roam_room: event.target.value }))}
-              onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); void saveText('roam_room'); } }} />
-            <button type="button" disabled={!ready || readOnly || !!busy} onClick={() => void saveText('roam_room')} data-i18n>Save</button>
+              onChange={event => {
+                const value = event.target.value;
+                if (value === '#own') {
+                  setOwnWorldOpen(true);
+                  setOwnWorldDraft(isOwn(textValues.roam_room) ? textValues.roam_room : '');
+                } else {
+                  setOwnWorldOpen(false);
+                  setOwnWorldDraft('');
+                  void saveValidated('roam_room', value);
+                }
+              }}>
+              <option value="">{worldCountLabel('')}</option>
+              {WORLDS.map(world => <option key={world} value={world}>{worldCountLabel(world)}</option>)}
+              <option value="#own" data-i18n>Own name</option>
+            </select>
           </span>
+          {ownWorldOpen && <span className="trp-online-text-entry">
+            <input type="text" maxLength={63} autoComplete="off" spellCheck={false} value={ownWorldDraft}
+              placeholder="World name" aria-label="World name"
+              disabled={!ready || readOnly || !!busy}
+              onChange={event => setOwnWorldDraft(event.target.value)}
+              onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); void saveValidated('roam_room', ownWorldDraft); } }} />
+            <button type="button" disabled={!ready || readOnly || !!busy} onClick={() => void saveValidated('roam_room', ownWorldDraft)} data-i18n>Save</button>
+          </span>}
+          {noGhost(textValues.roam_room) && values.roam === 'on' &&
+            <p className="trp-online-setting-message" data-i18n>Ghost mode stays off in World 4.</p>}
         </label>
         <label className="trp-online-text-card trp-online-block-card">
           <span className="trp-online-text-label" data-i18n>Blocked players</span>
