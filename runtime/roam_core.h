@@ -63,7 +63,12 @@
 #define RC_MAP_MAX       512        /* entries per answer at most (bounded native marker storage) */
 #define RC_MAP_MAX_V1    512        /* legacy MAPREQ without max: an older client */
 #define RC_MAPD_GONE     0x8000u    /* a MAPD entry key with this bit: the player went */
+#define RC_MAPD_PARKED   0x4000u    /* placed key bit: the car has stayed near one point for one minute */
+#define RC_MAPREQ_PARKED 1u         /* MAPREQ extension flag: request parked status and height */
 #define RC_MAPD_PLACE    9          /* slot, x, y, heading, velocity x, y */
+#define RC_MAPD_PLACE_Z  11         /* MAPD with RC_HF_MAPZ adds z after velocity */
+#define RC_HF_MAPZ       0x0800u    /* datagram header flag: placed MAPD entries carry z */
+#define RC_MAP_NO_Z      ((int16_t)0x8000)
 #define RC_MAPD_BYTES    1152       /* entry bytes per MAPD datagram */
 #define RC_MAPD_PARTS    16         /* MAPD datagrams per answer at most */
 #define RC_NEAR_MAX      128        /* NEARD entries per answer at most: one datagram */
@@ -333,7 +338,7 @@ typedef struct {
         struct { uint32_t t0, t1, t2; } ping;          /* PING: t0 only */
         struct { uint8_t reason; } bye;
         struct { uint8_t op, arg; uint32_t to, duel; } duel;      /* to: the player it is for */
-        struct { uint16_t req, max, base; } mapreq;
+        struct { uint16_t req, max, base, flags; } mapreq;
         struct { uint16_t req, base, total, len; uint8_t part, nparts, n; const uint8_t *data; } mapd;
         struct { uint16_t req, max, base, radius; } nearreq;
         struct { uint16_t req, total; uint8_t part, nparts, n; const uint8_t *data; } map;   /* data: n entries */
@@ -456,7 +461,7 @@ typedef struct {
 } rc_io;
 
 /* A world-map player as sent by the hub (MAPD); the page moves it on at its velocity. */
-typedef struct { uint16_t id; int16_t x, y; uint8_t heading; int8_t vx, vy; int64_t at_us; } rc_mapent;
+typedef struct { uint16_t id; int16_t x, y, z; uint8_t heading, parked; int8_t vx, vy; int64_t at_us; } rc_mapent;
 
 enum { RC_EV_JOIN = 1, RC_EV_LEAVE = 2, RC_EV_NOTE = 3, RC_EV_CFG = 4, RC_EV_RESTART = 5 };
 
@@ -624,7 +629,7 @@ int  rc_send_duel(rc_session *s, uint32_t to, uint8_t op, uint8_t arg, uint32_t 
 int  rc_take_duel(rc_session *s, uint32_t *from, uint8_t *op, uint8_t *arg, uint32_t *duel);
 /* asks the hub (while it answers) for the world map's other players; 1 when
  * asked.  The answer is in map_e[0 .. map_n) once map_gen changes */
-int  rc_ask_map(rc_session *s, int64_t now_us, int max);
+int  rc_ask_map(rc_session *s, int64_t now_us, int max, int flags);
 /* Ask the hub for nearby minimap players within radius_m (capped by RC_NEAR_M). */
 int  rc_ask_near(rc_session *s, int64_t now_us, int max, int radius_m);
 /* a LOBBY message to the established peer with id l->to, if its HELLO said
