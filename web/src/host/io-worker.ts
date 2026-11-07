@@ -17,8 +17,9 @@ import {
 } from './proto';
 import { BLOCK, CACHE_DIR, av1Path, blockRuns, cacheKey, dataUrl, openCacheFile, putBlock, runUrl, type CacheFile, type Manifest } from './datacache';
 import { movieClose, movieDecode, movieOpen } from './movie';
+import { allocMemory, type MemoryTry } from './memory';
 
-interface Init { memory: WebAssembly.Memory; ctl: SharedArrayBuffer; rpc: SharedArrayBuffer; cfg: BootConfig }
+interface Init { memory?: WebAssembly.Memory; tries?: MemoryTry[]; ctl: SharedArrayBuffer; rpc: SharedArrayBuffer; cfg: BootConfig }
 
 const FT_DIR = 3, FT_FILE = 4;
 const td = new TextDecoder(), te = new TextEncoder();
@@ -601,9 +602,12 @@ async function op(o: Op, a: bigint[]): Promise<number> {
 // on a Mac: about one race in three, up to 50 s).  With a timeout no wait was late in 18 races there (50 and
 // 1000 ms); 50 also bounds one that would be to a few frames.
 const DOORBELL_WAIT_MS = 50;
+let offPage = false, memSaid = 0;
+function memGrew() { const b = memory.buffer; if (b.byteLength <= memSaid) return; memSaid = b.byteLength; (self as unknown as Worker).postMessage({ t: 'mem', buf: b }); }
 async function serve() {
   let seen = Atomics.load(ctl, CTL_IO_DOORBELL);
   for (;;) {
+    if (offPage) memGrew();
     for (let s = 0; s < MAX_THREADS; s++) {
       const b = s * (RPC_SLOT / 4);
       if (Atomics.compareExchange(rpcI32, b, RPC_POSTED, RPC_TAKEN) !== RPC_POSTED) continue;
@@ -619,8 +623,28 @@ async function serve() {
   }
 }
 
-onmessage = async (e: MessageEvent<Init>) => {
-  ({ memory, cfg } = e.data);
+onmessage = async (e: MessageEvent<Init | { t: 'save-ready' } | { t: 'give'; port: MessagePort; slot: number } | { t: 'give-page'; slot: number }>) => {
+  if ('t' in e.data) {
+    if (e.data.t === 'give') {
+      try { e.data.port.postMessage(memory); }
+      catch (x) { (self as unknown as Worker).postMessage({ t: 'give-here', slot: e.data.slot, memory }); }
+      e.data.port.close();
+    } else if (e.data.t === 'give-page') (self as unknown as Worker).postMessage({ t: 'give-here', slot: e.data.slot, memory });
+    return;
+  }
+  cfg = e.data.cfg;
+  if (e.data.memory) memory = e.data.memory;
+  else {
+    try {
+      const got = allocMemory(e.data.tries ?? []);
+      memory = got.memory; offPage = true;
+      (self as unknown as Worker).postMessage({ t: 'memory', buf: memory.buffer, note: got.note });
+    } catch (err) {
+      (self as unknown as Worker).postMessage({ t: 'io-error', msg: err instanceof Error ? err.message : String(err), range: err instanceof RangeError, note: (err as { note?: string } | null)?.note });
+      return;
+    }
+  }
+  memSaid = memory.buffer.byteLength;
   ctl = new Int32Array(e.data.ctl); rpcI32 = new Int32Array(e.data.rpc); rpcI64 = new BigInt64Array(e.data.rpc);
   try {
     const opfs = await navigator.storage.getDirectory();

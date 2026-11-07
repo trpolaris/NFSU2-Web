@@ -22,6 +22,7 @@ import registryDefaults from '../../../app/registry-defaults.txt';
 import { browserName, check, checkBrowser, checkGpu, checkIsolation, checkStorage, fmtBytes, NO_JIT, noJit, type Check } from './checks';
 import { codeOf, dateLocale, language as pageLanguage, lastLanguage, listOf, live, N, onLanguage, setLanguage, t, T, tn, tvars, type Msg } from './i18n';
 import { loadGame, serverRev, type Loaded } from './loader';
+import type { GameMemory } from '../host/memory';
 import { claimInstance } from './instance';
 import { LogRing, downloadBlob, stamp } from './logs';
 import { LastGameKeeper, lastGameEnd, lastGameLine, lastGameToOffer, type LastGame } from './lastgame';
