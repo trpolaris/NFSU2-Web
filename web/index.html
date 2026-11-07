@@ -285,6 +285,10 @@
           <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M3 20c.4-3.4 2.4-5 6-5s5.6 1.6 6 5M15 15c3.7-.1 5.7 1.5 6 4"/></svg>
           <span class="menu-tab-copy"><b>Sürücü ağı</b><small>Sürücü ve ekip</small></span><small class="menu-tab-number">›</small>
         </button>
+        <button type="button" class="menu-tab hover-glow-cyan" data-menu-tab="worlds" aria-pressed="false" hidden>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.5 3.8 5.5 3.8 9S14.5 18.5 12 21M12 3C9.5 5.5 8.2 8.5 8.2 12s1.3 6.5 3.8 9"/></svg>
+          <span class="menu-tab-copy"><b data-i18n>World</b><small data-i18n>Choose your Free Roam world</small></span><small class="menu-tab-number">›</small>
+        </button>
         <button type="button" class="menu-tab hover-glow-amber" data-menu-tab="radio" aria-pressed="false">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16v13H4zM4 7l13-4M8 11h8M8 15h3"/><circle cx="17" cy="15" r="1.5"/></svg>
           <span class="menu-tab-copy"><b>Müzik sistemi</b><small>Radyo ve oynatma</small></span><small class="menu-tab-number">›</small>
@@ -414,6 +418,24 @@
             </div>
           </div>
           <section id="friends-panel" class="menu-friends-panel" aria-label="Friends"></section>
+        </section>
+
+        <section class="menu-page" data-menu-page="worlds" hidden>
+          <div class="menu-page-title">
+            <span class="menu-section-label" data-i18n>05 / FREE ROAM</span>
+            <h4 data-i18n>Choose your world</h4>
+            <p class="hint" data-i18n>Switch worlds without leaving your current game. Counts update from the server.</p>
+          </div>
+          <div class="menu-controls-grid" id="menu-worlds-box" aria-live="polite"></div>
+          <div class="menu-control-card menu-world-own">
+            <h5 data-i18n>Own world name</h5>
+            <p class="hint" data-i18n>Enter a name to create or join a world of your own.</p>
+            <div class="menu-radio-actions">
+              <input type="text" id="menu-own-world" maxlength="63" autocomplete="off" spellcheck="false" placeholder="World name" aria-label="World name">
+              <button type="button" class="btn menu-action" data-act="world-own-save" data-i18n>Join world</button>
+            </div>
+          </div>
+          <p class="menu-inline-note" id="menu-world-status" role="status" aria-live="polite" data-i18n>World changes apply to the running game and are saved for the next Play.</p>
         </section>
 
         <section class="menu-page" data-menu-page="radio" hidden>

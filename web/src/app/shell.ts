@@ -44,8 +44,8 @@ import { exists, filesOf, listProfiles, PROFILES_DIR, readText, removeSaveDir, w
 import { turnOnAutosave } from './profile';
 import { crewControl, showCrewCounts } from './crew-control';
 import { putKey, SettingsService } from './settings-service';
-import { askCrews, queueText, roomHash, serverAnswers, watchPlayers, type PlayerCounts } from './players';
-import { noGhost } from './worlds';
+import { askCrews, askWorlds, queueText, roomHash, serverAnswers, watchPlayers, type PlayerCounts } from './players';
+import { isOwn, noGhost, WORLDS, worldName, worldRooms } from './worlds';
 import { checkCrew, CREW_MAX, crewList, crewsOf, crewsValue, rgbsValue, rgbWords, type Crew } from './crews';
 import { queueCrewInvite, removeCrewInvite, type PendingCrewInvite } from './crew-invite-queue';
 import { privacy, SCRUB_NOTE } from './privacy';
@@ -147,6 +147,9 @@ let refreshMeasured: Promise<void> = Promise.resolve();
 let session: GameSession | null = null;
 let hudWide = true;                      // the running game's HUD is edge-anchored (hud = wide), not 4:3
 let solidCars: boolean | null = null;    // the running game's free roam has solid cars (null: no free roam)
+let liveWorld: string | null = null;     // the running game's Free Roam world; null outside Free Roam
+let menuWorldCounts = new Map<number, number>();
+let menuWorldAsk = 0;
 let roamCrews: Crew[] | null = null;     // the running game's crews: as it started, then as the menu changed them (null: no free roam)
 let crewDraft = '';                      // the crew name being typed in the menu
 let pendingCrewInvites: PendingCrewInvite[] = []; // up to four invites wait here until accepted, declined or this game ends
@@ -790,6 +793,8 @@ async function startGame() {
       artifacts: q.get('artifacts') ?? undefined, dumpScale: q.get('dumpscale') ? +q.get('dumpscale')! : undefined,
       toggleFullscreen, padPage: PAD_PAGE, log: logLine, onFatal: stopFatal, onOtherBuild: otherBuild,
     });
+    liveWorld = net && r.env.NFSU2_ROAM === '1' ? (r.env.NFSU2_ROAM_ROOM ?? '') : null;
+    menuWorldCounts = new Map();
     friendPrompt.start(session, net && r.env.NFSU2_ROAM === '1');
   } catch (e) {
     friendPrompt?.stop();
@@ -987,6 +992,9 @@ function onExit(s: GameSession, code: number) {
   s.terminate();
   friendPrompt?.stop();
   session = null;
+  liveWorld = null;
+  menuWorldAsk++;
+  menuWorldCounts = new Map();
   quitAt = null;
   lastExit = { code, seconds };
   endStage();
@@ -1319,6 +1327,8 @@ function openMenu() {
   const crews = m.querySelector<HTMLButtonElement>('[data-act="crews"]')!;
   crews.hidden = roamCrews === null || !session?.net?.crews;
   crews.textContent = crewsLabel();
+  const worldsTab = m.querySelector<HTMLButtonElement>('[data-menu-tab="worlds"]');
+  if (worldsTab) worldsTab.hidden = liveWorld === null || !session?.net?.setRoom;
   m.querySelector<HTMLButtonElement>('[data-act="quit"]')!.textContent = quitLabel();
   showRadio(m);
   syncChatMenuAppearance();
@@ -1332,7 +1342,8 @@ function openMenu() {
   }
   $('#stage').classList.add('cursor');
   void friendsPanel.refresh();
-  selectMenuTab(m.dataset.activeTab || 'chat');
+  const activeTab = m.dataset.activeTab || 'chat';
+  selectMenuTab(activeTab === 'worlds' && (liveWorld === null || !session?.net?.setRoom) ? 'multiplayer' : activeTab);
   m.showModal();
 }
 /** Switch the F9 control deck between real, native game features. */
@@ -1350,6 +1361,105 @@ function selectMenuTab(name: string) {
     page.hidden = page.dataset.menuPage !== name;
   }
   if (name === 'multiplayer') void friendsPanel.refresh();
+  if (name === 'worlds') {
+    drawMenuWorlds();
+    void refreshMenuWorldCounts();
+  }
+}
+
+/** Draw the F9 World page using the game's live Free Roam room. */
+function drawMenuWorlds() {
+  const box = $('#menu-worlds-box');
+  const current = liveWorld;
+  box.replaceChildren();
+  if (current === null) {
+    const p = document.createElement('p'); p.className = 'hint';
+    p.textContent = t('Free Roam is not active in this game.');
+    box.append(p);
+    return;
+  }
+  const rooms = ['', ...WORLDS, ...(isOwn(current) ? [current] : [])];
+  for (const room of rooms) {
+    const card = document.createElement('div');
+    card.className = 'menu-control-card';
+    const heading = document.createElement('h5');
+    heading.textContent = worldName(room);
+    const count = menuWorldCounts.get(roomHash(room));
+    const detail = document.createElement('p');
+    detail.className = 'hint';
+    detail.textContent = count === undefined ? t('Player count unavailable') : t('{n} in free roam', { n: count });
+    const action = document.createElement('button');
+    action.type = 'button';
+    action.className = 'btn menu-action';
+    const selected = roomHash(room) === roomHash(current);
+    action.textContent = selected ? t('Current world') : t('Switch to this world');
+    action.disabled = selected || !session?.net?.setRoom;
+    action.setAttribute('aria-pressed', String(selected));
+    action.onclick = () => void switchMenuWorld(room);
+    card.append(heading, detail, action);
+    box.append(card);
+  }
+  const input = $<HTMLInputElement>('#menu-own-world');
+  if (document.activeElement !== input) input.value = isOwn(current) ? current : '';
+}
+
+/** Refresh room counts only for the newest request; zero is the main world. */
+async function refreshMenuWorldCounts() {
+  const current = liveWorld, game = session, ask = ++menuWorldAsk;
+  if (current === null || !game?.net?.setRoom || offline) return;
+  const counts = await askWorlds(worldRooms(current), 5000);
+  if (!counts || ask !== menuWorldAsk || session !== game || liveWorld === null ||
+      !$<HTMLDialogElement>('#menu').open || $('#menu').dataset.activeTab !== 'worlds') return;
+  menuWorldCounts = counts;
+  drawMenuWorlds();
+}
+
+/** Change the live game room, then persist it. A failed save restores the live room. */
+async function switchMenuWorld(room: string) {
+  const game = session, previous = liveWorld;
+  if (!game?.net?.setRoom || previous === null) return;
+  const raw = room.trim();
+  let next = '';
+  if (raw) {
+    const checked = checkSetting('roam_room', raw);
+    if (!checked?.ok) {
+      $('#menu-world-status').textContent = t('This world name is invalid.');
+      return;
+    }
+    next = checked.value;
+  }
+  if (roomHash(next) === roomHash(previous)) return;
+  if (!game.net.setRoom(next)) {
+    $('#menu-world-status').textContent = t('This game cannot change its Free Roam world.');
+    return;
+  }
+  liveWorld = next;
+  const text = putKey(settingsText ?? TEMPLATE, 'roam_room', next || null).text;
+  try {
+    await writeFile(SAVE, 'settings.ini', text);
+    if (session !== game) return;
+    settingsText = text;
+    void settings.refresh();
+  } catch (e) {
+    game.net.setRoom(previous);
+    liveWorld = previous;
+    $('#menu-world-status').textContent = t('The previous world was restored because settings.ini could not be saved.');
+    log.add('[app] world change rolled back: ' + e);
+    drawMenuWorlds();
+    return;
+  }
+  if (solidCars !== null && game.net.solid) {
+    // The saved setting remains the player's preference; World 4 overrides it only while active.
+    const wantedSolid = noGhost(next) ? true : resolved().env.NFSU2_ROAM_COLLIDE !== '0';
+    if (solidCars !== wantedSolid) { solidCars = wantedSolid; game.net.solid(wantedSolid); }
+    const solid = $('#menu [data-act="solid"]');
+    if (solid) solid.textContent = ghostLabel();
+  }
+  $('#menu-world-status').textContent = t('World changed to {world}.', { world: worldName(next) });
+  log.add('[app] world changed to ' + worldName(next) + ' (live; saved for the next Play)');
+  void friendsPanel.refresh(true);
+  drawMenuWorlds();
+  void refreshMenuWorldCounts();
 }
 
 /** The menu's chat sliders change only this browser's HUD presentation, not game/network settings. */
@@ -1543,6 +1653,13 @@ async function menuAction(act: string) {
     case 'fps': fps.cycle(); m.querySelector<HTMLButtonElement>('[data-act="fps"]')!.textContent = fpsLabel(fps.mode); break;
     case 'solid': {
       if (solidCars === null || !session?.net?.solid) break;
+      if (liveWorld !== null && noGhost(liveWorld)) {
+        solidCars = true;
+        session.net.solid(true);
+        m.querySelector<HTMLButtonElement>('[data-act="solid"]')!.textContent = ghostLabel();
+        toast(t('Ghost mode stays off in World 4.'), 3500);
+        break;
+      }
       solidCars = !solidCars;
       session.net.solid(solidCars);
       m.querySelector<HTMLButtonElement>('[data-act="solid"]')!.textContent = ghostLabel();
@@ -1554,6 +1671,11 @@ async function menuAction(act: string) {
       break;
     }
     case 'crews': openCrews(); break;
+    case 'world-own-save': {
+      const input = $<HTMLInputElement>('#menu-own-world');
+      await switchMenuWorld(input.value);
+      break;
+    }
     case 'radio-folder': case 'radio': await radioClick(act); showRadio(m); break;
     case 'playlist': openPlaylist(); break;
     case 'help': m.close(); openHelp(); break;
