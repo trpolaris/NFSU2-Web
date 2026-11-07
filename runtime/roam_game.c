@@ -3292,8 +3292,14 @@ static void meet_map_labels(CPU *c, uint32_t map){
     for (int k = 0; k < g_meet.made; k++){
         uint32_t marker = g_meet.m[k], label = g_meet.lbl[k];
         uint32_t icon = ok(marker, WM_ICON_SZ) ? rd32(marker + 0xcu) : 0;
+        int wi = g_meet.w[k];
+        int legend_on = wi < 0 || wi >= g_wmf.n || g_wmf.what[wi] >= sizeof g_wmf_on / sizeof g_wmf_on[0]
+            || g_wmf_on[g_wmf.what[wi]];
         if (!label) continue;
-        if (!g_meet.on[k] || !ok(icon, 0x20) || (MR32(icon + 0x1cu) & 1u)){ gcall1(c, FN_FE_HIDE, 0, label); continue; }
+        if (!legend_on || !g_meet.on[k] || !ok(icon, 0x20) || (MR32(icon + 0x1cu) & 1u)){
+            gcall1(c, FN_FE_HIDE, 0, label);
+            continue;
+        }
         float x = MRF32(marker + 0x1cu) + 10.f, y = MRF32(marker + 0x20u);
         for (int again = 1, z = 0; again && z < MEET_MAX; z++){
             again = 0;
