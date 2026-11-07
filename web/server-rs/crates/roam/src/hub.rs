@@ -1750,12 +1750,12 @@ impl Hub {
         self.players().filter(|p| matches!(p.status, 2 | 5)).map(|p| p.vip).collect::<HashSet<u32>>().len()
     }
 
-    /// `in_roam()` by room, for the rooms with a name (room 0, none, is everyone's and not here): the server's
-    /// /players `room`, for the start page of a player who set one
+    /// `in_roam()` by room, including room 0 (the main world, everyone's): the server's /players `room` and
+    /// `rooms` counts for the start page and the page menu's World list
     pub fn in_rooms(&self) -> HashMap<u32, usize> {
         let mut seen = HashSet::new();
         let mut n = HashMap::new();
-        for p in self.players().filter(|p| p.room != 0 && matches!(p.status, 2 | 5) && !p.impostor) {
+        for p in self.players().filter(|p| matches!(p.status, 2 | 5) && !p.impostor) {
             if seen.insert((p.room, p.vip)) {
                 *n.entry(p.room).or_insert(0) += 1;
             }
