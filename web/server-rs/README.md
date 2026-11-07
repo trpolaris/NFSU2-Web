@@ -163,7 +163,7 @@ behind, the switch dropped their snapshots; the server stayed at 1.5 cores): 400
   several workers.  Not hyper: the audits' rules need answers of the server's own to requests a library refuses by
   itself, the pipelining cut, a keep-alive time per connection, and the connection budget before any TLS.
 - **The switch** (nfsu2-lan): each connection's reader routes the frames it reads itself, on whatever worker it runs.
-  Who is on the switch changes under one lock; frames find their receivers without it (a table of the 6000
+  Who is on the switch changes under one lock; frames find their receivers without it (a table of the 24000
   addresses, a copy-on-write list of everyone).  Each receiver's writer takes everything queued into one write, and
   makes bundles of a page's datagrams on the bundle clock.  Counters every frame touches are sharded.
 - **Compact bundles** (nfsu2-lan `compact.rs`, kind 33): to a page whose hello says "compact":1 the datagrams go
