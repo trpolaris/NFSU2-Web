@@ -144,7 +144,7 @@ This branch ports compatible changes from `th0mk/nfsu2-web` into TRPOLARIS while
 
 - **Friends UI/gameplay completion:** the authenticated `/friends` API, F9 panel, direct messaging, RoamHub buddy-priority links, room whereabouts, LAN page-mail notifications, 20-row pagination/filtering, start-page Friends & Crews tab, crew invitations, pending Join/Decline queue, click-to-send bumper-contact FriendPrompt, and safe configurable F shortcut are integrated.
 - **Mods/Mod Packs:** built-in catalogue, Blitz rims, maker details, mod toggles, OEM stand-ins and the Shown/Original remote-car view need the runtime modpack module, manifests and save compatibility.
-- **World map/minimap:** current TRPOLARIS map uses a 512-player snapshot. Upstream's 2,048-player live map deltas, smooth markers and car-meet markers/GPS require a coordinated C/TypeScript/Rust protocol change. Upstream uses message type 17 for MAPD while TRPOLARIS uses 17 for typed FreeRoam chat; do not reuse it without an explicit message-ID/version migration.
+- **World map/minimap (partial port in PR #21):** Rust MAPREQ/MAPD now supports legacy snapshot requests and slot-keyed deltas (MAPD=18; typed chat remains 17). The Rust hub also has NEARREQ=19/NEARD=20 spatial-grid queries and load-aware 150/500/1000 ms response pacing. The C core has matching encode/decode, MAPD multipart merge, NEARD merge and rc_ask_near API; the native World Map renderer consumes MAPD and refreshes incrementally. The active minimap HUD still needs to call rc_ask_near and render/interpolate/clear the returned markers. Car Meet markers/count and GPS targeting remain open.
 - **Multiplayer career credits:** requires race eligibility, friend/crew credit masks, career save/result accounting, lobby protocol and UI changes.
 - **24,000-player capacity:** requires load testing and review of Rust hub memory, connection/stream limits, networking, container resources and deployment topology. Do not copy upstream limits blindly.
 - **Vehicle show-off:** hood/trunk/door state, speakers/audio and remote animation need the upstream show-off runtime system adapted to the local FreeRoam implementation.
@@ -156,8 +156,8 @@ This branch ports compatible changes from `th0mk/nfsu2-web` into TRPOLARIS while
 
 ## Validation status
 
-- Latest integration commit checked: `43bf98faf69d2184aa74ed4c8e09365796683499`.
-- GitHub Actions on that commit has passed TypeScript checking, the web application build, Cargo.lock verification, Rust workspace tests, native GPS distance formatter/HUD unit tests, Free Roam mailbox layout checks, server binary builds, and the synthetic Online protocol load/abuse smoke test.
-- The Chromium browser regression suite is still running; its final result is not yet available. The `image-rs` container build is also still running.
-- Native/macOS and WebAssembly game binaries and an actual in-game GPS drive have not yet been built/run in this CI session. The native C harness passing is not a substitute for a real game session.
+- Latest integration commit recorded in this note: `15605ed7c701da23cb5028f03d5c0f387ebb4161` (322 commits, 146 files in PR #21 at the time of the check).
+- GitHub Actions for that head: Multiplayer/Regression run `42359937665` and image-rs run `42359937666` are pending. No pass is claimed for the current head.
+- The Multiplayer workflow now compiles and runs `tests/roam_unit.c` with AddressSanitizer/UndefinedBehaviorSanitizer, including MAPD, NEARREQ and legacy MAPREQ decoder regressions.
+- The latest World Map/Minimap port has not yet been manually verified in a live game session. Minimap HUD request/render integration, Car Meet markers/GPS, room transition behavior and two-client rendering still require runtime validation.
 - The PR remains a draft. `main` and production deployment are unchanged.
