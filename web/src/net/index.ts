@@ -152,7 +152,7 @@ export interface NetLink {
   /** free roam's solid cars, switched while the game runs (the page menu; runtime/roam_game.c solid_follow) */
   setSolid(on: boolean): void;
   /** quick chat: the player says phrase p (runtime/roam_game.c say_frame sends it); false: no free roam */
-  say(p: number): boolean;
+  say(p: number, race?: boolean): boolean;
   /** typed chat: All is the room; Crew is restricted to the matching Crew hash */
   chat(text: string, scope: 'room' | 'crew', crewId?: number): boolean;
   /** free roam's crews, changed while the game runs (the page menu): their hashes (players.ts roomHash), in the
@@ -525,11 +525,12 @@ class Link implements NetLink {
     if (this.roam) Atomics.store(this.roam.i32, P.W_SOLID, this.solid);
     this.log(`solid cars ${on ? 'on' : 'off'} (the page menu)`);
   }
-  /** quick chat: the player says phrase p (the game sends it while they drive in free roam); false: no free roam */
-  say(p: number): boolean {
-    if (!this.roam) return false;
+  /** quick chat: free roam uses its own mailbox; multiplayer races use the LAN mailbox. */
+  say(p: number, race = false): boolean {
+    const mailbox = race ? this.lan : this.roam;
+    if (!mailbox) return false;
     this.picks = (this.picks + 1) & 0xffffff;
-    Atomics.store(this.roam.i32, P.W_SAY, (this.picks << 8 | (p & 0xff)) | 0);
+    Atomics.store(mailbox.i32, P.W_SAY, (this.picks << 8 | (p & 0xff)) | 0);
     return true;
   }
   /** A typed line goes to the hub, which validates room or Crew membership before relaying it. */
