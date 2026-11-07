@@ -6901,6 +6901,7 @@ int roam_game_cmd(CPU *c, const char *args, long *wait_start){
         }
         return 1;
     }
+#if MPRACES
     if (!strcasecmp(sub, "meet")){
         /* Car Meet diagnostics: only inspect FE marker/label pointers while their owning world map is open. */
         uint32_t sa = g_gmem + TAG_SCR + 0x48u, pk = 0;
@@ -6929,6 +6930,7 @@ int roam_game_cmd(CPU *c, const char *args, long *wait_start){
         }
         return 1;
     }
+#endif
     if (!strcasecmp(sub, "map")){
         /* the open world map's car markers, its race lobbies' icons and labels
          * (and with "strings" every string object of its package) */
