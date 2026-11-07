@@ -1013,7 +1013,7 @@ export class QuickChat {
       }
       return;
     }
-    if (el?.closest?.('input, textarea, select, dialog[open]') || document.querySelector('dialog[open]')) return;
+    if (el?.closest?.('input, textarea, select, dialog[open], [data-nfsu2-ui]') || document.querySelector('dialog[open]')) return;
     if (e.code === 'KeyY' && !e.repeat) {
       if (this.openTextChat()) { e.preventDefault(); e.stopImmediatePropagation(); }
       return;
@@ -1137,7 +1137,7 @@ export class QuickChat {
     try { s = JSON.parse(json) as Said; } catch { this.deps.log(`[chat] not JSON: ${json.slice(0, 80)}`); return; }
     if (!this.on || typeof s.id !== 'number' || typeof s.p !== 'number' || !(s.p >= 0 && s.p < PHRASES.length)) return;
     const text = t(PHRASES[s.p].text), me = !!s.me, name = String(s.name ?? '');
-    if (s.race && !me && this.blocked.has(normalizedPlayerName(name))) {
+    if (!me && this.blocked.has(normalizedPlayerName(name))) {
       this.deps.log(`[chat] ${name} said ${s.p}, in the race: not shown (blocked)`);
       return;
     }
@@ -1236,6 +1236,9 @@ export class QuickChat {
       if (!l.out && now >= l.until - FADE_MS) { l.out = true; l.el.classList.add('out'); }
     }
   }
+
+  /** whether fixed-phrase chat is enabled (also used by the touch controls' race button) */
+  get enabled(): boolean { return this.on; }
 
   /** for the page's test hooks */
   state() { return { on: this.on, open: this.open, mode: this.mode, lines: [...this.lines.keys()], sent: this.sent.length,
