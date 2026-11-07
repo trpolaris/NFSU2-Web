@@ -1,9 +1,11 @@
-# Car Meet: 24 stationary players within one 50 m cluster, all outside the career spawn exclusion.
+# Car Meet: 24 stationary players at (1780, -884), about 85 m from the new-career spawn,
+# within one 50 m cluster and outside the spawn exclusion; the GPS run therefore needs a drive.
+# The fixture supplies two equal positions one second apart, so every bot reports zero velocity.
 # Simulated clients are parked (speed 0) for the hub's 60 s PARKED window; the world map
 # should create one Car meets marker, label, selection item and GPS trigger.
 #
 # Run from the repository root:
-# node web/tools/roam-pair.mjs --page app --solo --crowd 24 --crowd-args "--speed 0 --spread 6 --room CarMeetTest" \
+# node web/tools/roam-pair.mjs --page app --solo --crowd 24 --crowd-args "--track tests/fixtures/roam_meet_stationary.csv --room CarMeetTest" \
 #   --a MeetHost:roam_crowd_meet.txt --env NFSU2_ROAM=1 --env NFSU2_ROAM_ROOM=CarMeetTest
 #
 # After MEET READY, manually select the "Car meets" legend row and confirm its nearest
