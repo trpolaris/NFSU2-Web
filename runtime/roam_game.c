@@ -6901,6 +6901,34 @@ int roam_game_cmd(CPU *c, const char *args, long *wait_start){
         }
         return 1;
     }
+    if (!strcasecmp(sub, "meet")){
+        /* Car Meet diagnostics: only inspect FE marker/label pointers while their owning world map is open. */
+        uint32_t sa = g_gmem + TAG_SCR + 0x48u, pk = 0;
+        if (g_gmem){ gstr(sa, WM_PACKAGE, 24); pk = gcall1(c, FN_FE_PACKAGE, 0, sa); }
+        uint32_t scr = ok(pk, 0x54) ? wm_screen(pk) : 0, map = scr ? rd32(scr + WM_MAP) : 0;
+        if (!ok(map, 0x2c)){ rlog("[roam] f=%ld mp meet: the world map is not open\\n", f); return 1; }
+        if (g_meet.map != map){
+            rlog("[roam] f=%ld mp meet: this map has no Car Meet snapshot yet (the map update runs once a second)\\n", f);
+            return 1;
+        }
+        int row = g_wmf.row[WMF_MEETS] != 0, shown = row && g_wmf_on[WMF_MEETS];
+        uint32_t selected = rd32(map + WM_SEL);
+        rlog("[roam] f=%ld mp meet: %d active, %d markers made, Car meets row %s, selected item %s\\n",
+             f, g_meet.n, g_meet.made, row ? (shown ? "shown" : "hidden") : "not in legend", selected ? "present" : "none");
+        for (int k = 0; k < g_meet.made && k < MEET_MAX; k++){
+            uint32_t m = g_meet.m[k], o = ok(m, WM_ICON_SZ) ? rd32(m + 0xcu) : 0, l = g_meet.lbl[k], it = g_meet.item[k], t = g_meet_t[k];
+            int icon_ok = ok(o, 0x5c), label_ok = ok(l, 0x5c);
+            rlog("[roam]   meet %d: %s, %d cars at %.1f %.1f, icon %08x %s%s, label %08x %s, item %s%s\\n",
+                 k, g_meet.on[k] ? "active" : "hidden", g_meet.cars[k], (double)g_meet.x[k], (double)g_meet.y[k], o,
+                 icon_ok ? (MR32(o + 0x1cu) & 1u ? "hidden" : "visible") : "invalid",
+                 icon_ok && MR32(o + 0x58u) ? "/drawn" : "", l,
+                 label_ok ? (MR32(l + 0x1cu) & 1u ? "hidden" : (MR32(l + 0x58u) ? "drawn" : "allocated")) : "none",
+                 it ? "yes" : "no", selected && it == selected ? ", selected" : "");
+            if (t) rlog("[roam]     GPS trigger target: %.0f %.0f %.0f\\n",
+                        (double)(int32_t)MR32(t + 0x34u), (double)(int32_t)MR32(t + 0x38u), (double)(int32_t)MR32(t + 0x3cu));
+        }
+        return 1;
+    }
     if (!strcasecmp(sub, "map")){
         /* the open world map's car markers, its race lobbies' icons and labels
          * (and with "strings" every string object of its package) */
