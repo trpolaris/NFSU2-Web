@@ -380,7 +380,7 @@ int rc_encode(const rc_msg *m, uint8_t *out, int cap){
         if (m->u.duel.op < 1 || m->u.duel.op >= RC_DUEL__N || !m->u.duel.to || !m->u.duel.duel) return -1;
         rc_put8(&w, m->u.duel.op); rc_put8(&w, m->u.duel.arg); rc_put32(&w, m->u.duel.to); rc_put32(&w, m->u.duel.duel);
         break;
-    case RC_MSG_MAPREQ: rc_put16(&w,m->u.mapreq.req);rc_put16(&w,m->u.mapreq.max);rc_put16(&w,m->u.mapreq.base);break;
+    case RC_MSG_MAPREQ: rc_put16(&w,m->u.mapreq.req);rc_put16(&w,m->u.mapreq.max);rc_put16(&w,m->u.mapreq.base);rc_put16(&w,m->u.mapreq.flags);break;
     case RC_MSG_NEARREQ: rc_put16(&w,m->u.nearreq.req);rc_put16(&w,m->u.nearreq.max);rc_put16(&w,m->u.nearreq.base);rc_put16(&w,m->u.nearreq.radius);break;
     case RC_MSG_MAPD: case RC_MSG_NEARD:
         if(m->u.mapd.nparts<1||m->u.mapd.nparts>RC_MAPD_PARTS||m->u.mapd.part>=m->u.mapd.nparts||m->u.mapd.len>RC_MAPD_BYTES)return -1;
@@ -536,6 +536,7 @@ int rc_decode(const uint8_t *buf, int len, rc_msg *m){
         m->u.mapreq.req=(uint16_t)rc_get16(&r);
         m->u.mapreq.max=!r.err&&r.len-r.n>=2?(uint16_t)rc_get16(&r):RC_MAP_MAX_V1;
         m->u.mapreq.base=!r.err&&r.len-r.n>=2?(uint16_t)rc_get16(&r):0;
+        m->u.mapreq.flags=!r.err&&r.len-r.n>=2?(uint16_t)rc_get16(&r):0;
         break;
     case RC_MSG_NEARREQ:
         m->u.nearreq.req=(uint16_t)rc_get16(&r);m->u.nearreq.max=(uint16_t)rc_get16(&r);
@@ -552,7 +553,7 @@ int rc_decode(const uint8_t *buf, int len, rc_msg *m){
         for(int k=0;k<m->u.mapd.n;k++){
             if(!r_have(&r,len+2))return RC_E_SHORT;
             uint16_t key=(uint16_t)(r.p[r.n+len]|(uint16_t)r.p[r.n+len+1]<<8);
-            len+=(key&RC_MAPD_GONE)?2u:RC_MAPD_PLACE;
+            len+=(key&RC_MAPD_GONE)?2u:((m->h.flags&RC_HF_MAPZ)?RC_MAPD_PLACE_Z:RC_MAPD_PLACE);
         }
         if(len>RC_MAPD_BYTES)return RC_E_FIELD;
         if(!r_have(&r,len))return RC_E_SHORT;
@@ -1059,12 +1060,13 @@ static void lobbies_from_hub(rc_session *s, const rc_msg *m){
     }
     s->lobbies_n = n; s->lobbies_gen++;
 }
-int rc_ask_map(rc_session *s,int64_t now,int max){
+int rc_ask_map(rc_session *s,int64_t now,int max,int flags){
     if(s->closed||!s->conf.hub_ip||!s->hub_heard_us||!hub_mode(s,now))return 0;
     rc_msg m;hdr(s,&m,RC_MSG_MAPREQ);
     m.u.mapreq.req=++s->map_req;
     m.u.mapreq.max=(uint16_t)(max<0?0:max>RC_MAP_MAX?RC_MAP_MAX:max);
     m.u.mapreq.base=s->map_held;
+    m.u.mapreq.flags=(uint16_t)(flags&RC_MAPREQ_PARKED);
     s->map_mask=0;s->map_nparts=0;s->map_asked_us=now;
     tx_to(s,s->conf.hub_ip,s->conf.hub_port,&m);
     return 1;
@@ -1081,7 +1083,7 @@ static void map_part(rc_session *s,const rc_msg *m,int64_t now){
     for(int j=0;j<s->map_nparts;j++)for(int k=0;k<s->map_part_n[j];k++){
         const uint8_t *e=s->map_asm+((size_t)j*RC_MAP_PER+(size_t)k)*RC_MAP_ENTRY;
         s->map_e[n].id=(uint16_t)n;s->map_e[n].x=(int16_t)(e[0]|e[1]<<8);s->map_e[n].y=(int16_t)(e[2]|e[3]<<8);
-        s->map_e[n].heading=e[4];s->map_e[n].vx=s->map_e[n].vy=0;s->map_e[n].at_us=now;
+        s->map_e[n].heading=e[4];s->map_e[n].vx=s->map_e[n].vy=0;s->map_e[n].z=RC_MAP_NO_Z;s->map_e[n].parked=0;s->map_e[n].at_us=now;
         n++;
     }
     s->map_n=n;s->map_total=s->map_asm_total;s->map_held=0;s->map_gen++;
@@ -1102,16 +1104,19 @@ static void mapd_part(rc_session *s,const rc_msg *m,int64_t now){
     for(int j=0;j<s->map_nparts;j++){
         const uint8_t *e=s->map_asm+(size_t)j*RC_MAPD_BYTES;
         for(int k=0;k<s->map_part_n[j];k++){
-            uint16_t key=(uint16_t)(e[0]|(uint16_t)e[1]<<8),id=(uint16_t)(key&~RC_MAPD_GONE);
+            uint16_t key=(uint16_t)(e[0]|(uint16_t)e[1]<<8),id=(uint16_t)(key&~(RC_MAPD_GONE|RC_MAPD_PARKED));
             while(i<held&&s->map_e[i].id<id){if(n<RC_MAP_MAX)s->map_tmp[n++]=s->map_e[i];i++;}
             if(i<held&&s->map_e[i].id==id)i++;
             if(key&RC_MAPD_GONE){e+=2;continue;}
             if(n<RC_MAP_MAX){
                 rc_mapent *t=&s->map_tmp[n++];t->id=id;
                 t->x=(int16_t)(e[2]|e[3]<<8);t->y=(int16_t)(e[4]|e[5]<<8);
-                t->heading=e[6];t->vx=(int8_t)e[7];t->vy=(int8_t)e[8];t->at_us=now;
+                t->heading=e[6];t->vx=(int8_t)e[7];t->vy=(int8_t)e[8];
+                t->parked=(key&RC_MAPD_PARKED)!=0;
+                t->z=(m->h.flags&RC_HF_MAPZ)?(int16_t)(e[9]|(uint16_t)e[10]<<8):RC_MAP_NO_Z;
+                t->at_us=now;
             }
-            e+=RC_MAPD_PLACE;
+            e+=(m->h.flags&RC_HF_MAPZ)?RC_MAPD_PLACE_Z:RC_MAPD_PLACE;
         }
     }
     for(;i<held&&n<RC_MAP_MAX;i++)s->map_tmp[n++]=s->map_e[i];
@@ -1141,7 +1146,7 @@ static void near_answer(rc_session *s,const rc_msg *m,int64_t now){
         if(n<RC_NEAR_MAX){
             rc_mapent *t=&s->near_tmp[n++];t->id=id;
             t->x=(int16_t)(e[2]|e[3]<<8);t->y=(int16_t)(e[4]|e[5]<<8);
-            t->heading=e[6];t->vx=(int8_t)e[7];t->vy=(int8_t)e[8];t->at_us=now;
+            t->heading=e[6];t->vx=(int8_t)e[7];t->vy=(int8_t)e[8];t->z=RC_MAP_NO_Z;t->parked=0;t->at_us=now;
         }
         e+=RC_MAPD_PLACE;
     }
