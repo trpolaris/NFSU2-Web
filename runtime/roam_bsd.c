@@ -72,7 +72,11 @@ int roam_plat_guard(int test_mode, uint32_t ip, int is_bcast){
 static void do_send(uint32_t ip, uint16_t port, const uint8_t *buf, int len, int is_bcast){
     if (!roam_plat_guard(g_cfg.test_mode, ip, is_bcast) || g_fd < 0) return;
     struct sockaddr_in sa; memset(&sa, 0, sizeof sa);
-    sa.sin_family = AF_INET; sa.sin_len = sizeof sa; sa.sin_port = htons(port); sa.sin_addr.s_addr = htonl(ip);
+    sa.sin_family = AF_INET;
+#if defined(__APPLE__)
+    sa.sin_len = sizeof sa;
+#endif
+    sa.sin_port = htons(port); sa.sin_addr.s_addr = htonl(ip);
     ssize_t n = sendto(g_fd, buf, (size_t)len, 0, (struct sockaddr *)&sa, sizeof sa);
     if (n == len){ g_st.sent++; g_st.sent_bytes += (uint64_t)len; return; }
     g_st.send_err++;
@@ -219,7 +223,11 @@ int roam_plat_start(const roam_plat_cfg *cfg, rc_session *s){
     fcntl(fd, F_SETFD, FD_CLOEXEC);
     if (g_cfg.discovery){ int one = 1; setsockopt(fd, SOL_SOCKET, SO_BROADCAST, &one, sizeof one); }
     struct sockaddr_in sa; memset(&sa, 0, sizeof sa);
-    sa.sin_family = AF_INET; sa.sin_len = sizeof sa; sa.sin_port = htons(g_cfg.port);
+    sa.sin_family = AF_INET;
+#if defined(__APPLE__)
+    sa.sin_len = sizeof sa;
+#endif
+    sa.sin_port = htons(g_cfg.port);
     sa.sin_addr.s_addr = htonl(g_cfg.test_mode ? INADDR_LOOPBACK : INADDR_ANY);
     if (bind(fd, (struct sockaddr *)&sa, sizeof sa) < 0){
         fprintf(stderr, "[roam] cannot use UDP port %u (%s): another program has it? Set the same other port "
