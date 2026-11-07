@@ -5330,7 +5330,7 @@ static void mp_labels(CPU *c){
 #define WM_ICON_SZ      0x2cu         /* a marker: +8 type, +0xC FE object, +0x10/+0x14 x y, +0x18 heading, +0x28 1 (an event) */
 #define WM_LOBBIES      24
 #define WM_LABELS       4             /* lobbies with their words beside the icon: the nearest, none over another */
-static struct { uint32_t map; int n; float x[WM_LOBBIES], y[WM_LOBBIES], d[WM_LOBBIES]; uint8_t used[8]; uint32_t m[WM_LOBBIES], lbl[WM_LOBBIES]; } g_wml;
+static struct { uint32_t map; int n; float x[WM_LOBBIES], y[WM_LOBBIES], d[WM_LOBBIES]; uint8_t used[8]; uint32_t m[WM_LOBBIES], lbl[WM_LOBBIES]; int16_t filter[WM_LOBBIES]; } g_wml;
 #define WM_TEXT_BASE    "OPPONENT_CAR"   /* the legend's string ("Opponent Car"): our labels are copies of it */
 static int race_icon(uint32_t r){
     if (MR8(r + 0xdu)) return 6;
@@ -5360,6 +5360,7 @@ static int mp_map_icon(CPU *c, uint32_t map, uint32_t pkg, uint32_t room, uint32
     uint32_t head = map + 4u, tail = rd32(head + 4u);
     MR32(tail) = m; MR32(head + 4u) = m; MR32(m + 4u) = tail; MR32(m) = head;
     g_wml.used[type] = 1; g_wml.x[g_wml.n] = x; g_wml.y[g_wml.n] = y; g_wml.m[g_wml.n] = m; g_wml.lbl[g_wml.n] = 0;
+    g_wml.filter[g_wml.n] = (int16_t)wmf_track(map, m, WMF_RACES);
     g_wml.d[g_wml.n] = g_mp.st != MP_IDLE && x == g_mp.l.x && y == g_mp.l.y ? -1.f : mp_dist(x, y);     /* (ours first) */
     /* its label: a copy of the legend's string, in front of the map (a smaller z), gold */
     uint32_t base = room > 1 ? wm_find(c, pkg, WM_TEXT_BASE) : 0;
@@ -5394,7 +5395,7 @@ static void mp_map_labels(CPU *c, uint32_t map){
         float x = MRF32(m + 0x1cu) + 10.f, y = MRF32(m + 0x20u);
         int over = 0;
         for (int j = 0; j < shown; j++) if (__builtin_fabsf(px[j] - x) < 70.f && __builtin_fabsf(py[j] - y) < 12.f) over = 1;
-        if ((MR32(icon + 0x1cu) & 1u) || over || shown >= WM_LABELS){ gcall1(c, FN_FE_HIDE, 0, lbl); continue; }
+        if ((MR32(icon + 0x1cu) & 1u) || (g_wml.filter[i] >= 0 && !g_wmf_on[WMF_RACES]) || over || shown >= WM_LABELS){ gcall1(c, FN_FE_HIDE, 0, lbl); continue; }
         px[shown] = x; py[shown] = y; shown++;
         uint32_t ap[2] = { gvec(g_gmem + TAG_SCR + 0x20u, x, y, 7.f), 0 };
         rh_call(c, FN_FE_POS, lbl, 0, 2, ap);
