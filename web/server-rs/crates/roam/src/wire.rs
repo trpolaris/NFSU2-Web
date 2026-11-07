@@ -738,17 +738,19 @@ mod map_protocol_tests {
     #[test]
     fn mapd_writer_preserves_type_and_crc_for_both_delta_channels() {
         for kind in [MSG_MAPD, MSG_NEARD] {
+            let flags = if kind == MSG_MAPD { HF_MAPZ } else { 0 };
             let mut entries = Vec::new();
             entries.extend_from_slice(&1u16.to_le_bytes());
             entries.extend_from_slice(&10i16.to_le_bytes());
             entries.extend_from_slice(&20i16.to_le_bytes());
             entries.extend_from_slice(&[3u8, 4, 5]);
+            if flags & HF_MAPZ != 0 { entries.extend_from_slice(&30i16.to_le_bytes()); }
             let mut b = vec![0u8; mapd_len(entries.len())];
-            write_mapd(&mut b, kind, 7, 11, 2, 1, 0, 1, 1, 1, 0, &entries);
+            write_mapd(&mut b, kind, 7, 11, 2, 1, 0, 1, 1, 1, flags, &entries);
             assert_eq!(b[5], kind);
             assert_eq!(u16_le(&b, 16), 2);
             assert_eq!(u16_le(&b, 18), 1);
-            assert_eq!(u16_le(&b, 14), 0);
+            assert_eq!(u16_le(&b, 14), flags);
             assert_eq!(u32_le(&b, b.len() - CRC), crc32fast::hash(&b[..b.len() - CRC]));
         }
     }
