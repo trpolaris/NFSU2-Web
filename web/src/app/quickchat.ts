@@ -49,7 +49,7 @@ const QUICK_CHAT = [
 export const ICON = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 2h10a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H8l-3.5 2.6V12H3a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z"/></svg>';
 
 /** what the game sends (roam_game.c say_page) */
-interface Said { id: number; name: string; p: number; me?: number; lobby?: number }
+interface Said { id: number; name: string; p: number; me?: number; lobby?: number; race?: number }
 interface TypedChat { id: number; name: string; text: string; scope: 'room' | 'crew'; channel: number; me?: boolean }
 interface CrewChannel { name: string; id: number }
 type ExternalChatKind = 'GENEL' | 'EKİP' | 'OOC' | 'SİSTEM';
@@ -126,6 +126,8 @@ export class QuickChat {
   private sent: number[] = [];
   private drive = 0;
   private driveAt = 0;
+  private netrace = 0;
+  private blocked = new Set<string>();
   private armed = true;
   /** the HUD's local display preferences; these never alter the game's network or save data */
   private compactMessageFlow = true;
@@ -419,8 +421,9 @@ export class QuickChat {
   }
 
   /** a game started: quick chat on (the setting) or off, with the player's sixteen (phrases.ts phrasesOf, groupsOf) */
-  start(s: GameSession, on: boolean, layout: readonly number[], groups: readonly CatId[], crews: readonly CrewChannel[] = [], playerName = '') {
-    this.session = s; this.on = on; this.drive = 0; this.driveAt = 0;
+  start(s: GameSession, on: boolean, layout: readonly number[], groups: readonly CatId[], crews: readonly CrewChannel[] = [], playerName = '', blocked: readonly string[] = []) {
+    this.session = s; this.on = on; this.drive = 0; this.driveAt = 0; this.netrace = 0;
+    this.blocked = new Set(blocked.map(normalizedPlayerName).filter(Boolean));
     // A GameSession can exist during startup/loading. Only FreeRoam driving may reveal the HUD.
     this.chatHud.dataset.gameReady = 'false';
     this.chatHud.hidden = true;
@@ -648,18 +651,31 @@ export class QuickChat {
   }
 
   /** active FreeRoam driving, independent of whether fixed-phrase Quick Chat is enabled */
-  private freeRoamDriving(): boolean {
+  private readGameStatus() {
     const s = this.session, now = performance.now();
-    if (!s) return false;
+    if (!s) return;
     if (now - this.driveAt > 100) {
       this.driveAt = now;
       const st = s.status?.read();
-      if (st) this.drive = st.get('drive') ?? 0;
+      if (st) {
+        this.drive = st.get('drive') ?? 0;
+        this.netrace = st.get('netrace') ?? 0;
+      }
     }
+  }
+  private freeRoamDriving(): boolean {
+    if (!this.session) return false;
+    this.readGameStatus();
     return (this.drive & 3) === 2 && (this.drive & 8) === 0;
+  }
+  private racing(): boolean {
+    if (!this.session) return false;
+    this.readGameStatus();
+    return this.on && this.netrace > 0;
   }
   /** fixed-phrase picker is additionally gated by its setting */
   private driving(): boolean { return this.on && this.freeRoamDriving(); }
+  private canPick(): boolean { return this.driving() || this.racing(); }
 
   private currentChannel(): { scope: 'room' | 'crew'; id: number; label: string } {
     const crew = this.crews[this.channelIndex - 1];
@@ -1004,7 +1020,7 @@ export class QuickChat {
     }
     const k = KEYS[e.code];
     if (k === undefined && !(e.code === 'Escape' && this.open >= 0)) return;
-    if (!this.driving()) { if (this.open >= 0) this.close(); return; }
+    if (!this.canPick()) { if (this.open >= 0) this.close(); return; }
     if (e.code === 'Escape') { e.preventDefault(); e.stopImmediatePropagation(); }
     if (e.repeat) return;
     if (e.code === 'Escape') this.close();
@@ -1018,7 +1034,7 @@ export class QuickChat {
     if (r < REST) { this.armed = true; return mine; }
     if (r < FLICK || !this.armed) return mine;
     this.armed = false;
-    if (!this.driving()) return false;
+    if (!this.canPick()) return false;
     const dir = Math.abs(x) > Math.abs(y) ? (x > 0 ? 1 : 3) : (y < 0 ? 0 : 2);
     if (!mine) this.group(dir, 'pad');
     else this.pick(this.open * 4 + dir);
@@ -1028,6 +1044,11 @@ export class QuickChat {
   /** The on-screen Chat control opens the same composer as the Y shortcut. */
   toggle() {
     if (this.chatHud.classList.contains('active')) { this.closeTextChat(); return; }
+    if (this.racing()) {
+      if (this.open === 4) this.close();
+      else this.group(4, 'keys');
+      return;
+    }
     if (!this.freeRoamDriving()) return;
     this.openTextChat();
   }
@@ -1058,9 +1079,10 @@ export class QuickChat {
     const s = this.session, now = performance.now(), p = this.layout[slot];
     if (!s || p === undefined || !PHRASES[p]) return;
     if (this.wait(now) > 0) { this.draw(); return; }
-    if (!s.net?.say?.(p)) { this.close(); return; }
+    const race = this.racing() && !this.freeRoamDriving();
+    if (!s.net?.say?.(p, race)) { this.close(); return; }
     this.sent.push(now);
-    this.deps.log(`[chat] said ${p} (${PHRASES[p].text})`);
+    this.deps.log(`[chat] said ${p} (${PHRASES[p].text})${race ? ', in the race' : ''}`);
     this.close();
   }
 
@@ -1115,7 +1137,12 @@ export class QuickChat {
     try { s = JSON.parse(json) as Said; } catch { this.deps.log(`[chat] not JSON: ${json.slice(0, 80)}`); return; }
     if (!this.on || typeof s.id !== 'number' || typeof s.p !== 'number' || !(s.p >= 0 && s.p < PHRASES.length)) return;
     const text = t(PHRASES[s.p].text), me = !!s.me, name = String(s.name ?? '');
-    this.deps.log(`[chat] ${me ? 'you' : name} said ${s.p} (${PHRASES[s.p].text})${s.lobby ? ', in our lobby' : ''}`);
+    if (s.race && !me && this.blocked.has(normalizedPlayerName(name))) {
+      this.deps.log(`[chat] ${name} said ${s.p}, in the race: not shown (blocked)`);
+      return;
+    }
+    this.deps.log(`[chat] ${me ? 'you' : name} said ${s.p} (${PHRASES[s.p].text})${s.race ? ', in the race' : s.lobby ? ', in our lobby' : ''}`);
+    if (s.race) { this.deps.line(name, text, me); return; }
     this.lines.get(s.id)?.el.remove();
     // the place on .qc-line (every frame), the look and its pop on .qc-b
     const el = document.createElement('div'), b = document.createElement('div');
@@ -1212,5 +1239,6 @@ export class QuickChat {
 
   /** for the page's test hooks */
   state() { return { on: this.on, open: this.open, mode: this.mode, lines: [...this.lines.keys()], sent: this.sent.length,
-    chatOpen: this.chatHud.classList.contains('active'), channel: this.currentChannel(), messages: this.chatMessages.childElementCount }; }
+    chatOpen: this.chatHud.classList.contains('active'), channel: this.currentChannel(), messages: this.chatMessages.childElementCount,
+    netrace: this.netrace }; }
 }
