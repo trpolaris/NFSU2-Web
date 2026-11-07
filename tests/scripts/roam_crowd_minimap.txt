@@ -2,9 +2,9 @@
 # free roam among web/tools/roam-crowd.mjs's players (circles of 20 to 120 m
 # around its start); once ROAM_CROWD_CARS cars are shown and the HUD is in,
 # frame dumps with every friend's arrow on the minimap and the arrows counted.
-# Run with `roam-pair.mjs --solo --crowd 60` to include unlinked nearby players:
-# `roam mp status` now reports the NEARD nearby total, fresh snapshot count,
-# delta generation and last request age separately from loaded friend-car arrows.
+# Run with `roam-pair.mjs --solo --crowd 60` to include unlinked nearby players.
+# `roam mp near all` records every NEARD-only minimap arrow, position, distance
+# and icon flags; `roam mp status` records answer/arrow/icon counts and radius.
 0     tapuntil RETURN MC_Background.fng 120 4000
 +120  tap LEFT
 +30   tap RETURN
@@ -26,10 +26,16 @@
 +0    roam mp waitpeers ${ROAM_CROWD_CARS} 6000
 +0    roam mp waitcars ${ROAM_CROWD_CARS} 6000
 +900  roam mp status
-+0    dump m_start
++0    roam mp near all
++0    dump m_start_near
 +120  dump m_start2
 +0    roam call 0x5fae20 ecx=*0x8900ac          # autopilot on
 +10000ms dump m_drive
-+0    roam call 0x5faf10 ecx=*0x8900ac       # autopilot off
++0    roam mp near all
++0    dump m_drive_near
++0    roam call 0x5faf10 ecx=*0x8900ac          # autopilot off
++0    roam call 0x4f92a0                        # rebuild minimap icon list while NEARD markers exist
++60   roam mp near all
++0    dump m_near_rebuilt
 +0    roam mp status
 +10   quit
