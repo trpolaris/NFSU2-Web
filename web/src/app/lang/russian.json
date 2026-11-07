@@ -1555,5 +1555,6 @@
   "I understand, continue": "Понятно, продолжить",
   "Too many players are connected from your network: playing with others waits for a free place, or use another network.": "Из вашей сети подключено слишком много игроков: игра с другими начнётся, когда освободится место, или используйте другую сеть.",
   "Your antivirus or network is probably blocking the connection to other players. Allow this site in it, or try another network or a VPN.": "Скорее всего, соединение с другими игроками блокирует ваш антивирус или сеть. Разрешите этот сайт в антивирусе или попробуйте другую сеть или VPN.",
-  "Your connection to other players keeps dropping. Your network may be limiting it: try another network or a VPN.": "Соединение с другими игроками постоянно обрывается. Возможно, его ограничивает ваша сеть: попробуйте другую сеть или VPN."
+  "Your connection to other players keeps dropping. Your network may be limiting it: try another network or a VPN.": "Соединение с другими игроками постоянно обрывается. Возможно, его ограничивает ваша сеть: попробуйте другую сеть или VPN.",
+  "Drive through the Construction Tunnel, including early in your career.": "Проезжайте через строящийся тоннель даже в начале карьеры."
 }
