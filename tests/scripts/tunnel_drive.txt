@@ -6,9 +6,9 @@
 +0 bot off
 +0 roam smsauto on
 # Start outside the north career gate; every subsequent movement uses keyboard input.
-+180 trace 3 px=f:[[0x8900ac]+4]+0x60 py=f:[[0x8900ac]+4]+0x64 pz=f:[[0x8900ac]+4]+0x68 fx=f:[[0x8900ac]+4]+0x90 fy=f:[[0x8900ac]+4]+0x94
-+0 roam teleport -184 140 25 49152
-+180 log SHOT north_gate_outside
++180 roam teleport -184 140 25 49152
++0 log SHOT north_gate_outside
++0 trace 3 px=f:[[0x8900ac]+4]+0x60 py=f:[[0x8900ac]+4]+0x64 pz=f:[[0x8900ac]+4]+0x68 fx=f:[[0x8900ac]+4]+0x90 fy=f:[[0x8900ac]+4]+0x94
 # Run via roam-pair.mjs --page app --solo --seed <career-save> --drive-route tests/scripts/tunnel-route.json
 +0 waitexpr f:[[0x8900ac]+4]+0x64 < 80 2400
 +0 expect f:[[0x8900ac]+4]+0x64 < 80
