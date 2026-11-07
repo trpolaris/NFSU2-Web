@@ -227,9 +227,11 @@ players.
 
 ## Where it differs from the Node server
 
-- 6000 players (`--max-peers` 1 to 6000; the image's `NFSU2_MAX_PEERS=6000`), Node's 2000: the switch's network is
-  10.77.0.0/19 (the welcome's mask 255.255.224.0; addresses round twenty-four of its /24s, 10.77.0-23.x), the free-roam
-  hub takes 6144 players, Online mode 3000 lobby sessions, 900 games and 12000 streams.  The game module's peer bits
+- 24000 virtual-LAN peers (`--max-peers` 1 to 24000; the image's `NFSU2_MAX_PEERS=24000`), Node's 2000: the
+  switch's network is 10.77.0.0/17 (the welcome's mask 255.255.128.0; addresses round ninety-six of its /24s,
+  10.77.0-95.x). This is the switch's address/admission ceiling, not a measured 24000-player throughput claim. The
+  Free Roam hub has its separate 6144-player cap; Online mode 3000 lobby sessions, 900 games and 12000 streams.
+  The game module's peer bits
   (mailbox v4) cover a /21: for a player on 10.77.8-23.x the game asks that host itself (`runtime/web/net_lan.c`): a LAN race's
   connect to one who has just left sends its SYN and ends after the same 3 s with WSAETIMEDOUT instead of
   WSAEHOSTUNREACH.  Nothing else differs: the page and the module need no change (`crates/lan/tests/page.mjs`).
