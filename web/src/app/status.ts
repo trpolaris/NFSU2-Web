@@ -2,6 +2,8 @@
 // counters the runtime publishes in shared memory.  A sequence lock keeps a
 // copy consistent: the copy counts only if seq was even and unchanged.
 
+import type { GameMemory } from '../host/memory';
+
 export const HOST_STATUS_MAGIC = 0x31545453;
 const MAX = 32, NAME = 16, ITEM = 24, HEAD = 16;
 

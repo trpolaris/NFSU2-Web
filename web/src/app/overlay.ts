@@ -4,6 +4,7 @@
 // requestAnimationFrame rate, and says so.
 
 import type { StatusReader } from './status';
+import type { GameMemory } from '../host/memory';
 import { linkStateLabel, networkQualityLabel } from './network-quality';
 import { overlayMetrics } from './overlay-metrics';
 import { FramePacing } from './frame-pacing';
