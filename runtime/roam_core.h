@@ -61,6 +61,11 @@
 #define RC_MAP_PER       230        /* entries per MAP datagram at most */
 #define RC_MAP_PARTS     3          /* MAP datagrams per answer at most */
 #define RC_MAP_MAX       512        /* entries per answer at most (the hub's nearest) */
+#define RC_MAPD_GONE     0x8000u    /* a MAPD entry key with this bit: the player went */
+#define RC_MAPD_PLACE    9          /* slot, x, y, heading, velocity x, y */
+#define RC_MAPD_BYTES    1152       /* entry bytes per MAPD datagram */
+#define RC_MAPD_PARTS    16         /* MAPD datagrams per answer at most */
+#define RC_NEAR_MAX      128        /* NEARD entries per answer at most: one datagram */
 #define RC_LOBBY_MAX     6          /* players in a race lobby: the game's network race takes 6 */
 #define RC_LOBBY_INBOX   16         /* LOBBY messages held for the game side */
 #define RC_LOBBIES_ENTRY 11         /* a LOBBIES entry: x, y (int16, m), race (u32), n, max, state (u8) */
@@ -555,6 +560,10 @@ typedef struct {
     uint8_t   map_mask, map_nparts;  uint8_t map_part_n[RC_MAP_PARTS];  uint16_t map_asm_total;
     uint8_t   map_asm[RC_MAP_PARTS * RC_MAP_PER * RC_MAP_ENTRY];
     uint32_t  map_gen;  int map_n;  uint16_t map_total;
+    /* The minimap's nearby players, as of the last complete NEARD answer. */
+    uint16_t near_req, near_held; int64_t near_asked_us;
+    uint32_t near_gen; int near_n; uint16_t near_total;
+    rc_mapent near_e[RC_NEAR_MAX], near_tmp[RC_NEAR_MAX];
     struct { int16_t x, y; uint8_t heading; } map_e[RC_MAP_PARTS * RC_MAP_PER];
     /* LOBBY messages for us (to our id) from established peers, oldest
      * first, until the game side takes them (rc_take_lobby) */
@@ -606,6 +615,8 @@ int  rc_take_duel(rc_session *s, uint32_t *from, uint8_t *op, uint8_t *arg, uint
 /* asks the hub (while it answers) for the world map's other players; 1 when
  * asked.  The answer is in map_e[0 .. map_n) once map_gen changes */
 int  rc_ask_map(rc_session *s, int64_t now_us);
+/* Ask the hub for nearby minimap players within radius_m (capped by RC_NEAR_M). */
+int  rc_ask_near(rc_session *s, int64_t now_us, int max, int radius_m);
 /* a LOBBY message to the established peer with id l->to, if its HELLO said
  * it takes them, or (to 0) to the hub while it answers; 1 when sent */
 int  rc_send_lobby(rc_session *s, const rc_lobby *l);
