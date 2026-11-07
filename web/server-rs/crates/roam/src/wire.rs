@@ -75,8 +75,6 @@ pub(crate) const MAPD_PLACE_Z: usize = 11;
 pub(crate) const HF_MAPZ: u16 = 0x0800;
 pub(crate) const MAPD_BYTES: usize = 1152;
 pub(crate) const MAPD_PARTS: usize = 16;
-pub(crate) const MSG_MAPD: u8 = 18;
-pub(crate) const MAPD_PARTS: usize = 16;
 pub(crate) const HDR: usize = 16;
 pub(crate) const CRC: usize = 4;
 
@@ -719,9 +717,9 @@ mod map_protocol_tests {
         let legacy = request(MSG_MAPREQ, &9u16.to_le_bytes());
         assert!(matches!(decode(&legacy).unwrap().2, Msg::MapReq { req: 9, max: MAP_MAX_V1, base: None }));
         let full = request(MSG_MAPREQ, &[9u16.to_le_bytes(), 300u16.to_le_bytes()].concat());
-        assert!(matches!(decode(&full).unwrap().2, Msg::MapReq { req: 9, max: 300, base: None }));
+        assert!(matches!(decode(&full).unwrap().2, Msg::MapReq { req: 9, max: 300, base: None, .. }));
         let delta = request(MSG_MAPREQ, &[9u16.to_le_bytes(), 300u16.to_le_bytes(), 4u16.to_le_bytes()].concat());
-        assert!(matches!(decode(&delta).unwrap().2, Msg::MapReq { req: 9, max: 300, base: Some(4) }));
+        assert!(matches!(decode(&delta).unwrap().2, Msg::MapReq { req: 9, max: 300, base: Some(4), .. }));
     }
 
     #[test]
