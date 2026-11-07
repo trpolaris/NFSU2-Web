@@ -218,6 +218,8 @@ export interface TouchDeps {
   log(s: string): void;
   /** the chat button: quick chat's phrases (quickchat.ts) */
   chat?(): void;
+  /** whether race Quick Chat is enabled; Free Roam's text chat remains available when it is off */
+  raceChatOn?(): boolean;
 }
 
 export class TouchControls {
@@ -357,6 +359,7 @@ export class TouchControls {
     this.session = s;
     this.ticks = ticks;
     this.drive = 0;
+    this.netrace = 0;
     this.menuTo = null;
     const tick = () => { this.frame(); this.raf = requestAnimationFrame(tick); };
     this.raf = requestAnimationFrame(tick);
@@ -366,7 +369,8 @@ export class TouchControls {
   state() {
     return { shown: this.mode === 'drive', menu: this.mode === 'menu', drive: this.drive, steering: this.steering, lx: this.lx,
       buttons: this.padButtons, keys: [...this.keys.keys()], roll: this.sentRoll, menuScale: this.menuScale, menuSent: !!this.menuTo,
-      fast: this.fast, stowed: [...this.ctls.values()].filter(c => c.el.classList.contains('stowed')).map(c => c.id) };
+      fast: this.fast, netrace: this.netrace,
+      stowed: [...this.ctls.values()].filter(c => c.el.classList.contains('stowed')).map(c => c.id) };
   }
 
   /** the game ended: everything let go, nothing of it kept */
@@ -419,6 +423,7 @@ export class TouchControls {
     const mode: Mode = !on ? '' : (this.drive & 3) > 0 ? 'drive' : this.frames > 0 ? 'menu' : '';
     this.root.toggleAttribute('data-roam', (this.drive & 3) === 2);
     this.root.toggleAttribute('data-netrace', this.netrace > 0);
+    this.root.toggleAttribute('data-no-race-chat', this.deps.raceChatOn?.() === false);
     this.root.toggleAttribute('data-gears', (this.drive & 4) !== 0);
     this.stow('reset', mode === 'drive' && this.fast === 1);
     this.setMode(mode);
