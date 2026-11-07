@@ -821,9 +821,10 @@ async function startGame() {
   pauseHint.start(session);
   driftPanel.start(session);
   photo.start(session);
-  quickChat.start(session, net && r.env.NFSU2_ROAM === '1' && r.env.NFSU2_ROAM_SAY !== '0',
+  quickChat.start(session, net && r.env.NFSU2_ROAM_SAY !== '0',
     phrasesOf(r.env.NFSU2_ROAM_SAY_PHRASES), groupsOf(r.env.NFSU2_ROAM_SAY_GROUPS),
-    (roamCrews ?? []).map(c => ({ name: c.name, id: roomHash(c.name) })), netName ?? '');
+    (roamCrews ?? []).map(c => ({ name: c.name, id: roomHash(c.name) })), netName ?? '',
+    blockList(r.env.NFSU2_ROAM_BLOCK ?? ''));
   fps.memory = session.proc.memory;
   const st = session;
   let tries = 0;
