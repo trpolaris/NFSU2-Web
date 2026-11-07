@@ -7198,5 +7198,263 @@ static void block_hit(Slot *s, int64_t host){
  * pass of the same step (none kept) never starts it.  Measured with two
  * 240SX (1.22 t): the hit is about 1.85 x the velocity change it makes, 67
  * for 32 m/s into a standing car (the rammer turned back at -3.5 m/s), so
- * the view came from about 53 km/h of closing speed, with the game's own
- * over the part kept (60) from about 105, still too often, and now (90)
+ * from about 155; that ram started it on both screens at 60, and on
+ * neither now.  The crashed mark the same hit sets (car +0x38, 0x5F6BE0,
+ * read by the physics) and the game's other thresholds of the capped hit
+ * (30) keep the game's own values. */
+#define G_CRASH_VIEW    0x007a1864u   /* float 30: the hit (t m/s) that starts the crash view */
+#define G_CRASH_CAP     0x007a1858u   /* float 40: what 0x59FB70 caps the hit at first */
+#define CRASH_VIEW_X    1.5f          /* a friend's car: the player's car's part of the hit starts it at this x the game's */
+void roam_game_contact(CPU *c, void (*orig)(CPU *)){
+    uint32_t pair = c->ecx, me = O.on && O.collide && O.hit_share != 100 ? player_car() : 0;
+    uint32_t mb = ok(me, 0x40) ? rd32(me + 0x3cu) : 0;
+    uint32_t a = mb && ok(pair, 0x14) ? MR32(pair + 0xcu) : 0, b = a ? MR32(pair + 0x10u) : 0;
+    int k = -1;
+    if (a == mb || b == mb){
+        uint32_t other = a == mb ? b : a;
+        for (int j = 0; j < NSLOT && other; j++)
+            if (g_sl[j].st == SL_ACTIVE && !g_sl[j].hidden && ok(g_sl[j].car, 0x9e0) && MR32(g_sl[j].car + 0x3cu) == other) k = j;
+    }
+    uint32_t rb = k >= 0 && ok(mb, 0x6c) && MR32(mb + 0x5cu) ? rd32(mb + 0x68u) : 0;
+    if (!ok(rb, 0xcc)){ orig(c); return; }
+    Slot *s = &g_sl[k];
+    float st0[CS_N], st[CS_N];
+    float mm = car_mass(me, 1), mf = car_mass(s->car, 0);
+    float keep = O.hit_share >= 0 ? (float)O.hit_share / 100.f : rc_sqrtf(mf) / (rc_sqrtf(mm) + rc_sqrtf(mf)), dv[3], push[3], d2 = 0;
+    int again = s->hits && s->hit_step == g_step;
+    uint32_t pl = rd32(G_PLAYER1), mode = ok(pl, 0x5c) ? MR32(pl + 0x58u) : 0;
+    float view = MRF32(G_CRASH_VIEW), cap = MRF32(G_CRASH_CAP), need = again || keep <= 0.f ? 1e30f : CRASH_VIEW_X * view / keep;
+    contact_get(me, rb, st0);
+    MRF32(G_CRASH_VIEW) = need;
+    if (need > cap) MRF32(G_CRASH_CAP) = need;
+    orig(c);
+    MRF32(G_CRASH_VIEW) = view; MRF32(G_CRASH_CAP) = cap;
+    if (mode != 6u && ok(pl, 0x5c) && MR32(pl + 0x58u) == 6u)
+        rlog("[roam] f=%ld hit with %s's car: the crash view (my car's part of the hit over %.0f)\n", rh_frame(), s->name, (double)(CRASH_VIEW_X * view));
+    if (again){
+        /* the pair again in the same step's next pass: the friend's car
+         * stood where it was for the step (a body without physics moves
+         * only with the pose, next frame), so the game met it again and
+         * took the rest of the player's speed (10.6 -> 5.5 -> 3.0 m/s in
+         * the tests); the pushed car would have moved on, so the player's
+         * car keeps the velocity the first pass left it */
+        contact_set(me, rb, st0);
+        return;
+    }
+    s->hit_step = g_step;
+    block_hit(s, roam_plat_now_us());
+    contact_get(me, rb, st);
+    for (int i = 0; i < CS_N; i++) if (!__builtin_isfinite(st[i])) return;
+    for (int i = 0; i < 3; i++){ dv[i] = st[CS_V + i] - st0[CS_V + i]; d2 += dv[i] * dv[i]; push[i] = -(1.f - keep) * dv[i]; }
+    for (int i = 0; i < CS_N; i++) st[i] = st0[i] + keep * (st[i] - st0[i]);
+    contact_set(me, rb, st);
+    float wdt = MRF32(G_WORLDDT);                                   /* the hit is a step after the car was drawn at s->rt */
+    push_add(s, push, s->rt + (__builtin_isfinite(wdt) && wdt > 0.f && wdt < 1.f ? (int64_t)(wdt * 1e6f) : 0));
+    float d = rc_sqrtf(d2);
+    if (d > s->hit_max) s->hit_max = d;
+    if (++s->hits <= 8 || d > 4.f)
+        rlog("[roam] f=%ld hit with %s's car: the game changed my car's velocity by %.2f m/s (%.2f %.2f %.2f), kept %.0f %% "
+             "(%.2f t against %.2f t); my velocity now %.2f %.2f %.2f, the push on theirs %.2f %.2f %.2f\n", rh_frame(), s->name, (double)d,
+             (double)dv[0], (double)dv[1], (double)dv[2], (double)keep * 100.0, (double)mm, (double)mf,
+             (double)st[CS_V], (double)st[CS_V + 1], (double)st[CS_V + 2], (double)s->push_v[0], (double)s->push_v[1], (double)s->push_v[2]);
+}
+/* roam.c, 0x42CD60, from the race's end (0x5F8490 -> 0x42EFB0): every car of
+ * the World's AI range that is out gets a new goal from its brain (car +0x2C):
+ * the one at the brain's +0x6FC is looked at and let go through its vtable
+ * (0x42AA20 -> 0x402070), and the new one kept there.  During an outrun
+ * between players friends' cars are out in that range (the three opponent
+ * cars and the first 2 of ours), and their brains (vtable 0x7A5CA8, driver 0)
+ * hold no goal there: one held 0xE490B3FC in the tests, and a player's game
+ * trapped at an outrun's end reading past the memory (2026-10-20).  The AI
+ * range goes without friends' cars for the call, as du_start narrows it. */
+void roam_game_goals(CPU *c, void (*orig)(CPU *)){
+    uint32_t w = world(), first = w ? MR32(w + 0x14u) : 0, end = w ? MR32(w + 0x18u) : 0, was[WORLD_INDEX], n = first;
+    if (!w || first > end || end > WORLD_INDEX){ orig(c); return; }
+    for (uint32_t i = first; i < end; i++){
+        uint32_t car = was[i] = MR32(w + 0x1cu + 4u * i);
+        int ours = 0;
+        for (int k = 0; k < NSLOT && !ours; k++) ours = car && g_sl[k].car == car;
+        if (!ours) MR32(w + 0x1cu + 4u * n++) = car;
+    }
+    if (n == end){ orig(c); return; }
+    rlog("[roam] f=%ld the race's end: new goals for the AI range's cars, not for %u friends' car(s)\n", rh_frame(), end - n);
+    MR32(w + 0x18u) = n;
+    orig(c);
+    for (uint32_t i = first; i < end; i++) MR32(w + 0x1cu + 4u * i) = was[i];
+    MR32(w + 0x18u) = end;
+}
+/* roam.c, bSlotPool's constructor (0x440DF0), at the game's start.  With
+ * free-roam multiplayer on, three pools get more entries:
+ *  - the car loader's rides (CarLoadedRideInfoSlotPool, 22 x 0x1240 bytes):
+ *    its Load (0x63AE70) waits until one is free, purging, for good when every
+ *    entry is in use (the player's, the opponent cars', traffic's (up to 7), a
+ *    car of our own's first ride, each friend's): 128 (600 KB);
+ *  - the minimap's visuals and icons (MinimapEntity 102 x 8, MinimapElements
+ *    102 x 0x20 bytes), taken with 0x43F8F0, which never grows a pool: a
+ *    friend's arrow is one of each (minimap arrows), and an icon the pool
+ *    could not give is linked in as a null pointer (0x4EC790): 256 each. */
+static struct { uint32_t name, count; const char *what; int said; } g_pools[] = {
+    { 0x007a8694u, RIDE_ENTRIES, "rides the car loader holds" },   /* "CarLoadedRideInfoSlotPool" */
+    { 0x00790b18u, 256, "minimap visuals" },                       /* "MinimapEntity" */
+    { 0x00790b08u, 256, "minimap icons" },                         /* "MinimapElements" */
+};
+/* The Cars pool's extra memory.  A track load adds the difference between
+ * its size (0x7FA9D4 table, free roam's raised to O.carpool_kb) and the
+ * startup size (+0x68) to the pool as one block (0x610750: car loader +0x6C,
+ * +0x70), and the track's unload (0x580EF0, when the next track is another
+ * one: a URL or drag race, a cover shoot, the front end) gives it back
+ * (0x63A6F0): it unloads the loader's unused rides, takes the block out of
+ * the pool (0x43F9E0) and frees it.  That removal only works when the block
+ * is one free block again; when it is not, it does nothing and the block is
+ * freed anyway, with the pool's free list still running through it, and the
+ * next track load walked into it (0x43FA50: "memory access out of bounds",
+ * or a hang; the 2026-10-21 crash reports, races entered from free roam
+ * with every friend's car slot in use).  After free roam with friends the
+ * block is not free again: friends' rides (still held then: the World is
+ * gone, 0x5815C0 runs first, but roam_game_frame unloads them only on the
+ * next frame) and about 23 MB more that stay in the pool after every ride
+ * is unloaded.  So: friends' rides go first, the loader's unused rides go
+ * as the game's own loop would, and the block is given back only when it
+ * has become one free block; otherwise it stays in the pool (still recorded
+ * at +0x6C), and the next track load adds nothing while base and block
+ * cover its size (roam_game_pool_grow).  The pool then keeps free roam's
+ * size through races and the front end.  roam.c, on the guest thread:
+ * 1 = run the game's own 0x63A6F0. */
+#define FN_LOADER_FREE  0x0063a000u   /* thiscall CarLoader (entry, 1): an unused ride's models out (0x63A6F0's loop) */
+static int extra_is_free(uint32_t p, uint32_t x, uint32_t xn){
+    uint32_t head = p + 4u, b = MR32(head);
+    for (int n = 0; b != head && ok(b, 0x10) && n < 1000000; n++, b = MR32(b))
+        if (b == x) return MR32(b + 8u) == xn;
+    return 0;
+}
+int roam_game_loader_release(CPU *c){
+    if (!g_inited || !O.on) return 1;
+    uint32_t p = rd32(G_CARS_POOL), x = rd32(G_CARLOADER + 0x6cu), xn = rd32(G_CARLOADER + 0x70u);
+    if (!x || !ok(p, 0x40)) return 1;
+    uint32_t w = world();
+    if (!w && (g_world_seen || g_npending)){
+        rlog("[roam] f=%ld the car loader gives back its extra memory: friends' rides go first\n", rh_frame());
+        if (g_world_seen) world_changed(c, 0);
+        else flush_unloads(c);
+    }
+    uint32_t head = G_CARLOADER + 0x58u, e = rd32(head);
+    for (int n = 0; e && e != head && n < 4 * RIDE_ENTRIES; n++){
+        uint32_t nx = rd32(e), a2[2] = { e, 1 };
+        rh_call(c, FN_LOADER_FREE, G_CARLOADER, 0, 2, a2);
+        e = nx;
+    }
+    if (extra_is_free(p, x, xn)) return 1;
+    rlog("[roam] f=%ld the car pool's extra %u KB is still in use (%.2f of %.2f MB used): it stays in the pool\n", rh_frame(),
+         xn / 1024u, MR32(p + 0x28u) / 1048576.0, MR32(p + 0x24u) / 1048576.0);
+    return 0;
+}
+/* roam.c: a track load's 0x610750 (thiscall CarLoader, size): 1 = let it add
+ * the difference to the startup size; 0 = the pool has that size already
+ * (with an extra block it kept, roam_game_loader_release) */
+int roam_game_pool_grow(uint32_t size){
+    uint32_t base = rd32(G_CARLOADER + 0x68u), x = rd32(G_CARLOADER + 0x6cu), xn = x ? rd32(G_CARLOADER + 0x70u) : 0;
+    if (x && size <= base + xn) return 0;
+    return 1;
+}
+/* No room in the Cars pool for a load.  A step of a load sizes what it reads
+ * (a ride's textures 0x63AD8A, its models 0x63A2A2, ...: 0x48D420 counts
+ * what does not fit into the largest free block) and calls the purge (0x63A1B0
+ * with phase 1 allowed) until it fits or nothing more can go.  The purge
+ * frees a ride nobody uses, and when there is none (phase 1) it takes the
+ * textures off the rides it holds, the ones on cars too, and has their car
+ * type's render infos made again: a car keeps a texture only another ride
+ * holds (a car type shown twice), which goes with that ride, and draws with
+ * it freed -- "memory access out of bounds" in its shadow or a part
+ * (0x620AE0; overrides.c sub_00639f20 for the purge's lost references).  With
+ * friends' cars that is no rare case: a few dozen in use, many of them loading
+ * at once (the server's hub relinks a dozen as the player drives) where
+ * pool_room checked room for one, and an hour of rides of all sizes coming and
+ * going breaks the pool's free memory into pieces.  So in free roam, at a
+ * load's memory check, a ride nobody uses goes first, as the game does, and
+ * then the pool gets a block more (POOL_MORE, from the main pool, as a track
+ * load adds its part: 0x610750), up to POOL_MORE_N of them; past that the
+ * game's own purge.  The blocks stay in the pool.  roam.c: 1 = done here.
+ * NFSU2_TEST_CARPOOL_FIXED=1 (test aid): the game's way. */
+#define FN_BMALLOC      0x00440820u   /* cdecl (size, flags) -> memory */
+#define FN_POOL_ADD     0x00440090u   /* cdecl (pool, memory, size) */
+#define POOL_MORE       (16u << 20)
+#define POOL_MORE_N     6
+static int g_pool_more;
+int roam_game_purge(CPU *c, uint32_t ret){
+    static int fixed = -1;
+    if (fixed < 0) fixed = rh_opt("NFSU2_TEST_CARPOOL_FIXED") ? 1 : 0;
+    if (!g_inited || !O.on || fixed) return 0;
+    switch (ret){                                  /* the load steps' memory checks (not Load's wait for a ride's place, 0x63AEBD) */
+    case 0x0063a2bfu: case 0x0063a2ebu: case 0x0063a8d9u: case 0x0063a9cau: case 0x0063ab18u: case 0x0063ac8cu: case 0x0063ad9cu: break;
+    default: return 0;
+    }
+    if (gcall1(c, FN_LOADER_PURGE, G_CARLOADER, 0) & 0xffu) return 1;
+    if (g_pool_more >= POOL_MORE_N){
+        static long said;
+        if (!said || rh_frame() - said > 3600){ said = rh_frame();
+            rlog("[roam] f=%ld car pool: no room for a load after %d blocks more: the game's purge\n", rh_frame(), g_pool_more); }
+        return 0;
+    }
+    uint32_t a[2] = { POOL_MORE, 0x2000u }, mem = rh_call(c, FN_BMALLOC, 0, 0, 2, a);
+    if (!mem) return 0;
+    uint32_t b[3] = { 4u, mem, POOL_MORE };
+    rh_call(c, FN_POOL_ADD, 0, 0, 3, b);
+    g_pool_more++;
+    rlog("[roam] f=%ld car pool: no room for a load (from 0x%08x): %u MB more (%d of %d)\n", rh_frame(), ret, POOL_MORE >> 20,
+         g_pool_more, POOL_MORE_N);
+    pool_log("more");
+    return 1;
+}
+uint32_t roam_game_pool(uint32_t name, uint32_t count){
+    for (unsigned i = 0; i < sizeof g_pools / sizeof g_pools[0]; i++){
+        if (name != g_pools[i].name || count >= g_pools[i].count || !env_int("NFSU2_ROAM", 0, 0, 1)) continue;
+        if (!g_pools[i].said++) rlog("[roam] %u %s, not %u (friends' cars)\n", g_pools[i].count, g_pools[i].what, count);
+        return g_pools[i].count;
+    }
+    return count;
+}
+/* lifecycle.c, on the guest thread, when the app parks the game in the
+ * background (Cmd-Tab, hidden: WM_ACTIVATEAPP(FALSE), then the game waits in
+ * GetMessageA) and when it lets it run again (lifecycle_game_parked(): not
+ * while a LAN session keeps the game running in the background).  No frame
+ * runs while parked, but the network thread keeps answering friends with
+ * the last status, so a player in free roam is announced as paused now
+ * (friends see "paused" and the car standing where it stopped, for as long
+ * as the pings keep coming); the next frame after the park sends the real status again.
+ * int3a review: friends saw a frozen car marked "free roam". */
+void roam_game_parked(int on){
+    g_parked = on;
+    if (!O.on || !g_net_ok) return;
+    roam_plat_lock();
+    int was_roam = g_s.status == RC_ST_ROAM;
+    if (on && was_roam) rc_set_status(&g_s, RC_ST_PAUSED);
+    roam_plat_unlock();
+    if (on && was_roam) rlog("[roam] f=%ld the app is in the background: friends see you paused\n", rh_frame());
+}
+/* discord.c (the port's Discord presence): friends connected now, i.e.
+ * established and not lost; 0 while free-roam multiplayer is off.  Takes the
+ * session lock, so any thread may ask. */
+int roam_game_friends(void){
+    if (!O.on || !g_net_ok) return 0;
+    int n = 0;
+    roam_plat_lock();
+    for (int i = 0; i < RC_TABLE; i++) if (g_s.peer[i].state == RC_PS_EST && !g_s.peer[i].lost) n++;
+    roam_plat_unlock();
+    return n;
+}
+/* status_web.c, on the guest thread: friends' cars the game holds now, being
+ * made, loading, shown or parked (a parked one keeps its ride) */
+int roam_game_cars(void){
+    if (!O.on) return 0;
+    int n = 0;
+    for (int k = 0; k < NSLOT; k++) n += g_sl[k].st != SL_FREE;
+    return n;
+}
+/* headlights.c, on the guest thread: is this a friend's car being shown? */
+int roam_game_friend_car(uint32_t car){
+    if (!O.on || !car) return 0;
+    for (int k = 0; k < NSLOT; k++)
+        if (g_sl[k].car == car && g_sl[k].st == SL_ACTIVE && !g_sl[k].hidden) return 1;
+    return 0;
+}
+#endif
