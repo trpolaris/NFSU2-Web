@@ -615,7 +615,7 @@ int  rc_send_duel(rc_session *s, uint32_t to, uint8_t op, uint8_t arg, uint32_t 
 int  rc_take_duel(rc_session *s, uint32_t *from, uint8_t *op, uint8_t *arg, uint32_t *duel);
 /* asks the hub (while it answers) for the world map's other players; 1 when
  * asked.  The answer is in map_e[0 .. map_n) once map_gen changes */
-int  rc_ask_map(rc_session *s, int64_t now_us);
+int  rc_ask_map(rc_session *s, int64_t now_us, int max);
 /* Ask the hub for nearby minimap players within radius_m (capped by RC_NEAR_M). */
 int  rc_ask_near(rc_session *s, int64_t now_us, int max, int radius_m);
 /* a LOBBY message to the established peer with id l->to, if its HELLO said
