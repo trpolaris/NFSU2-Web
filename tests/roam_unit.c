@@ -1693,6 +1693,57 @@ static void t_mapd_capacity_2048(void){
           "the full MAPD snapshot preserves first and last slot keys and positions");
 }
 
+/* The parked/height-bearing MAPD form uses 11 bytes per place, so the same
+ * 16 x 1152-byte budget holds 1664 entries (the hub's MAPD_MAX_Z). */
+static void t_mapd_capacity_z_1664(void){
+    rc_session s;
+    rc_config cf; memset(&cf, 0, sizeof cf);
+    cf.self_id = 0x903; cf.port = 47213; cf.max_players = 8; cf.rate_hz = 20;
+    cf.test_mode = 1; cf.hub_ip = HUB_IP; cf.hub_port = HUB_PORT;
+    rc_io io = { 0, 0, 0, 0 };
+    rc_session_init(&s, &cf, &io);
+    s.hub_since = 1; s.hub_heard_us = 1000000; s.hub_was = 2;
+    const int per = RC_MAPD_BYTES / RC_MAPD_PLACE_Z;
+    CHECK(RC_MAPD_MAX_Z == 1664 && per == 104,
+          "height-bearing MAPD capacity is 16 x 104 = 1664 records");
+    CHECK(rc_ask_map(&s, 2000000, RC_MAP_MAX, RC_MAPREQ_PARKED),
+          "the native client requests parked positions with height");
+    uint8_t data[RC_MAPD_BYTES], packet[RC_MAX_DGRAM];
+    rc_msg m; memset(&m, 0, sizeof m);
+    m.h.type = RC_MSG_MAPD; m.h.sender = 0xB0D; m.h.flags = RC_HF_MAPZ;
+    m.u.mapd.req = s.map_req; m.u.mapd.base = 0;
+    m.u.mapd.nparts = RC_MAPD_PARTS; m.u.mapd.total = RC_MAPD_MAX_Z;
+    m.u.mapd.n = (uint8_t)per; m.u.mapd.data = data; m.u.mapd.len = (uint16_t)(per * RC_MAPD_PLACE_Z);
+    for (int part = 0; part < RC_MAPD_PARTS; part++){
+        for (int j = 0; j < per; j++){
+            uint16_t id = (uint16_t)(part * per + j + 1);
+            int16_t x = (int16_t)id, y = (int16_t)-(int)id, z = (int16_t)(500 + id % 300);
+            uint8_t *e = data + j * RC_MAPD_PLACE_Z;
+            e[0] = (uint8_t)id; e[1] = (uint8_t)(id >> 8);
+            e[2] = (uint8_t)x; e[3] = (uint8_t)((uint16_t)x >> 8);
+            e[4] = (uint8_t)y; e[5] = (uint8_t)((uint16_t)y >> 8);
+            e[6] = (uint8_t)id; e[7] = (uint8_t)-1; e[8] = 1;
+            e[9] = (uint8_t)z; e[10] = (uint8_t)((uint16_t)z >> 8);
+        }
+        m.u.mapd.part = (uint8_t)part;
+        int n = rc_encode(&m, packet, sizeof packet);
+        CHECK(n == RC_HDR + 9 + per * RC_MAPD_PLACE_Z + RC_CRC,
+              "height MAPD part %d encodes as one unfragmented datagram (%d bytes)", part, n);
+        if (n <= 0) continue;
+        rc_receive(&s, HUB_IP, HUB_PORT, packet, n, 2050000 + part * 1000);
+    }
+    int16_t last_z = (int16_t)(500 + RC_MAPD_MAX_Z % 300);
+    CHECK(s.map_n == RC_MAPD_MAX_Z && s.map_total == RC_MAPD_MAX_Z &&
+          s.map_held == s.map_req && s.map_gen == 1 && !s.map_asked_us && !s.map_mask,
+          "all height-bearing MAPD parts assemble 1664 records (%d / %u, gen %u)", s.map_n, s.map_total, s.map_gen);
+    CHECK(s.map_e[0].id == 1 && s.map_e[0].z == 501 &&
+          s.map_e[RC_MAPD_MAX_Z - 1].id == RC_MAPD_MAX_Z &&
+          s.map_e[RC_MAPD_MAX_Z - 1].x == RC_MAPD_MAX_Z &&
+          s.map_e[RC_MAPD_MAX_Z - 1].y == -RC_MAPD_MAX_Z &&
+          s.map_e[RC_MAPD_MAX_Z - 1].z == last_z,
+          "height-bearing snapshot preserves first/last slot, XY and Z values");
+}
+
 /* ---- MAPD and minimap wire compatibility ----------------------------------------------- */
 static void t_mapd_codec(void){
     rc_msg m; uint8_t b[RC_MAX_DGRAM], legacy[RC_MAX_DGRAM];
@@ -1748,6 +1799,7 @@ int main(int argc, char **argv){
     t_room_reset();
     t_neard_merge();
     t_mapd_capacity_2048();
+    t_mapd_capacity_z_1664();
     t_mapd_codec();
     t_fuzz(fuzz);
     t_session();
