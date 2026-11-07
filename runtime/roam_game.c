@@ -2287,6 +2287,19 @@ static struct { uint32_t hud, copy[NSLOT], hash[NSLOT]; int ncopy; int said, sto
 /* the arrows crew_arrows has in a crew's colour, and the colour each had before */
 #define MMC_MAX         (NSLOT + 8)
 static struct { uint32_t hud; int n; uint32_t obj[MMC_MAX]; int32_t orig[MMC_MAX][3]; } g_mmc;
+/* NEARD's proximity snapshot, copied under the session lock and extrapolated
+ * on the game thread. The renderer consumes these stable marker positions. */
+#define NEAR_ASK_US       1000000
+#define NEAR_STALE_US     2500000
+static struct {
+    uint32_t hud, gen;
+    int n;
+    uint16_t total;
+    int64_t asked;
+    rc_mapent e[RC_NEAR_MAX];
+    float x[RC_NEAR_MAX], y[RC_NEAR_MAX];
+    uint8_t visible[RC_NEAR_MAX];
+} g_near;
 /* an arrow's own colour (b, g, r): the one it had before a crew's, else the one it has */
 static int mm_own_colour(uint32_t o, int32_t rgb[3]){
     int32_t col[4];
@@ -2401,6 +2414,57 @@ static void arrows_update(CPU *c, uint32_t w){
 }
 
 /* the crew (1..) of the friend's car shown with this racer number, 0: none */
+/* Keep the nearby-player delta current while the in-game HUD is alive.
+ * The server rate-limits NEARD independently; one request per second avoids
+ * invalidating an answer with a newer request before it can arrive. */
+static void near_update(uint32_t w, int64_t host){
+    uint32_t pl = rd32(G_PLAYER1);
+    uint32_t hud = pl && ok(pl, PL_HUD + 4u) ? rd32(pl + PL_HUD) : 0;
+    uint32_t icons = rd32(G_MM_ICONS);
+    if (hud != g_near.hud){
+        memset(&g_near, 0, sizeof g_near);
+        g_near.hud = hud;
+        g_near.gen = UINT32_MAX;
+    }
+    if (!w || !hud || !ok(icons, 0x1c)){
+        g_near.n = 0; g_near.total = 0; g_near.gen = UINT32_MAX;
+        memset(g_near.visible, 0, sizeof g_near.visible);
+        return;
+    }
+    int refreshed = 0;
+    roam_plat_lock();
+    if (g_near.gen != g_s.near_gen){
+        int n = g_s.near_n;
+        if (n < 0) n = 0;
+        if (n > RC_NEAR_MAX) n = RC_NEAR_MAX;
+        g_near.n = n; g_near.total = g_s.near_total;
+        if (n) memcpy(g_near.e, g_s.near_e, (size_t)n * sizeof g_near.e[0]);
+        g_near.gen = g_s.near_gen;
+        refreshed = 1;
+    }
+    if (g_s.conf.hub_ip && g_s.hub_was == 2 &&
+        (!g_near.asked || host < g_near.asked || host - g_near.asked >= NEAR_ASK_US)){
+        if (rc_ask_near(&g_s, host, RC_NEAR_MAX, RC_NEAR_M)) g_near.asked = host;
+    }
+    roam_plat_unlock();
+    int fresh = 0;
+    for (int i = 0; i < g_near.n; i++){
+        const rc_mapent *e = &g_near.e[i];
+        double age = (double)(host - e->at_us) / 1000000.0;
+        if (age < 0.0 || age > 2.0) age = 0.0;
+        g_near.x[i] = (float)((double)e->x + (double)e->vx * age);
+        g_near.y[i] = (float)((double)e->y + (double)e->vy * age);
+        g_near.visible[i] = host >= e->at_us && host - e->at_us <= NEAR_STALE_US;
+        fresh += g_near.visible[i] != 0;
+    }
+    if (refreshed)
+        rlog("[roam] f=%ld minimap: NEARD snapshot %d/%u nearby players (%d fresh)\n",
+             rh_frame(), g_near.n, g_near.total, fresh);
+}
+static void near_reset(void){
+    g_near.n = 0; g_near.total = 0; g_near.gen = UINT32_MAX;
+    memset(g_near.visible, 0, sizeof g_near.visible);
+}
 static int racer_crew(uint32_t w, int16_t rn){
     for (int k = 0; k < NSLOT; k++){
         const Slot *sl = &g_sl[k];
@@ -6275,6 +6339,7 @@ void roam_game_frame(CPU *c){
     if (!in_roam){
         if (w) park_all(c);
         g_pass.stay_since = g_pass.blocking = 0;
+        near_reset();
     } else {
         /* the outrun challengers' manager first: whether opponent cars are
          * free this frame depends on it */
@@ -6360,6 +6425,7 @@ void roam_game_frame(CPU *c){
             /* (an outrun's opponent stays where it was: parked, the game would count it 120 km behind) */
         }
         arrows_update(c, w);
+        near_update(w, host);
         crew_arrows(c, w);
 #if MPRACES
         meet_stay(w, host);
