@@ -92,7 +92,10 @@ jobs:
           /tmp/isatest
 
       - name: Check multiplayer test-runner syntax
-        run: node --check web/tools/online-pair.mjs
+        run: |
+          node --check web/tools/online-pair.mjs
+          node --check web/tools/roam-pair.mjs
+          node --check web/tools/drive-route.mjs
 
       - name: Install web dependencies
         working-directory: web
