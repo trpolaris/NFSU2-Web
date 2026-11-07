@@ -818,7 +818,8 @@ impl Hub {
                     p.watch.reset();
                 }
             }
-            Msg::MapReq { req } if sender == p.id => ask = Some(req),
+            // The hub still answers full snapshots here; MAPD delta handling is the next staged integration.
+            Msg::MapReq { req, .. } if sender == p.id => ask = Some(req),
             Msg::Chat { scope, channel, text } if sender == p.id => chat = Some((scope, channel, text.to_string())),
             Msg::Lobby { op, to: 0, lobby, race, x, y, n, max, state, ids } if sender == p.id => match op {
                 wire::LOBBY_ADVERT => p.lobby = Some((HubLobby { id: lobby, race, x, y, n, max, state, ids }, now)),
