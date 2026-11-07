@@ -462,7 +462,8 @@ fn configured_car_bans_only_reported_multiplayer_player_cars_over_threshold() {
     k.step(25_000.0);
     k.from(W(0), &race_report(100, 0xC4, 4, 27, 1451.0, 2829.0));
     assert_eq!(told.lock().len(), 1);
-    let c = &told.lock()[0];
+    let got = told.lock();
+    let c = &got[0];
     assert_eq!((c.vip, c.name.as_str(), c.car.as_str(), c.car_type), (W(0), "Evl", "SKYLINE", 27));
     assert_eq!((c.kw, c.kg, c.kmh, c.rating), (2829.0, 1338.0, 381.0, 1451.0));
     assert_eq!(c.place, "1st of 4");
