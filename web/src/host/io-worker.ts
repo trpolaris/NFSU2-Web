@@ -91,6 +91,32 @@ let cacheDir: FileSystemDirectoryHandle | null = null;
 const CACHE_OPEN = /Windows/.test(navigator.userAgent) && /\b(Chrome|Firefox)\//.test(navigator.userAgent) ? 512 : 64;
 const cacheFiles = new Map<string, Promise<CacheFile | null>>(), cacheSeen = new Set<string>();
 let keeping = true, kept = 0;                              // blocks still go into the cache (keepBlock)
+// A read whose blocks this device keeps goes straight from its cache file into the game's memory on WebKit.
+// SharedArrayBuffer views are not accepted by every browser's OPFS read(), so a TypeError disables this path.
+let readsKept = true;
+function readKept(cf: CacheFile, pos: number, end: number, dst: { ptr: number; len: number }[], first: number, last: number): number {
+  for (let bi = first; bi <= last; bi++) if (!cf.have[bi]) return -1;
+  const mem = u8();
+  let off = pos;
+  try {
+    for (const d of dst) {
+      if (off >= end) break;
+      if (!d.len) continue;
+      const k = Math.min(d.len, end - off);
+      if (k <= 0) break;
+      if (cf.h.read(mem.subarray(d.ptr, d.ptr + k), { at: off }) !== k) return -1;
+      off += k;
+    }
+  } catch (e) {
+    if (e instanceof TypeError) { readsKept = false; return -1; }
+    throw e;
+  }
+  return off === end ? end - pos : -1;
+}
+function blocksInMemory(n: DNode, first: number, last: number): boolean {
+  for (let bi = first; bi <= last; bi++) if (!memBlocks.has(n.path + '#' + bi)) return false;
+  return true;
+}
 
 // Use the file at once, in the same task: a file that is not among the CACHE_OPEN newest is closed.
 async function cacheFile(n: DNode) {
@@ -346,6 +372,12 @@ async function dataRead(n: DNode, pos: number, dst: { ptr: number; len: number }
   if (end <= pos) return 0;
   const first = Math.floor(pos / BLOCK), last = Math.floor((end - 1) / BLOCK), track = isTrackStream(n);
   if (track) readAhead(n, first);
+  if (readsKept && offPage && cacheDir && !blocksInMemory(n, first, last)) {
+    dataSummary(performance.now());
+    const cf = await cacheFile(n);
+    const direct = cf ? readKept(cf, pos, end, dst, first, last) : -1;
+    if (direct >= 0) return direct;
+  }
   const blocks = await Promise.all(Array.from({ length: last - first + 1 }, (_, i) => getBlock(n, first + i, track ? P_TRACK : P_GAME)));
   const mem = u8();
   let off = pos, di = 0, dOff = 0;
