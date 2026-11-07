@@ -204,8 +204,7 @@ mod tests {
         use tokio::io::AsyncReadExt;
         let mut stream = tokio::net::TcpStream::connect(kit.addr).await.unwrap();
         let request = format!(
-            "GET /lan HTTP/1.1\\r\\nHost: localhost\\r\\nUpgrade: websocket\\r\\nConnection: Upgrade\\r\\nX-Forwarded-For: {ip}\\r\\n\\
-             Sec-WebSocket-Version: 13\\r\\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\\r\\n\\r\\n"
+            "GET /lan HTTP/1.1\r\nHost: localhost\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nX-Forwarded-For: {ip}\r\nSec-WebSocket-Version: 13\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n\r\n"
         );
         stream.write_all(request.as_bytes()).await.unwrap();
         let mut bytes = [0u8; 64];

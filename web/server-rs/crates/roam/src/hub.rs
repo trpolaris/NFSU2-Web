@@ -1289,7 +1289,7 @@ impl Hub {
 
     /// The world map's answer to the player in `slot` (roam_core.h RC_MSG_MAP): the players of its room in free roam
     /// (or paused there) with a position younger than map_fresh_ms, past itself and its links, nearest first (at one
-    /// distance in the order they came), map_max of them at most, in datagrams of MAP_PER; one answer to a browser (its
+    /// distance in the order they came), at most min(map_max, 3 * MAP_PER) of them, in datagrams of MAP_PER; one answer to a browser (its
     /// virtual address, whatever its endpoints) every map_gap_ms at most (a page asks again when an answer does not
     /// come).
     fn map(&mut self, slot: u32, req: u16, now: f64) {
