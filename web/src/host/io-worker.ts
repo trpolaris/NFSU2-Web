@@ -78,7 +78,7 @@ function tunnelOverlayReady(): boolean {
   if (!/^(1|on|true)$/i.test(flag)) return (tunnelPackReady = false);
   tunnelPackReady = [...TUNNEL_TRACKS].every(path => {
     const node = dataLookup(`MODPACKS/open-tunnel/${path}`);
-    return !!node && !node.dir;
+    return !!node && !node.dir && node.size > 0;
   });
   if (!tunnelPackReady) console.warn('[data] Construction Tunnel pack is incomplete; using the original map');
   return tunnelPackReady;
