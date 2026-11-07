@@ -3,7 +3,8 @@ use super::*;
 const NOW: i64 = 1_800_000_000_000;
 
 fn owner(n: u8) -> Owner {
-    owner_of_token(&format!("{}{}", n, "A".repeat(42))).expect("a token")
+    // Always a 43-byte base64url token, including for two/three-digit test ids.
+    owner_of_token(&format!("{:03X}{}", n, "A".repeat(40))).expect("a token")
 }
 
 // the Online form is runtime/online.c's clean(): the same cases as its comment gives
@@ -249,6 +250,6 @@ fn pruning_is_rate_limited_but_expired_names_are_not_live() {
     assert!(!c.prune(first_sweep + PRUNE_EVERY_MS - 1), "a sweep inside the hourly interval is skipped");
     assert!(c.inner.read().names.contains_key("expiry"), "the dead entry waits for the next sweep");
 
-    assert!(c.prune(first_sweep + PRUNE_EVERY_MS), "the next hourly sweep removes the dead entry");
+    assert!(c.prune(expiry + PRUNE_EVERY_MS), "the next hourly sweep after expiry removes the dead entry");
     assert!(!c.inner.read().names.contains_key("expiry"));
 }
