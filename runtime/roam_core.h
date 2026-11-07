@@ -71,6 +71,7 @@
 #define RC_MAP_NO_Z      ((int16_t)0x8000)
 #define RC_MAPD_BYTES    1152       /* entry bytes per MAPD datagram */
 #define RC_MAPD_PARTS    16         /* MAPD datagrams per answer at most */
+#define RC_MAPD_MAX_Z    (RC_MAPD_PARTS * (RC_MAPD_BYTES / RC_MAPD_PLACE_Z)) /* 1664 records with per-player height */
 #define RC_NEAR_MAX      128        /* NEARD entries per answer at most: one datagram */
 #define RC_NEAR_M        1000       /* a NEARREQ's radius at most (m) */
 #define RC_LOBBY_MAX     6          /* players in a race lobby: the game's network race takes 6 */
