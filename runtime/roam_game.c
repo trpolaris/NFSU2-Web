@@ -6575,6 +6575,12 @@ int roam_game_cmd(CPU *c, const char *args, long *wait_start){
         rlog("[roam]   minimap: %d cars' arrows, %d free, %d copies of AIRACERINDICATOR_0 (%d drawn); %d of %d friends' cars shown have one, "
                         "%d hidden one(s) in the world; %d in a crew's colour (%d of them not a crew-mate's car)\n", arrows, freev, g_mm.ncopy, cdrawn,
                         with, shown, stray, tinted, wrong);
+        int near_fresh = 0;
+        for (int i = 0; i < g_near.n && i < RC_NEAR_MAX; i++) near_fresh += g_near.visible[i] != 0;
+        int64_t near_age_ms = g_near.asked && roam_plat_now_us() >= g_near.asked
+            ? (roam_plat_now_us() - g_near.asked) / 1000 : -1;
+        rlog("[roam]   minimap NEARD: %d/%u nearby, %d fresh, gen %u, last request %lld ms ago (HUD %s)\n",
+             g_near.n, g_near.total, near_fresh, g_near.gen, (long long)near_age_ms, g_near.hud ? "present" : "absent");
         for (int k = 0; k < TAG_N; k++)
             if (g_tag.shown[k] && g_tag.obj[k])
                 rlog("[roam]   name %d: \"%s\" colour %06x at %.1f %.1f\n", k, g_tag.text[k], g_tag.rgb[k],
