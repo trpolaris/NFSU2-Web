@@ -60,7 +60,7 @@
 #define RC_MAP_ENTRY     5          /* a MAP entry: x, y (int16, m), heading (u8, 256 a turn) */
 #define RC_MAP_PER       230        /* entries per MAP datagram at most */
 #define RC_MAP_PARTS     3          /* MAP datagrams per answer at most */
-#define RC_MAP_MAX       512        /* entries per answer at most (bounded native marker storage) */
+#define RC_MAP_MAX       2048       /* entries per answer at most (the hub's MAPD_MAX; 16 x 128-entry datagrams) */
 #define RC_MAP_MAX_V1    512        /* legacy MAPREQ without max: an older client */
 #define RC_MAPD_GONE     0x8000u    /* a MAPD entry key with this bit: the player went */
 #define RC_MAPD_PARKED   0x4000u    /* placed key bit: the car has stayed near one point for one minute */
