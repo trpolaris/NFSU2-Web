@@ -808,6 +808,16 @@ int main(int argc, char **argv){
     snprintf(p, sizeof p, "%s/NFSU2FreeRoam.log", od); FILE *la = fopen(p, "r");
     fflush(stderr); snprintf(p, sizeof p, "%s/mac.log", od); FILE *lb = fopen(p, "r");
     char x[800], y[800]; int nl = 0, nsame = 0;
+    int near_plugin = 0, near_mac = 0;
+    while (la && fgets(x, sizeof x, la))
+        if (strstr(x, "free-roam multiplayer ON:") && strstr(x, "32 nearby minimap arrows")) near_plugin = 1;
+    if (la) rewind(la);
+    while (lb && fgets(y, sizeof y, lb))
+        if (strstr(y, "free-roam multiplayer ON:") && strstr(y, "32 nearby minimap arrows")) near_mac = 1;
+    if (lb) rewind(lb);
+    check(near_plugin && near_mac,
+          "minimap Near setting: Windows ASI INI and Mac environment both resolve to 32 (plugin %d, Mac %d)",
+          near_plugin, near_mac);
     char ga[400][300]; int nga = 0;
     while (la && fgets(x, sizeof x, la)) if (strlen(x) > 13 && !strncmp(x + 13, "[roam] f=", 9) && nga < 400){ x[strcspn(x, "\r\n")] = 0; snprintf(ga[nga++], 300, "%s", x + 13); }
     int k2 = 0;
