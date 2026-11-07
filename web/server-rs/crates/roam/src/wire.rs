@@ -573,7 +573,7 @@ pub(crate) fn mapd_len(bytes: usize) -> usize {
 /// A MAPD datagram: req, base, part, number of parts, total visible players, entry count and packed entries.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn write_mapd(
-    b: &mut [u8], sender: u32, seq: u16, req: u16, base: u16,
+    b: &mut [u8], kind: u8, sender: u32, seq: u16, req: u16, base: u16,
     part: u8, nparts: u8, total: u16, n: u8, entries: &[u8],
 ) {
     let len = b.len();
