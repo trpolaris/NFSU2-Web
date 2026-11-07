@@ -108,7 +108,7 @@ jobs:
 
       - name: Test Free Roam protocol core (MAPD, NEARREQ and compatibility)
         run: |
-          cc -O1 -g -fsanitize=address,undefined -Iruntime tests/roam_unit.c runtime/roam_core.c runtime/roam_bsd.c -o /tmp/roam_unit
+          cc -O1 -g -fsanitize=address,undefined -Iruntime tests/roam_unit.c runtime/roam_core.c runtime/roam_bsd.c -lm -o /tmp/roam_unit
           /tmp/roam_unit 50000
 
       - name: Build server binaries for Node integration tests
