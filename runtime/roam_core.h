@@ -622,6 +622,8 @@ int  rc_peer_crew(const rc_session *s, int i);
  * repeats left out; the hub (or without one, the peers) hears them at the
  * next tick */
 void rc_set_crews(rc_session *s, const uint32_t *crews, int n);
+/* Change the room atomically: drop old-room peers and invalidate map/minimap data. */
+int  rc_set_room(rc_session *s, uint32_t room);
 /* a DUEL message to the established peer with id `to`, if its HELLO said it
  * takes them; 1 when sent */
 int  rc_send_duel(rc_session *s, uint32_t to, uint8_t op, uint8_t arg, uint32_t duel);
