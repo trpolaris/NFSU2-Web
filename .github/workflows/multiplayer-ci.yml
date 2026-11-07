@@ -85,6 +85,7 @@ jobs:
           /tmp/opentunnel_unit off
           /tmp/opentunnel_unit invalid
           /tmp/opentunnel_unit incomplete
+          /tmp/opentunnel_unit empty
           /tmp/opentunnel_unit on
 
       - name: Run x86 lifter ISA regressions
