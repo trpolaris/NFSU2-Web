@@ -9,7 +9,7 @@ import { LANGUAGES, N, NATIVE, t, tn, tvars, type Language, type Msg } from './i
 
 
 /** Safe, allow-listed keys used by portable launcher profiles; never export unknown settings.ini lines. */
-export const PROFILE_SETTING_KEYS = ['render', 'fps', 'audio_latency', 'language', 'subtitles', 'sound', 'intro', 'gamepad', 'rumble', 'ui_textures', 'ug2net_parts', 'others_mod_parts', 'open_tunnel'] as const;
+export const PROFILE_SETTING_KEYS = ['render', 'fps', 'audio_latency', 'language', 'subtitles', 'sound', 'intro', 'gamepad', 'rumble', 'ui_textures', 'open_tunnel'] as const;
 const PROFILE_SETTING_SET = new Set<string>(PROFILE_SETTING_KEYS);
 
 type Control =
@@ -71,8 +71,6 @@ const GROUPS: Group[] = [
     { key: 'seed_registry', label: N('Highest graphics for a new save'), help: N('The game\'s own graphics options at their highest, at this screen\'s resolution. Off lets the game run its own hardware check.'), c: { t: 'switch' }, more: true },
   ] },
   { title: N('Mods'), more: N('More mod settings'), items: [
-    { key: 'ug2net_parts', label: N('underground2.net Rims'), help: N('Adds the 24 Blitz rims to the Body Shop. All clients load the shared parts so other players see the same wheels; this switch controls whether the shop offers them.'), link: { text: N('Mod details'), href: 'https://nfsmods.xyz/mod/2004' }, c: { t: 'switch' } },
-    { key: 'others_mod_parts', label: N('Other players’ mod parts'), help: N('Shown uses the mod parts fitted to other players’ cars. Original replaces them with compatible stock stand-ins. Your own car is unchanged.'), c: { t: 'seg', opts: [['shown', N('Shown')], ['original', N('Original')]] } },
     { key: 'open_tunnel', label: N('Drive through the Construction Tunnel, including early in your career.'), help: N('Changes apply the next time you press Play.'), c: { t: 'switch' } },
   ] },
   { title: N('Display'), more: N('More display settings'), items: [
