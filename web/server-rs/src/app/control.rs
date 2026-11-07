@@ -177,12 +177,14 @@ impl App {
             .filter(|x| x.left.is_none() && self.bans.covers(&ban, x.ident.as_deref(), x.browser.as_deref(), now))
             .filter(|x| self.lan.expel(x.vip, notice.clone(), CLOSE_BANNED))
             .collect();
+        let ban_id = ban.id;
         log::line(&format!(
             "[ban] automatic race ban #{} \"{}\" for 2 weeks; car {} (type {}), {:.0} kW, rating {:.0}, {:.0} kg, {:.0} km/h; lobby {:08x}, race {:08x}; removed: {}{}",
             ban.id, w.name, race.car, race.car_type, race.kw, race.rating, race.kg, race.kmh,
             race.lobby, race.race, listed(&removed),
             if replaced.is_empty() { String::new() } else { format!("; replaced {}", replaced.iter().map(|n| format!("#{n}")).collect::<Vec<_>>().join(", ")) }
         ));
+        super::autoban::post_race_ban(ban_id, &race, &w.name).await;
     }
 
     /// One command (the module doc): Ok(the answer), Err(why not).

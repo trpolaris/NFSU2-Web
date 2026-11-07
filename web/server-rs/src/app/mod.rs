@@ -10,6 +10,7 @@
 //! bare address.  The console is the operator's own: it may name paths, but it names players only by their virtual
 //! address and nickname, never by their real address (--access-log is the one opt-in that records client addresses).
 
+mod autoban;
 mod blocks;
 pub mod control;
 mod etag;
@@ -26,7 +27,7 @@ mod route_tests;
 mod run;
 #[cfg(test)]
 mod testkit;
-mod turnstile;
+pub(super) mod turnstile;
 mod url;
 mod vault;
 mod wasm;

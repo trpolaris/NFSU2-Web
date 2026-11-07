@@ -135,6 +135,35 @@ fn dechunk(mut b: &[u8]) -> Result<Vec<u8>, String> {
     }
 }
 
+
+/// POST a JSON body to a webhook (Discord's Components V2 messages). The webhook URL is secret: never log it.
+pub(super) async fn post_json(url: &str, body: &str) -> Result<Vec<u8>, String> {
+    let (tls, rest) = match url.split_once("://") {
+        Some(("https", r)) => (true, r),
+        Some(("http", r)) => (false, r),
+        _ => return Err("not an http(s) address".into()),
+    };
+    let (hostport, path) = rest.split_once('/').map_or((rest, "/".to_string()), |(h, p)| (h, format!("/{p}")));
+    let (host, port) = match hostport.rsplit_once(':') {
+        Some((h, p)) if p.bytes().all(|c| c.is_ascii_digit()) => (h, p.parse::<u16>().map_err(|e| e.to_string())?),
+        _ => (hostport, if tls { 443 } else { 80 }),
+    };
+    let req = format!("POST {path} HTTP/1.1\\r\\nHost: {hostport}\\r\\nUser-Agent: nfsu2-server\\r\\nContent-Type: application/json\\r\\nContent-Length: {}\\r\\nConnection: close\\r\\n\\r\\n{body}", body.len());
+    let tcp = tokio::net::TcpStream::connect((host, port)).await.map_err(|e| format!("{host}:{port}: {e}"))?;
+    if tls {
+        let roots = rustls::RootCertStore::from_iter(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
+        let provider = Arc::new(rustls::crypto::ring::default_provider());
+        let config = rustls::ClientConfig::builder_with_provider(provider).with_safe_default_protocol_versions()
+            .map_err(|e| e.to_string())?.with_root_certificates(roots).with_no_client_auth();
+        let connector = tokio_rustls::TlsConnector::from(Arc::new(config));
+        let name = rustls::pki_types::ServerName::try_from(host.to_string()).map_err(|e| format!("{host}: {e}"))?;
+        let stream = connector.connect(name, tcp).await.map_err(|e| format!("{host}: {e}"))?;
+        exchange(stream, req.as_bytes()).await
+    } else {
+        exchange(tcp, req.as_bytes()).await
+    }
+}
+
 /// application/x-www-form-urlencoded
 fn form(s: &str) -> String {
     let mut o = String::with_capacity(s.len());
