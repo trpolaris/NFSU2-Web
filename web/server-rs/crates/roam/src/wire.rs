@@ -522,7 +522,7 @@ pub(crate) fn write_lobbies(b: &mut [u8], sender: u32, seq: u16, req: u16, list:
     b[6..8].copy_from_slice(&(len as u16).to_le_bytes());
     b[8..12].copy_from_slice(&sender.to_le_bytes());
     b[12..14].copy_from_slice(&seq.to_le_bytes());
-    b[14..16].copy_from_slice(&flags.to_le_bytes());
+    b[14..16].copy_from_slice(&[0, 0]);
     b[16..18].copy_from_slice(&req.to_le_bytes());
     b[18] = list.len() as u8;
     for (i, &(x, y, race, n, max, state)) in list.iter().enumerate() {
@@ -594,7 +594,7 @@ pub(crate) fn write_mapd(
     b[6..8].copy_from_slice(&(len as u16).to_le_bytes());
     b[8..12].copy_from_slice(&sender.to_le_bytes());
     b[12..14].copy_from_slice(&seq.to_le_bytes());
-    b[14..16].copy_from_slice(&[0, 0]);
+    b[14..16].copy_from_slice(&flags.to_le_bytes());
     b[16..18].copy_from_slice(&req.to_le_bytes());
     b[18..20].copy_from_slice(&base.to_le_bytes());
     b[20] = part;
