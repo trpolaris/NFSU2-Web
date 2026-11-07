@@ -25,6 +25,16 @@ use crate::{PeerEntry, ROAM_HUB_VIP, RoamOptions};
 const DEGREE_V1: usize = 7;
 const MAPD_MAX: usize = 2048;
 const MAPD_MAX_Z: usize = wire::MAPD_PARTS * (wire::MAPD_BYTES / wire::MAPD_PLACE_Z);
+/// The legacy MAP answer fits in three fixed-size datagrams.
+const MAP_LEGACY_MAX: usize = wire::MAP_PER * 3;
+
+fn mapd_limit(configured: usize, requested: usize, parked: bool) -> usize {
+    configured.min(if parked { MAPD_MAX_Z } else { MAPD_MAX }).min(requested)
+}
+
+fn legacy_map_limit(configured: usize) -> usize {
+    configured.min(MAP_LEGACY_MAX)
+}
 const STAY_M: f64 = 25.0;
 const PARKED_MS: f64 = 60_000.0;
 const MAP_TOL_M: f64 = 2.0;
@@ -318,8 +328,8 @@ fn sanitize(o: RoamOptions) -> RoamOptions {
         look_ms: f(o.look_ms, d.look_ms),
         away_m: f(o.away_m, d.away_m),
         view_m: f(o.view_m, d.view_m),
-        // (one answer is three datagrams at most)
-        map_max: n(o.map_max, d.map_max).min(wire::MAP_PER * 3),
+        // MAPD can span 16 datagrams; the legacy MAP path is capped separately in map().
+        map_max: n(o.map_max, d.map_max).min(MAPD_MAX),
         map_gap_ms: f(o.map_gap_ms, d.map_gap_ms),
         map_fresh_ms: f(o.map_fresh_ms, d.map_fresh_ms),
         near_gap_ms: f(o.near_gap_ms, d.near_gap_ms),
@@ -929,7 +939,7 @@ impl Hub {
     }
 
     fn mapd(&mut self, slot: u32, req: u16, most: u16, base: u16, parked: bool, now: f64) {
-        let max = self.o.map_max.min(if parked { MAPD_MAX_Z } else { MAPD_MAX }).min(most as usize);
+        let max = mapd_limit(self.o.map_max, most as usize, parked);
         let Some(p) = self.player(slot) else { return };
         if p.impostor || self.map_at.get(&p.vip).is_some_and(|&t| now < t) { return; }
         let (room, at, vip, port, hub_port, lobbies) = (p.room, p.p.unwrap_or_default(), p.vip, p.port, p.hub_port, p.lobbies);
@@ -1283,7 +1293,7 @@ impl Hub {
     /// virtual address, whatever its endpoints) every map_gap_ms at most (a page asks again when an answer does not
     /// come).
     fn map(&mut self, slot: u32, req: u16, now: f64) {
-        let (gap, fresh, max) = (self.o.map_gap_ms, self.o.map_fresh_ms, self.o.map_max);
+        let (gap, fresh, max) = (self.o.map_gap_ms, self.o.map_fresh_ms, legacy_map_limit(self.o.map_max));
         let Some(p) = self.player(slot) else { return };
         if self.map_at.get(&p.vip).is_some_and(|&t| now - t < gap) {
             return;
@@ -2501,4 +2511,34 @@ fn map_parts(ends:&[usize])->Vec<(usize,usize)>{
 
 fn blocked(blocks: &HashMap<u32, Block>, a: &Player, b: &Player) -> bool {
     blocks.get(&a.vip).is_some_and(|k| k.has(b)) || blocks.get(&b.vip).is_some_and(|k| k.has(a))
+}
+
+
+#[cfg(test)]
+mod map_capacity_tests {
+    use super::*;
+
+    #[test]
+    fn mapd_capacity_uses_the_full_wire_budget() {
+        assert_eq!(mapd_limit(MAPD_MAX, usize::MAX, false), 2048);
+        assert_eq!(mapd_limit(MAPD_MAX, usize::MAX, true), 1664);
+        assert_eq!(mapd_limit(700, MAPD_MAX, false), 700);
+        assert_eq!(mapd_limit(MAPD_MAX, 700, false), 700);
+    }
+
+    #[test]
+    fn configured_mapd_ceiling_is_bounded_and_default_stays_conservative() {
+        assert_eq!(RoamOptions::default().map_max, 512);
+        assert_eq!(sanitize(RoamOptions::default()).map_max, 512);
+        assert_eq!(sanitize(RoamOptions { map_max: 2048, ..RoamOptions::default() }).map_max, 2048);
+        assert_eq!(sanitize(RoamOptions { map_max: usize::MAX, ..RoamOptions::default() }).map_max, 2048);
+        assert_eq!(sanitize(RoamOptions { map_max: 0, ..RoamOptions::default() }).map_max, 512);
+    }
+
+    #[test]
+    fn legacy_map_keeps_its_three_datagram_ceiling() {
+        assert_eq!(legacy_map_limit(512), 512);
+        assert_eq!(legacy_map_limit(2048), 690);
+        assert_eq!(legacy_map_limit(usize::MAX), 690);
+    }
 }

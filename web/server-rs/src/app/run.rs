@@ -128,7 +128,13 @@ pub async fn run(o: Options, cores: usize) {
         })
     });
     // (its lines: the cap on the players' links going down while the server is busy and back up, at most one every 5 s)
-    let roam = o.roam_hub.then(|| RoamHub::spawn_with(RoamOptions::default(), Arc::new(|line: &str| log::line(line)), claims.clone()));
+    // World Map MAPD can be raised to 2048 records explicitly; the default remains 512 to bound per-player traffic.
+    let roam_defaults = RoamOptions::default();
+    let roam_options = RoamOptions {
+        map_max: env_num("NFSU2_ROAM_MAP_MAX", roam_defaults.map_max as u64).min(2048) as usize,
+        ..roam_defaults
+    };
+    let roam = o.roam_hub.then(|| RoamHub::spawn_with(roam_options, Arc::new(|line: &str| log::line(line)), claims.clone()));
     // keyphrase saves: a folder in the state folder (none with --vault-gb 0)
     let vault = (o.vault_gb > 0.0).then(|| {
         let dir = paths::join(&o.state, "vault");

@@ -162,8 +162,8 @@ pub struct RoamOptions {
     /// a player's view point, this far ahead of where its car points (m): a car in front counts from there too, so it
     /// is linked from farther away than one beside or behind
     pub view_m: f64,
-    /// the world map (MAPREQ): at most this many players a answer, one answer a browser every map_gap_ms at most, of
-    /// the players in free roam (or paused there) with a position younger than map_fresh_ms
+    /// the server-side ceiling for World Map MAPD snapshots/deltas: 512 by default, up to 2048 (1664 when a
+    /// parked request carries height). Legacy MAP answers are separately capped at three 230-entry datagrams.
     pub map_max: usize,
     pub map_gap_ms: f64,
     pub map_fresh_ms: f64,
