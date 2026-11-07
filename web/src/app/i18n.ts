@@ -33,6 +33,24 @@ export const NATIVE: Record<Language, string> = {
   portuguese: 'Português (Brasil)', polish: 'Polski', turkish: 'Türkçe',
 };
 
+/** Map a BCP 47 language subtag to the languages actually shipped by this branch. */
+const BY_SUBTAG = new Map<string, Language>(LANGUAGES.map(l => [LOCALE[l].split('-')[0].toLowerCase(), l]));
+
+/** First supported language in the browser's preference order; unsupported languages are never guessed. */
+export function browserLanguage(tags: readonly string[] = navigatorLanguages()): Language {
+  for (const tag of tags) {
+    const subtag = tag.trim().toLowerCase().split(/[-_]/)[0];
+    const language = BY_SUBTAG.get(subtag);
+    if (language) return language;
+  }
+  return 'english';
+}
+
+function navigatorLanguages(): readonly string[] {
+  if (typeof navigator === 'undefined') return [];
+  return navigator.languages?.length ? navigator.languages : navigator.language ? [navigator.language] : [];
+}
+
 let current: Language = 'english';
 let dict: Record<string, string | Forms> = {};
 let plural: Intl.PluralRules | null = null;
@@ -152,7 +170,9 @@ export async function setLanguage(l: string, log?: (s: string) => void): Promise
 /** the language this browser showed last (the page asks for its file at once, before settings.ini is read) */
 const STORE = 'nfsu2-page-language';
 export function lastLanguage(): Language {
-  try { const v = localStorage.getItem(STORE) ?? ''; return isLanguage(v) ? v : 'turkish'; } catch { return 'turkish'; }
+  let saved = '';
+  try { saved = localStorage.getItem(STORE) ?? ''; } catch { /* use the browser preference when storage is unavailable */ }
+  return isLanguage(saved) ? saved : browserLanguage();
 }
 
 // ------------------------------------------------------------------------------------------------ the markup --
