@@ -77,6 +77,8 @@ function stableSenderColor(name: string): string {
   return SENDER_COLORS[(hash >>> 0) % SENDER_COLORS.length];
 }
 function normalizedPlayerName(name: string): string { return name.normalize('NFKC').trim().toLocaleLowerCase(); }
+/** The race server compares blocked game names with Unicode lowercasing, not the browser's current locale. */
+function blockedPlayerName(name: string): string { return name.trim().toLowerCase(); }
 const KEYS: Record<string, number> = { Digit1: 0, Digit2: 1, Digit3: 2, Digit4: 3, Numpad1: 0, Numpad2: 1, Numpad3: 2, Numpad4: 3 };
 
 export class QuickChat {
@@ -423,7 +425,7 @@ export class QuickChat {
   /** a game started: quick chat on (the setting) or off, with the player's sixteen (phrases.ts phrasesOf, groupsOf) */
   start(s: GameSession, on: boolean, layout: readonly number[], groups: readonly CatId[], crews: readonly CrewChannel[] = [], playerName = '', blocked: readonly string[] = []) {
     this.session = s; this.on = on; this.drive = 0; this.driveAt = 0; this.netrace = 0;
-    this.blocked = new Set(blocked.map(normalizedPlayerName).filter(Boolean));
+    this.blocked = new Set(blocked.map(blockedPlayerName).filter(Boolean));
     // A GameSession can exist during startup/loading. Only FreeRoam driving may reveal the HUD.
     this.chatHud.dataset.gameReady = 'false';
     this.chatHud.hidden = true;
@@ -1137,7 +1139,7 @@ export class QuickChat {
     try { s = JSON.parse(json) as Said; } catch { this.deps.log(`[chat] not JSON: ${json.slice(0, 80)}`); return; }
     if (!this.on || typeof s.id !== 'number' || typeof s.p !== 'number' || !(s.p >= 0 && s.p < PHRASES.length)) return;
     const text = t(PHRASES[s.p].text), me = !!s.me, name = String(s.name ?? '');
-    if (!me && this.blocked.has(normalizedPlayerName(name))) {
+    if (!me && this.blocked.has(blockedPlayerName(name))) {
       this.deps.log(`[chat] ${name} said ${s.p}, in the race: not shown (blocked)`);
       return;
     }
