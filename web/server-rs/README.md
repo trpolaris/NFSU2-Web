@@ -232,7 +232,7 @@ players.
   10.77.0-95.x). This is the switch's address/admission ceiling, not a measured 24000-player throughput claim. The
   Free Roam hub has its separate 6144-player cap; Online mode 3000 lobby sessions, 900 games and 12000 streams.
   The game module's peer bits
-  (mailbox v4) cover a /21: for a player on 10.77.8-23.x the game asks that host itself (`runtime/web/net_lan.c`): a LAN race's
+  (mailbox v4) cover a /21: for a player on 10.77.8-95.x the game asks that host itself (`runtime/web/net_lan.c`): a LAN race's
   connect to one who has just left sends its SYN and ends after the same 3 s with WSAETIMEDOUT instead of
   WSAEHOSTUNREACH.  Nothing else differs: the page and the module need no change (`crates/lan/tests/page.mjs`).
 - A full switch keeps a line (nfsu2-lan `queue.rs`) for the pages that say they can wait (/lan?queue): Node closed
