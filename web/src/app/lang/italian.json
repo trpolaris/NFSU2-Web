@@ -1533,5 +1533,8 @@
   "Steam Controller or Steam Deck: connect it once.": "Steam Controller o Steam Deck: collegalo una volta.",
   "{names}: connected in this browser.": "{names}: collegato in questo browser.",
   "Connect a Steam Controller": "Collega uno Steam Controller",
-  "Connect another": "Collegane un altro"
+  "Connect another": "Collegane un altro",
+  "Too many players are connected from your network: playing with others waits for a free place, or use another network.": "Troppi giocatori sono connessi dalla tua rete: per giocare con gli altri bisogna aspettare un posto libero, oppure usa un'altra rete.",
+  "Your antivirus or network is probably blocking the connection to other players. Allow this site in it, or try another network or a VPN.": "Probabilmente il tuo antivirus o la tua rete bloccano la connessione con gli altri giocatori. Consenti questo sito, oppure prova un'altra rete o una VPN.",
+  "Your connection to other players keeps dropping. Your network may be limiting it: try another network or a VPN.": "La tua connessione con gli altri giocatori continua a cadere. Forse la tua rete la limita: prova un'altra rete o una VPN."
 }

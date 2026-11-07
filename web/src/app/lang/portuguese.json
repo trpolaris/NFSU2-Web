@@ -1529,5 +1529,8 @@
   "This server is currently running for testing only and should not be considered a stable, production-ready service.": "Este servidor está funcionando atualmente apenas para testes e não deve ser considerado um serviço estável e pronto para produção.",
   "The project is still in development and testing. You may encounter bugs, interruptions, or unexpected behavior in gameplay, multiplayer connections, chat, or website features.": "O projeto ainda está em desenvolvimento e fase de testes. Podem ocorrer erros, interrupções ou comportamentos inesperados no jogo, nas conexões multijogador, no chat ou nos recursos do site.",
   "By continuing, you acknowledge that you are using a test build.": "Ao continuar, você confirma que está usando uma versão de teste.",
-  "I understand, continue": "Entendi, continuar"
+  "I understand, continue": "Entendi, continuar",
+  "Too many players are connected from your network: playing with others waits for a free place, or use another network.": "Há jogadores demais conectados pela sua rede: para jogar com os outros, é preciso esperar uma vaga livre, ou use outra rede.",
+  "Your antivirus or network is probably blocking the connection to other players. Allow this site in it, or try another network or a VPN.": "Seu antivírus ou sua rede provavelmente está bloqueando a conexão com os outros jogadores. Permita este site ou tente outra rede ou uma VPN.",
+  "Your connection to other players keeps dropping. Your network may be limiting it: try another network or a VPN.": "Sua conexão com os outros jogadores cai o tempo todo. Talvez sua rede esteja limitando: tente outra rede ou uma VPN."
 }

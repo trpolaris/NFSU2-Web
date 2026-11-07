@@ -1437,5 +1437,8 @@
   "This server is currently running for testing only and should not be considered a stable, production-ready service.": "이 서버는 현재 테스트 목적으로만 운영되며 안정적인 정식 서비스로 간주해서는 안 됩니다.",
   "The project is still in development and testing. You may encounter bugs, interruptions, or unexpected behavior in gameplay, multiplayer connections, chat, or website features.": "프로젝트는 아직 개발 및 테스트 단계입니다. 게임 플레이, 멀티플레이어 연결, 채팅 또는 웹사이트 기능에서 오류, 접속 중단이나 예상치 못한 동작이 발생할 수 있습니다.",
   "By continuing, you acknowledge that you are using a test build.": "계속 진행하면 테스트 버전을 사용하고 있음을 확인하는 것입니다.",
-  "I understand, continue": "확인했습니다. 계속"
+  "I understand, continue": "확인했습니다. 계속",
+  "Too many players are connected from your network: playing with others waits for a free place, or use another network.": "내 네트워크에서 접속한 플레이어가 너무 많아요: 자리가 날 때까지 다른 플레이어와의 플레이는 대기해요. 다른 네트워크를 써도 돼요.",
+  "Your antivirus or network is probably blocking the connection to other players. Allow this site in it, or try another network or a VPN.": "백신 프로그램이나 네트워크에서 다른 플레이어와의 연결을 막고 있는 것 같아요. 이 사이트를 허용하거나, 다른 네트워크나 VPN을 써 보세요.",
+  "Your connection to other players keeps dropping. Your network may be limiting it: try another network or a VPN.": "다른 플레이어와의 연결이 계속 끊겨요. 네트워크에서 제한하고 있을 수 있어요: 다른 네트워크나 VPN을 써 보세요."
 }
