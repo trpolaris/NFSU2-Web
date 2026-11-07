@@ -2578,7 +2578,9 @@ static int wm_dress(CPU *c, uint32_t map, uint32_t pkg, int max){
     }
     return copies;
 }
+#if MPRACES
 static uint32_t meet_icon(CPU *c, uint32_t pkg);
+#endif
 /* The map's filter: two rows of our own in its legend (the list on its left,
  * a row for each kind of place on the map: Up and Down pick one, Enter
  * crosses its tick and the map hides that kind), "Players" for the other
