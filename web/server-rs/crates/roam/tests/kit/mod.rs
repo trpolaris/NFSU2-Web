@@ -262,6 +262,63 @@ pub fn neard_of(f: &[u8]) -> Option<Mapd> {
     Some((u(16)?, u(18)?, *d.get(20)?, *d.get(21)?, u(22)?, e))
 }
 
+/// a MAPD entry: the player's key, and where it is placed (x, y, heading, vx, vy), or None: gone
+pub type MapdEntry = (u16, Option<(i16, i16, u8, i8, i8)>);
+/// a MAPD datagram: (req, base, part, nparts, total, entries)
+pub type Mapd = (u16, u16, u8, u8, u16, Vec<MapdEntry>);
+
+/// the MAPD datagram in a frame of the hub's
+pub fn mapd_of(f: &[u8]) -> Option<Mapd> {
+    let d = &f[16..];
+    if d[5] != 18 {
+        return None;
+    }
+    let (mut o, mut e) = (25, Vec::new());
+    for _ in 0..d[24] {
+        let key = u16::from_le_bytes([d[o], d[o + 1]]);
+        if key & 0x8000 != 0 {
+            e.push((key & 0x7fff, None));
+            o += 2;
+        } else {
+            let i = |k: usize| i16::from_le_bytes([d[o + k], d[o + k + 1]]);
+            e.push((key, Some((i(2), i(4), d[o + 6], d[o + 7] as i8, d[o + 8] as i8))));
+            o += 9;
+        }
+    }
+    assert_eq!(o + 4, d.len(), "MAPD entries fill the datagram");
+    let u = |k: usize| u16::from_le_bytes([d[k], d[k + 1]]);
+    Some((u(16), u(18), d[20], d[21], u(22), e))
+}
+
+/// A NEARREQ packet: the minimap's request, maximum entries, acknowledged base and radius in metres.
+pub fn nearreq(sender: u32, req: u16, max: u16, base: u16, radius: u16) -> Vec<u8> {
+    dgram(19, sender, &[req.to_le_bytes(), max.to_le_bytes(), base.to_le_bytes(), radius.to_le_bytes()].concat())
+}
+
+/// A NEARD datagram in a frame sent by the hub.
+pub fn neard_of(f: &[u8]) -> Option<Mapd> {
+    let d = f.get(16..)?;
+    if *d.get(5)? != 20 { return None; }
+    let count = *d.get(24)? as usize;
+    let (mut o, mut e) = (25usize, Vec::with_capacity(count));
+    for _ in 0..count {
+        let key = u16::from_le_bytes([*d.get(o)?, *d.get(o + 1)?]);
+        if key & 0x8000 != 0 {
+            e.push((key & 0x7fff, None));
+            o += 2;
+        } else {
+            let i = |k: usize| -> Option<i16> {
+                Some(i16::from_le_bytes([*d.get(o + k)?, *d.get(o + k + 1)?]))
+            };
+            e.push((key, Some((i(2)?, i(4)?, *d.get(o + 6)?, *d.get(o + 7)? as i8, *d.get(o + 8)? as i8))));
+            o += 9;
+        }
+    }
+    if o + 4 != d.len() { return None; }
+    let u = |k: usize| -> Option<u16> { Some(u16::from_le_bytes([*d.get(k)?, *d.get(k + 1)?])) };
+    Some((u(16)?, u(18)?, *d.get(20)?, *d.get(21)?, u(22)?, e))
+}
+
 pub fn bye(sender: u32) -> Vec<u8> {
     dgram(8, sender, &[0])
 }
@@ -360,6 +417,8 @@ impl Kit {
     }
     /// a datagram from browser `vip` (port 47210)
     pub fn from(&mut self, vip: u32, d: &[u8]) {
+        let busy = *self.busy.lock();
+        self.hub.set_thread_busy(busy);
         self.hub.frame(vip, &frame(vip, d));
     }
     pub fn info(&self, k: &str) -> f64 {
