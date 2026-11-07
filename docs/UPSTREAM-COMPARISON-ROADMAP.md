@@ -19,7 +19,7 @@ Bu belge, proje ana README'sinin yerine geçmez. Entegrasyon çalışmalarının
 | World Map protokol dalı | `integration/world-map-mapd`, HEAD `ecf7f03` | [Dal](https://github.com/trpolaris/NFSU2-Web/tree/integration/world-map-mapd) |
 | Minimap/NEARD çalışma dalı | `feature/world-map-meets`, HEAD `1bb6b23` | [Dal](https://github.com/trpolaris/NFSU2-Web/tree/feature/world-map-meets) |
 
-**7 Kasım 2026 son kod kontrolü:** PR #21 HEAD `dd90cbd963fae7826074d826a1476feab1052df9`, 482 commit ve 206 değişen dosyadır. PR açık/taslak ve merge edilmedi. `main` HEAD `82616f9d9367203bda308005c07f6970f0ab4995` olarak kaldı; production deploy yapılmadı. MAPD/NEARD, `/lan?check`, World Map/Minimap/Car Meet runtime, yeni upstream name-filter ve remote-engine portları bu entegrasyon dalındadır. Deneysel World Map dalları otomatik birleştirilmedi; uyumlu kod seçilerek port edildi.
+**7 Kasım 2026 son kod/config kontrolü:** Bu rapor güncellemesinden önce PR #21 HEAD `8e09b5e7cb0078a05fe57cea6d7103d6687cabb4` (487 commit, 206 değişen dosya) idi. PR açık/taslak ve merge edilmedi. `main` HEAD `82616f9d9367203bda308005c07f6970f0ab4995` olarak kaldı; production deploy yapılmadı. MAPD/NEARD, `/lan?check`, World Map/Minimap/Car Meet runtime, yeni upstream name-filter, remote-engine ve WebKit-memory portları ile 24k LAN/opsiyonel race-ban Compose yapılandırması entegrasyon dalındadır. Bu son rapor commit'i dokümantasyon amaçlıdır.
 
 - [main ile ana entegrasyon dalının farkı](https://github.com/trpolaris/NFSU2-Web/compare/main...integration/upstream-2026-11-06)
 - [main ile World Map dalının farkı](https://github.com/trpolaris/NFSU2-Web/compare/main...integration/world-map-mapd)
@@ -238,7 +238,7 @@ Bu audit PR #21'in 7 Kasım 2026 tarihli devam HEAD'ini ve upstream'in aynı gü
 - MODPACKS rim mağaza girişi geçici olarak kapalıdır. Güncel builder `--mod` kullanır; eski `--ug2net`, `ug2net_parts` ve `others_mod_parts` örnekleri kullanılmamalıdır.
 ## 6. Test ve CI durumu nasıl okunmalı?
 
-Son branch HEAD `dd90cbd963fae7826074d826a1476feab1052df9` (PR #21: 482 commit, 206 değişen dosya) için kontrol anında image-rs ve Multiplayer/Regression koşuları çalışıyordu. Önceki tam olmayan Multiplayer koşusu Chromium regression aşamasında iptal edildi; bu nedenle o koşu tam CI başarısı sayılmaz. Compose ve dokümantasyon güncellemelerinden sonra oluşan yeni HEAD'in kendi Actions sonucu esas alınmalıdır.
+Bu rapor güncellemesinden önceki kod/config HEAD `8e09b5e7cb0078a05fe57cea6d7103d6687cabb4` için Multiplayer/Regression run `42395338274` ve image-rs run `42395338331` çalışıyordu. Multiplayer aşamasında native/MODPACKS syntax ve TypeScript geçti; web build devam ediyordu. Image build de devam ediyordu. Bu nedenle bu HEAD için tam CI başarısı ilan edilmez. Son rapor commit'i dokümantasyon değişikliğidir ve kendi exact-head Actions koşusu ayrıca kontrol edilmelidir.
 
 - [Tüm GitHub Actions çalışmaları](https://github.com/trpolaris/NFSU2-Web/actions)
 - [Multiplayer & Regression workflow](https://github.com/trpolaris/NFSU2-Web/actions/workflows/multiplayer-ci.yml)
