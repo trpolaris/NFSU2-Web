@@ -19,7 +19,7 @@ Bu belge, proje ana README'sinin yerine geçmez. Entegrasyon çalışmalarının
 | World Map protokol dalı | `integration/world-map-mapd`, HEAD `ecf7f03` | [Dal](https://github.com/trpolaris/NFSU2-Web/tree/integration/world-map-mapd) |
 | Minimap/NEARD çalışma dalı | `feature/world-map-meets`, HEAD `1bb6b23` | [Dal](https://github.com/trpolaris/NFSU2-Web/tree/feature/world-map-meets) |
 
-**7 Kasım 2026 güncel kontrolü:** PR #21 HEAD `f8766aac110d44d7483978c3da7f844f2761a6e8`, 425 commit ve 171 değişen dosyadır. PR açık/taslak, merge edilmedi. `main` HEAD `82616f9d9367203bda308005c07f6970f0ab4995` olarak kaldı; production deploy yapılmadı. MAPD kapasite ayrımı, WebSocket bağlantı nedeni tanılaması ve `/lan?check` preflight kodu bu HEAD'de mevcuttur. World Map/Minimap deneysel dalları otomatik birleştirilmedi; uyumlu parçalar PR #21'e seçici port edildi.
+**7 Kasım 2026 son kod kontrolü:** PR #21 HEAD `dd90cbd963fae7826074d826a1476feab1052df9`, 482 commit ve 206 değişen dosyadır. PR açık/taslak ve merge edilmedi. `main` HEAD `82616f9d9367203bda308005c07f6970f0ab4995` olarak kaldı; production deploy yapılmadı. MAPD/NEARD, `/lan?check`, World Map/Minimap/Car Meet runtime, yeni upstream name-filter ve remote-engine portları bu entegrasyon dalındadır. Deneysel World Map dalları otomatik birleştirilmedi; uyumlu kod seçilerek port edildi.
 
 - [main ile ana entegrasyon dalının farkı](https://github.com/trpolaris/NFSU2-Web/compare/main...integration/upstream-2026-11-06)
 - [main ile World Map dalının farkı](https://github.com/trpolaris/NFSU2-Web/compare/main...integration/world-map-mapd)
@@ -108,16 +108,14 @@ Bu bölümdeki çalışmalar `integration/upstream-2026-11-06` dalındadır ve [
 
 **Kurulum ve doğrulama:** [VINYLPACKS.md](https://github.com/trpolaris/NFSU2-Web/blob/integration/upstream-2026-11-06/docs/web/VINYLPACKS.md) · [vinyl pack builder](https://github.com/trpolaris/NFSU2-Web/blob/integration/upstream-2026-11-06/tools/vinylpacks.py) · [shop test](https://github.com/trpolaris/NFSU2-Web/blob/integration/upstream-2026-11-06/tests/scripts/vinylpacks_shop.txt)
 
-### 3.6 Mods / Mod Packs — kod eklendi, gerçek oyun doğrulaması bekliyor
+### 3.6 Mods / Mod Packs — deneysel, mağaza özelliği geçici olarak kapalı
 
-- `runtime/modpacks.c` ve `tools/modpacks.py` eklendi.
-- `MODPACKS/` dosya/texture overlay desteği, native/WASM build bağlantıları ve oyun verisi manifest izinleri eklendi.
-- `ug2net_parts` ayarı Body Shop'ta Blitz jantlarının sunulmasını kontrol eder.
-- `others_mod_parts` ayarı diğer oyuncu araçlarında mod parçası veya uyumlu orijinal stand-in gösterimini seçer.
-- Eklenen parçalar profilin stok parça verisini değiştirmeden `MODPARTS.DAT` sidecar dosyasında saklanacak şekilde tasarlandı.
-- Profil yedekleme/geri yükleme sırasında eşleşen sidecar'ın temizlenmesi için ek kod ve test yazıldı.
+- `runtime/modpacks.c` paket başlığını/içeriğini okuyan ve `MODPACKS/PARTS.BIN` kayıtlarını doğrulayan runtime modülü; `tools/modpacks.py` ise deneysel pack builder olarak dalda bulunur.
+- Builder'ın güncel CLI'si `--mod` kullanır; eski `--ug2net` örneği geçerli değildir.
+- Son runtime kararı gereği mod rim shop aktivasyonu `g.on[] = 0` ile zorunlu kapalıdır. `NFSU2_MOD_RIMS` satırı ve eski `ug2net_parts` / `others_mod_parts` web ayarları kaldırılmıştır.
+- Bu nedenle pack parser/builder altyapısının bulunması, Blitz/mod rimlerin Body Shop'ta açıldığı anlamına gelmez. Eski `modpacks_rims*.txt` senaryoları güncel kullanıcıya açık özellik olarak kabul edilmemelidir.
 
-**Henüz yapılması gereken:** Uyumlu underground2.net mod varlıklarından gerçek `MODPACKS/` klasörü üretmek, farklı ayarlara sahip iki istemciyle aynı aracı görüntülemek, Body Shop ve kariyer kayıt/yükleme senaryolarını gerçek oyunla kontrol etmek.
+**Henüz yapılması gereken:** Rim shop davranışı ve kullanıcı ayarları birlikte yeniden etkinleştirilmeli; MODPARTS sidecar/save-load ve farklı pack ayarlarına sahip iki istemcinin uzaktaki araç görünümü gerçek oyunla yeniden doğrulanmalıdır.
 
 **Dosyalar:** [MODPACKS.md](https://github.com/trpolaris/NFSU2-Web/blob/integration/upstream-2026-11-06/docs/web/MODPACKS.md) · [runtime/modpacks.c](https://github.com/trpolaris/NFSU2-Web/blob/integration/upstream-2026-11-06/runtime/modpacks.c) · [tools/modpacks.py](https://github.com/trpolaris/NFSU2-Web/blob/integration/upstream-2026-11-06/tools/modpacks.py) · [modpack test senaryoları](https://github.com/trpolaris/NFSU2-Web/tree/integration/upstream-2026-11-06/tests/scripts)
 
@@ -135,7 +133,7 @@ Bu bölümdeki çalışmalar `integration/upstream-2026-11-06` dalındadır ve [
 ### 3.7 Cloud Save, isim sahipliği ve çıkış güvenliği
 
 - Name-claim deposunda süre aşımı temizliğinin sıklığı ve kilit altında JSON serileştirme maliyeti düzenlendi.
-- Mevcut 500.000 claim sınırı ve 180 günlük bekletme korunarak daha büyük upstream limitlerinin doğrudan alınması ertelendi.
+- Claim deposunun hard cap değeri 5.000.000 ve isim tutma süresi 180 gündür. Beş milyon kayıt için dağıtım ölçeğinde bellek/disk/yazma yük testi yapılmış kabul edilmemelidir.
 - Başarılı Cloud Save okuma/yazma işlemleri claimed-name etkinliğini mevcut saatlik sınırla yeniler; hatalı, bulunamayan veya çakışan işlemler yenilemez.
 - Son kayıttan en az 10 dakika geçmişse veya oturumda henüz kayıt yoksa ilk Quit game işleminde uyarı çıkar; Cancel oyunu açık tutar.
 
@@ -202,7 +200,7 @@ TRPOLARIS Minimap prototipinde:
 | P1 | Minimap NEARD | Rust grid/dispatch, C protocol/merge, aktif polling, Player ikon/visual renderer, interpolation/extrapolation, stale/duplicate temizliği ve diagnostics port edildi. | Native/WASM oyun build'i; marker yön/konum, HUD rebuild, oda değişimi, paket kaybı ve 2+ istemcili oyun testi geçer. |
 | P1 | Car Meet | Park kümesi, meet marker/label/item, legend seçimi ve GPS trigger kodu port edildi; `roam mp meet` diagnostics ve 24 sabit istemcili test senaryosu eklendi. | 24 oyuncu 60 s park sonrası meet görünür; legend hide/show çalışır; seçilen meet GPS hedeflenir ve 40 m içinde rota temizlenir. |
 | P2 | World Map kapasite artışı | 4.096 marker ve daha fazla MAPD parçası için istemci bellek, marker havuzu ve UDP veri boyutunu ölçmek. | Bellek/CPU/packet limitleri ölçülür; yük testi ve cihaz profilleri onaylanır. |
-| P2 | Hub kapasitesi | 24.000 oyuncu hedefini bağlantı, bellek, paket/s, thread yoğunluğu, container ve ağ topolojisiyle test etmek. | Kademeli yük testleri, kaynak bütçesi ve düşürme/koruma stratejisi belgelenir. |
+| P2 | Hub kapasitesi | LAN switch adres/admission alanı 24.000'e genişletildi (`10.77.0.0/17`); Free Roam hub'ın ayrı 6.144 oyuncu sınırı korunuyor. Compose 24k peer/192k bağlantı bütçesini ve descriptor limitlerini açığa çıkarıyor. | 24.000 gerçek oyuncu performans hedefi değildir. Kademeli yük testleri, gerçek VPS kaynak bütçesi, ağ topolojisi ve degrade davranışı hâlâ doğrulanmalı. |
 | P2 | Multiplayer kariyer kredileri | Yarışa katılım uygunluğu, arkadaş/crew credit maskeleri, sonuç ve kariyer kaydı, lobby/UI. | Kayıt bozulmadan tek/çok oyunculu yarış sonucuna doğru kredi yazılır. |
 | P2 | Vehicle Show-Off | Kaput/bagaj/kapı durumları, hoparlör/ses, uzaktaki araç animasyonu. | Ağ paketleri, animasyon state ve düşük bant genişliği testleri geçer. |
 | P2 | Photo Mode genişletmesi | Kamera yolu, lens/scene efektleri, freeze-time ve daha yüksek çözünürlük seçenekleri. | Var olan Photo Mode kontrolleriyle çakışmadan runtime ve UI testleri geçer. |
@@ -214,72 +212,49 @@ TRPOLARIS Minimap prototipinde:
 **Önerilen sıra:** Son PR HEAD'in Multiplayer & Regression CI'sini tamamla; native/WASM oyun build'lerini al; ardından World Map/NEARD marker'larını gerçek oyunda ve iki istemcide doğrula; sonra Car Meet/GPS akışını gerçek oyunda tamamla. 4.096 World Map ve 24.000 hub oyuncusu gibi büyük limitler profil ve yük testi olmadan etkinleştirilmemeli.
 
 
-## 10. Upstream delta audit — 7 Kasım 2026 (ek kontrol)
+## 10. Upstream delta audit — 7 Kasım 2026
 
-Bu kontrol, PR #21 HEAD `c5009706c3f77cf5623e1b3f4522759a5efa0bb4` ile upstream `th0mk/nfsu2-web` üzerindeki son ilgili commit'leri karşılaştırır. Upstream'den alınan her değişiklik otomatik olarak güvenli kabul edilmemiştir.
+Bu audit PR #21'in 7 Kasım 2026 tarihli devam HEAD'ini ve upstream'in aynı gün yayımladığı son değişiklikleri kapsar. “Port edildi” kodun mevcut olduğunu, gerçek cihaz/oyun testi yapıldığı anlamına gelmediğini belirtir.
 
-| Upstream değişikliği | PR #21 durumu | Teknik karar |
+| Upstream alanı | Entegrasyon durumu | Kalan doğrulama |
 |---|---|---|
-| [PATCH_MAX 24 → 64](https://github.com/th0mk/nfsu2-web/commit/ecfc9caf081da83c4ba06a1eca0249ccffbac6c2) | **Zaten entegre** | `runtime/dispatch.c` upstream ile aynı blob SHA'ya sahip; tekrar kopyalanmayacak. |
-| [World 1–4 / named worlds](https://github.com/th0mk/nfsu2-web/commit/41737add2f8e9c6e539396135d240f2753df98c4) | **Kısmen entegre** | Dünya seçimi ve sayımlar mevcut. Upstream'in F9 içindeki ayrı Controls alt sayfası bu PR'da aynı davranışla doğrulanmadı; TRPOLARIS'in kendi kontrol merkezi korunuyor. |
-| [Name filter genişletmesi](https://github.com/th0mk/nfsu2-web/commit/b58448bbc6c47d419bfda8b90ed35a12a49edc93) | **Eksik; port gerekli** | Upstream değişikliği C, Rust, JS ve testlerde altı dosyayı birlikte güncelliyor. Fork'un Rust isim normalizasyonu/Unicode bağımlılıkları upstream'den farklı olduğundan dosyaların tamamı kopyalanmayacak. Üç filtrede (runtime/server/page) aynı kararları veren ortak test vektörleriyle kontrollü port gerekiyor. |
-| [Open-hood remote engine textures](https://github.com/th0mk/nfsu2-web/commit/cba97c81543ed7289e6d2b5e708a2991fec3283e) | **Eksik** | `runtime/overrides.c` ve Free Roam araç yükleme yolu için fork'a uyarlanmış port ve çok istemcili görsel test gerekiyor. |
-| [Server race-ban thresholds](https://github.com/th0mk/nfsu2-web/commit/eeb3bdf799b3f55e5198a643a6c9ba4a2bff3d8d) | **Eksik** | Upstream Rust hub, server app, Docker env ve webhook davranışlarını birlikte değiştiriyor. TRPOLARIS'in mevcut hile/yarış raporlama akışıyla API ve moderasyon politikası eşleştirilmeden alınmayacak. |
-| [Claim store 5M cap](https://github.com/th0mk/nfsu2-web/commit/d740043fa34a99465df7d92879111743d054f694) | **Bilinçli olarak ertelendi** | PR #21 500.000 claim sınırını koruyor. 5M kapasite ancak gerçek bellek/serileştirme/yük testi sonrasında değerlendirilecek. |
-| [iPhone WebKit memory/worker fixes](https://github.com/th0mk/nfsu2-web/commit/9a9254560a8a36a1d3dcfd19fd245281e56009f3) | **Eksik / cihaz doğrulaması gerekli** | Fork'un memory ve process katmanı var; upstream'in worker başlangıç ve WebKit cached-read düzeltmeleri birebir eşdeğer kabul edilmiyor. iPhone Safari/WebKit testleriyle port edilmeli. |
+| PATCH_MAX 24 → 64 | Zaten entegre; `runtime/dispatch.c` upstream ile aynı içerik SHA'sını taşıyor. | Yeni kod değişikliği gerekmiyor. |
+| World 1–4 / named worlds ve F9 Controls | Dünya seçimi, oda sayımları ve F9 sayfa davranışı TRPOLARIS kontrol merkezine uyarlandı; upstream UI birebir kopyalanmadı. | Oda değişimi gerçek oyuncularla tekrar kontrol edilmeli. |
+| Name filter genişletmesi | Altı katmanlı C header, Rust implementation/cross-check/tests ve browser implementation/tests port edildi; `Nazli`/`Nazilli` benzeri yanlış pozitif korumaları da dahil. | Tam CI ve canlı isim örnekleri. |
+| Open-hood remote engine textures | `overrides.c` ve `roam_game.c` içine fork'a uyarlanmış engine-texture list davranışı port edildi. | Farklı araç tipleriyle iki istemcili gerçek oyun testi. |
+| iPhone/WebKit memory fixes | Off-page `WebAssembly.Memory`, worker MessagePort aktarımı, memory-grow buffer bildirimi, OPFS cache'den doğrudan okuma ve GPU render-queue sınırı port edildi. | Gerçek iPhone Safari/WebKit cihaz testi; CI bu testi sağlamaz. |
+| Automatic race bans | `NFSU2_CAR_BANS` ile opsiyonel kW/rating eşikleri, mevcut ban store üzerinden iki haftalık otomatik ban ve opsiyonel `NFSU2_BAN_WEBHOOK` Discord bildirimi eklendi. | Varsayılan kapalı davranış, operatörün kendi eşikleri ve gerçek race telemetry ile kontrollü doğrulama. |
+| 24k LAN address space | LAN switch `/17`, 24.000 sanal adres ve 1–24.000 `--max-peers` sınırı; Docker image/Compose yapılandırması buna göre güncellendi. | 24k yük testi yok. Free Roam hub ayrı 6.144 peer limiti taşır; 24k adres alanı 24k Free Roam oyuncu garantisi değildir. |
+| Claim store 5M cap | Kod hard cap'i 5.000.000'e yükseltildi; 180 günlük hold ve expiry pruning korundu. | 5M kayıtlı bellek, disk ve JSON yazma maliyeti yük testine tabi değil. |
+| MODPACKS / rim brands | Parser ve builder mevcut; son güvenli kararda shop activation kapalı ve eski web ayarları kaldırılmış durumda. | UI/runtime yeniden eşleştirilmeden kullanıcıya açık özellik sayılmamalı. |
 
+### 10.1 Son port ve dağıtım notları — 7 Kasım 2026
 
-### 10.1 Port ilerleme kaydı — 7 Kasım 2026
-
-- **Name filter:** Upstream `b58448b` değişikliğinin altı dosyalı seti (C header, Rust implementation/cross-check/tests, browser implementation/tests) entegrasyon dalına taşındı. Port commit'leri: `6d708fa`, `325ba57`, `27cb012`, `fe3f9c5`, `3fee033`, `e72efab`. Bu değişiklik; yeni Nazi kelime varyantlarını, 1488 ayraçlı yazımlarını, phrase filtrelerini ve `Nazli`/`Nazilli` yanlış pozitif korumasını kapsar. Tam doğrulama güncel HEAD CI sonucuna bağlıdır.
-- **Remote engine textures:** Upstream `cba97c8` davranışının fork'a uyarlanmış runtime kısmı port edildi. `overrides.c` list kapasitesini aşmadan ve aynı hash'i çoğaltmadan `<CAR>_ENGINE` texture hash'ini iki texture listesine ekler; `roam_game.c` yalnızca uzak araç yükleme çağrısı çevresinde bayrağı açar. Manuel oyun doğrulaması henüz yapılmadı.
-- **Server race bans:** Upstream `eeb3bdf` port edilmedi. Bu özellik fork'un `RoamOptions`, race event, ban ownership ve control socket API'lerine birden fazla dosyada müdahale ediyor; mevcut TRPOLARIS ban modeline bağlanmadan upstream `autoban.rs` dosyasını kopyalamak güvenli değil.
-- **iPhone WebKit:** Upstream worker fallback, cached-read ve shared-memory büyüme yarışlarının her biri ayrı port gerektiriyor. Fork'un worker/process mimarisi farklı olduğu için dosya bazında kör kopyalama yapılmadı.
-- **5M claims:** 500.000 sınırı bilinçli olarak korundu; yük testi yokken yükseltilmedi.
-
-### Doğrulama notları
-
-- `runtime/dispatch.c` PR dalı ve upstream `main` arasında aynı içerik SHA'sına sahip; PATCH_MAX=64 değişikliği zaten mevcut.
-- `runtime/names.h`, `web/server-rs/crates/names/src/lib.rs`, `web/src/app/names.mjs` ve ilgili test dosyaları fork/upstream arasında farklı içerik ve davranış taşıyor. Tek dosya kopyası üç katman arasında isim filtresi tutarsızlığı yaratabilir.
-- PR #21 HEAD `c5009706c3f77cf5623e1b3f4522759a5efa0bb4` için image-rs CI başarılı; Multiplayer and Regression CI son kontrolde çalışıyordu. Bu nedenle tam CI başarısı ilan edilmez.
-- PR açık/taslak; `main` ve üretim dağıtımı değiştirilmedi.
-
-### Sonraki güvenli port sırası
-
-1. Name filter için upstream'in yeni test vektörlerini çıkar; fork'un Unicode/normalizasyon davranışını koruyarak C/Rust/JS eşitliğini sağla.
-2. Remote engine texture desteğini önce runtime C tarafında port et; iki istemcili kaput açık/kapalı senaryolarını ekle.
-3. Server race-ban özelliğini mevcut TRPOLARIS moderasyon ve webhook yapılandırmasına uyarlayıp varsayılanı kapalı tut.
-4. iPhone WebKit worker/memory düzeltmelerini cihaz/BrowserStack benzeri gerçek WebKit ortamında doğrula.
-5. Claim limitini ancak yük testiyle karar ver; 5M değerini şimdilik açma.
-
----
-
+- WebKit tarafında sayfa artık canlı `WebAssembly.Memory` nesnesini tutmak yerine buffer wrapper kullanabiliyor; I/O worker belleği yaratıp oyun worker'larına port üzerinden iletiyor. Memory büyümesi sayfaya bildirilir. OPFS cache dosyalarından doğrudan oyun belleğine okuma ve büyüyen buffer sınırı için regresyon kodu eklendi.
+- Remote araç yüklemesi, kaput açıkken motor texture hash'ini araç texture listesine ekler. Bu yalnızca oyun C kodunun port edildiğini doğrular; görünür motorun gerçek oyunda test edildiği anlamına gelmez.
+- Otomatik race-ban politikası boş env ile kapalıdır. `NFSU2_CAR_BANS=kw=...` ve/veya `rating=...` pozitif eşikleri kullanılır; iki eşikten herhangi biri ban sebebi olabilir. Ban iki haftalıktır. `NFSU2_BAN_WEBHOOK` opsiyonel Discord bildirimi içindir; webhook URL'si secret olarak tutulmalıdır.
+- Docker Compose `NFSU2_MAX_PEERS` (varsayılan 24000), `NFSU2_CAR_BANS`, `NFSU2_BAN_WEBHOOK` ve `NFSU2_ROAM_MAP_MAX` ayarlarını konteynere geçirir. Caddy/backend bağlantı ve descriptor limitleri 24k switch üst sınırına göre yükseltildi. Bu konfigürasyon bir 24k yük testi değildir.
+- Claim store hard cap 5.000.000'dur. Bu sayı doğrulanmış aktif oyuncu veya gerçek deployment ölçeği değildir; yük testi gerekir.
+- MODPACKS rim mağaza girişi geçici olarak kapalıdır. Güncel builder `--mod` kullanır; eski `--ug2net`, `ug2net_parts` ve `others_mod_parts` örnekleri kullanılmamalıdır.
 ## 6. Test ve CI durumu nasıl okunmalı?
 
-| Dal / çalışma | Son görünen durum | Yorum |
-|---|---|---|
-| PR #21 Multiplayer & Regression CI, HEAD `f8766aac` | [Çalışıyor](https://github.com/trpolaris/NFSU2-Web/actions/runs/42384566039) | Native runtime syntax, TypeScript, web build, Cargo.lock, Rust workspace, GPS, mailbox, MAPD/NEARD core, server build ve synthetic Online smoke testleri geçti; Chromium web regression adımı son kontrolde sürüyordu. Tam başarı henüz ilan edilmedi. |
-| PR #21 image-rs, HEAD `f8766aac` | [Başarılı](https://github.com/trpolaris/NFSU2-Web/actions/runs/42384565976) | Container image build bu exact HEAD üzerinde geçti. |
-| World Map MAPD ve Minimap NEARD | Ayrı çalışma dallarından seçici port edildi | Bu eski dal CI kayıtları PR #21'in güncel HEAD testlerinin yerine geçmez. |
-
-Daha eski ara commit'lerde TypeScript, web build, Cargo.lock, Rust testleri, GPS native C testleri, mailbox layout kontrolü ve sentetik Online yük testi gibi adımların geçtiği kayıtlar bulunabilir. Ancak **eski commit'in yeşil olması yeni HEAD'in de yeşil olduğu anlamına gelmez.** Sonuçlar daima ilgili dalın son commit'i ve o commit'e ait Actions run üzerinden okunmalıdır.
+Son branch HEAD `dd90cbd963fae7826074d826a1476feab1052df9` (PR #21: 482 commit, 206 değişen dosya) için kontrol anında image-rs ve Multiplayer/Regression koşuları çalışıyordu. Önceki tam olmayan Multiplayer koşusu Chromium regression aşamasında iptal edildi; bu nedenle o koşu tam CI başarısı sayılmaz. Compose ve dokümantasyon güncellemelerinden sonra oluşan yeni HEAD'in kendi Actions sonucu esas alınmalıdır.
 
 - [Tüm GitHub Actions çalışmaları](https://github.com/trpolaris/NFSU2-Web/actions)
 - [Multiplayer & Regression workflow](https://github.com/trpolaris/NFSU2-Web/actions/workflows/multiplayer-ci.yml)
 - [Container image workflow](https://github.com/trpolaris/NFSU2-Web/actions/workflows/image-rs.yml)
 
+Bir önceki `d26f8de` snapshot'ında native runtime syntax, TypeScript, web build, Cargo.lock, Rust workspace, GPS HUD, mailbox layout, MAPD/NEARD core, server binary ve synthetic Online load/abuse smoke test adımları geçti; Chromium regression adımı tamamlanmadan koşu iptal edildi. Image-rs job'u aynı snapshot'ta başarılıydı. Bunlar daha sonraki HEAD'in CI sonucu yerine geçmez.
+
 ### Bir özelliğin tamamlandı sayılması için
 
-1. Kod, doğru dalda ve doğru mesaj/protokol kimliğiyle bulunmalı.
+1. Kod doğru dalda ve doğru mesaj/protokol kimliğiyle bulunmalı.
 2. C/native ve WebAssembly build yolları derlenmeli.
 3. Rust sunucu testleri ve web/TypeScript regresyonları geçmeli.
 4. Eski istemciler için geri uyumluluk veya açık sürüm sınırı olmalı.
 5. Gerekli oyun verisi kullanıcı tarafından üretilebilmeli ve manifest üzerinden sunulmalı.
 6. Gerçek oyun testi gereken yerde bir veya iki istemcili test yapılmalı; yalnızca unit test sonucu yeterli sayılmamalı.
 7. İlgili PR onaylanmalı, birleştirilmeli ve dağıtım ayrı bir kontrollü adımda yapılmalı.
-
----
-
 ## 7. Kullanıcıya ait varlıklar ve dağıtım notları
 
 - Oyun dosyaları veya üçüncü taraf mod texture'ları bu depoya eklenmez.
