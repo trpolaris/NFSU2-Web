@@ -630,11 +630,12 @@ int main(int argc, char **argv){
      * from its environment), the Mac build from the environment */
     setenv("NFSU2_ROAM", "1", 1); setenv("NFSU2_ROAM_NAME", "Engine", 1); setenv("NFSU2_ROAM_PORT", "47210", 1);
     setenv("NFSU2_ROAM_PEERS", "127.0.0.1:47391", 1); setenv("NFSU2_ROAM_DISCOVERY", "0", 1); setenv("NFSU2_ROAM_MAX_CARS", "3", 1);
+    setenv("NFSU2_ROAM_NEAR", "32", 1);
     setenv("NFSU2_ROAM_HARNESS", "1", 1);
     snprintf(W.ini_path, sizeof W.ini_path, "%s/NFSU2FreeRoam.ini", od);
     FILE *ini = fopen(W.ini_path, "w");
     fprintf(ini, "[FreeRoam]\nEnable = 1\nName = Engine   ; the same name as the Mac build\nPort = 47210\nPeers = 127.0.0.1:47391\n"
-                 "Discovery = 0\nMaxCars = 3\nNetThread = 1\nLog = 1\nTestMode = 1\n");
+                 "Discovery = 0\nMaxCars = 3\nNear = 32\nNetThread = 1\nLog = 1\nTestMode = 1\n");
     fclose(ini);
     g_aenv[g_naenv][0] = "NFSU2_ROAM_TEST_ID"; g_aenv[g_naenv++][1] = "1D0E5E1D";
     if (mode_fault == 3){ g_aenv[g_naenv][0] = "NFSU2_ROAM_TEST_FAULT_SEH"; g_aenv[g_naenv++][1] = "300"; }
