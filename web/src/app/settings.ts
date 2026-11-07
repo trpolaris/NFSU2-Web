@@ -229,13 +229,7 @@ export const TEMPLATE = `# NFSU2 settings, read at every launch.
 # Disabled by default. The three-file overlay is used only when the complete pack is installed. [NFSU2_OPEN_TUNNEL]
 #open_tunnel = off
 
-# Community mod parts: underground2.net Blitz rims in the Body Shop.
-# Every client loads the shared models; this switch only controls shop offers.
-#ug2net_parts = off
-
-# Other players' cars: shown = mod parts as fitted; original = compatible stock stand-ins.
-# Your own car is unchanged.
-#others_mod_parts = shown
+# Experimental rim-pack settings are not supported on this build. See docs/web/MODPACKS.md.
 
 # Sound output.  [NOSOUND, inverted]
 #sound = on
