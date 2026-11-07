@@ -87,7 +87,7 @@ function tunnelOverlayReady(): boolean {
  *  movie.ts) and the folder has one (tools/movies_av1.py), else the file itself. */
 function dataFile(rel: string): DNode | null {
   const normalized = rel.replace(/\\/g, '/').replace(/^\/+/, '').replace(/\/{2,}/g, '/').toLowerCase();
-  if ((TUNNEL_TRACKS as readonly string[]).includes(normalized) && tunnelOverlayReady()) {
+  if (TUNNEL_TRACKS.has(normalized) && tunnelOverlayReady()) {
     const overlay = dataLookup(`MODPACKS/open-tunnel/${normalized}`);
     if (overlay && !overlay.dir) return overlay;
   }
