@@ -274,7 +274,7 @@ const cases = {
       // padding)
       const others = Array.from({ length: 7 }, (_, i) => new Client(port, `O${i + 1}`));
       for (const o of others) await o.welcome();
-      const hs = others.map(o => (o.vip & 0x1fff) >>> 0), low = hs.filter(h => h < P.NET_PEER_BITS);
+      const hs = others.map(o => (o.vip & 0x7fff) >>> 0), low = hs.filter(h => h < P.NET_PEER_BITS);
       assert.ok(low.some(h => h >= 1024), `a host past the /22 (${hs.map(h => h.toString(16))})`);
       assert.ok(low.length < hs.length, `a host past the /21 (${hs.map(h => h.toString(16))})`);
       for (const h of low) await until(() => (Atomics.load(lanMb.w, P.W_PEER_BITS + (h >>> 5)) >>> (h & 31)) & 1);
