@@ -306,11 +306,11 @@ static void t_roundtrip(void){
       CHECK(n2 == n + 3 && rc_carcfg_decode(r2, n2, &d2) == RC_OK && !d2.has_perf && d2.has_horn && d2.horn == 6, "horn extension alone");
       cp.has_horn = 0; cp.has_rating = 1; cp.rating_cls = 2; cp.rating = 1234;
       n2 = rc_carcfg_encode(&cp, r2, sizeof r2);
-      CHECK(n2 == n + 5 && r2[n] == 1 && r2[n + 1] == RC_EXT_RATING && r2[n + 2] == 3,
+      CHECK(n2 == n + 5 && r2[n - 1] == 1 && r2[n] == RC_EXT_RATING && r2[n + 1] == 3,
             "rating extension encoded: %d bytes", n2);
       CHECK(rc_carcfg_decode(r2, n2, &d2) == RC_OK && d2.has_rating && d2.rating_cls == 2 && d2.rating == 1234,
             "rating extension round trip");
-      r2[n + 1] = 77;
+      r2[n] = 77;
       CHECK(rc_carcfg_decode(r2, n2, &d2) == RC_OK && !d2.has_rating, "unknown rating extension skipped");
       cp.rating = 5001; cp.rating_cls = 2;
       n2 = rc_carcfg_encode(&cp, r2, sizeof r2);
