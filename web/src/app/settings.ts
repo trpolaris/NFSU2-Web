@@ -154,6 +154,8 @@ export const KEYS: readonly KeyDef[] = [
   { key: 'language', env: 'NFSU2_LANGUAGE', kind: 'enum', vals: LANGUAGES.join('|'), scope: 'web' },
   // GPS distance beneath the native direction arrow (runtime/gpsdistance.c).
   { key: 'gps_distance', env: 'NFSU2_GPS_DISTANCE', kind: 'bool', scope: 'web' },
+  // Career rubberbanding: original, noboost (no boost beyond an AI's own pace) or off.
+  { key: 'catchup', env: 'NFSU2_CATCHUP', kind: 'enum', vals: 'original|noboost|off', scope: 'web' },
   // Optional Construction Tunnel map overlay; generated from the player's original game assets.
   { key: 'open_tunnel', env: 'NFSU2_OPEN_TUNNEL', kind: 'bool', scope: 'web' },
   // the movies' subtitles (runtime/language.c).  Not in bundle.m's table either
@@ -224,6 +226,11 @@ export const TEMPLATE = `# NFSU2 settings, read at every launch.
 # selected by Speedometer Units. This is a straight-line distance, not a road
 # route, and is hidden when GPS has no active destination. [NFSU2_GPS_DISTANCE]
 #gps_distance = off
+
+# Career rubberbanding: original preserves the game's behaviour; noboost keeps the waiting
+# but never lets a trailing opponent exceed its own pace; off removes both effects.
+# Quick Race keeps its own Catch Up option. This changes career races only. [NFSU2_CATCHUP]
+#catchup = original
 
 # Open the Construction Tunnel. Requires the optional MODPACKS/open-tunnel pack built from your original game assets.
 # Disabled by default. The three-file overlay is used only when the complete pack is installed. [NFSU2_OPEN_TUNNEL]

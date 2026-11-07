@@ -9,7 +9,7 @@ import { LANGUAGES, N, NATIVE, t, tn, tvars, type Language, type Msg } from './i
 
 
 /** Safe, allow-listed keys used by portable launcher profiles; never export unknown settings.ini lines. */
-export const PROFILE_SETTING_KEYS = ['render', 'fps', 'audio_latency', 'language', 'subtitles', 'sound', 'intro', 'gamepad', 'rumble', 'ui_textures', 'open_tunnel'] as const;
+export const PROFILE_SETTING_KEYS = ['render', 'fps', 'audio_latency', 'language', 'subtitles', 'sound', 'intro', 'gamepad', 'rumble', 'ui_textures', 'open_tunnel', 'catchup'] as const;
 const PROFILE_SETTING_SET = new Set<string>(PROFILE_SETTING_KEYS);
 
 type Control =
@@ -64,6 +64,7 @@ const GROUPS: Group[] = [
     { key: 'subtitles', label: N('Subtitles'), help: N('The movies\' lines as text. English\'s are VileStuff\'s English Subtitles Fixed, with who says each line.'), link: { text: N('English Subtitles Fixed'), href: 'https://nfsmods.xyz/mod/5286' }, c: { t: 'switch' } },
     { key: 'autosave', label: N('Autosave'), help: N('Sets each profile\'s Save option in the game to Autosave once, so races, purchases and changes are saved without asking. Prompt or Off chosen afterwards in the game\'s Options, Gameplay stays.'), c: { t: 'switch' } },
     { key: 'gps_distance', label: N('GPS distance'), help: N('Shows a straight-line distance to your GPS destination beneath the arrow, using Speedometer Units. Hidden while GPS has no active route.'), c: { t: 'switch' }, more: true },
+    { key: 'catchup', label: N('Rubberbanding'), help: N('Career opponents ahead of you wait for you, ones behind get more power and grip. No boost: they still wait, but never beat their own pace. Off: neither, as Quick Race with Catch Up off.'), c: { t: 'seg', opts: [['original', N('Original')], ['noboost', N('No boost')], ['off', N('Off')]] }, more: true },
     { key: 'intro', label: N('Startup movies'), help: N('The EA and THX logos, the PSA and the intro. Skippable: Enter, Esc, Space, a left click, or A, B or Start ends each one. Original: as in the game, where only the intro ends early.'), c: { t: 'seg', opts: [['skippable', N('Skippable')], ['original', N('Original')], ['off', N('Off')]] }, more: true },
     { key: 'sound', label: N('Sound'), help: N('All sound output.'), c: { t: 'switch' }, more: true },
     { key: 'background', label: N('When the tab is in the background'), help: N('Pause freezes the game and its sound, as alt-tab does on Windows. In LAN and Online play it keeps running, without sound.'), c: { t: 'seg', opts: [['pause', N('Pause')], ['run', N('Keep running')]] }, more: true },

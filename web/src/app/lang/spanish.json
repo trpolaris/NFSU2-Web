@@ -1533,5 +1533,8 @@
   "Too many players are connected from your network: playing with others waits for a free place, or use another network.": "Hay demasiados jugadores conectados desde tu red: para jugar con otros hay que esperar a que haya un lugar libre, o usa otra red.",
   "Your antivirus or network is probably blocking the connection to other players. Allow this site in it, or try another network or a VPN.": "Seguramente tu antivirus o tu red están bloqueando la conexión con los demás jugadores. Permite este sitio, o prueba otra red o una VPN.",
   "Your connection to other players keeps dropping. Your network may be limiting it: try another network or a VPN.": "Tu conexión con los demás jugadores se corta una y otra vez. Puede que tu red la esté limitando: prueba otra red o una VPN.",
-  "Drive through the Construction Tunnel, including early in your career.": "Conduce por el túnel en construcción, incluso al principio de tu carrera."
+  "Drive through the Construction Tunnel, including early in your career.": "Conduce por el túnel en construcción, incluso al principio de tu carrera.",
+  "Rubberbanding": "Efecto goma",
+  "Career opponents ahead of you wait for you, ones behind get more power and grip. No boost: they still wait, but never beat their own pace. Off: neither, as Quick Race with Catch Up off.": "En el modo carrera, los rivales que van delante te esperan y los que van detrás reciben más potencia y agarre. Sin impulso: siguen esperando, pero nunca superan su propio ritmo. No: ni lo uno ni lo otro, como en Carrera rápida con Alcanzar en No.",
+  "No boost": "Sin impulso"
 }

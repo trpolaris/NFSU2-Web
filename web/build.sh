@@ -86,7 +86,7 @@ HDRSUM="$( (cat runtime/cpu.h runtime/web/compat/wasm_plat.h; echo "$CFLAGS $SHA
 # browser's virtual-LAN backend (runtime/web/net_lan.c); module.c + modheap.c
 # load the lifted server.dll; enhance.c holds the graphics options (all off by
 # default, as on the Mac).
-RT="mem dispatch genexec heap watchdog win32 win32_ext com debug res fileio overrides d3dx_hle vsemu oracle autotest lifecycle widescreen framerate dinput_pad dikeys keyboard dinput_kbd career intro drifttest roam roam_core roam_game mprace horn hornmenu optslider tonemenu powerunits radio drift carsfx racehorn racenet winsock online netrace module modheap enhance headlights language sms sponsors lobbyclick olfilter tunegraph menusize regional garage vinylpacks modpacks specialties sndlead carshadow carspot movie photo look engage gpsdistance sbrk"
+RT="mem dispatch genexec heap watchdog win32 win32_ext com debug res fileio overrides d3dx_hle vsemu oracle autotest lifecycle widescreen framerate dinput_pad dikeys keyboard dinput_kbd career intro drifttest roam roam_core roam_game mprace horn hornmenu optslider tonemenu powerunits radio drift carsfx racehorn racenet winsock online netrace module modheap enhance headlights language sms sponsors lobbyclick olfilter tunegraph menusize regional garage vinylpacks modpacks specialties sndlead carshadow carspot movie photo look engage gpsdistance catchup sbrk"
 WEB="$(cd runtime/web && ls *.c | sed 's/\.c$//')"
 pids=""
 for f in $RT; do

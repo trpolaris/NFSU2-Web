@@ -1441,5 +1441,8 @@
   "Too many players are connected from your network: playing with others waits for a free place, or use another network.": "내 네트워크에서 접속한 플레이어가 너무 많아요: 자리가 날 때까지 다른 플레이어와의 플레이는 대기해요. 다른 네트워크를 써도 돼요.",
   "Your antivirus or network is probably blocking the connection to other players. Allow this site in it, or try another network or a VPN.": "백신 프로그램이나 네트워크에서 다른 플레이어와의 연결을 막고 있는 것 같아요. 이 사이트를 허용하거나, 다른 네트워크나 VPN을 써 보세요.",
   "Your connection to other players keeps dropping. Your network may be limiting it: try another network or a VPN.": "다른 플레이어와의 연결이 계속 끊겨요. 네트워크에서 제한하고 있을 수 있어요: 다른 네트워크나 VPN을 써 보세요.",
-  "Drive through the Construction Tunnel, including early in your career.": "커리어 초반부터 공사 중인 터널을 통과할 수 있습니다."
+  "Drive through the Construction Tunnel, including early in your career.": "커리어 초반부터 공사 중인 터널을 통과할 수 있습니다.",
+  "Rubberbanding": "고무줄 효과",
+  "Career opponents ahead of you wait for you, ones behind get more power and grip. No boost: they still wait, but never beat their own pace. Off: neither, as Quick Race with Catch Up off.": "커리어에서 앞선 상대는 당신을 기다리고, 뒤처진 상대는 더 많은 출력과 접지력을 얻습니다. 부스트 없음: 여전히 기다리지만 자기 페이스보다 빨라지지는 않습니다. 꺼짐: 둘 다 없음. 캐치업을 끈 퀵 레이스와 같습니다.",
+  "No boost": "부스트 없음"
 }

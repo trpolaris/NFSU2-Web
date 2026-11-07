@@ -181,7 +181,7 @@ keys as the Mac app. Each change is saved at once and applies the next time you 
 | Group | Settings |
 |---|---|
 | Online | its own section under Saves: how many play on this server now, free roam with others, your name (in free roam and online), crews (with their colours), your horn, room, ghost mode, quick chat and your phrases; more: the game's Online mode (on by default), players' cars shown (16 to 32; phones start at 16, tablets at 24) |
-| Game | language, movies, subtitles, autosave; more: startup movies (skippable, original or off), sound, pause or keep running in the background, sound output latency, highest graphics for a new save |
+| Game | language, movies, subtitles, autosave; more: rubberbanding (original, no boost or off), startup movies (skippable, original or off), sound, pause or keep running in the background, sound output latency, highest graphics for a new save |
 | Display | full screen on Play (off: the game plays in the browser window; on by default on phones), resolution scale (phones start at 75%, 100% once one shows it has the room), frame rate (auto follows the screen: 120 on a 120 Hz display, 240 on a 240 Hz one; 30, 60, 120 or 240, where 30 keeps a phone that cannot hold 60 steady; Online and LAN races at most 120); more: menus and HUD (original or upscaled), HUD layout, movie framing, cutscene bars, other cars' headlights (players, all cars, off), frame-rate counter, fixed render size, pixel limit |
 | Controller | rumble; more: controller (on, hotplug or off), menu buttons, dead zones, trigger full press |
 
@@ -217,6 +217,7 @@ keys as the Mac app. Each change is saved at once and applies the next time you 
   game's EA Trax as it is.
 - **More settings:** each group's "More … settings" has the less common ones, and says how many of them you
   changed. **Reset** next to a changed setting puts its default back.
+- **Rubberbanding:** Settings, Game, More game settings. Original (the default) preserves the game's career-race behaviour: opponents ahead wait, while those behind gain power, grip and top speed. No boost keeps the waiting but never lets a trailing opponent exceed its own pace. Off removes both effects. Quick Race keeps its own Catch Up option; Free Roam and other race modes are unchanged.
 - **Edit the file:** "Edit settings.ini as text" opens the file itself. A line the game would ignore is shown with
   the reason. A line that sets a runtime variable by its own name (`NFSU2_ROAM = 1`) shows on the row it belongs to.
   "Other settings in this file" lists every line the page has no control for: such variables, and the settings it

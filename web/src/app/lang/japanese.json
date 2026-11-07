@@ -1441,5 +1441,8 @@
   "Too many players are connected from your network: playing with others waits for a free place, or use another network.": "あなたのネットワークから接続しているプレイヤーが多すぎます。空きが出るまで他のプレイヤーとのプレイは待機になります。別のネットワークを使うこともできます。",
   "Your antivirus or network is probably blocking the connection to other players. Allow this site in it, or try another network or a VPN.": "ウイルス対策ソフトかネットワークが、他のプレイヤーとの接続をブロックしている可能性があります。このサイトを許可するか、別のネットワークかVPNを試してください。",
   "Your connection to other players keeps dropping. Your network may be limiting it: try another network or a VPN.": "他のプレイヤーとの接続が何度も切れています。ネットワークが制限している可能性があります。別のネットワークかVPNを試してください。",
-  "Drive through the Construction Tunnel, including early in your career.": "キャリア序盤から工事中のトンネルを走行できます。"
+  "Drive through the Construction Tunnel, including early in your career.": "キャリア序盤から工事中のトンネルを走行できます。",
+  "Rubberbanding": "ラバーバンド",
+  "Career opponents ahead of you wait for you, ones behind get more power and grip. No boost: they still wait, but never beat their own pace. Off: neither, as Quick Race with Catch Up off.": "キャリアでは、前を走る相手はあなたを待ち、後ろの相手はパワーとグリップが上がります。ブーストなし：待つのはそのままで、本来のペースより速くはなりません。オフ：どちらもなし。キャッチアップをオフにしたクイックレースと同じです。",
+  "No boost": "ブーストなし"
 }

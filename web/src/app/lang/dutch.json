@@ -1514,5 +1514,8 @@
   "Too many players are connected from your network: playing with others waits for a free place, or use another network.": "Er zijn te veel spelers verbonden vanaf je netwerk: spelen met anderen wacht op een vrije plek, of gebruik een ander netwerk.",
   "Your antivirus or network is probably blocking the connection to other players. Allow this site in it, or try another network or a VPN.": "Je antivirus of netwerk blokkeert waarschijnlijk de verbinding met andere spelers. Sta deze site daarin toe, of probeer een ander netwerk of een VPN.",
   "Your connection to other players keeps dropping. Your network may be limiting it: try another network or a VPN.": "Je verbinding met andere spelers valt steeds weg. Misschien beperkt je netwerk hem: probeer een ander netwerk of een VPN.",
-  "Drive through the Construction Tunnel, including early in your career.": "Rijd door de tunnel in aanbouw, ook vroeg in je carrière."
+  "Drive through the Construction Tunnel, including early in your career.": "Rijd door de tunnel in aanbouw, ook vroeg in je carrière.",
+  "Rubberbanding": "Rubberbandeffect",
+  "Career opponents ahead of you wait for you, ones behind get more power and grip. No boost: they still wait, but never beat their own pace. Off: neither, as Quick Race with Catch Up off.": "Tegenstanders in de carrière die vóór je liggen wachten op je, die achter je krijgen meer vermogen en grip. Geen boost: ze wachten nog steeds, maar rijden nooit sneller dan hun eigen tempo. Uit: geen van beide, zoals Quick Race met Voordeel voor achterliggers uit.",
+  "No boost": "Geen boost"
 }
