@@ -2254,7 +2254,9 @@ export async function boot() {
   stageMenu.onclick = () => { if (session) openMenu(); };
   $('#stage').addEventListener('pointerdown', e => { if (e.pointerType === 'touch') stageMenu.hidden = false; }, { capture: true });
   quickChat = new QuickChat($('#stage'), { line: chatLine, lobby: (name, text) => lobbyPanel.say(name, text), place: placeNotices, log: logLine });
-  touch = new TouchControls($('#stage'), { toast, log: logLine, chat: () => quickChat.toggle() });
+  touch = new TouchControls($('#stage'), {
+    toast, log: logLine, chat: () => quickChat.toggle(), raceChatOn: () => quickChat.enabled,
+  });
   textField = new TextField($('#stage'), { log: logLine });
   pauseHint = new PauseHint($('#stage'), {
     open: openMenu, log: logLine,
