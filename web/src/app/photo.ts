@@ -24,7 +24,7 @@ const PH_HELLO = 0, PH_OPEN = 1, PH_HOLD = 2, PH_MOVE = 3, PH_TURN = 4, PH_DRAG 
   PH_FOV = 8, PH_ROLL = 9, PH_MODE = 10, PH_RESET = 11, PH_SPIN = 12, PH_SPEED = 13, PH_LEVEL = 14;
 const HB_FWD = 1, HB_BACK = 2, HB_LEFT = 4, HB_RIGHT = 8, HB_UP = 16, HB_DOWN = 32, HB_TL = 64, HB_TR = 128,
   HB_TU = 256, HB_TD = 512, HB_ZIN = 4096, HB_ZOUT = 8192, HB_RL = 16384, HB_RR = 32768, HB_FAST = 65536;
-const FOV_MIN = 15, FOV_MAX = 110, ROLL_MAX = 45;
+const FOV_MIN = 15, FOV_MAX = 110;
 
 /** the keys that steer the camera while they are held */
 const HELD: Record<string, number> = {
@@ -81,7 +81,7 @@ export class PhotoMode {
       '<label class="ph-slider"><span class="ph-zoom-l"></span><input type="range" class="ph-zoom" min="0" max="1000" step="1"></label>' +
       '<label class="ph-slider"><span class="ph-slider-l ph-speed-l"></span><input type="range" class="ph-speed" min="0" max="1000" step="1" value="500"></label>' +
       '<label class="ph-option"><input type="checkbox" class="ph-level"><span class="ph-level-l"></span></label>' +
-      '<label class="ph-slider"><span class="ph-tilt-l"></span><input type="range" class="ph-tilt" min="-450" max="450" step="5"></label>' +
+      '<label class="ph-slider"><span class="ph-tilt-l"></span><input type="range" class="ph-tilt" min="-1800" max="1800" step="5"></label>' +
       '<label class="ph-slider"><span class="ph-spin-l"></span><input type="range" class="ph-spin" min="-600" max="600" step="5" value="0"></label>' +
       '<div class="ph-buttons"><button type="button" data-act="reset"></button>' +
       '<button type="button" class="ph-shoot" data-act="shoot"></button><button type="button" data-act="leave"></button></div>' +
