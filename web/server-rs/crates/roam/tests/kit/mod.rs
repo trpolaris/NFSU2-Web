@@ -240,7 +240,7 @@ pub fn nearreq(sender: u32, req: u16, max: u16, base: u16, radius: u16) -> Vec<u
 
 /// The NEARD datagram in a frame sent by the hub.
 pub fn neard_of(f: &[u8]) -> Option<Mapd> {
-    let d = &f[16..];
+    let d = f.get(16..)?;
     if d.get(5).copied()? != 20 { return None; }
     let count = *d.get(24)? as usize;
     let (mut o, mut e) = (25usize, Vec::with_capacity(count));
