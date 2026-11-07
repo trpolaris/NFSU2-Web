@@ -419,6 +419,7 @@ function resolved(host: Record<string, string> = {}): Resolved { return resolveE
 const language = (r: Resolved = resolved()) => (r.env.NFSU2_LANGUAGE ?? 'turkish').toLowerCase();
 /** the texture pack picked (runtime/web/texrep_web.c), '' for none: the one the page fetches ahead and counts */
 const texpack = (r: Resolved = resolved()) => { const v = (r.env.NFSU2_UI_TEXTURES ?? '').toLowerCase(); return v === 'original' ? '' : v; };
+const openTunnel = (r: Resolved = resolved()) => /^(1|on|true)$/i.test(r.env.NFSU2_OPEN_TUNNEL ?? '');
 
 // ----------------------------------------------------------------- play --
 function stageCanvas(): HTMLCanvasElement {
@@ -2074,7 +2075,7 @@ export async function boot() {
   window.addEventListener('online', () => { players?.now(); if ($<HTMLDialogElement>('#menu').open) void friendsPanel.refresh(); });
   window.addEventListener('resize', placeNotices);
   window.addEventListener('resize', placeLobby);
-  download = new Predownload(s => saves.showData(s), logLine, () => language(), () => texpack());
+  download = new Predownload(s => saves.showData(s), logLine, () => language(), () => texpack(), () => openTunnel());
   saves = new SavesPanel({
     saveDir: SAVE, busy: () => !!session || starting || !instance.owner, confirm: confirmBox,
     onRestored: () => { void loadSettings(); void settings.refresh(); }, download, onChanged: () => vault.changed(),
