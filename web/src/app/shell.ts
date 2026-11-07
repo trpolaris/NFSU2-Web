@@ -20,7 +20,7 @@
 
 import registryDefaults from '../../../app/registry-defaults.txt';
 import { browserName, check, checkBrowser, checkGpu, checkIsolation, checkStorage, fmtBytes, NO_JIT, noJit, type Check } from './checks';
-import { codeOf, dateLocale, language as pageLanguage, lastLanguage, listOf, live, N, onLanguage, setLanguage, t, T, tn, tvars, type Msg } from './i18n';
+import { browserLanguage, codeOf, dateLocale, language as pageLanguage, lastLanguage, listOf, live, N, onLanguage, setLanguage, t, T, tn, tvars, type Msg } from './i18n';
 import { loadGame, serverRev, type Loaded } from './loader';
 import type { GameMemory } from '../host/memory';
 import { claimInstance } from './instance';
@@ -89,6 +89,7 @@ function takeParams(dev: boolean): string[] {
   const given = TEST_PARAMS.filter(k => addr.has(k));
   if (!given.length || !dev) return given;
   q = addr;
+  DEVICE.language = 'english';      // development test pages render the same language on every computer
   // never the game data's own OPFS folder (savefs keeps names to one segment)
   const save = (q.get('save') || 'save').replace(/[^A-Za-z0-9._-]/g, '_');
   SAVE = save === 'cache' || /^\.+$/.test(save) ? 'save-test' : save;
@@ -412,7 +413,7 @@ async function loadSettings(): Promise<string | null> {
   return text;
 }
 /** this device's own defaults (a phone's: device.ts), below settings.ini and the page address */
-const DEVICE = deviceDefaults();
+const DEVICE: Record<string, string> = { language: browserLanguage(), ...deviceDefaults() };
 function resolved(host: Record<string, string> = {}): Resolved { return resolveEnv(settingsText, ENVIRONMENT, host, DEVICE); }
 /** the game's language (runtime/language.c): which language pack the page fetches ahead and counts */
 const language = (r: Resolved = resolved()) => (r.env.NFSU2_LANGUAGE ?? 'turkish').toLowerCase();
