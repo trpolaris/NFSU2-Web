@@ -1633,6 +1633,8 @@ static int part_packs(CPU *c){
     g_packs_ok = 1;
     return 1;
 }
+/* overrides.c: add the streamed engine texture while a remote car's ride is loaded. */
+int roam_texlist_engine;
 /* start loading peer's ride for slot k */
 static int begin_load(CPU *c, int k, const uint8_t *cfg, int len, uint32_t gen){
     Slot *s = &g_sl[k];
@@ -1659,7 +1661,9 @@ static int begin_load(CPU *c, int k, const uint8_t *cfg, int len, uint32_t gen){
     if (why[0]) rlog("[roam] f=%ld slot %d: %s's car: %s\n", rh_frame(), k, s->name, why);
     uint32_t a3[3] = { ride, 0, 0 };
     s->load_wait = load_wait_us();
+    roam_texlist_engine = 1;
     s->h_new = rh_call(c, FN_LOADER_LOAD, G_CARLOADER, 0, 3, a3);
+    roam_texlist_engine = 0;
     uint32_t a2[2] = { 0, 0 }; rh_call(c, FN_LOADER_SERVICE, G_CARLOADER, 0, 2, a2);
     s->load_t0 = roam_plat_now_us(); s->load_f0 = rh_frame(); s->pending_cfg = 1; s->cfg_gen = gen;
     s->look = rc_fnv1a_bytes(cfg, (uint32_t)len);
