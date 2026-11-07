@@ -429,10 +429,10 @@ export const TEMPLATE = `# NFSU2 settings, read at every launch.
 # off = Ghost mode: you drive through them, and they through yours.
 # [NFSU2_ROAM_COLLIDE]
 #roam_collide = on
-# Quick chat: say one of your sixteen set phrases to the players near you
-# (1 to 4, then 1 to 4; a controller's right stick twice; the chat button on
-# a touch screen), and see theirs over their cars.  off = neither, and the
-# others send you none.  [NFSU2_ROAM_SAY]
+# Quick chat: say one of your sixteen set phrases to nearby players in free roam,
+# or to everyone in a multiplayer race and on its results (1 to 4, then 1 to 4;
+# controller: right stick twice; touch: the chat button).  off = neither.
+# [NFSU2_ROAM_SAY]
 #quick_chat = on
 # Your sixteen: the phrases' numbers (web/src/app/phrases.ts), four for each
 # of 1 to 4, and the four groups' names (hi, reply, thanks, nice, drive,
