@@ -99,6 +99,7 @@
 #define MPRACES         0
 #else
 #define MPRACES         1
+#include "mprace.h"
 #endif
 #define G_FLOW          0x008654a4u   /* GameFlowManager state: 3 front end, 6 in the world */
 #define G_GAMEMODE      0x00850078u   /* 1 career, 0x200 LAN */
@@ -600,11 +601,13 @@ static int local_cfg(uint8_t *out, int cap, char *tname){
     c.has_perf = 1;
     /* Carry the game's own rating: remote rides have no physics block from
      * which another client could calculate this reliably. */
+#if MPRACES
     { CarPerf pf;
       if (mprace_car_perf(car, &pf) && pf.rating > 0.f && pf.rating <= 5000.f){
           c.has_rating = 1; c.rating_cls = (int8_t)pf.cls; c.rating = (uint16_t)(pf.rating + 0.5f);
       }
     }
+#endif
     int horn = rh_horn_mine();                       /* the horn the others hear from this car */
     if (horn >= 0){ c.has_horn = 1; c.horn = (uint8_t)horn; }
     for (uint32_t sl = 0; sl < RC_PART_SLOTS; sl++){
@@ -4272,7 +4275,6 @@ static void spots_read(CPU *c, int64_t host){
  * (the world map), JOIN and LEAVE to the host, START and CLOSE from it.
  * Lobbies are within a room, as everything in free roam. */
 #if MPRACES
-#include "mprace.h"
 #define MP_JOIN_M       15.f          /* a player within this of a lobby's start joins it with Enter */
 #define MP_STAY_M       40.f          /* ...and stays in it while within this (the host too) */
 #define MP_ADVERT_US    1000000
