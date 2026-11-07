@@ -213,6 +213,36 @@ TRPOLARIS Minimap prototipinde:
 
 **Önerilen sıra:** Son PR HEAD'in Multiplayer & Regression CI'sini tamamla; native/WASM oyun build'lerini al; ardından World Map/NEARD marker'larını gerçek oyunda ve iki istemcide doğrula; sonra Car Meet/GPS akışını gerçek oyunda tamamla. 4.096 World Map ve 24.000 hub oyuncusu gibi büyük limitler profil ve yük testi olmadan etkinleştirilmemeli.
 
+
+## 10. Upstream delta audit — 7 Kasım 2026 (ek kontrol)
+
+Bu kontrol, PR #21 HEAD `c5009706c3f77cf5623e1b3f4522759a5efa0bb4` ile upstream `th0mk/nfsu2-web` üzerindeki son ilgili commit'leri karşılaştırır. Upstream'den alınan her değişiklik otomatik olarak güvenli kabul edilmemiştir.
+
+| Upstream değişikliği | PR #21 durumu | Teknik karar |
+|---|---|---|
+| [PATCH_MAX 24 → 64](https://github.com/th0mk/nfsu2-web/commit/ecfc9caf081da83c4ba06a1eca0249ccffbac6c2) | **Zaten entegre** | `runtime/dispatch.c` upstream ile aynı blob SHA'ya sahip; tekrar kopyalanmayacak. |
+| [World 1–4 / named worlds](https://github.com/th0mk/nfsu2-web/commit/41737add2f8e9c6e539396135d240f2753df98c4) | **Kısmen entegre** | Dünya seçimi ve sayımlar mevcut. Upstream'in F9 içindeki ayrı Controls alt sayfası bu PR'da aynı davranışla doğrulanmadı; TRPOLARIS'in kendi kontrol merkezi korunuyor. |
+| [Name filter genişletmesi](https://github.com/th0mk/nfsu2-web/commit/b58448bbc6c47d419bfda8b90ed35a12a49edc93) | **Eksik; port gerekli** | Upstream değişikliği C, Rust, JS ve testlerde altı dosyayı birlikte güncelliyor. Fork'un Rust isim normalizasyonu/Unicode bağımlılıkları upstream'den farklı olduğundan dosyaların tamamı kopyalanmayacak. Üç filtrede (runtime/server/page) aynı kararları veren ortak test vektörleriyle kontrollü port gerekiyor. |
+| [Open-hood remote engine textures](https://github.com/th0mk/nfsu2-web/commit/cba97c81543ed7289e6d2b5e708a2991fec3283e) | **Eksik** | `runtime/overrides.c` ve Free Roam araç yükleme yolu için fork'a uyarlanmış port ve çok istemcili görsel test gerekiyor. |
+| [Server race-ban thresholds](https://github.com/th0mk/nfsu2-web/commit/eeb3bdf799b3f55e5198a643a6c9ba4a2bff3d8d) | **Eksik** | Upstream Rust hub, server app, Docker env ve webhook davranışlarını birlikte değiştiriyor. TRPOLARIS'in mevcut hile/yarış raporlama akışıyla API ve moderasyon politikası eşleştirilmeden alınmayacak. |
+| [Claim store 5M cap](https://github.com/th0mk/nfsu2-web/commit/d740043fa34a99465df7d92879111743d054f694) | **Bilinçli olarak ertelendi** | PR #21 500.000 claim sınırını koruyor. 5M kapasite ancak gerçek bellek/serileştirme/yük testi sonrasında değerlendirilecek. |
+| [iPhone WebKit memory/worker fixes](https://github.com/th0mk/nfsu2-web/commit/9a9254560a8a36a1d3dcfd19fd245281e56009f3) | **Eksik / cihaz doğrulaması gerekli** | Fork'un memory ve process katmanı var; upstream'in worker başlangıç ve WebKit cached-read düzeltmeleri birebir eşdeğer kabul edilmiyor. iPhone Safari/WebKit testleriyle port edilmeli. |
+
+### Doğrulama notları
+
+- `runtime/dispatch.c` PR dalı ve upstream `main` arasında aynı içerik SHA'sına sahip; PATCH_MAX=64 değişikliği zaten mevcut.
+- `runtime/names.h`, `web/server-rs/crates/names/src/lib.rs`, `web/src/app/names.mjs` ve ilgili test dosyaları fork/upstream arasında farklı içerik ve davranış taşıyor. Tek dosya kopyası üç katman arasında isim filtresi tutarsızlığı yaratabilir.
+- PR #21 HEAD `c5009706c3f77cf5623e1b3f4522759a5efa0bb4` için image-rs CI başarılı; Multiplayer and Regression CI son kontrolde çalışıyordu. Bu nedenle tam CI başarısı ilan edilmez.
+- PR açık/taslak; `main` ve üretim dağıtımı değiştirilmedi.
+
+### Sonraki güvenli port sırası
+
+1. Name filter için upstream'in yeni test vektörlerini çıkar; fork'un Unicode/normalizasyon davranışını koruyarak C/Rust/JS eşitliğini sağla.
+2. Remote engine texture desteğini önce runtime C tarafında port et; iki istemcili kaput açık/kapalı senaryolarını ekle.
+3. Server race-ban özelliğini mevcut TRPOLARIS moderasyon ve webhook yapılandırmasına uyarlayıp varsayılanı kapalı tut.
+4. iPhone WebKit worker/memory düzeltmelerini cihaz/BrowserStack benzeri gerçek WebKit ortamında doğrula.
+5. Claim limitini ancak yük testiyle karar ver; 5M değerini şimdilik açma.
+
 ---
 
 ## 6. Test ve CI durumu nasıl okunmalı?
