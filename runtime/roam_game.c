@@ -2925,6 +2925,8 @@ static void crew_map_labels(CPU *c, uint32_t map){
     }
 }
 #if MPRACES
+#define WM_ICON_SZ      0x2cu         /* a marker: +8 type, +0xC FE object, +0x10/+0x14 x y, +0x18 heading, +0x28 1 (an event) */
+#define WM_TEXT_BASE    "OPPONENT_CAR"   /* the legend's string ("Opponent Car") */
 #define MEET_MAX 8
 /* ---- car meets on the world map ------------------------------------------------------------------- */
 /* Players park together at car meets (the airport where new careers start,
@@ -5327,11 +5329,11 @@ static void mp_labels(CPU *c){
  * the ones heard of near, and with the map's answer the hub's of our room. */
 #if MPRACES
 #define G_WM_PREFIX     0x007f4348u   /* char *[type]: the map's icon names ("CIRCUITEVENTINDICATOR_") */
-#define WM_ICON_SZ      0x2cu         /* a marker: +8 type, +0xC FE object, +0x10/+0x14 x y, +0x18 heading, +0x28 1 (an event) */
+
 #define WM_LOBBIES      24
 #define WM_LABELS       4             /* lobbies with their words beside the icon: the nearest, none over another */
 static struct { uint32_t map; int n; float x[WM_LOBBIES], y[WM_LOBBIES], d[WM_LOBBIES]; uint8_t used[8]; uint32_t m[WM_LOBBIES], lbl[WM_LOBBIES]; int16_t filter[WM_LOBBIES]; } g_wml;
-#define WM_TEXT_BASE    "OPPONENT_CAR"   /* the legend's string ("Opponent Car"): our labels are copies of it */
+
 static int race_icon(uint32_t r){
     if (MR8(r + 0xdu)) return 6;
     if (MR8(r + 0x34u) == 2u) return 5;
