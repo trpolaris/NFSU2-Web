@@ -1060,10 +1060,11 @@ function pageToast(msg: string | Msg) {
   pageToastTimer = setTimeout(() => live(el, () => ''), 5000);
 }
 
-/** the controls sheet of the start page, in a dialog (F9, Controls, while the game runs), at the page's tab and
- *  button names */
+/** The Controls sheet in the F9 control deck, at the page's current tab and controller family. */
 let controlState: ControlsState, helpSheet: ControlsSheet | null = null;
 function openHelp() {
+  const m = $<HTMLDialogElement>('#menu');
+  if (!m.open) openMenu();
   const body = $('#help-body');
   if (!helpSheet) {
     const template = document.getElementById('controls-help-template') as HTMLTemplateElement | null;
@@ -1073,7 +1074,7 @@ function openHelp() {
   }
   helpSheet.show(controlState.tab);
   helpSheet.family(controlState.fam);
-  $<HTMLDialogElement>('#help').showModal();
+  selectMenuTab('controls');
 }
 
 /** free roam: a friend joined, left, went into a race (who: the friend's name the text starts with); the server
@@ -1699,7 +1700,7 @@ async function menuAction(act: string) {
     }
     case 'radio-folder': case 'radio': await radioClick(act); showRadio(m); break;
     case 'playlist': openPlaylist(); break;
-    case 'help': m.close(); openHelp(); break;
+    case 'help': openHelp(); break;
     case 'offline':
       m.close();
       if (!inLine || !session?.net?.offline) break;

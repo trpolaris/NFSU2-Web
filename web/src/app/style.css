@@ -1564,3 +1564,8 @@ dialog.menu .menu-resume { flex: 0 0 auto; }
 .friend-bump-prompt[hidden] { display:none; }
 .friend-bump-prompt > span { min-width:0; flex:1 1 auto; }
 .friend-bump-prompt > button { pointer-events:auto; }
+
+/* The Controls sheet is hosted inside the F9 control deck instead of a second dialog. */
+.menu-controls-sheet { min-width: 0; padding: 4px 0 18px; }
+.menu-controls-sheet .keys { min-width: 0; }
+.menu-controls-sheet .keys > div { max-width: 100%; }

@@ -1,4 +1,4 @@
-// The Controls sheet is retained for the in-game Controls dialog (shell.ts openHelp); the routed page is React.
+// The Controls sheet is shared by the start page and the F9 control deck (shell.ts openHelp); the routed page is React.
 // Three tabs: the keyboard (on a touch screen: touch), the controller and this site.  The controller's tab is a
 // drawing of a pad with what each button the game uses does beside it, the buttons named as Xbox or PlayStation
 // names them (the switch under it; a PlayStation controller connecting, or taking over in the game, picks those

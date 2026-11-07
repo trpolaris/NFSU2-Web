@@ -249,14 +249,6 @@
   <div class="row end"><a class="btn" href="#diagnostics" id="first-run-diagnostics" data-i18n>System diagnostics</a><a class="btn" href="#settings" id="first-run-settings" data-i18n>Settings</a><button type="button" class="btn selected" id="first-run-continue" data-i18n>Continue</button></div>
 </dialog>
 
-<dialog class="dlg help" id="help" aria-labelledby="help-title">
-  <form method="dialog" class="dlg-head">
-    <h2 id="help-title" data-i18n>Controls</h2>
-    <button class="btn" value="close" data-i18n>Close</button>
-  </form>
-  <div id="help-body"></div>
-</dialog>
-
 <dialog class="dlg menu" id="menu" aria-labelledby="menu-title" data-active-tab="chat">
   <div class="menu-shell">
     <aside class="menu-sidebar">
@@ -292,6 +284,10 @@
         <button type="button" class="menu-tab hover-glow-amber" data-menu-tab="radio" aria-pressed="false">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16v13H4zM4 7l13-4M8 11h8M8 15h3"/><circle cx="17" cy="15" r="1.5"/></svg>
           <span class="menu-tab-copy"><b>Müzik sistemi</b><small>Radyo ve oynatma</small></span><small class="menu-tab-number">›</small>
+        </button>
+        <button type="button" class="menu-tab hover-glow-green" data-menu-tab="controls" aria-pressed="false">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M7 10h4M9 8v4M15 10h.01M18 13h.01"/></svg>
+          <span class="menu-tab-copy"><b data-i18n>Controls</b><small data-i18n>Keyboard, controller and site</small></span><small class="menu-tab-number">›</small>
         </button>
       </nav>
 
@@ -458,6 +454,16 @@
             </div>
           </div>
           <div class="menu-inline-note"><i aria-hidden="true"></i><span data-i18n>LOCAL FILES ONLY · NOTHING IS SENT TO THE SERVER</span></div>
+        </section>
+
+        <section class="menu-page" data-menu-page="controls" hidden>
+          <div class="menu-page-title">
+            <span class="menu-section-label" data-i18n>06 / DRIVER CONTROLS</span>
+            <h4 data-i18n>CONTROLS</h4>
+            <p class="hint" data-i18n>Keyboard, controller and site controls.</p>
+          </div>
+          <div id="help-body" class="menu-controls-sheet"></div>
+        </section>
         </section>
       </div>
     </section>
