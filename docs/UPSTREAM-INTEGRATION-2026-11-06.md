@@ -116,7 +116,7 @@ This branch ports compatible changes from `th0mk/nfsu2-web` into TRPOLARIS while
 ### Name-claim store contention
 - Ported the upstream hourly expiry-sweep throttle and a one-minute retry window while the name store is full.
 - Name JSON serialization now snapshots live claims and changed-owner metadata under the read lock, then sorts and writes JSON after releasing it, so Online and Free Roam readers do not wait for string formatting.
-- Kept TRPOLARIS's existing 500,000-claim cap and 180-day hold duration unchanged; the upstream 5-million cap and 730-day hold depend on a much larger deployment storage/memory envelope and were not copied without load tests.
+- Current claim store hard cap is 5,000,000 with a 180-day hold. This is the implemented code limit; a 5M-record deployment has not been memory/disk/write-load tested.
 - Successful Cloud Save reads (including ETag/304 and earlier-version reads) and writes now refresh the current claimed name through the existing one-hour activity throttle; failed, missing and conflicting operations do not.
 - Added a Rust regression test for the sweep interval and for expired claims remaining logically free before physical cleanup.
 ### Unsaved-career quit warning
