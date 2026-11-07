@@ -19,7 +19,7 @@ Bu belge, proje ana README'sinin yerine geçmez. Entegrasyon çalışmalarının
 | World Map protokol dalı | `integration/world-map-mapd`, HEAD `ecf7f03` | [Dal](https://github.com/trpolaris/NFSU2-Web/tree/integration/world-map-mapd) |
 | Minimap/NEARD çalışma dalı | `feature/world-map-meets`, HEAD `1bb6b23` | [Dal](https://github.com/trpolaris/NFSU2-Web/tree/feature/world-map-meets) |
 
-**Önemli:** `main` ile entegrasyon dalı aynı değildir. PR #21 henüz açık taslaktır; World Map ve Minimap dalları da PR #21'e otomatik olarak dahil değildir. Bu dallardaki kod, PR'a alınmış veya canlı sunucuya dağıtılmış kabul edilmemelidir.
+**Önemli:** `main` ile entegrasyon dalı aynı değildir. PR #21 hâlâ açık taslaktır ve birleştirilmemiştir. World Map/Minimap deneysel dalları otomatik olarak dahil edilmedi; MAPD, NEARD ve seçilen native runtime parçaları PR #21'e seçici olarak port edildi. `main` ve üretim sunucusu değişmedi.
 
 - [main ile ana entegrasyon dalının farkı](https://github.com/trpolaris/NFSU2-Web/compare/main...integration/upstream-2026-11-06)
 - [main ile World Map dalının farkı](https://github.com/trpolaris/NFSU2-Web/compare/main...integration/world-map-mapd)
@@ -134,7 +134,7 @@ Bu bölümdeki çalışmalar `integration/upstream-2026-11-06` dalındadır ve [
 
 ## 4. Ayrı dallardaki deneysel World Map ve Minimap çalışmaları
 
-Bu çalışmalar ana entegrasyon PR'ına dahil değildir. Protokol, runtime ve sunucu katmanları birlikte tamamlanıp test edilmeden PR #21'e alınmamalıdır.
+Bu deneysel dallar kaynak referansıdır; yalnızca uyumlu parçalar PR #21'e taşındı. Protokol ve sunucu tarafı MAPD/NEARD kodu entegre edildi; oyun içi minimap çizimi, Car Meet ve GPS tamamlanmadan özellik bütünüyle bitmiş sayılmaz.
 
 ### 4.1 World Map — MAPD protokolü
 
@@ -145,16 +145,17 @@ TRPOLARIS tarafındaki temel protokol çakışması:
 - Upstream MAPD de **17** türünü kullanıyor.
 - Bu nedenle entegrasyon prototipinde MAPD için **18** ayrıldı; chat kimliği korunuyor.
 
-World Map dalında hedeflenenler:
-- C ağ çekirdeğinde MAPD paket encode/decode ve parçalı cevap birleştirme.
-- Sunucuda oyuncu slotuna göre delta üretimi ve eski MAP snapshot istemcileri için geri uyumluluk.
-- Oyuncu konumlarının hız bilgisiyle ara karelerde hareket ettirilmesi.
-- Oda değişince eski oda işaretçileri ve bekleyen yarış lobilerinin temizlenmesi.
+PR #21'e taşınanlar:
+- C ağ çekirdeğinde MAPD encode/decode, değişken uzunluklu giriş doğrulaması ve parçalı cevap birleştirme.
+- Rust hub'da slot anahtarlı delta üretimi; legacy iki bayt MAPREQ ve yeni max/base biçimleriyle geriye uyumluluk.
+- Native World Map renderer'ın slot kimliklerini koruyarak MAPD sonuçlarını uygulaması ve 250 ms canlı yenileme.
+- MAPD için **18** ayrıldı; TRPOLARIS typed Free Roam chat'in **17** kimliği değişmedi.
+
+Açık işler:
+- Oda değişimi/işaretçi temizliği ve hız kestirimi için uçtan uca gerçek oyun testi.
 - İlk hedef olarak 2.048 oyunculuk cevap sınırı; daha yüksek kapasiteyi ayrı yük testine bırakmak.
 
-**Dal:** [integration/world-map-mapd](https://github.com/trpolaris/NFSU2-Web/tree/integration/world-map-mapd)  
-**Son dal kontrolü:** HEAD `ecf7f03`.  
-**CI:** [World Map branch CI](https://github.com/trpolaris/NFSU2-Web/actions/runs/42313815558) son görünen çalışmada iptal edildi; bu sonuç başarı olarak değerlendirilemez.
+**Kaynak dal:** [integration/world-map-mapd](https://github.com/trpolaris/NFSU2-Web/tree/integration/world-map-mapd). Dal kodu otomatik birleştirilmedi; uyumlu parçalar PR #21'e port edildi.
 
 ### 4.2 Minimap — NEARREQ / NEARD ve Car Meet
 
@@ -164,15 +165,13 @@ Upstream Minimap geliştirmesi, oyuncunun çevresindeki araçları ayrı tek dat
 - [20 oyunculuk meet ve 4.096 World Map kapasitesi](https://github.com/th0mk/nfsu2-web/commit/a5892bac86f571b5e1c854a8512fc92ec9503a7d)
 
 TRPOLARIS Minimap prototipinde:
-- `NEARREQ` / `NEARD` için 19/20 mesaj türleri ayrıldı; MAPD 18 ve typed chat 17 ile çakışma önlendi.
-- C tarafında NEARREQ üretimi ve NEARD yanıtını slot bazında birleştirme altyapısı eklendi.
-- Rust tarafında oda hücre grid'i, sayfa bazlı aday listesi ve artımlı cevap üretimi üzerinde çalışılıyor.
-- Prototip şu aşamada tam bitmiş oyun özelliği değildir. İstek türünün Rust hub girişine bağlanması, grid'in doğru tick yaşam döngüsüne oturtulması, runtime minimap ikonlarının oluşturulması/temizlenmesi, okların interpolasyonu ve iki istemcili oyun testi tamamlanmalıdır.
-- Car Meet işaretçileri, kalabalık meet sayımı ve GPS hedefleme de bu tamamlanma adımının parçasıdır.
+- Mesaj kimlikleri: MAPD **18**, NEARREQ **19**, NEARD **20**; chat **17** olarak kalır.
+- Rust wire codec'te NEARREQ decode/dispatch ve MAPD biçimli NEARD datagram yazımı; C core'da NEARREQ üretimi, NEARD decode ve slot bazlı delta birleştirme API'si (rc_ask_near) eklendi.
+- Rust hub'da oda hücre grid'i, aday önbelleği, link/engel/oda filtreleri, tek datagram cevabı ve tick yaşam döngüsü eklendi; ölçülen hub yüküne göre 150/500/1000 ms geri basınç uygulanıyor.
+- Açık işler: rc_ask_near çağrısını aktif minimap HUD akışına bağlamak; oyun içi minimap ok/ikon oluşturma, hareket kestirimi ve oyuncu kaybolduğunda temizleme; iki istemcili gerçek oyun testi.
+- Car Meet işaretçileri/sayımı ve GPS hedefleme de tamamlanma adımının parçasıdır.
 
-**Dal:** [feature/world-map-meets](https://github.com/trpolaris/NFSU2-Web/tree/feature/world-map-meets)  
-**Son dal kontrolü:** HEAD `1bb6b23`.  
-**CI:** [Son NEARD CI çalışması](https://github.com/trpolaris/NFSU2-Web/actions/runs/42357359231) şu an çalışıyor. Önceki [NEARD CI denemesi](https://github.com/trpolaris/NFSU2-Web/actions/runs/42314596847) Rust `write_mapd` parametre uyuşmazlığıyla başarısız oldu; sonraki commit'te writer imzası düzeltildi ve yeniden CI başlatıldı. Yeni koşu bitmeden özellik başarılı kabul edilmemelidir.
+**Kaynak dal:** [feature/world-map-meets](https://github.com/trpolaris/NFSU2-Web/tree/feature/world-map-meets). Yalnızca uyumlu protokol/sunucu parçaları PR #21'e port edildi; kaynak dalın kalan renderer ve Car Meet değişiklikleri otomatik dahil değil.
 
 ---
 
@@ -183,8 +182,8 @@ TRPOLARIS Minimap prototipinde:
 | P0 | PR #21 stabilizasyonu | Son PR head üzerinde tam Multiplayer & Regression CI çalıştırmak; iptal edilen koşuyu yeşil sonuçla değiştirmek. | PR head'inde CI başarılı, derleme/test hatası yok. |
 | P0 | Gerçek oyun testi | Mod pack, vinyl pack, GPS HUD, FriendPrompt, crew daveti ve Save/Load akışını gerçek oyunla doğrulamak. | İki istemcili ve kariyer kayıtlı test senaryoları geçer; bulgular kaydedilir. |
 | P0 | MODPACKS asset üretimi | Uyumlu underground2.net varlıklarından `MODPACKS/` üretip dosya manifest ve oyun açılışını kontrol etmek. | Paket açılır; eksik/yanlış boyutlu varlık yok; Body Shop ve uzak araçlarda tutarlı sonuç. |
-| P1 | World Map MAPD | C, Rust hub, ağ paketi, runtime ve geriye dönük uyumluluğu tek dalda tamamlamak. | Eski istemci snapshot'ı alabilir; yeni istemci delta'ları birleştirir; oda değişimi temizdir; 2.048 oyuncu testi geçer. |
-| P1 | Minimap NEARD | Rust `NearReq` decode/dispatch, grid yaşam döngüsü, C cevap birleştirme ve oyun içi ikon/ok çizimini bağlamak. | 1 datagramlık NEARD, 150 ms/yoğunlukta azaltılmış tempo, kaybolan oyuncu temizliği ve iki istemci testi geçer. |
+| P1 | World Map MAPD | Port edildi; yeni CI ve gerçek oyun oda/marker testleri bekleniyor. | Legacy MAPREQ snapshot ve yeni MAPD delta birleştirmesi geçer; oda değişimi temizlenir; 2.048 oyuncu testi tamamlanır. |
+| P1 | Minimap NEARD | Rust grid/dispatch ve C protocol/merge port edildi; HUD çağrısı ve ikon/ok renderer'ı kaldı. | 1 datagramlık NEARD, 150/500/1000 ms yük geri basıncı, kaybolan oyuncu temizliği ve iki istemci testi geçer. |
 | P1 | Car Meet | Park etmiş oyuncu kümesini belirleme, meet işaretçisini çizme ve GPS hedefi/varış davranışı. | 20 oyunculuk meet senaryosu, legend gizleme ve GPS hedefleme gerçek oyunda çalışır. |
 | P2 | World Map kapasite artışı | 4.096 marker ve daha fazla MAPD parçası için istemci bellek, marker havuzu ve UDP veri boyutunu ölçmek. | Bellek/CPU/packet limitleri ölçülür; yük testi ve cihaz profilleri onaylanır. |
 | P2 | Hub kapasitesi | 24.000 oyuncu hedefini bağlantı, bellek, paket/s, thread yoğunluğu, container ve ağ topolojisiyle test etmek. | Kademeli yük testleri, kaynak bütçesi ve düşürme/koruma stratejisi belgelenir. |
@@ -194,7 +193,7 @@ TRPOLARIS Minimap prototipinde:
 | P3 | Co-op / Split Screen | 2–4 oyunculuk render, bellek, input, kamera, kariyer ve yarış sistemleri. | Her oyuncunun kontrol/kamera/kayıt davranışı doğrulanır; yalnızca dosya kopyasıyla yapılmaz. |
 | P3 | Diğer upstream özellikleri | Çoklu lobby/Quick Chat iyileştirmeleri, gizli Special vinyls, araç filtresi/unique unlock, Visual Reputation Remover, hava durumu senkronizasyonu, pause-menu save, save recovery, Last.fm/EA Trax, country RTT ve kalan çarpışma/efekt düzeltmeleri. | Her özellik için ayrı protokol, runtime, UI ve regresyon senaryosu tamamlanır. |
 
-**Önerilen sıra:** önce PR #21'i doğrula ve sabitle; sonra MODPACKS/VINYLPACKS manuel testlerini bitir; ardından MAPD'yi tam protokol uyumuyla ana entegrasyona al; NEARD/Car Meet'i bunun üzerine tamamla. 4.096 ve 24.000 oyuncu gibi büyük limitler ancak profil ve yük testi sonrası etkinleştirilmeli.
+**Önerilen sıra:** PR #21'in güncel CI'sini ve yeni native C protocol testini doğrula; World Map oda/marker akışını oyun içinde dene; ardından NEARREQ'yi minimap HUD'a bağlayıp Car Meet/GPS işlerini tamamla. 4.096 World Map ve 24.000 hub oyuncusu gibi büyük limitler profil ve yük testi olmadan etkinleştirilmemeli.
 
 ---
 
@@ -202,11 +201,9 @@ TRPOLARIS Minimap prototipinde:
 
 | Dal / çalışma | Son görünen durum | Yorum |
 |---|---|---|
-| PR #21 Multiplayer & Regression CI, kod HEAD'i `9b88a77` | [İptal edildi](https://github.com/trpolaris/NFSU2-Web/actions/runs/42311836043) | Son kod head'inin tam regresyonu iptal edildi. Bu CI çalışmasından sonra PR dalına README/rapor dokümantasyonu eklendi; güncel dokümantasyon HEAD'i için yeni tam CI çalışması yok. |
-| PR #21 image-rs, kod HEAD'i `9b88a77` | [Başarılı](https://github.com/trpolaris/NFSU2-Web/actions/runs/42311835834) | Container image workflow başarılı; bu, oyun/runtime testlerinin tamamının geçtiği anlamına gelmez. |
-| World Map MAPD dalı | [İptal edildi](https://github.com/trpolaris/NFSU2-Web/actions/runs/42313815558) | Başarılı test olarak sayılmaz. |
-| Minimap/NEARD dalı, HEAD `1bb6b23` | [Çalışıyor](https://github.com/trpolaris/NFSU2-Web/actions/runs/42357359231) | Son writer düzeltmesi sonrası yeni CI bekleniyor. |
-| Önceki NEARD denemesi | [Başarısız](https://github.com/trpolaris/NFSU2-Web/actions/runs/42314596847) | Rust MAPD writer tür/imza uyuşmazlığı vardı; yeni çalışmanın sonucu beklenmeli. |
+| PR #21 Multiplayer & Regression CI, HEAD `15605ed7` | [Beklemede](https://github.com/trpolaris/NFSU2-Web/actions/runs/42359937665) | Bu head için native roam_unit C/ASan/UBSan adımı da eklendi; workflow sonucu bekleniyor. |
+| PR #21 image-rs, HEAD `15605ed7` | [Beklemede](https://github.com/trpolaris/NFSU2-Web/actions/runs/42359937666) | Son HEAD için container build sonucu henüz yok. |
+| World Map MAPD ve Minimap NEARD | Ayrı çalışma dallarından seçici port edildi | Bu eski dal CI kayıtları PR #21'in güncel HEAD testlerinin yerine geçmez. |
 
 Daha eski ara commit'lerde TypeScript, web build, Cargo.lock, Rust testleri, GPS native C testleri, mailbox layout kontrolü ve sentetik Online yük testi gibi adımların geçtiği kayıtlar bulunabilir. Ancak **eski commit'in yeşil olması yeni HEAD'in de yeşil olduğu anlamına gelmez.** Sonuçlar daima ilgili dalın son commit'i ve o commit'e ait Actions run üzerinden okunmalıdır.
 
