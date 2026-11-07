@@ -237,7 +237,7 @@ test('Xbox One S 2016 reader restores face, shoulder and D-pad buttons and reads
 
   const moved = oneSButtons({ 6: 0.75, 7: 1 });
   assert.deepEqual(r.read([0, 0, 0, 0], moved).axes, [0, 0, 0.5, 1, 0, 0]);
-  assert.deepEqual(r.read([0, 0, 0, 0], oneSButtons()).axes, [0, 0, -1, -1, 0, 0]);
+  assert.deepEqual(r.read([0, 0, 0, 0], oneSButtons({ 6: 0.5, 7: 0.5 })).axes, [0, 0, 0, 0, 0, 0]);
 });
 
 test('Xbox One S 2016 mapping is used by the gamepad poller on Android', async () => {
@@ -255,7 +255,8 @@ test('Xbox One S 2016 mapping is used by the gamepad poller on Android', async (
       poller.poll();
       assert.equal(h[P.IM_PAD_CONNECTED], 1);
       assert.equal(h[P.IM_PAD_BUTTONS], bit(P.PAD_A, P.PAD_B, P.PAD_X, P.PAD_Y, P.PAD_LB, P.PAD_RB, P.PAD_DUP, P.PAD_DRIGHT));
-      assert.deepEqual(Array.from({ length: 6 }, (_, i) => +new Float32Array([h[P.IM_PAD_AXIS + i]])[0].toFixed(2)),
+      const axes = new Float32Array(buf);
+      assert.deepEqual(Array.from({ length: 6 }, (_, i) => +axes[P.IM_PAD_AXIS + i].toFixed(2)),
         [0.25, -0.5, 0.5, -0.5, 0, 0]);
       assert.ok(logs.some(s => /read as Xbox's One S with its 2016 firmware under Chrome on Android/.test(s)));
     } finally {
