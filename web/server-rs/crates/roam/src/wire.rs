@@ -734,7 +734,6 @@ mod map_protocol_tests {
             assert_eq!(b[5], kind);
             assert_eq!(u16_le(&b, 16), 2);
             assert_eq!(u16_le(&b, 18), 1);
-            assert_eq!(u16_le(&b, b.len() - CRC), crc32fast::hash(&b[..b.len() - CRC]) as u16); // low bits checked below
             assert_eq!(u32_le(&b, b.len() - CRC), crc32fast::hash(&b[..b.len() - CRC]));
         }
     }
