@@ -1496,7 +1496,7 @@ static void t_lobby(void){
     l.to = 0; l.lobby = 0xAB;
     CHECK(rc_send_lobby(&g_n[0], &l) == 1 && g_hub_lobby[0] == 1 && g_hub_lobby_last[0].race == 0x1234 && g_hub_lobby_last[0].x == 100,
           "the advert reaches the hub (%d)", g_hub_lobby[0]);
-    CHECK(rc_ask_map(&g_n[0], g_now, RC_MAP_MAX) == 1, "the map is asked for");
+    CHECK(rc_ask_map(&g_n[0], g_now, RC_MAP_MAX, 0) == 1, "the map is asked for");
     static const uint8_t le[3 * RC_LOBBIES_ENTRY] = { 10, 0, 20, 0, 0x34, 0x12, 0, 0, 2, 6, RC_LS_OPEN,
                                                       1, 0, 1, 0, 0, 0, 0, 0, 1, 4, 0,              /* no race: skipped */
                                                       0xf6, 0xff, 5, 0, 1, 0, 0, 0, 4, 4, RC_LS_STARTING };
@@ -1557,6 +1557,21 @@ static void t_mapd_codec(void){
     CHECK(n == 16 + 9 + (int)sizeof entries + 4, "MAPD encodes its variable entry payload (%d)", n);
     CHECK(rc_decode(b, n, &m) == RC_OK && m.h.type == RC_MSG_MAPD, "MAPD decodes");
     CHECK(m.u.mapd.req == 1 && m.u.mapd.n == 2 && m.u.mapd.len == sizeof entries, "MAPD retains request, count and payload length");
+    static const uint8_t entries_z[RC_MAPD_PLACE_Z + 2] = { 3, 0, 10, 0, 20, 0, 64, 5, 0xfb, 30, 0, 4, 0x80 };
+    memset(&m, 0, sizeof m); m.h.type = RC_MSG_MAPD; m.h.sender = 9; m.h.flags = RC_HF_MAPZ;
+    m.u.mapd.req = 2; m.u.mapd.nparts = 1; m.u.mapd.total = 2; m.u.mapd.n = 2;
+    m.u.mapd.data = entries_z; m.u.mapd.len = sizeof entries_z;
+    n = rc_encode(&m, b, sizeof b);
+    CHECK(n == 16 + 9 + (int)sizeof entries_z + 4, "height MAPD includes per-player z");
+    CHECK(rc_decode(b, n, &m) == RC_OK && (m.h.flags & RC_HF_MAPZ), "height MAPD decodes with header flag");
+    CHECK(m.u.mapd.len == sizeof entries_z && m.u.mapd.n == 2, "height MAPD length accepts 11-byte placed entries");
+    memset(&m, 0, sizeof m); m.h.type = RC_MSG_MAPREQ; m.h.sender = 9;
+    m.u.mapreq.req = 12; m.u.mapreq.max = 1800; m.u.mapreq.base = 7; m.u.mapreq.flags = RC_MAPREQ_PARKED;
+    n = rc_encode(&m, b, sizeof b);
+    CHECK(n == 16 + 8 + 4, "MAPREQ parked request encodes four fields");
+    CHECK(rc_decode(b, n, &m) == RC_OK && m.h.type == RC_MSG_MAPREQ, "MAPREQ parked request decodes");
+    CHECK(m.u.mapreq.req == 12 && m.u.mapreq.max == 1800 && m.u.mapreq.base == 7 && m.u.mapreq.flags == RC_MAPREQ_PARKED,
+          "MAPREQ parked flags round-trip");
 
     memset(&m, 0, sizeof m); m.h.type = RC_MSG_NEARREQ; m.h.sender = 9;
     m.u.nearreq.req = 7; m.u.nearreq.max = RC_NEAR_MAX; m.u.nearreq.base = 3; m.u.nearreq.radius = 350;
