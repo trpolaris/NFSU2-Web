@@ -1152,7 +1152,8 @@ async function acceptCrewInvite(invite: PendingCrewInvite, join?: HTMLButtonElem
       if (solid) solid.textContent = ghostLabel();
       const worldsTab = document.querySelector<HTMLButtonElement>('#menu [data-menu-tab="worlds"]');
       if (worldsTab) worldsTab.hidden = false;
-      if (menuOn('worlds')) {
+      const menu = document.querySelector<HTMLDialogElement>('#menu');
+      if (menu?.open && menu.dataset.activeTab === 'worlds') {
         drawMenuWorlds();
         void refreshMenuWorldCounts();
       }
