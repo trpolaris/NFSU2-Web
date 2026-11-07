@@ -64,6 +64,7 @@
  *   photo_fov   the field of view, degrees     photo_roll  the tilt, degrees
  *   photo_n     how many times it opened */
 #include "cpu.h"
+#include "photo_roll.h"
 #include <math.h>
 #include <stdatomic.h>
 #include <stdio.h>
@@ -136,7 +137,6 @@ __attribute__((weak)) void host_status_set_n(const int *slot, const double *valu
 #define SPIN_MAX        90.f          /* automatic photo-camera turn, degrees per second */
 #define FOV_MIN        15.f
 #define FOV_MAX        110.f
-#define ROLL_MAX       45.f
 #define RATE_DPS       30.f          /* the zoom and tilt keys */
 #define DEG            0.017453292f
 #define PI             3.14159265f
@@ -377,7 +377,7 @@ static void steer(uint32_t car, float dt){
     }
     float zr = (float)(!!(hold & HB_ZOUT) - !!(hold & HB_ZIN)), rr = (float)(!!(hold & HB_RR) - !!(hold & HB_RL));
     P.fov = clampf(fs != NONE_SET ? (float)fs / 100.f : P.fov + zr * RATE_DPS * dt, FOV_MIN, FOV_MAX);
-    P.roll = clampf(rs != NONE_SET ? (float)rs / 100.f : P.roll + rr * RATE_DPS * dt, -ROLL_MAX, ROLL_MAX);
+    P.roll = photo_wrap_roll(rs != NONE_SET ? (float)rs / 100.f : P.roll + rr * RATE_DPS * dt);
     /* where from and at: the eye kept over the car's ground, then smoothed (a jerky drag or a key reads as a glide) */
     float e[3], l[3];
     if (!P.free){
