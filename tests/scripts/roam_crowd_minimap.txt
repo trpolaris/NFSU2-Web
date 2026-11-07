@@ -2,6 +2,9 @@
 # free roam among web/tools/roam-crowd.mjs's players (circles of 20 to 120 m
 # around its start); once ROAM_CROWD_CARS cars are shown and the HUD is in,
 # frame dumps with every friend's arrow on the minimap and the arrows counted.
+# Run with `roam-pair.mjs --solo --crowd 60` to include unlinked nearby players:
+# `roam mp status` now reports the NEARD nearby total, fresh snapshot count,
+# delta generation and last request age separately from loaded friend-car arrows.
 0     tapuntil RETURN MC_Background.fng 120 4000
 +120  tap LEFT
 +30   tap RETURN
