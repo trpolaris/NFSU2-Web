@@ -2541,4 +2541,29 @@ mod map_capacity_tests {
         assert_eq!(legacy_map_limit(2048), 690);
         assert_eq!(legacy_map_limit(usize::MAX), 690);
     }
+
+    #[test]
+    fn mapd_full_snapshots_fit_sixteen_wire_bounded_parts() {
+        for (count, bytes_per_place) in [
+            (MAPD_MAX, wire::MAPD_PLACE),
+            (MAPD_MAX_Z, wire::MAPD_PLACE_Z),
+        ] {
+            let ends: Vec<usize> = (1..=count).map(|n| n * bytes_per_place).collect();
+            let parts = map_parts(&ends);
+            assert_eq!(parts.len(), wire::MAPD_PARTS, "the full snapshot uses all MAPD parts");
+
+            let per_part = count / wire::MAPD_PARTS;
+            let mut covered = 0;
+            for (part, &(start, end)) in parts.iter().enumerate() {
+                assert_eq!(start, covered, "parts are contiguous at part {part}");
+                assert_eq!(end - start, per_part, "part {part} has the expected number of entries");
+                let byte_start = if start == 0 { 0 } else { ends[start - 1] };
+                let byte_end = ends[end - 1];
+                assert!(byte_end - byte_start <= wire::MAPD_BYTES, "part {part} exceeds the UDP payload budget");
+                covered = end;
+            }
+            assert_eq!(covered, count, "every map entry is included exactly once");
+            assert_eq!(ends[covered - 1], count * bytes_per_place);
+        }
+    }
 }

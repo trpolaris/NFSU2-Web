@@ -1328,7 +1328,7 @@ function openMenu() {
   crews.hidden = roamCrews === null || !session?.net?.crews;
   crews.textContent = crewsLabel();
   const worldsTab = m.querySelector<HTMLButtonElement>('[data-menu-tab="worlds"]');
-  if (worldsTab) worldsTab.hidden = liveWorld === null || !session?.net?.setRoom;
+  if (worldsTab) worldsTab.hidden = liveWorld === null || !session?.net?.room;
   m.querySelector<HTMLButtonElement>('[data-act="quit"]')!.textContent = quitLabel();
   showRadio(m);
   syncChatMenuAppearance();
@@ -1343,7 +1343,7 @@ function openMenu() {
   $('#stage').classList.add('cursor');
   void friendsPanel.refresh();
   const activeTab = m.dataset.activeTab || 'chat';
-  selectMenuTab(activeTab === 'worlds' && (liveWorld === null || !session?.net?.setRoom) ? 'multiplayer' : activeTab);
+  selectMenuTab(activeTab === 'worlds' && (liveWorld === null || !session?.net?.room) ? 'multiplayer' : activeTab);
   m.showModal();
 }
 /** Switch the F9 control deck between real, native game features. */
@@ -1393,7 +1393,7 @@ function drawMenuWorlds() {
     action.className = 'btn menu-action';
     const selected = roomHash(room) === roomHash(current);
     action.textContent = selected ? t('Current world') : t('Switch to this world');
-    action.disabled = selected || !session?.net?.setRoom;
+    action.disabled = selected || !session?.net?.room;
     action.setAttribute('aria-pressed', String(selected));
     action.onclick = () => void switchMenuWorld(room);
     card.append(heading, detail, action);
@@ -1406,7 +1406,7 @@ function drawMenuWorlds() {
 /** Refresh room counts only for the newest request; zero is the main world. */
 async function refreshMenuWorldCounts() {
   const current = liveWorld, game = session, ask = ++menuWorldAsk;
-  if (current === null || !game?.net?.setRoom || offline) return;
+  if (current === null || !game?.net?.room || offline) return;
   const counts = await askWorlds(worldRooms(current), 5000);
   if (!counts || ask !== menuWorldAsk || session !== game || liveWorld === null ||
       !$<HTMLDialogElement>('#menu').open || $('#menu').dataset.activeTab !== 'worlds') return;
@@ -1417,7 +1417,7 @@ async function refreshMenuWorldCounts() {
 /** Change the live game room, then persist it. A failed save restores the live room. */
 async function switchMenuWorld(room: string) {
   const game = session, previous = liveWorld;
-  if (!game?.net?.setRoom || previous === null) return;
+  if (!game?.net?.room || previous === null) return;
   const raw = room.trim();
   let next = '';
   if (raw) {
@@ -1429,7 +1429,7 @@ async function switchMenuWorld(room: string) {
     next = checked.value;
   }
   if (roomHash(next) === roomHash(previous)) return;
-  if (!game.net.setRoom(next)) {
+  if (!game.net.room(next)) {
     $('#menu-world-status').textContent = t('This game cannot change its Free Roam world.');
     return;
   }
@@ -1441,7 +1441,7 @@ async function switchMenuWorld(room: string) {
     settingsText = text;
     void settings.refresh();
   } catch (e) {
-    game.net.setRoom(previous);
+    game.net.room(previous);
     liveWorld = previous;
     $('#menu-world-status').textContent = t('The previous world was restored because settings.ini could not be saved.');
     log.add('[app] world change rolled back: ' + e);
