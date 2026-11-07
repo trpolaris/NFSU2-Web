@@ -66,8 +66,16 @@ pub(crate) const MAP_ENTRY: usize = 5;
 pub(crate) const MAP_PER: usize = 230;
 pub(crate) const MAP_MAX_V1: u16 = 512;
 pub(crate) const MAPD_GONE: u16 = 0x8000;
+/// A placed player's key carries this bit when its SNAPs have stayed within 25 m for one minute.
+pub(crate) const MAPD_PARKED: u16 = 0x4000;
+pub(crate) const MAPREQ_PARKED: u16 = 1;
 pub(crate) const MAPD_PLACE: usize = 9;
+/// A MAPD answer requested with MAPREQ_PARKED also carries z (i16 LE) after velocity.
+pub(crate) const MAPD_PLACE_Z: usize = 11;
+pub(crate) const HF_MAPZ: u16 = 0x0800;
 pub(crate) const MAPD_BYTES: usize = 1152;
+pub(crate) const MAPD_PARTS: usize = 16;
+pub(crate) const MSG_MAPD: u8 = 18;
 pub(crate) const MAPD_PARTS: usize = 16;
 pub(crate) const HDR: usize = 16;
 pub(crate) const CRC: usize = 4;
@@ -108,6 +116,7 @@ pub(crate) enum Msg<'a> {
         req: u16,
         max: u16,
         base: Option<u16>,
+        flags: u16,
     },
     /// Nearby-player minimap request (radius in metres).
     NearReq { req: u16, max: u16, base: u16, radius: u16 },
@@ -364,9 +373,10 @@ pub(crate) fn decode(d: &[u8]) -> Option<(u8, u32, Msg<'_>)> {
             }
             Msg::Snap { sender, status, p, v: velocity(d, 38), heading: heading(d, 50), t_us: u32_le(d, 22), clock: d[21] }
         }
-        MSG_MAPREQ if end == HDR + 2 => Msg::MapReq { req: u16_le(d, 16), max: MAP_MAX_V1, base: None },
-        MSG_MAPREQ if end == HDR + 4 => Msg::MapReq { req: u16_le(d, 16), max: u16_le(d, 18), base: None },
-        MSG_MAPREQ if end == HDR + 6 => Msg::MapReq { req: u16_le(d, 16), max: u16_le(d, 18), base: Some(u16_le(d, 20)) },
+        MSG_MAPREQ if end == HDR + 2 => Msg::MapReq { req: u16_le(d, 16), max: MAP_MAX_V1, base: None, flags: 0 },
+        MSG_MAPREQ if end == HDR + 4 => Msg::MapReq { req: u16_le(d, 16), max: u16_le(d, 18), base: None, flags: 0 },
+        MSG_MAPREQ if end == HDR + 6 => Msg::MapReq { req: u16_le(d, 16), max: u16_le(d, 18), base: Some(u16_le(d, 20)), flags: 0 },
+        MSG_MAPREQ if end == HDR + 8 => Msg::MapReq { req: u16_le(d, 16), max: u16_le(d, 18), base: Some(u16_le(d, 20)), flags: u16_le(d, 22) },
         MSG_NEARREQ if end == HDR + 8 => Msg::NearReq { req: u16_le(d, 16), max: u16_le(d, 18), base: u16_le(d, 20), radius: u16_le(d, 22) },
         MSG_LOBBY => {
             // op arg state max, to, lobby, race, x y, t, n, a reserved byte, then n ids (roam_core.c rc_encode)
@@ -514,7 +524,7 @@ pub(crate) fn write_lobbies(b: &mut [u8], sender: u32, seq: u16, req: u16, list:
     b[6..8].copy_from_slice(&(len as u16).to_le_bytes());
     b[8..12].copy_from_slice(&sender.to_le_bytes());
     b[12..14].copy_from_slice(&seq.to_le_bytes());
-    b[14..16].copy_from_slice(&[0, 0]);
+    b[14..16].copy_from_slice(&flags.to_le_bytes());
     b[16..18].copy_from_slice(&req.to_le_bytes());
     b[18] = list.len() as u8;
     for (i, &(x, y, race, n, max, state)) in list.iter().enumerate() {
@@ -575,7 +585,7 @@ pub(crate) fn mapd_len(bytes: usize) -> usize {
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn write_mapd(
     b: &mut [u8], kind: u8, sender: u32, seq: u16, req: u16, base: u16,
-    part: u8, nparts: u8, total: u16, n: u8, entries: &[u8],
+    part: u8, nparts: u8, total: u16, n: u8, flags: u16, entries: &[u8],
 ) {
     debug_assert!(kind == MSG_MAPD || kind == MSG_NEARD);
     debug_assert_eq!(b.len(), mapd_len(entries.len()));
@@ -734,7 +744,7 @@ mod map_protocol_tests {
             entries.extend_from_slice(&20i16.to_le_bytes());
             entries.extend_from_slice(&[3u8, 4, 5]);
             let mut b = vec![0u8; mapd_len(entries.len())];
-            write_mapd(&mut b, kind, 7, 11, 2, 1, 0, 1, 1, 1, &entries);
+            write_mapd(&mut b, kind, 7, 11, 2, 1, 0, 1, 1, 1, 0, &entries);
             assert_eq!(b[5], kind);
             assert_eq!(u16_le(&b, 16), 2);
             assert_eq!(u16_le(&b, 18), 1);
