@@ -2575,6 +2575,284 @@ static int wm_dress(CPU *c, uint32_t map, uint32_t pkg, int max){
     }
     return copies;
 }
+static uint32_t meet_icon(CPU *c, uint32_t pkg);
+/* The map's filter: two rows of our own in its legend (the list on its left,
+ * a row for each kind of place on the map: Up and Down pick one, Enter
+ * crosses its tick and the map hides that kind), "Players" for the other
+ * players' cars (a crew-mate's stays) and "Players' races" for the race
+ * lobbies' icons and labels (the one the player is in stays).  The legend
+ * (the screen's +0x54, made with the map by 0x4EE320) is a list of rows of
+ * 0x2C bytes, the last made first (Down walks back along it): +8 the tick,
+ * +0xC the icon, +0x10 a second icon, +0x14 the text (the package's
+ * DATA_A_<n>, DATA_B_<n>, DATA_D_<n>, DATA_C_<n>, n the row from 1), +0x18
+ * and +0x1C the tick's colours, +0x20 the kind of place, +0x24 1 crossed,
+ * +0x28 the package's name.  The package has 14 rows; a career takes one a
+ * kind it has (12 at stage 3, all 14 once it has every kind), ours the ones
+ * after them, and past the package's 14 copies of its row 13 (wmf_copy_parts),
+ * every row then nearer the others and smaller by as much, so that all of them
+ * fit where its 14 are (wmf_fit).
+ * Their kinds are past the game's 14, which its show flags take no notice of
+ * (0x4964D0 counts them hidden, 0x496390 sets nothing): Enter only crosses
+ * the tick (0x4B0EF0) and a pick never jumps to a marker of the kind
+ * (0x4B0E70).  The ticks are read every frame.  A marker hidden is moved off the map: the map's placing
+ * (0x4B09E0) hides a marker out of its view, and it shows a car's whatever
+ * its filter says.  The choices are kept in the game's registry. */
+#define WMF_ROWS        14            /* the legend's rows in the package */
+#define WMF_ROW_SZ      0x2cu
+#define WMF_SCR_ROWS    0x54u         /* the screen: its legend (+0 the first row, +4 the last) */
+#define WMF_SCR_BUTTONS 0x50u         /* the screen: its buttons' list (+4 first, +8 last; 0x14 bytes: +8 1 a row's, +0xC ICON_BACKING_<n>, +0x10 the row) */
+#define WMF_KIND0       0x20u         /* our rows' kinds: Players, Players' races (the game's are 0 .. 13) */
+#define FN_WM_ROWLOOK   0x00496920u   /* thiscall row (crossed): the tick or the cross, the icon and the text dimmed or not */
+#define FN_FE_TEX       0x0050c980u   /* cdecl (image) -> its texture's hash */
+#define FN_FE_SETTEX    0x0050c990u   /* cdecl (image, texture hash) */
+#define WMF_RACES_RGB   0xffc832u     /* Players' races' icon: the lobbies' labels' gold (MP_RGB_LOBBY) */
+#define MEET_RGB        0x78ff50u     /* car meets' labels, icons and legend row (meet_*) */
+#define WMF_AWAY        1.0e5f        /* a hidden marker's place: off every map */
+#define WMF_MAX         (NSLOT + RC_MAP_MAX + 32)
+#define WMF_PLAYERS     0
+#define WMF_RACES       1
+#define WMF_MEETS       2             /* car meets (meet_*) */
+#if MPRACES
+#define WMF_N           3
+#else
+#define WMF_N           1
+#endif
+#ifndef ROAM_HOST_WIN
+int  win32_reg_get_dword(const char *nm, uint32_t *out);
+void win32_reg_put_dword(const char *nm, uint32_t v);
+static const char *const wmf_reg[3] = { "MapPlayers", "MapRaces", "MapMeets" };   /* (the Windows plugin keeps them a session) */
+#endif
+#define WMF_TEST0       3             /* rows of no kind for a test (NFSU2_ROAM_TEST_LEGEND_ROWS): a fuller legend */
+#define WMF_TEST_MAX    4
+static const char *const wmf_text[WMF_TEST0 + WMF_TEST_MAX] = { "Players", "Players' races", "Car meets", "Test row 1", "Test row 2", "Test row 3",
+                                                                "Test row 4" };
+static int g_wmf_on[WMF_TEST0 + WMF_TEST_MAX] = { 1, 1, 1, 1, 1, 1, 1 }, g_wmf_loaded;
+static struct { uint32_t map, row[3]; int n; uint32_t m[WMF_MAX]; float x[WMF_MAX], y[WMF_MAX]; uint8_t what[WMF_MAX]; } g_wmf;
+static void wmf_load(void){
+    if (g_wmf_loaded) return;
+    g_wmf_loaded = 1;
+#ifndef ROAM_HOST_WIN
+    for (int i = 0; i < WMF_N; i++){ uint32_t v; if (win32_reg_get_dword(wmf_reg[i], &v)) g_wmf_on[i] = v != 0; }
+#endif
+}
+/* marker m of the open map is a player's (what WMF_PLAYERS), a lobby's
+ * (WMF_RACES) or a meet's (WMF_MEETS): off the map while its row is crossed
+ * (placed again by the caller); its entry, -1 when it has none */
+static int wmf_track(uint32_t map, uint32_t m, int what){
+    if (g_wmf.map != map || g_wmf.n >= WMF_MAX || !ok(m, WM_MARK_SZ)) return -1;
+    int i = g_wmf.n++;
+    g_wmf.m[i] = m; g_wmf.x[i] = MRF32(m + 0x10u); g_wmf.y[i] = MRF32(m + 0x14u); g_wmf.what[i] = (uint8_t)what;
+    if (!g_wmf_on[what]){ MRF32(m + 0x10u) = WMF_AWAY; MRF32(m + 0x14u) = WMF_AWAY; }
+    return i;
+}
+/* marker m (its entry i, -1: none) to x, y (WMF_AWAY: off the map, whatever
+ * the row), heading h (a car's, 65536 a turn); placed again by the caller */
+static void wmf_move(uint32_t m, int i, float x, float y, uint16_t h){
+    if (i >= 0 && i < g_wmf.n && g_wmf.m[i] == m){
+        g_wmf.x[i] = x; g_wmf.y[i] = y;
+        if (!g_wmf_on[g_wmf.what[i]]) x = y = WMF_AWAY;
+    }
+    MRF32(m + 0x10u) = x; MRF32(m + 0x14u) = y; MRF32(m + 0x18u) = (float)h * MRF32(G_WM_HEADING_K);
+}
+/* our row of the legend (as 0x4B0D50 makes the game's, from its row like):
+ * its parts o (tick, icon, second icon, text), its backing bk; in front of
+ * the list (after the game's rows and ours before: Down reaches it last) */
+static uint32_t wmf_row(CPU *c, uint32_t scr, uint32_t pkg, const uint32_t o[4], uint32_t bk, int what, uint32_t like, uint32_t tex, uint32_t rgb){
+    uint32_t sz = WMF_ROW_SZ, r = rh_call(c, FN_MALLOC, 0, 0, 1, &sz);
+    if (!ok(r, WMF_ROW_SZ)) return 0;
+    for (uint32_t i = 0; i < WMF_ROW_SZ; i += 4) MR32(r + i) = 0;
+    for (int i = 0; i < 4; i++) MR32(r + 8u + 4u * (uint32_t)i) = o[i];
+    MR32(r + 0x18u) = MR32(like + 0x18u); MR32(r + 0x1cu) = MR32(like + 0x1cu);
+    MR32(r + 0x20u) = WMF_KIND0 + (uint32_t)what; MR32(r + 0x28u) = pkg;
+    uint32_t a[2] = { o[1], tex };
+    if (tex) rh_call(c, FN_FE_SETTEX, 0, 0, 2, a);
+    fe_colour_set(c, o[1], (int32_t)(rgb & 0xffu), (int32_t)(rgb >> 8 & 0xffu), (int32_t)(rgb >> 16 & 0xffu), 0xff);
+    uint32_t txt = g_gmem + TAG_SCR + 0x48u;
+    gstr(txt, wmf_text[what], 24);
+    gcall1(c, FN_FE_SETSTR, o[3], txt);
+    MR32(o[3] + 0x1cu) |= 2u;
+    gcall1(c, FN_FE_SHOW, 0, o[0]); gcall1(c, FN_FE_SHOW, 0, o[1]); gcall1(c, FN_FE_SHOW, 0, o[3]); gcall1(c, FN_FE_HIDE, 0, o[2]);
+    uint32_t head = scr + WMF_SCR_ROWS, first = rd32(head);
+    MR32(r) = first; MR32(r + 4u) = head; MR32(head) = r; MR32(first + 4u) = r;
+    uint32_t crossed = !g_wmf_on[what];
+    rh_call(c, FN_WM_ROWLOOK, r, 0, 1, &crossed);
+    /* its button (the backing a pointer picks the row by), at the end of the screen's */
+    uint32_t l = rd32(scr + WMF_SCR_BUTTONS), bsz = 0x14u, b = bk && ok(l, 0xc) ? rh_call(c, FN_MALLOC, 0, 0, 1, &bsz) : 0;
+    if (ok(b, 0x14)){
+        uint32_t tail = rd32(l + 8u);
+        MR32(b) = l + 4u; MR32(b + 4u) = tail; MR32(b + 8u) = 1; MR32(b + 0xcu) = bk; MR32(b + 0x10u) = r;
+        MR32(tail) = b; MR32(l + 8u) = b;
+    }
+    return r;
+}
+/* the parts of the package's row n (DATA_A_<n> ...), its backing in *bk; 0 when one is missing */
+static int wmf_parts(CPU *c, uint32_t pkg, int n, uint32_t o[4], uint32_t *bk){
+    static const char *const part[5] = { "DATA_A_%d", "DATA_B_%d", "DATA_D_%d", "DATA_C_%d", "ICON_BACKING_%d" };
+    for (int i = 0; i < 5; i++){
+        char nm[24]; snprintf(nm, sizeof nm, part[i], n);
+        uint32_t x = wm_find(c, pkg, nm);
+        if (!x && i < 4) return 0;
+        if (i < 4) o[i] = x; else *bk = x;
+    }
+    return 1;
+}
+/* A row past the package's: copies of its row 13's parts and backing (row 14's backing is another, the legend's
+ * foot's), where row 13 is (wmf_fit moves it to its line); 0 when one is missing.  A row's parts light up together
+ * by messages to each other's ids (+0xC): its text answers BUTTON_HIGHLIGHT with its own script and the message on to
+ * its backing's and its icon's ids, the backing with its own script (each object's responses, +0x34: +0x3C the
+ * first, each +4 the next, +0xC its message, +0x10 its commands, +0x14 them, 12 bytes: 1 a message, the message, the
+ * id).  Copies keep the ids, and a copy's messages lit row 13, so each copy gets an id of its own and the copies'
+ * commands name the copies (fe_retarget) */
+static uint32_t g_fe_id = 0x7f000000u;   /* copies' own ids: the package's are far below */
+static int fe_ids(uint32_t a, uint32_t b, uint32_t *from, uint32_t *to, int n, int max, int depth){
+    if (n < max && ok(a, 0x6c) && ok(b, 0x6c)){ from[n] = MR32(a + 0xcu); to[n] = g_fe_id; MR32(b + 0xcu) = g_fe_id++; n++; }
+    if (depth < 4 && ok(a, 0x6c) && ok(b, 0x6c) && MR32(a + 0x18u) == 5u)
+        for (uint32_t x = rd32(a + 0x64u), y = rd32(b + 0x64u), k = 0; x && y && x != y && k < 64; x = rd32(x + 4u), y = rd32(y + 4u), k++)
+            n = fe_ids(x, y, from, to, n, max, depth + 1);
+    return n;
+}
+/* copy b's commands (of original a's responses) that name an id of from[]: to[]'s instead, commands the original
+ * has too copied first; how many */
+static int fe_retarget(CPU *c, uint32_t a, uint32_t b, const uint32_t *from, const uint32_t *to, int n, int depth){
+    int done = 0, k = 0;
+    if (!ok(a, 0x6c) || !ok(b, 0x6c)) return 0;
+    for (uint32_t rs = rd32(b + 0x3cu), ro = rd32(a + 0x3cu); rs && rs != ro && k < 16 && ok(rs, 0x18); rs = rd32(rs + 4u), ro = ok(ro, 0x18) ? rd32(ro + 4u) : 0, k++){
+        uint32_t nc = rd32(rs + 0x10u), cm = rd32(rs + 0x14u);
+        if (!nc || nc > 16u || !ok(cm, nc * 12u)) continue;
+        if (ok(ro, 0x18) && rd32(ro + 0x14u) == cm){
+            uint32_t sz = nc * 12u, nw = rh_call(c, FN_MALLOC, 0, 0, 1, &sz);
+            if (!ok(nw, sz)) continue;
+            memcpy(GPTR(nw), GPTR(cm), sz); MR32(rs + 0x14u) = nw; cm = nw;
+        }
+        for (uint32_t j = 0; j < nc; j++){
+            uint32_t t = MR32(cm + 12u * j + 8u);
+            for (int q = 0; q < n && t; q++) if (t == from[q]){ MR32(cm + 12u * j + 8u) = to[q]; done++; break; }
+        }
+    }
+    if (depth < 4 && MR32(a + 0x18u) == 5u)
+        for (uint32_t x = rd32(a + 0x64u), y = rd32(b + 0x64u), j = 0; x && y && x != y && j < 64; x = rd32(x + 4u), y = rd32(y + 4u), j++)
+            done += fe_retarget(c, x, y, from, to, n, depth + 1);
+    return done;
+}
+static int wmf_copy_parts(CPU *c, uint32_t pkg, int k, uint32_t o[4], uint32_t *bk){
+    uint32_t r[4], rb = 0, src[5], cp[5] = { 0 };
+    if (!wmf_parts(c, pkg, WMF_ROWS - 1, r, &rb)) return 0;
+    for (int i = 0; i < 5; i++){
+        char nm[32]; snprintf(nm, sizeof nm, "ROAM_LEGEND_%d_%d", k, i);
+        src[i] = i < 4 ? r[i] : rb;
+        cp[i] = src[i] ? fe_clone(c, pkg, src[i], nm) : 0;
+        if (!cp[i] && i < 4) return 0;
+        if (i < 4) o[i] = cp[i]; else *bk = cp[i];
+    }
+    uint32_t from[32], to[32]; int n = 0, done = 0;
+    for (int i = 0; i < 5; i++) if (cp[i]) n = fe_ids(src[i], cp[i], from, to, n, 32, 0);
+    for (int i = 0; i < 5; i++) if (cp[i]) done += fe_retarget(c, src[i], cp[i], from, to, n, 0);
+    rlog("[roam] f=%ld world map: our legend row %d a copy of row %d (%d objects, %d of their commands to the copies)\n", rh_frame(), k + 1, WMF_ROWS - 1, n, done);
+    return 1;
+}
+/* the row's backing (its button's in the screen's list, 0x14 bytes from +4: +8 1 a row's, +0xC the backing, +0x10
+ * the row) */
+static uint32_t wmf_backing(uint32_t scr, uint32_t row){
+    uint32_t l = rd32(scr + WMF_SCR_BUTTONS);
+    if (!ok(l, 0xc)) return 0;
+    int n = 0;
+    for (uint32_t b = rd32(l + 4u); b && b != l + 4u && n < 256 && ok(b, 0x14); b = rd32(b), n++)
+        if (MR32(b + 8u) == 1u && MR32(b + 0x10u) == row) return MR32(b + 0xcu);
+    return 0;
+}
+/* an FE object moved down dy and its size times kx, ky (the game's setters: an animation of it goes along) */
+static void fe_shift(CPU *c, uint32_t o, float dy, float kx, float ky){
+    uint32_t d = ok(o, 0x34) ? rd32(o + 0x2cu) : 0;
+    if (!ok(d, 0x40)) return;
+    uint32_t ap[2] = { gvec(g_gmem + TAG_SCR + 0x20u, MRF32(d + 0x1cu), MRF32(d + 0x20u) + dy, MRF32(d + 0x24u)), 0 };
+    rh_call(c, FN_FE_POS, o, 0, 2, ap);
+    uint32_t as[2] = { gvec(g_gmem + TAG_SCR + 0x30u, MRF32(d + 0x38u) * kx, MRF32(d + 0x3cu) * ky, 1.f), 0 };
+    if (kx != 1.f || ky != 1.f) rh_call(c, FN_FE_SCALE, o, 0, 2, as);
+}
+/* More rows than the package's (line[]: the legend's rows top to bottom): each in its line within the span of the
+ * package's rows 1 to WMF_ROWS, nearer each other, and its parts smaller by as much (its backing, the bar a picked row
+ * lights, only less tall), down to WMF_FIT_MIN of their size; their order, and Up and Down, as before.  Its size */
+#define WMF_FIT_MIN     0.6f
+static float wmf_fit(CPU *c, uint32_t scr, uint32_t pkg, const uint32_t *line, int n){
+    uint32_t r1[4], rn[4], bk;
+    if (n <= WMF_ROWS || !wmf_parts(c, pkg, 1, r1, &bk) || !wmf_parts(c, pkg, WMF_ROWS, rn, &bk)) return 1.f;
+    uint32_t d1 = rd32(r1[0] + 0x2cu), dn = rd32(rn[0] + 0x2cu);
+    if (!ok(d1, 0x40) || !ok(dn, 0x40)) return 1.f;
+    float y1 = MRF32(d1 + 0x20u), span = MRF32(dn + 0x20u) - y1, pitch = span / (float)(n - 1), k = pitch / (span / (float)(WMF_ROWS - 1));
+    if (k < WMF_FIT_MIN){ k = WMF_FIT_MIN; pitch = k * span / (float)(WMF_ROWS - 1); }
+    for (int i = 0; i < n; i++){
+        uint32_t r = line[i], t = ok(r, WMF_ROW_SZ) ? MR32(r + 8u) : 0, dt = ok(t, 0x34) ? rd32(t + 0x2cu) : 0;
+        if (!ok(dt, 0x40)) continue;
+        float dy = y1 + pitch * (float)i - MRF32(dt + 0x20u);
+        for (uint32_t p = 0; p < 4; p++) fe_shift(c, MR32(r + 8u + 4u * p), dy, k, k);
+        fe_shift(c, wmf_backing(scr, r), dy, 1.f, k);
+    }
+    return k;
+}
+/* as the map opens: our rows after the game's, and the players' markers it has */
+static void wmf_begin(uint32_t map){
+    wmf_load();
+    memset(&g_wmf, 0, sizeof g_wmf); g_wmf.map = map;
+}
+static void wmf_open(CPU *c, uint32_t scr, uint32_t map, uint32_t pkg, uint32_t w){
+    int rows = 0; uint32_t like = 0, line[64 + WMF_TEST0 + WMF_TEST_MAX]; float yl[64];
+    /* the game's rows, top to bottom (by their ticks' places) */
+    for (uint32_t r = rd32(scr + WMF_SCR_ROWS); r && r != scr + WMF_SCR_ROWS && rows < 64 && ok(r, WMF_ROW_SZ); r = rd32(r)){
+        uint32_t t = MR32(r + 8u), d = ok(t, 0x34) ? rd32(t + 0x2cu) : 0;
+        float y = ok(d, 0x40) ? MRF32(d + 0x20u) : 0.f;
+        int j = rows++;
+        for (; j > 0 && yl[j - 1] > y; j--){ yl[j] = yl[j - 1]; line[j] = line[j - 1]; }
+        yl[j] = y; line[j] = r; like = r;
+    }
+    /* ours after them, in the package's rows past theirs and in copies past the package's; with more rows than the
+     * package's, all of them nearer each other.  NFSU2_ROAM_TEST_LEGEND_ROWS=n: n rows more, of no kind (as a fuller
+     * legend) */
+    int test = env_int("NFSU2_ROAM_TEST_LEGEND_ROWS", 0, 0, WMF_TEST_MAX), nl = rows;
+    float k = 1.f;
+    if (like){
+        uint32_t car = wm_find(c, pkg, "AIRACERINDICATOR_0"), ring = wm_find(c, pkg, "SPRINTEVENTINDICATOR_0");
+        uint32_t rgb = g_wm.col_ok ? (uint32_t)(g_wm.col[2] & 0xff) << 16 | (uint32_t)(g_wm.col[1] & 0xff) << 8 | (uint32_t)(g_wm.col[0] & 0xff) : 0xffffffu;
+        uint32_t tex[3] = { car ? gcall1(c, FN_FE_TEX, 0, car) : 0, ring ? gcall1(c, FN_FE_TEX, 0, ring) : 0, 0 }, col[3] = { rgb, WMF_RACES_RGB, MEET_RGB };
+#if MPRACES
+        uint32_t mi = meet_icon(c, pkg);
+        tex[2] = mi ? gcall1(c, FN_FE_TEX, 0, mi) : tex[0];
+#endif
+        for (int i = 0; i < WMF_N + test; i++){
+            int what = i < WMF_N ? i : WMF_TEST0 + i - WMF_N, slot = rows + 1 + i;
+            uint32_t o[4], bk = 0;
+            int got = slot <= WMF_ROWS ? wmf_parts(c, pkg, slot, o, &bk) : wmf_copy_parts(c, pkg, i, o, &bk);
+            uint32_t r = got ? wmf_row(c, scr, pkg, o, bk, what, like, what < 3 ? tex[what] : tex[0], what < 3 ? col[what] : 0xffffffu) : 0;
+            if (i < WMF_N) g_wmf.row[i] = r;
+            if (r) line[nl++] = r;
+        }
+        k = wmf_fit(c, scr, pkg, line, nl);
+    }
+}
+
+/* every frame the map is open: a row ticked or crossed since, its markers on or off the map */
+static void wmf_frame(CPU *c, uint32_t map){
+    if (g_wmf.map != map) return;
+    int moved = 0;
+    for (int i = 0; i < WMF_N; i++){
+        uint32_t r = g_wmf.row[i];
+        if (!r) continue;
+        int on = !MR8(r + 0x24u);
+        if (on == g_wmf_on[i]) continue;
+        g_wmf_on[i] = on; moved = 1;
+#ifndef ROAM_HOST_WIN
+        win32_reg_put_dword(wmf_reg[i], (uint32_t)on);
+#endif
+        rlog("[roam] f=%ld world map: %s %s\n", rh_frame(), wmf_text[i], on ? "shown" : "hidden");
+    }
+    if (!moved) return;
+    for (int i = 0; i < g_wmf.n; i++){
+        uint32_t m = g_wmf.m[i];
+        int on = g_wmf_on[g_wmf.what[i]];
+        MRF32(m + 0x10u) = on ? g_wmf.x[i] : WMF_AWAY; MRF32(m + 0x14u) = on ? g_wmf.y[i] : WMF_AWAY;
+    }
+    gcall0(c, FN_WM_PLACE, map);
+}
+
 #if MPRACES
 static int mp_map_icons(CPU *c, uint32_t map, uint32_t pkg, uint32_t room, int hub);   /* lobbies on the map */
 static void mp_map_labels(CPU *c, uint32_t map);
