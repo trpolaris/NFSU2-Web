@@ -14,7 +14,7 @@ Bu belge, proje ana README'sinin yerine geçmez. Entegrasyon çalışmalarının
 | TRPOLARIS deposu | Ana proje deposu | [trpolaris/NFSU2-Web](https://github.com/trpolaris/NFSU2-Web) |
 | Upstream referansı | Karşılaştırma ve seçici port kaynağı | [th0mk/nfsu2-web](https://github.com/th0mk/nfsu2-web) |
 | Üretim/varsayılan dal | `main`, HEAD `82616f9` | [main](https://github.com/trpolaris/NFSU2-Web/tree/main) |
-| Ana entegrasyon dalı | `integration/upstream-2026-11-06`, HEAD `9b88a77` | [Dal](https://github.com/trpolaris/NFSU2-Web/tree/integration/upstream-2026-11-06) |
+| Ana entegrasyon dalı | `integration/upstream-2026-11-06`, HEAD `87a890a` | [Dal](https://github.com/trpolaris/NFSU2-Web/tree/integration/upstream-2026-11-06) |
 | Ana entegrasyon PR'ı | PR #21, açık ve taslak; henüz birleştirilmedi | [PR #21](https://github.com/trpolaris/NFSU2-Web/pull/21) |
 | World Map protokol dalı | `integration/world-map-mapd`, HEAD `ecf7f03` | [Dal](https://github.com/trpolaris/NFSU2-Web/tree/integration/world-map-mapd) |
 | Minimap/NEARD çalışma dalı | `feature/world-map-meets`, HEAD `1bb6b23` | [Dal](https://github.com/trpolaris/NFSU2-Web/tree/feature/world-map-meets) |
@@ -52,7 +52,7 @@ TRPOLARIS, upstream projesini olduğu gibi kopyalamak yerine, uyumlu oyun/runtim
 
 ## 3. PR #21 ana entegrasyon dalına eklenenler
 
-Bu bölümdeki çalışmalar `integration/upstream-2026-11-06` dalındadır ve [PR #21](https://github.com/trpolaris/NFSU2-Web/pull/21) üzerinden incelenebilir. PR'ın son kontrolünde 142 dosya değişikliği listeleniyordu. PR açık/taslak durumundadır.
+Bu bölümdeki çalışmalar `integration/upstream-2026-11-06` dalındadır ve [PR #21](https://github.com/trpolaris/NFSU2-Web/pull/21) üzerinden incelenebilir. README bağlantısı ve bu rapor eklendikten sonra PR'da 144 dosya değişikliği listeleniyor. PR açık/taslak durumundadır.
 
 ### 3.1 Arkadaşlar, Online ve Free Roam
 
@@ -202,8 +202,8 @@ TRPOLARIS Minimap prototipinde:
 
 | Dal / çalışma | Son görünen durum | Yorum |
 |---|---|---|
-| PR #21 Multiplayer & Regression CI, HEAD `9b88a77` | [İptal edildi](https://github.com/trpolaris/NFSU2-Web/actions/runs/42311836043) | Son PR head için tam regresyon başarılı sonucu yok. |
-| PR #21 image-rs, HEAD `9b88a77` | [Başarılı](https://github.com/trpolaris/NFSU2-Web/actions/runs/42311835834) | Container image workflow başarılı; bu, oyun/runtime testlerinin tamamının geçtiği anlamına gelmez. |
+| PR #21 Multiplayer & Regression CI, kod HEAD'i `9b88a77` | [İptal edildi](https://github.com/trpolaris/NFSU2-Web/actions/runs/42311836043) | Son kod head'inin tam regresyonu iptal edildi. PR'ın güncel `87a890a` HEAD'ine daha sonra yalnızca README/rapor dokümantasyonu eklendi; bu dokümantasyon HEAD'i için yeni tam CI çalışması yok. |
+| PR #21 image-rs, kod HEAD'i `9b88a77` | [Başarılı](https://github.com/trpolaris/NFSU2-Web/actions/runs/42311835834) | Container image workflow başarılı; bu, oyun/runtime testlerinin tamamının geçtiği anlamına gelmez. |
 | World Map MAPD dalı | [İptal edildi](https://github.com/trpolaris/NFSU2-Web/actions/runs/42313815558) | Başarılı test olarak sayılmaz. |
 | Minimap/NEARD dalı, HEAD `1bb6b23` | [Çalışıyor](https://github.com/trpolaris/NFSU2-Web/actions/runs/42357359231) | Son writer düzeltmesi sonrası yeni CI bekleniyor. |
 | Önceki NEARD denemesi | [Başarısız](https://github.com/trpolaris/NFSU2-Web/actions/runs/42314596847) | Rust MAPD writer tür/imza uyuşmazlığı vardı; yeni çalışmanın sonucu beklenmeli. |
