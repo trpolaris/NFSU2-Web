@@ -1686,6 +1686,7 @@ impl Hub {
         let busy = (self.busy)();
         let was = self.cap;
         self.st.busy = js_round(busy * 100.0);
+        self.thread_busy = if busy.is_finite() { busy.clamp(0.0, 1.0) } else { 0.0 };
         let o = &self.o;
         if busy > o.busy_high && now - self.cap_at >= o.cap_down_ms {
             self.cap = o.min_degree.min(o.degree).max(self.cap * 3 / 4);
