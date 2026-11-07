@@ -42,6 +42,7 @@ function memoryPagesOf(mod: WebAssembly.Module): number | null {
  *  ~55 MB more of WebKit's page process.  12 at first, fewer than any game ends with: its first second starts 10
  *  threads, and with 8 or 10 workers at first the 10th waited up to 15 ms for one. */
 const POOL_START = 12, POOL_SPARE = 2;
+const POOL_START_MS = 45_000;
 
 export async function startProcess(o: ProcessOptions): Promise<GameProcess> {
   const pool = Math.min(o.pool ?? 24, MAX_THREADS);
@@ -86,7 +87,7 @@ export async function startProcess(o: ProcessOptions): Promise<GameProcess> {
   const io = new Worker(new URL('/host/io-worker.js', import.meta.url), { type: 'module', name: 'io' });
   workers.push(io);
   await new Promise<void>((res, rej) => {
-    io.onmessage = (e) => { if (e.data.t === 'io-ready') res(); else if (e.data.t === 'io-error') rej(new Error(e.data.msg)); };
+    io.onmessage = (e) => { if (e.data.t === 'io-ready') res(); else if (e.data.t === 'io-error') { io.terminate(); rej(new Error(e.data.msg)); } };
     io.postMessage({ memory, ctl: ctlBuf, rpc, cfg });
   });
   io.onmessage = (e) => { if (e.data.t === 'saved') o.onSaved?.(e.data.path); else if (e.data.t === 'log') o.onNote?.(e.data.s); };
@@ -111,7 +112,20 @@ export async function startProcess(o: ProcessOptions): Promise<GameProcess> {
     mostBusy = Math.max(mostBusy, started - starting - idle);
     for (let n = idle + starting; n < POOL_SPARE && started < pool; n++) void startWorker();
   };
-  await Promise.all(Array.from({ length: Math.max(1, Math.min(o.poolStart ?? POOL_START, pool)) }, startWorker));
+  let poolLate: ReturnType<typeof setTimeout> | undefined;
+  try {
+    await Promise.race([
+      Promise.all(Array.from({ length: Math.max(1, Math.min(o.poolStart ?? POOL_START, pool)) }, startWorker)),
+      new Promise<never>((_, reject) => {
+        poolLate = setTimeout(() => reject(new Error(`the game's threads did not start in ${POOL_START_MS / 1000} s`)), POOL_START_MS);
+      }),
+    ]);
+  } catch (e) {
+    for (const w of workers) w.terminate();
+    throw e;
+  } finally {
+    if (poolLate) clearTimeout(poolLate);
+  }
   // slot 0 runs the process entry
   Atomics.store(ctl, CTL_POOL, POOL_RUN_MAIN); Atomics.notify(ctl, CTL_POOL);
 
