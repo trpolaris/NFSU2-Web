@@ -171,7 +171,7 @@ let fatal: { what: string; code?: string } | null = null;   // why the running g
 // the last game lost its graphics (GPU-LOST): Safari's WebGPU gives this page no adapter any more, so Play reloads it
 let gpuGone = false;
 let fps: FpsOverlay;
-let statusAt: { memory: WebAssembly.Memory; ptr: number } | null = null;   // the running game's status block
+let statusAt: { memory: GameMemory; ptr: number } | null = null;   // the running game's status block
 let radioLink: RadioLink | null = null;  // the radio's words of the running game, once the game says it has them
 const radioPort = () => radioLink ??= statusAt ? RadioLink.open(statusAt.memory, statusAt.ptr) : null;
 let radio: Radio | null = null;          // made at the first click on Radio: a player who never uses it runs none of it

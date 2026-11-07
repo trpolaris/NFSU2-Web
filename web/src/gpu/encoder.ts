@@ -24,6 +24,7 @@ import * as P from './proto';
 import { D, F, Kind, Op } from './proto';
 import { COPY, FF_FS, TONE, TVERT_VS } from './wgsl';
 import { createShaderAbi, alphaFunc, PSCUBE, VSPAR_SIZE, KWIN_SIZE, PSPAR_SIZE, HLPAR_SIZE } from './shader-abi';
+import type { GameMemory } from '../host/memory';
 import { unpackDxt } from './dxt';
 import { dxt1HasPunch, dxt1ToAstc } from './astc';
 
@@ -65,7 +66,7 @@ const ADDR: GPUAddressMode[] = ['repeat', 'repeat', 'mirror-repeat', 'clamp-to-e
 export class Encoder {
   readonly device: GPUDevice;
   private queue: GPUQueue;
-  private memory: WebAssembly.Memory;
+  private memory: GameMemory;
   private sab!: SharedArrayBuffer;
   private u8!: Uint8Array; private u32!: Uint32Array; private i32!: Int32Array; private f32!: Float32Array;
   private ctlW: number;              // word index of GwCtl
@@ -134,7 +135,7 @@ export class Encoder {
   calls = { pipe: 0, bg0: 0, bg1: 0, bg1New: 0, blend: 0, ix: 0, draw: 0, pass: 0, copy: 0 };
   private seenFmt = new Set<string>();
 
-  constructor(device: GPUDevice, memory: WebAssembly.Memory, ctlPtr: number, log: (s: string) => void) {
+  constructor(device: GPUDevice, memory: GameMemory, ctlPtr: number, log: (s: string) => void) {
     this.device = device; this.queue = device.queue; this.memory = memory; this.ctlW = ctlPtr >> 2; this.log = log;
     const f = device.features;
     this.feat = { bc: f.has('texture-compression-bc'), astc: f.has('texture-compression-astc'), swizzle: f.has('texture-component-swizzle'),
