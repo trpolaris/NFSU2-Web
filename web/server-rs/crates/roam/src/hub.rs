@@ -23,6 +23,33 @@ use crate::{PeerEntry, ROAM_HUB_VIP, RoamOptions};
 
 /// roam_core.h RC_PEERS_V1: what a core of version 1 reads (its group was 8, and it drops a longer list)
 const DEGREE_V1: usize = 7;
+
+/// Minimap response budget: a single datagram is capped at 1152 bytes of entries.
+const NEAR_MAX: usize = wire::MAPD_BYTES / wire::MAPD_PLACE;
+const NEAR_M: f64 = 1000.0;
+const NEAR_TOL_M: f64 = 2.0;
+const NEAR_TOL_H: u8 = 8;
+const NEAR_CELL_M: f64 = 128.0;
+const NEAR_SLACK_M: f64 = 64.0;
+const NEAR_KEEP_M: f64 = 120.0;
+const NEAR_CANDS_MS: f64 = 1000.0;
+const NEAR_MOVE_M: f64 = 40.0;
+const NEAR_FIRST: i32 = 2;
+const NEAR_BUSY_LOW: f64 = 0.6;
+const NEAR_BUSY_HIGH: f64 = 0.75;
+const MAP_AHEAD_MS: f64 = 500.0;
+const MAP_KEEP_MS: f64 = 10_000.0;
+
+#[derive(Clone, Copy)]
+struct MapCand { slot: u32, id: u32, p: [f64; 3], x: i16, y: i16, heading: u8, vx: i8, vy: i8 }
+#[derive(Clone, Copy)]
+struct MapSent { slot: u32, id: u32, x: i16, y: i16, heading: u8, vx: i8, vy: i8, t: f64 }
+struct NearGrid { at: f64, keys: Vec<(u32, i32, i32)>, items: Vec<NearItem>, pos: Vec<u32> }
+#[derive(Clone, Copy)]
+struct NearItem { slot: u32, x: f32, y: f32, vx: f32, vy: f32, left: f32 }
+#[derive(Default)]
+struct MapHeld { held: Option<(u16, Vec<MapSent>)>, sent: Option<(u16, Vec<MapSent>)>, at: f64, cands: Vec<u32>, cands_of: Option<(f64, u32, u16, u16, f64, f64)> }
+
 /// no slot, no place in a room
 const NONE: u32 = u32::MAX;
 
@@ -482,6 +509,14 @@ pub struct Hub {
     /// at once (the second security audit, 2026-10-22: a map walks every player on the hub's one thread, and a few
     /// clients asking that way kept it busy); dropped at each tick once older than map_gap_ms
     map_at: HashMap<u32, f64>,
+    maps: HashMap<u32, MapHeld>,
+    lobbies_at: HashMap<u32, f64>,
+    map_cands: HashMap<u32, Vec<MapCand>>,
+    near_at: HashMap<u32, f64>,
+    nears: HashMap<u32, MapHeld>,
+    near_grid: Option<NearGrid>,
+    near_found: Vec<(u32, u32)>,
+    thread_busy: f64,
     s: Scratch,
     /// the claimed names (nfsu2-claims): a player under another keyphrase's name plays alone; None: any name is anyone's
     claims: Option<Arc<nfsu2_claims::Claims>>,
@@ -528,6 +563,14 @@ impl Hub {
             kept: HashMap::new(),
             results: Results::default(),
             map_at: HashMap::new(),
+            maps: HashMap::new(),
+            lobbies_at: HashMap::new(),
+            map_cands: HashMap::new(),
+            near_at: HashMap::new(),
+            nears: HashMap::new(),
+            near_grid: None,
+            near_found: Vec::new(),
+            thread_busy: 0.0,
             s: Scratch::default(),
             claims: None,
         }
@@ -766,6 +809,7 @@ impl Hub {
         p.seen = now;
         p.hub_port = dport;
         let mut ask = None;
+        let mut near_ask = None;
         let mut chat = None;
         let mut report = None;
         let mut seen = [None, None];
@@ -818,8 +862,8 @@ impl Hub {
                     p.watch.reset();
                 }
             }
-            // The hub still answers full snapshots here; MAPD delta handling is the next staged integration.
-            Msg::MapReq { req, .. } if sender == p.id => ask = Some(req),
+            Msg::MapReq { req, max, base } if sender == p.id => ask = Some((req, max, base)),
+            Msg::NearReq { req, max, base, radius } if sender == p.id => near_ask = Some((req, max, base, radius)),
             Msg::Chat { scope, channel, text } if sender == p.id => chat = Some((scope, channel, text.to_string())),
             Msg::Lobby { op, to: 0, lobby, race, x, y, n, max, state, ids } if sender == p.id => match op {
                 wire::LOBBY_ADVERT => p.lobby = Some((HubLobby { id: lobby, race, x, y, n, max, state, ids }, now)),
@@ -853,8 +897,13 @@ impl Hub {
             results.add(now, by, r, &|id| self.who(id));
             self.results = results;
         }
-        if let Some(req) = ask {
-            self.map(slot, req, now);
+        match ask {
+            Some((req, max, Some(base))) => self.mapd(slot, req, max, base, now),
+            Some((req, _max, None)) => self.map(slot, req, now),
+            None => {}
+        }
+        if let Some((req, max, base, radius)) = near_ask {
+            self.neard(slot, req, max, base, radius, now);
         }
         if let Some((scope, channel, text)) = chat {
             self.chat(slot, scope, channel, &text, now);
@@ -1240,6 +1289,12 @@ impl Hub {
         self.purge();
         let gap = self.o.map_gap_ms;
         self.map_at.retain(|_, t| now - *t < gap);
+        self.maps.retain(|_, m| now - m.at < MAP_KEEP_MS);
+        self.map_cands.clear();
+        self.near_at.retain(|_, t| now < *t);
+        self.nears.retain(|_, m| now - m.at < MAP_KEEP_MS);
+        self.near_grid = None;
+        self.near_found.clear();
         // what the cheat watch did not tell, summed up now and then; and the watches of players gone a while, summed up
         // as of when they went
         let mut gone_for_good = Vec::new();
