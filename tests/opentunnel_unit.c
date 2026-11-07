@@ -1,23 +1,54 @@
 /* cc -Wall -Wextra -Werror tests/opentunnel_unit.c -o out/opentunnel_unit
  * Run each mode in a fresh process: unset, off, invalid, on, incomplete, empty. */
 #include <assert.h>
+#include <errno.h>
+#include <sys/stat.h>
 #include <unistd.h>
 #include "../runtime/opentunnel.h"
 
 static unsigned probes;
 static int missing, empty;
-static char created[3][128];
+static char root[128];
+static char created[3][512];
+
+static int make_dir(const char *path) {
+    return mkdir(path, 0700) == 0 || errno == EEXIST;
+}
+
+static void cleanup(void) {
+    char p[512];
+    for (unsigned i = 0; i < 3; ++i) if (created[i][0]) unlink(created[i]);
+    if (!root[0]) return;
+    snprintf(p, sizeof p, "%s/MODPACKS/open-tunnel/TRACKS/ROUTESL4RA", root); rmdir(p);
+    snprintf(p, sizeof p, "%s/MODPACKS/open-tunnel/TRACKS", root); rmdir(p);
+    snprintf(p, sizeof p, "%s/MODPACKS/open-tunnel", root); rmdir(p);
+    snprintf(p, sizeof p, "%s/MODPACKS", root); rmdir(p);
+    rmdir(root);
+}
 
 int fileio_resolve_game(const char *name, char *out, size_t cap) {
     ++probes;
     if (missing && strstr(name, "PathsFreeRoam")) return 0;
-    char temp[] = "/tmp/nfsu2-opentunnel-XXXXXX";
-    int fd = mkstemp(temp);
-    if (fd < 0) return 0;
-    if (!(empty && probes == 2)) (void)write(fd, "x", 1);
-    close(fd);
-    snprintf(created[probes - 1], sizeof created[0], "%s", temp);
-    snprintf(out, cap, "%s", temp);
+    if (!root[0]) {
+        char temp[] = "/tmp/nfsu2-opentunnel-XXXXXX";
+        char *made = mkdtemp(temp);
+        if (!made) return 0;
+        snprintf(root, sizeof root, "%s", made);
+        char p[512];
+        snprintf(p, sizeof p, "%s/MODPACKS", root); if (!make_dir(p)) return 0;
+        snprintf(p, sizeof p, "%s/MODPACKS/open-tunnel", root); if (!make_dir(p)) return 0;
+        snprintf(p, sizeof p, "%s/MODPACKS/open-tunnel/TRACKS", root); if (!make_dir(p)) return 0;
+        snprintf(p, sizeof p, "%s/MODPACKS/open-tunnel/TRACKS/ROUTESL4RA", root); if (!make_dir(p)) return 0;
+    }
+    char full[512];
+    if (snprintf(full, sizeof full, "%s/%s", root, name) >= (int)sizeof full) return 0;
+    FILE *file = fopen(full, "wb");
+    if (!file) return 0;
+    if (!(empty && probes == 2)) (void)fwrite("x", 1, 1, file);
+    fclose(file);
+    snprintf(created[probes - 1], sizeof created[0], "%s", full);
+    if (strlen(full) >= cap) return 0;
+    snprintf(out, cap, "%s", full);
     return 1;
 }
 
@@ -39,6 +70,7 @@ int main(int argc, char **argv) {
     assert(!opentunnel_resolve("GLOBAL/GlobalB.lzc", out, sizeof out));
     assert(!opentunnel_resolve(paths[0], out, 2));
     assert(probes == (on || missing ? 3u : empty ? 2u : 0u));
-    for (unsigned i = 0; i < 3; ++i) if (created[i][0]) unlink(created[i]);
+    cleanup();
     puts("PASS tunnel selection");
+    return 0;
 }
