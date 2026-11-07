@@ -1069,11 +1069,33 @@ void reads_frame(CPU *c){
 #define TEXLIST_MAX     0x45u
 #define RIDE_DECALZONES 0x660u        /* RideInfo: the 7 decal places' shapes (DECAL_HOOD ..), a part each */
 #define RIDE_DECALS     0x714u        /* RideInfo: each place's 8 decals (+0x20 a place), a part each */
+/* Another player's open-hood engine: the streamed texture list otherwise omits <CAR>_ENGINE. */
+__attribute__((weak)) int roam_texlist_engine;
+#define G_CARTYPES_TL   0x008a1cccu
+static void texlist_add(uint32_t list, uint32_t at, uint32_t cnt, uint32_t h){
+    uint32_t n = MR32(list + cnt);
+    if (n >= TEXLIST_MAX) return;
+    for (uint32_t i = 0; i < n; i++) if (MR32(list + at + 4u * i) == h) return;
+    MR32(list + at + 4u * n) = h; MR32(list + cnt) = n + 1u;
+}
+static void texlist_engine(uint32_t list, uint32_t ride){
+    uint32_t types = MR32(G_CARTYPES_TL), t = MR32(ride), a = types + t * 0x890u + 0x20u;
+    if (!types || t >= 256u || !mem_is_committed(a + 0x20u)) return;
+    char nm[40]; uint32_t i = 0;
+    for (; i < 31u && MR8(a + i); i++) nm[i] = (char)MR8(a + i);
+    if (!i) return;
+    memcpy(nm + i, "_ENGINE", 8);
+    uint32_t h = 0xffffffffu;
+    for (const char *p = nm; *p; p++) h = h * 33u + (uint8_t)*p;
+    texlist_add(list, 0u, 0x228u, h); texlist_add(list, 0x114u, 0x22cu, h);
+    static uint8_t told[256];
+    if (!told[t]){ told[t] = 1; fprintf(stderr, "[textures] f=%ld %s added to remote-car texture lists for open hoods\n", autotest_frame(), nm); }
+}
 void sub_00631e20_orig(CPU *c);
 void sub_00631e20(CPU *c){
     static int full = -1;
     if (full < 0){ const char *e = getenv("NFSU2_TEST_TEXLIST_FULL"); full = e && *e == '1'; }
-    uint32_t esp0 = c->esp, list = MR32(esp0 + 4u), ride = MR32(esp0 + 8u);
+    uint32_t esp0 = c->esp, list = MR32(esp0 + 4u), ride = MR32(esp0 + 8u), eng = roam_texlist_engine ? 1u : 0u;
     uint32_t seen[56], off[56], offp[56]; int nd = 0, noff = 0;
     for (uint32_t z = 0; z < 7u; z++){
         if (!MR32(ride + RIDE_DECALZONES + 4u * z)) continue;
@@ -1083,13 +1105,13 @@ void sub_00631e20(CPU *c){
             if (p && k == (uint32_t)nd) seen[nd++] = p;
         }
     }
-    if (full || !nd){ sub_00631e20_orig(c); return; }
+    if (full || !nd){ sub_00631e20_orig(c); if (eng) texlist_engine(list, ride); return; }
     uint32_t arg[4], zone[7];
     for (uint32_t i = 0; i < 4u; i++) arg[i] = MR32(esp0 + 4u + 4u * i);
     for (uint32_t z = 0; z < 7u; z++){ zone[z] = MR32(ride + RIDE_DECALZONES + 4u * z); MR32(ride + RIDE_DECALZONES + 4u * z) = 0; }
     sub_00631e20_orig(c);
     for (uint32_t z = 0; z < 7u; z++) MR32(ride + RIDE_DECALZONES + 4u * z) = zone[z];
-    uint32_t others = MR32(list + 0x228u);
+    uint32_t others = MR32(list + 0x228u) + eng;
     int room = others < TEXLIST_MAX ? (int)(TEXLIST_MAX - others) : 0, kept = 0;
     if (nd > room){
         for (uint32_t z = 0; z < 7u; z++){
@@ -1104,7 +1126,7 @@ void sub_00631e20(CPU *c){
             }
         }
         fprintf(stderr, "[textures] f=%ld a ride with %d different decals and %u other textures: %d decal(s) left out of "
-                "its texture list (it holds %u)\n", autotest_frame(), nd, others, nd - kept, TEXLIST_MAX);
+                "its texture list (it holds %u)\n", autotest_frame(), nd, others - eng, nd - kept, TEXLIST_MAX);
     }
     c->esp = esp0;
     for (uint32_t i = 0; i < 4u; i++) MR32(esp0 + 4u + 4u * i) = arg[i];
@@ -1116,6 +1138,7 @@ void sub_00631e20(CPU *c){
         if (n1 > TEXLIST_MAX) MR32(list + 0x228u) = TEXLIST_MAX;
         if (n2 > TEXLIST_MAX) MR32(list + 0x22cu) = TEXLIST_MAX;
     }
+    if (eng) texlist_engine(list, ride);
 }
 
 /* --- sub_00639f20(texture set): a ride's textures let go, thiscall, ret 4 --
