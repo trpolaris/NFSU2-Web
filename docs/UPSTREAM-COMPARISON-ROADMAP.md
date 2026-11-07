@@ -134,7 +134,7 @@ Bu bölümdeki çalışmalar `integration/upstream-2026-11-06` dalındadır ve [
 
 ## 4. Ayrı dallardaki deneysel World Map ve Minimap çalışmaları
 
-Bu deneysel dallar kaynak referansıdır; yalnızca uyumlu parçalar PR #21'e taşındı. Protokol ve sunucu tarafı MAPD/NEARD kodu entegre edildi; oyun içi minimap çizimi, Car Meet ve GPS tamamlanmadan özellik bütünüyle bitmiş sayılmaz.
+Bu deneysel dallar kaynak referansıdır; yalnızca uyumlu ve uyarlanmış parçalar PR #21'e taşındı. MAPD/NEARD protokolü, hub sorgusu ve NEARD-only oyuncuların oyun içi minimap marker renderer'ı entegre edildi. Minimap kod entegrasyonu tamamlandı; gerçek oyun, iki istemci, HUD rebuild ve Car Meet/GPS davranış doğrulaması hâlâ açık.
 
 ### 4.1 World Map — MAPD protokolü
 
@@ -175,7 +175,7 @@ TRPOLARIS Minimap prototipinde:
 - Açık işler: native/WASM oyun derlemesi ve gerçek oyun ekranında ikon yön/konum testi; paket kaybı, oda değişimi ve 2+ gerçek istemciyle doğrulama.
 - Car Meet park takibi, World Map etiket/seçim ve GPS kodu mevcut; gerçek oyunda marker/sayım/hedef davranışı doğrulanmalıdır.
 
-**Kaynak dal:** [feature/world-map-meets](https://github.com/trpolaris/NFSU2-Web/tree/feature/world-map-meets). Yalnızca uyumlu protokol/sunucu parçaları PR #21'e port edildi; kaynak dalın kalan renderer ve Car Meet değişiklikleri otomatik dahil değil.
+**Kaynak dal:** [feature/world-map-meets](https://github.com/trpolaris/NFSU2-Web/tree/feature/world-map-meets). Kaynak dal otomatik birleştirilmedi; NEARD renderer kodu seçilerek ana entegrasyon dalına uyarlandı. Car Meet'in park takibi/marker/legend/GPS parçaları ayrı doğrulama ve uyarlama gerektiriyor.
 
 ---
 
@@ -197,7 +197,7 @@ TRPOLARIS Minimap prototipinde:
 | P3 | Co-op / Split Screen | 2–4 oyunculuk render, bellek, input, kamera, kariyer ve yarış sistemleri. | Her oyuncunun kontrol/kamera/kayıt davranışı doğrulanır; yalnızca dosya kopyasıyla yapılmaz. |
 | P3 | Diğer upstream özellikleri | Çoklu lobby/Quick Chat iyileştirmeleri, gizli Special vinyls, araç filtresi/unique unlock, Visual Reputation Remover, hava durumu senkronizasyonu, pause-menu save, save recovery, Last.fm/EA Trax, country RTT ve kalan çarpışma/efekt düzeltmeleri. | Her özellik için ayrı protokol, runtime, UI ve regresyon senaryosu tamamlanır. |
 
-**Önerilen sıra:** PR #21'in güncel CI'sini ve native C protocol testlerini yeşile getir; native/WASM oyun build'lerini tamamla; ardından World Map/NEARD marker'larını gerçek oyunda ve iki istemcide doğrula; sonra Car Meet/GPS akışını tamamla. 4.096 World Map ve 24.000 hub oyuncusu gibi büyük limitler profil ve yük testi olmadan etkinleştirilmemeli.
+**Önerilen sıra:** PR #21'in güncel CI'sini ve native C protocol testlerini yeşile getir; native/WASM oyun build'lerini tamamla; ardından World Map/NEARD marker'larını gerçek oyunda ve iki istemcide doğrula; sonra Car Meet/GPS akışını gerçek oyunda tamamla. 4.096 World Map ve 24.000 hub oyuncusu gibi büyük limitler profil ve yük testi olmadan etkinleştirilmemeli.
 
 ---
 
@@ -205,8 +205,8 @@ TRPOLARIS Minimap prototipinde:
 
 | Dal / çalışma | Son görünen durum | Yorum |
 |---|---|---|
-| PR #21 Multiplayer & Regression CI, preceding code snapshot `3cc8851` | [Çalışıyor](https://github.com/trpolaris/NFSU2-Web/actions/runs/42372032346) | Native runtime syntax, TypeScript, web build ve Cargo.lock adımları geçti; Rust workspace testleri takipte. Sonraki `e058731` commit'i için yeni run bekleniyor. |
-| PR #21 image-rs, preceding code snapshot `3cc8851` | [Başarılı](https://github.com/trpolaris/NFSU2-Web/actions/runs/42372032353) | Bu sonuç daha yeni `e058731` head'i için image build geçtiğini kanıtlamaz. |
+| PR #21 Multiplayer & Regression CI, code snapshot `2d77f6d` | [Çalışıyor](https://github.com/trpolaris/NFSU2-Web/actions/runs/42372265035) | MODPACKS/native runtime syntax, TypeScript, web build ve Cargo.lock geçti; Rust workspace testleri henüz sürüyor. |
+| PR #21 image-rs, code snapshot `2d77f6d` | [Başarılı](https://github.com/trpolaris/NFSU2-Web/actions/runs/42372265007) | Container image build bu HEAD'de geçti; bu sonuç Multiplayer testlerinin yerine geçmez. |
 | World Map MAPD ve Minimap NEARD | Ayrı çalışma dallarından seçici port edildi | Bu eski dal CI kayıtları PR #21'in güncel HEAD testlerinin yerine geçmez. |
 
 Daha eski ara commit'lerde TypeScript, web build, Cargo.lock, Rust testleri, GPS native C testleri, mailbox layout kontrolü ve sentetik Online yük testi gibi adımların geçtiği kayıtlar bulunabilir. Ancak **eski commit'in yeşil olması yeni HEAD'in de yeşil olduğu anlamına gelmez.** Sonuçlar daima ilgili dalın son commit'i ve o commit'e ait Actions run üzerinden okunmalıdır.
