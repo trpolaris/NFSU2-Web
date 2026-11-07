@@ -68,11 +68,20 @@ jobs:
       - name: Check MODPACKS builder and native runtime syntax
         run: |
           python3 -m py_compile tools/modpacks.py tools/vinylpacks.py
+          python3 -m py_compile tools/open_tunnel.py tests/tunnel_patch.py
+          python3 tests/tunnel_patch.py
           python3 tools/modpacks.py --help > /dev/null
           python3 tools/vinylpacks.py --help > /dev/null
           cc -std=c11 -D_POSIX_C_SOURCE=200809L -Iruntime -fsyntax-only runtime/modpacks.c runtime/fileio.c runtime/vinylpacks.c runtime/garage.c runtime/overrides.c runtime/language.c runtime/specialties.c
+          cc -std=c11 -D_POSIX_C_SOURCE=200809L -Iruntime -fsyntax-only runtime/fileio.c
           cc -std=c11 -D_POSIX_C_SOURCE=200809L -Iruntime -fsyntax-only runtime/roam_game.c runtime/racehorn.c runtime/roam.c
           cc -std=gnu11 -D_POSIX_C_SOURCE=200809L -Iruntime -fsyntax-only runtime/com.c runtime/photo.c
+          cc -std=c11 -D_POSIX_C_SOURCE=200809L -Wall -Wextra -Werror -Iruntime tests/opentunnel_unit.c -o /tmp/opentunnel_unit
+          /tmp/opentunnel_unit unset
+          /tmp/opentunnel_unit off
+          /tmp/opentunnel_unit invalid
+          /tmp/opentunnel_unit incomplete
+          /tmp/opentunnel_unit on
 
       - name: Run x86 lifter ISA regressions
         run: |
