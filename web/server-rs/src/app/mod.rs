@@ -605,6 +605,9 @@ impl App {
         if p == "/players" {
             return self.send_players(q, s, &u).await;
         }
+        if p == "/lan" {
+            return self.send_lan_check(q, s).await;
+        }
         if p == "/robots.txt" {
             return self.plain(q, s, 200, ROBOTS_TXT, &[], Cache::Revalidate, false).await;
         }

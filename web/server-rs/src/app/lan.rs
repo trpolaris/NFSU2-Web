@@ -9,11 +9,12 @@ use std::time::Duration;
 
 use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt, ReadBuf};
 
-use nfsu2_http::{Hold, Request, Upgraded};
+use nfsu2_headers::Cache;
+use nfsu2_http::{Hold, Request, Response, Upgraded};
 use nfsu2_lan::AttachOpts;
 use nfsu2_util::{js, log, vip_str};
 
-use super::{App, Share, url};
+use super::{App, Res, Share, finish, send, url};
 
 /// One half of a /lan connection, holding the client's share of the /lan budget and the connection's own shares (the
 /// per-client connection budget, the listener's count: nfsu2_http::Hold): given back once both halves are gone (the
@@ -69,6 +70,30 @@ fn ws_key(k: &str) -> bool {
 }
 
 impl App {
+    /// GET /lan without a WebSocket upgrade: reports which upgrade check would reject this client,
+    /// without consuming a connection share or a rate-limit token.
+    pub(crate) async fn send_lan_check(&self, q: &Request, s: &mut Response) -> Res {
+        let (_, key, site) = self.client(q);
+        let status = if !self.own_page(q) {
+            "page"
+        } else if !self.lan_conns.room(&key, &site) {
+            "busy"
+        } else if !self.lan_opens.check(&key, &site) {
+            "fast"
+        } else {
+            "ok"
+        };
+        let body = format!(r#"{{"lan":"{status}"}}"#);
+        let mut h = self.headers(q, Cache::Store, true);
+        h.set("content-type", "application/json");
+        h.set("content-length", body.len().to_string());
+        s.head(200, h.0);
+        if q.method != "HEAD" {
+            send(s, body.as_bytes()).await?;
+        }
+        finish(s).await
+    }
+
     /// the raw answer for code, then the connection goes (nfsu2_http::raw_refusal)
     async fn refuse(&self, up: Upgraded, code: u16) {
         nfsu2_http::raw_refusal(up.stream, self.raw_response(code)).await;
@@ -173,6 +198,60 @@ impl App {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Open a WebSocket as a client behind the test server's trusted local proxy.
+    async fn upgrade(kit: &super::super::testkit::Kit, ip: &str) -> (tokio::net::TcpStream, u16) {
+        use tokio::io::AsyncReadExt;
+        let mut stream = tokio::net::TcpStream::connect(kit.addr).await.unwrap();
+        let request = format!(
+            "GET /lan HTTP/1.1\\r\\nHost: localhost\\r\\nUpgrade: websocket\\r\\nConnection: Upgrade\\r\\nX-Forwarded-For: {ip}\\r\\n\\
+             Sec-WebSocket-Version: 13\\r\\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\\r\\n\\r\\n"
+        );
+        stream.write_all(request.as_bytes()).await.unwrap();
+        let mut bytes = [0u8; 64];
+        let n = stream.read(&mut bytes).await.unwrap();
+        let status = std::str::from_utf8(&bytes[9..12.min(n)]).unwrap_or("0").parse().unwrap_or(0);
+        (stream, status)
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn lan_preflight_reports_the_existing_upgrade_checks_without_taking_capacity() {
+        let kit = super::super::testkit::Kit::start(&["--trusted-proxies", "127.0.0.1"], |_| {}).await;
+        let ask = async |ip: &str, origin: Option<&str>| {
+            let mut headers = vec![("X-Forwarded-For", ip)];
+            headers.extend(origin.map(|value| ("Origin", value)));
+            let response = kit.get("/lan?check", &headers).await;
+            assert_eq!((response.status, response.header("content-type")), (200, Some("application/json")));
+            assert!(response.header("cache-control").is_some_and(|value| value.contains("no-store")));
+            String::from_utf8(response.body).unwrap()
+        };
+        let (a, b) = ("203.0.113.7", "203.0.113.8");
+        assert_eq!(ask(a, None).await, r#"{"lan":"ok"}"#);
+        let mut held = Vec::new();
+        for _ in 0..super::super::limits::WS_PER_ADDRESS {
+            let (stream, status) = upgrade(&kit, a).await;
+            assert_eq!(status, 101);
+            held.push(stream);
+        }
+        assert_eq!(upgrade(&kit, a).await.1, 429);
+        assert_eq!(ask(a, None).await, r#"{"lan":"busy"}"#);
+        assert_eq!(ask(b, None).await, r#"{"lan":"ok"}"#);
+        assert_eq!(kit.app.lan_conns.count(), held.len(), "preflight must take no connection share");
+        drop(held.pop());
+        super::super::testkit::eventually("a share back", || kit.app.lan_conns.count() == held.len()).await;
+        assert_eq!(ask(a, Some("http://localhost")).await, r#"{"lan":"ok"}"#);
+        assert_eq!(ask(a, Some("https://elsewhere.example")).await, r#"{"lan":"page"}"#);
+
+        let c = "203.0.113.9";
+        for _ in 0..super::super::limits::LAN_OPEN_BURST as usize {
+            let (stream, status) = upgrade(&kit, c).await;
+            assert_eq!(status, 101);
+            drop(stream);
+            super::super::testkit::eventually("its share back", || kit.app.lan_conns.held(c) == 0).await;
+        }
+        assert_eq!(ask(c, None).await, r#"{"lan":"fast"}"#);
+        assert_eq!(upgrade(&kit, c).await.1, 429, "the next upgrade meets the same rate limit");
+    }
 
     // A client whose connection takes nothing more (its buffers full of answers it never read) when its 101 is due:
     // let go once the time is up, not waited on for good.  One that reads gets it at once.
