@@ -25,13 +25,15 @@
  *     player without one, nothing for the others' cars.)
  * The port also carries the players' frame rates ("N2FS"), the joiners' car
  * states straight from their games ("N2CS") and the creator's list of the
- * joiners they go to ("N2PL"), which go to racenet.c.
+ * joiners they go to ("N2PL"), which go to racenet.c, and quick chat (N2QC, qc_*).
  * Only in the browser, where Online and the virtual LAN are; the Mac's LAN
  * has no such port (the weak stand-ins below). */
 #include "cpu.h"
 #include "horn.h"
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 #include <time.h>
 
 #define G_FLOW       0x008654a4u   /* 6: in the world */
@@ -55,6 +57,12 @@
 __attribute__((weak)) int vlan_rt_send(uint16_t port, uint32_t ip_h, const void *p, int n){ (void)port; (void)ip_h; (void)p; (void)n; return -1; }
 __attribute__((weak)) int vlan_rt_recv(uint16_t port, uint32_t *ip_h, void *p, int cap){ (void)port; (void)ip_h; (void)p; (void)cap; return -1; }
 __attribute__((weak)) int vlan_race_peers(uint32_t *ip_h, int max, uint32_t within_ms){ (void)ip_h; (void)max; (void)within_ms; return 0; }
+__attribute__((weak)) int vlan_race_sent_to(uint32_t ip_h, uint32_t within_ms){ (void)ip_h; (void)within_ms; return 0; }
+__attribute__((weak)) int vlan_rt_say_pick(void){ return -1; }
+__attribute__((weak)) int vlan_rt_said(const char *json, int n){ (void)json; (void)n; return -1; }
+__attribute__((weak)) int host_status_slot(const char *name){ (void)name; return -1; }
+__attribute__((weak)) void host_status_set_n(const int *slot, const double *value, int n){ (void)slot; (void)value; (void)n; }
+const char *autotest_top_fng(void);
 __attribute__((weak)) int vlan_race_sent_to(uint32_t ip_h, uint32_t within_ms){ (void)ip_h; (void)within_ms; return 0; }
 
 static int ok(uint32_t a, uint32_t n){ return a && mem_is_committed(a) && mem_is_committed(a + n); }
@@ -92,11 +100,110 @@ static uint16_t g_seq;
 static int g_mine, g_offs, g_active;                 /* our horn; "stopped" messages still to send; voices driven */
 static uint32_t g_sent_at;
 
-static void send_all(const uint8_t *m, uint32_t except){
+static int send_all(const uint8_t *m, uint32_t except){
     uint32_t peers[16];
-    int n = vlan_race_peers(peers, 16, PEER_MS);
-    for (int i = 0; i < n; i++) if (peers[i] != except) vlan_rt_send(HORN_PORT, peers[i], m, MSG_N);
+    int n = vlan_race_peers(peers, 16, PEER_MS), to = 0;
+    for (int i = 0; i < n; i++) if (peers[i] != except && vlan_rt_send(HORN_PORT, peers[i], m, MSG_N) == 0) to++;
+    return to;
 }
+
+/* Quick chat in multiplayer races, on the existing race UDP peer path. */
+#define QC_BURST 3
+#define QC_WINDOW_MS 6000u
+#define QC_AGAIN_MS 2000u
+#define QC_WHO 8
+static struct { char name[NAME_N]; uint32_t t[QC_BURST], at, heard_at; uint8_t seq, phrase, heard; } g_qc[QC_WHO];
+static uint32_t g_qc_mine[QC_BURST];
+static uint8_t g_qc_seq;
+static int g_qc_test = -1, g_qc_racing;
+static char g_qc_me[NAME_N];
+
+static int qc_on(void){
+    static int on = -1;
+    if (on < 0){ const char *v = getenv("NFSU2_ROAM_SAY"); on = !(v && (v[0] == '0' || !strcasecmp(v, "off"))); }
+    return on;
+}
+static int qc_burst(const uint32_t *t, uint32_t now){
+    int k = 0;
+    for (int i = 0; i < QC_BURST; i++) k += t[i] && now - t[i] < QC_WINDOW_MS;
+    return k >= QC_BURST;
+}
+static void qc_stamp(uint32_t *t, uint32_t now){
+    int o = 0;
+    for (int i = 1; i < QC_BURST; i++) if (t[i] < t[o]) o = i;
+    t[o] = now ? now : 1u;
+}
+static void qc_page(const char *name, int phrase, int me){
+    char js[128];
+    int o = snprintf(js, sizeof js, "{\"id\":%u,\"name\":\"", fnv1a(name));
+    for (const char *s = name; *s && o < (int)sizeof js - 40; s++){
+        if (*s == '"' || *s == '\\') js[o++] = '\\';
+        js[o++] = *s;
+    }
+    o += snprintf(js + o, sizeof js - (size_t)o, "\",\"p\":%d,\"race\":1%s}", phrase, me ? ",\"me\":1" : "");
+    if (vlan_rt_said(js, o) < 0) fprintf(stderr, "[racechat] the page's ring is full: a line lost\n");
+}
+static void qc_say(int phrase, uint32_t now){
+    if (!qc_on()){ fprintf(stderr, "[racechat] phrase %d not said (quick chat is off)\n", phrase); return; }
+    if (!g_qc_racing || !g_qc_me[0]){ fprintf(stderr, "[racechat] phrase %d not said (not in a race between players)\n", phrase); return; }
+    if (qc_burst(g_qc_mine, now)){ fprintf(stderr, "[racechat] phrase %d not said (too many at once)\n", phrase); return; }
+    qc_stamp(g_qc_mine, now);
+    uint8_t m[MSG_N];
+    memset(m, 0, sizeof m);
+    memcpy(m, "N2QC", 4); m[4] = 1; m[6] = ++g_qc_seq; m[7] = (uint8_t)phrase;
+    memcpy(m + 8, g_qc_me, strlen(g_qc_me));
+    int to = send_all(m, 0);
+    qc_page(g_qc_me, phrase, 1);
+    fprintf(stderr, "[racechat] %s said phrase %d to %d player(s)\n", g_qc_me, phrase, to);
+}
+static void qc_got(uint8_t *m, uint32_t from, uint32_t now){
+    char name[NAME_N];
+    int k = 0;
+    for (; k < NAME_N - 1 && m[8 + k] >= 0x20 && m[8 + k] <= 0x7e; k++) name[k] = (char)m[8 + k];
+    name[k] = 0;
+    if (!name[0] || !strcmp(name, g_qc_me)) return;
+    int j = 0, o = 0;
+    while (j < QC_WHO && strcmp(g_qc[j].name, name)) j++;
+    if (j == QC_WHO){
+        for (j = 1; j < QC_WHO; j++) if (g_qc[j].heard_at < g_qc[o].heard_at) o = j;
+        j = o;
+        memset(&g_qc[j], 0, sizeof g_qc[j]);
+        memcpy(g_qc[j].name, name, NAME_N);
+    }
+    int phrase = m[7], relayed = m[5] & 2;
+    const char *why = 0;
+    if (g_qc[j].heard && m[6] == g_qc[j].seq) why = "again";
+    else if (qc_burst(g_qc[j].t, now)) why = "too many at once";
+    else if (g_qc[j].at && phrase == g_qc[j].phrase && now - g_qc[j].at < QC_AGAIN_MS) why = "the same again";
+    g_qc[j].seq = m[6]; g_qc[j].heard = 1; g_qc[j].heard_at = now;
+    if (why){ fprintf(stderr, "[racechat] %s's phrase %d not shown (%s)\n", name, phrase, why); return; }
+    qc_stamp(g_qc[j].t, now);
+    g_qc[j].phrase = (uint8_t)phrase; g_qc[j].at = now;
+    int to = 0;
+    if (!relayed){ m[5] |= 2; to = send_all(m, from); }
+    if (!qc_on() || !g_qc_racing){
+        fprintf(stderr, "[racechat] %s's phrase %d not shown (%s)%s\n", name, phrase,
+                qc_on() ? "not in a race between players" : "quick chat is off", to ? ", passed on" : "");
+        return;
+    }
+    qc_page(name, phrase, 0);
+    fprintf(stderr, "[racechat] %s said phrase %d (%s)%s\n", name, phrase,
+            relayed ? "passed on by the race's creator" : "straight", to ? ", passed on" : "");
+}
+void racehorn_test_say(int phrase){ g_qc_test = phrase; }
+static void qc_status(void){
+    static int slot = -2, last = -1;
+    if (slot == -2) slot = host_status_slot("netrace");
+    const char *top = g_qc_racing && g_qc_me[0] ? autotest_top_fng() : 0;
+    int v = !top ? 0 : !strncasecmp(top, "HUD_", 4) && strcasecmp(top, "HUD_World_Loading.fng") ? 1
+          : !strncasecmp(top, "UI_PostRace", 11) ? 2 : 0;
+    if (v == last || slot < 0) return;
+    last = v;
+    double d = v;
+    host_status_set_n(&slot, &d, 1);
+    fprintf(stderr, "[racechat] netrace %d (%s)\n", v, top ? top : "-");
+}
+
 void racenet_heard(uint8_t *m, int n, uint32_t from);   /* racenet.c: the players' frame rates, */
 void racenet_carspam(CPU *c, const uint8_t *m, int n, uint32_t from);   /*   a joiner's car state straight from its game, */
 void racenet_list(const uint8_t *m, int n, uint32_t from);              /*   and the creator's list of the joiners */
@@ -104,6 +211,7 @@ static void got(CPU *c, uint8_t *m, int n, uint32_t from, uint32_t now){
     if (n >= 4 && !memcmp(m, "N2FS", 4)){ racenet_heard(m, n, from); return; }
     if (n >= 4 && !memcmp(m, "N2CS", 4)){ racenet_carspam(c, m, n, from); return; }
     if (n >= 4 && !memcmp(m, "N2PL", 4)){ racenet_list(m, n, from); return; }
+    if (n >= MSG_N && !memcmp(m, "N2QC", 4)){ if (m[4] == 1 && vlan_race_sent_to(from, PEER_MS)) qc_got(m, from, now); return; }
     if (n < MSG_N || memcmp(m, "N2HN", 4) || m[4] != 1) return;
     char name[NAME_N];
     int k = 0;
@@ -126,13 +234,18 @@ void racehorn_frame(CPU *c){
     uint32_t now = now_ms(), from;
     static uint8_t m[8 + 0x400];                         /* (a car state: racenet.c's N2CS, up to a bit stream's 0x400 bytes) */
     int n;
-    while ((n = vlan_rt_recv(HORN_PORT, &from, m, sizeof m)) >= 0) got(c, m, n, from, now);
     uint32_t pl = rd32(G_PLAYER1), me = pl ? rd32(pl + 4u) : 0, w = rd32(G_WORLD);
     float dt = MRF32(G_WORLDDT);
     int racing = rd32(G_FLOW) == 6u && (rd32(G_NETMODE) & 0x208u) && ok(me, 0x9e0) && ok(w, 0x80);
     int runs = racing && dt > 0.f && dt < 1.f;           /* not paused, not loading */
     char mine[NAME_N];
     car_name(me, mine);
+    g_qc_racing = racing; memcpy(g_qc_me, racing ? mine : "", racing ? NAME_N : 1);
+    while ((n = vlan_rt_recv(HORN_PORT, &from, m, sizeof m)) >= 0) got(c, m, n, from, now);
+    int pick = vlan_rt_say_pick();
+    if (g_qc_test >= 0){ pick = g_qc_test; g_qc_test = -1; }
+    if (pick >= 0) qc_say(pick, now);
+    qc_status();
     /* our horn to the others */
     int horn = runs && mine[0] && horn_held(!has_hydraulics(me));
     if (horn != g_mine){ g_mine = horn; g_offs = horn ? 0 : 2; g_sent_at = now - SEND_MS; }
