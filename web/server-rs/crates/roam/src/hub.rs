@@ -19,7 +19,7 @@ use crate::links::{Cand, Found, Grid, Heap, Near, WALK_AHEAD, WALK_SOON, WALK_VI
 use crate::results::{self, Results};
 use crate::watch::{self, Seen, Watch};
 use crate::wire::{self, F_DATA, KIND_UDP, Msg};
-use crate::{PeerEntry, ROAM_HUB_VIP, RoamOptions};
+use crate::{CarBan, CarBans, PeerEntry, ROAM_HUB_VIP, RoamOptions};
 
 /// roam_core.h RC_PEERS_V1: what a core of version 1 reads (its group was 8, and it drops a longer list)
 const DEGREE_V1: usize = 7;
@@ -168,6 +168,25 @@ fn race_line(player: &str, r: &wire::RaceRep) -> String {
         r.kmh,
         r.factor
     )
+}
+
+/// A race with others in a player's own car type, past an operator-configured power/rating threshold.
+fn server_bans(c: &CarBans, r: &wire::RaceRep) -> bool {
+    r.players >= 2 && r.car_type < 31
+        && (c.kw.is_some_and(|kw| r.kw >= kw) || c.rating.is_some_and(|rating| r.rating >= rating))
+}
+fn car_ban(vip: u32, name: &str, r: &wire::RaceRep) -> CarBan {
+    let place = match r.place {
+        0 if r.quit => "quit".to_string(),
+        0 => "did not finish".to_string(),
+        n => format!("{n}{} of {}", match n { 1 => "st", 2 => "nd", 3 => "rd", _ => "th" }, r.players),
+    };
+    CarBan {
+        vip, name: name.to_string(),
+        car: r.name.iter().map(|&c| c as char).collect(),
+        car_type: r.car_type, kw: r.kw, kg: r.kg, kmh: r.kmh, rating: r.rating,
+        kind: results::mode_name(r.mode).to_string(), laps: r.laps, place, lobby: r.lobby, race: r.race,
+    }
 }
 
 /// how often a player's claim hears that it plays (the claim holds 180 days from its last game: an hour is plenty)
@@ -333,6 +352,7 @@ fn sanitize(o: RoamOptions) -> RoamOptions {
         map_gap_ms: f(o.map_gap_ms, d.map_gap_ms),
         map_fresh_ms: f(o.map_fresh_ms, d.map_fresh_ms),
         near_gap_ms: f(o.near_gap_ms, d.near_gap_ms),
+        car_bans: o.car_bans,
     }
 }
 
@@ -356,6 +376,8 @@ struct Stats {
     race_reports: u64,
     /// `[cheat]` lines logged
     cheat_lines: u64,
+    /// races over the configured automatic-ban threshold
+    car_bans: u64,
     nears: u64,
 }
 
@@ -836,6 +858,7 @@ impl Hub {
         let mut near_ask = None;
         let mut chat = None;
         let mut report = None;
+        let mut banned = None;
         let mut seen = [None, None];
         let mut res = None;
         // (in a crew before this HELLO, and after it)
@@ -903,6 +926,9 @@ impl Hub {
             Msg::RaceRep(r) if sender == p.id && !p.reported.is_some_and(|(l, t)| l == r.lobby || now - t < REPORT_GAP_MS) => {
                 p.reported = Some((r.lobby, now));
                 report = Some(race_line(&p.name, &r));
+                if self.o.car_bans.as_ref().is_some_and(|c| server_bans(c, &r)) {
+                    banned = Some(car_ban(p.vip, &p.name, &r));
+                }
             }
             Msg::RaceRes(r) if sender == p.id => res = Some((p.id, r)),
             _ => {}
@@ -916,6 +942,10 @@ impl Hub {
         if let Some(line) = report {
             self.st.race_reports += 1;
             (self.log)(&line);
+        }
+        if let (Some(b), Some(c)) = (banned, &self.o.car_bans) {
+            self.st.car_bans += 1;
+            (c.call)(b);
         }
         for s in seen.into_iter().flatten() {
             self.cheat(slot, s, now);
@@ -1821,6 +1851,7 @@ impl Hub {
             "crewLinks": st.crew_links,
             "crewSkips": st.crew_skips,
             "raceReports": st.race_reports,
+            "carBans": st.car_bans,
             "cheatLines": st.cheat_lines,
             "watchesKept": self.kept.len(),
             "blocking": self.blocks.len(),
