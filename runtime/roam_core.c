@@ -1202,6 +1202,7 @@ int rc_set_room(rc_session *s, uint32_t room){
     s->near_n = 0; s->near_total = 0; s->near_held = 0;
     s->near_asked_us = 0; s->near_gen++;
     s->lobbies_n = 0; s->lobbies_req = 0; s->lobbies_gen++;
+    s->n_duel_in = 0; s->n_lobby_in = 0; s->n_say_in = 0;
     s->noted_room = 0;
     s->hub_hello_tx = INT64_MIN / 4;
     for (int i = 0; i < RC_TABLE; i++)
