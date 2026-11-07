@@ -343,6 +343,7 @@ mod tests {
     use serde_json::{Value, json};
 
     use super::super::testkit::Kit;
+    use super::tidy_invite_name;
 
     const A: (&str, &str) = ("Authorization", "Bearer AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
     const B: (&str, &str) = ("Authorization", "Bearer BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB");
