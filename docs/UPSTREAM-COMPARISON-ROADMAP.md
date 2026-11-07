@@ -170,7 +170,9 @@ TRPOLARIS Minimap prototipinde:
 - Rust hub'da oda hücre grid'i, aday önbelleği, link/engel/oda filtreleri, tek datagram cevabı ve tick yaşam döngüsü eklendi; ölçülen hub yüküne göre 150/500/1000 ms geri basınç uygulanıyor.
 - Aktif HUD akışına `rc_ask_near` polling bağlandı: oyun döngüsü bir saniyelik istemci sınırıyla NEARD ister, cevapları session lock altında snapshot'a kopyalar, XY konumlarını hızla ileri taşır ve 2,5 saniyeden eski kayıtları görünmez sayar. `roam mp status` yakın oyuncu toplamı, taze kayıt sayısı, delta nesli ve son sorgu yaşını gösterir.
 - C unit testleri tam NEARD snapshot, slot güncelleme/silme ve eski request cevabının reddini kapsar; oda geçişi testi eski peer, World Map/Minimap snapshot ve lobi/mesaj kuyruklarının temizlendiğini doğrular.
-- Açık işler: NEARD-only oyuncular için gerçek minimap ikon/ok çizimi ve görsel temizleme; gecikme/paket kaybı/oda değişimiyle canlı iki istemcili test.
+- Oyun içi renderer port edildi: NEARD oyuncuları için stand-in oyuncu kayıtları, Player tipi ikonlar, `AIRACERINDICATOR_0` kopyaları ve visual pool yönetimi oluşturuluyor. Konumlar hız/başlık verisiyle güncelleniyor; yüklü arkadaş araçlarının yakınındaki çift işaretçiler eleniyor; stale/out-of-range ikonlar gizleniyor; HUD/icon listesi rebuild algılanıp eski pointer'lar tekrar kullanılmıyor.
+- `NFSU2_ROAM_NEAR` varsayılan 64, 0–96 aralığında; 0 özelliği kapatır. `roam mp near [all]` marker, cevap, havuz ve mesafe tanılaması verir.
+- Açık işler: native/WASM oyun derlemesi ve gerçek oyun ekranında ikon yön/konum testi; paket kaybı, oda değişimi ve 2+ gerçek istemciyle doğrulama.
 - Car Meet park takibi, World Map etiket/seçim ve GPS kodu mevcut; gerçek oyunda marker/sayım/hedef davranışı doğrulanmalıdır.
 
 **Kaynak dal:** [feature/world-map-meets](https://github.com/trpolaris/NFSU2-Web/tree/feature/world-map-meets). Yalnızca uyumlu protokol/sunucu parçaları PR #21'e port edildi; kaynak dalın kalan renderer ve Car Meet değişiklikleri otomatik dahil değil.
@@ -185,7 +187,7 @@ TRPOLARIS Minimap prototipinde:
 | P0 | Gerçek oyun testi | Mod pack, vinyl pack, GPS HUD, FriendPrompt, crew daveti ve Save/Load akışını gerçek oyunla doğrulamak. | İki istemcili ve kariyer kayıtlı test senaryoları geçer; bulgular kaydedilir. |
 | P0 | MODPACKS asset üretimi | Uyumlu underground2.net varlıklarından `MODPACKS/` üretip dosya manifest ve oyun açılışını kontrol etmek. | Paket açılır; eksik/yanlış boyutlu varlık yok; Body Shop ve uzak araçlarda tutarlı sonuç. |
 | P1 | World Map MAPD | Port edildi; yeni CI ve gerçek oyun oda/marker testleri bekleniyor. | Legacy MAPREQ snapshot ve yeni MAPD delta birleştirmesi geçer; oda değişimi temizlenir; 2.048 oyuncu testi tamamlanır. |
-| P1 | Minimap NEARD | Rust grid/dispatch, C protocol/merge, aktif HUD polling, snapshot cache, XY extrapolation ve status diagnostics port edildi; ikon/ok renderer'ı kaldı. | 1 datagramlık NEARD, 150/500/1000 ms yük geri basıncı, NEARD-only marker çizimi/temizliği ve iki istemci testi geçer. |
+| P1 | Minimap NEARD | Rust grid/dispatch, C protocol/merge, aktif polling, Player ikon/visual renderer, interpolation/extrapolation, stale/duplicate temizliği ve diagnostics port edildi. | Native/WASM oyun build'i; marker yön/konum, HUD rebuild, oda değişimi, paket kaybı ve 2+ istemcili oyun testi geçer. |
 | P1 | Car Meet | Park etmiş oyuncu kümesini belirleme, meet işaretçisini çizme ve GPS hedefi/varış davranışı. | 20 oyunculuk meet senaryosu, legend gizleme ve GPS hedefleme gerçek oyunda çalışır. |
 | P2 | World Map kapasite artışı | 4.096 marker ve daha fazla MAPD parçası için istemci bellek, marker havuzu ve UDP veri boyutunu ölçmek. | Bellek/CPU/packet limitleri ölçülür; yük testi ve cihaz profilleri onaylanır. |
 | P2 | Hub kapasitesi | 24.000 oyuncu hedefini bağlantı, bellek, paket/s, thread yoğunluğu, container ve ağ topolojisiyle test etmek. | Kademeli yük testleri, kaynak bütçesi ve düşürme/koruma stratejisi belgelenir. |
@@ -195,7 +197,7 @@ TRPOLARIS Minimap prototipinde:
 | P3 | Co-op / Split Screen | 2–4 oyunculuk render, bellek, input, kamera, kariyer ve yarış sistemleri. | Her oyuncunun kontrol/kamera/kayıt davranışı doğrulanır; yalnızca dosya kopyasıyla yapılmaz. |
 | P3 | Diğer upstream özellikleri | Çoklu lobby/Quick Chat iyileştirmeleri, gizli Special vinyls, araç filtresi/unique unlock, Visual Reputation Remover, hava durumu senkronizasyonu, pause-menu save, save recovery, Last.fm/EA Trax, country RTT ve kalan çarpışma/efekt düzeltmeleri. | Her özellik için ayrı protokol, runtime, UI ve regresyon senaryosu tamamlanır. |
 
-**Önerilen sıra:** PR #21'in güncel CI'sini ve yeni native C protocol testini doğrula; World Map oda/marker akışını oyun içinde dene; ardından NEARREQ'yi minimap HUD'a bağlayıp Car Meet/GPS işlerini tamamla. 4.096 World Map ve 24.000 hub oyuncusu gibi büyük limitler profil ve yük testi olmadan etkinleştirilmemeli.
+**Önerilen sıra:** PR #21'in güncel CI'sini ve native C protocol testlerini yeşile getir; native/WASM oyun build'lerini tamamla; ardından World Map/NEARD marker'larını gerçek oyunda ve iki istemcide doğrula; sonra Car Meet/GPS akışını tamamla. 4.096 World Map ve 24.000 hub oyuncusu gibi büyük limitler profil ve yük testi olmadan etkinleştirilmemeli.
 
 ---
 
@@ -203,8 +205,8 @@ TRPOLARIS Minimap prototipinde:
 
 | Dal / çalışma | Son görünen durum | Yorum |
 |---|---|---|
-| PR #21 Multiplayer & Regression CI, code snapshot `7cd24b0` | [Beklemede](https://github.com/trpolaris/NFSU2-Web/actions/runs/42370792666) | Native runtime syntax, TypeScript/web ve Rust workspace testleri bu run üzerinde takip ediliyor; son adım tamamlanmadan başarı sayılmaz. |
-| PR #21 image-rs, preceding code snapshot `71f4348` | [Başarılı](https://github.com/trpolaris/NFSU2-Web/actions/runs/42370639104) | Bu sonuç daha yeni `7cd24b0` head'i için image build geçtiğini kanıtlamaz. |
+| PR #21 Multiplayer & Regression CI, preceding code snapshot `3cc8851` | [Çalışıyor](https://github.com/trpolaris/NFSU2-Web/actions/runs/42372032346) | Native runtime syntax, TypeScript, web build ve Cargo.lock adımları geçti; Rust workspace testleri takipte. Sonraki `e058731` commit'i için yeni run bekleniyor. |
+| PR #21 image-rs, preceding code snapshot `3cc8851` | [Başarılı](https://github.com/trpolaris/NFSU2-Web/actions/runs/42372032353) | Bu sonuç daha yeni `e058731` head'i için image build geçtiğini kanıtlamaz. |
 | World Map MAPD ve Minimap NEARD | Ayrı çalışma dallarından seçici port edildi | Bu eski dal CI kayıtları PR #21'in güncel HEAD testlerinin yerine geçmez. |
 
 Daha eski ara commit'lerde TypeScript, web build, Cargo.lock, Rust testleri, GPS native C testleri, mailbox layout kontrolü ve sentetik Online yük testi gibi adımların geçtiği kayıtlar bulunabilir. Ancak **eski commit'in yeşil olması yeni HEAD'in de yeşil olduğu anlamına gelmez.** Sonuçlar daima ilgili dalın son commit'i ve o commit'e ait Actions run üzerinden okunmalıdır.
