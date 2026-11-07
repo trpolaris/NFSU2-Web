@@ -42,7 +42,7 @@ pub const GRACE_DAYS: i64 = 14;
 /// the names nobody claims (lower case): the game's default profile name, and its name for nobody in particular
 pub const UNCLAIMABLE: &[&str] = &["name", "player"];
 /// claims kept at most (the dead ones go first). Kept at 500,000 until deployment memory is load-tested.
-pub const MAX_CLAIMS: usize = 500_000;
+pub const MAX_CLAIMS: usize = 5_000_000;
 /// the regular sweep: claims expire by time even between sweeps, but removing dead entries takes the lock
 const PRUNE_EVERY_MS: i64 = 3_600_000;
 /// when the store is full, allow a more frequent sweep to reclaim expired entries
