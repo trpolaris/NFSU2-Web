@@ -1440,5 +1440,6 @@
   "I understand, continue": "รับทราบ ดำเนินการต่อ",
   "Too many players are connected from your network: playing with others waits for a free place, or use another network.": "มีผู้เล่นเชื่อมต่อจากเครือข่ายของคุณมากเกินไป: ต้องรอที่ว่างก่อนจึงจะเล่นกับผู้อื่นได้ หรือใช้เครือข่ายอื่น",
   "Your antivirus or network is probably blocking the connection to other players. Allow this site in it, or try another network or a VPN.": "แอนตี้ไวรัสหรือเครือข่ายของคุณอาจบล็อกการเชื่อมต่อกับผู้เล่นอื่นอยู่ อนุญาตเว็บไซต์นี้ หรือลองใช้เครือข่ายอื่นหรือ VPN",
-  "Your connection to other players keeps dropping. Your network may be limiting it: try another network or a VPN.": "การเชื่อมต่อกับผู้เล่นอื่นหลุดอยู่เรื่อย ๆ เครือข่ายของคุณอาจจำกัดอยู่: ลองใช้เครือข่ายอื่นหรือ VPN"
+  "Your connection to other players keeps dropping. Your network may be limiting it: try another network or a VPN.": "การเชื่อมต่อกับผู้เล่นอื่นหลุดอยู่เรื่อย ๆ เครือข่ายของคุณอาจจำกัดอยู่: ลองใช้เครือข่ายอื่นหรือ VPN",
+  "Drive through the Construction Tunnel, including early in your career.": "ขับผ่านอุโมงค์ที่กำลังก่อสร้างได้ แม้ในช่วงเริ่มต้นอาชีพ"
 }
