@@ -3017,6 +3017,10 @@ static void meet_add(int *n, float x, float y, float z, float vx, float vy){
 #define MEET_PARKED_US  60000000
 #define MEET_SPAWN_M    5.f
 static struct { uint32_t id; float x, y; int64_t since; } g_stay[NSLOT + 1];
+static int meet_shown(const Slot *q, uint32_t w){
+    return q->st == SL_ACTIVE && !q->hidden && q->world == w &&
+           ok(q->car, 0x9e0) && MR8(q->car + CAR_ACTIVE);
+}
 static void meet_stay(uint32_t w, int64_t host){
     for (int k = 0; k <= NSLOT; k++){
         const Slot *q = k < NSLOT ? &g_sl[k] : 0;
