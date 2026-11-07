@@ -332,7 +332,7 @@ impl Kit {
         let t = Arc::new(Mutex::new(1_000_000.0));
         let busy = Arc::new(Mutex::new(0.0));
         let lines = Arc::new(Mutex::new(Vec::new()));
-        let (s, tt, b, l) = (sent.clone(), t.clone(), busy.clone(), lines.clone());
+        let (s, tt, b, l, busy_for_hub) = (sent.clone(), t.clone(), busy.clone(), lines.clone(), busy.clone());
         let hub = Hub::new(
             o,
             Box::new(move || *tt.lock()),
@@ -344,6 +344,9 @@ impl Kit {
             }),
             0xB0B,
         );
+        let mut hub = hub;
+        // The fake clock's busy sample is explicit in tests, matching production's 0..1 load signal.
+        hub.set_thread_busy(*busy_for_hub.lock());
         Kit { hub, sent, t, busy, lines }
     }
     pub fn step(&self, ms: f64) {
