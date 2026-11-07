@@ -14,7 +14,7 @@ Bu belge, proje ana README'sinin yerine geçmez. Entegrasyon çalışmalarının
 | TRPOLARIS deposu | Ana proje deposu | [trpolaris/NFSU2-Web](https://github.com/trpolaris/NFSU2-Web) |
 | Upstream referansı | Karşılaştırma ve seçici port kaynağı | [th0mk/nfsu2-web](https://github.com/th0mk/nfsu2-web) |
 | Üretim/varsayılan dal | `main`, HEAD `82616f9` | [main](https://github.com/trpolaris/NFSU2-Web/tree/main) |
-| Ana entegrasyon dalı | `integration/upstream-2026-11-06`, HEAD `87a890a` | [Dal](https://github.com/trpolaris/NFSU2-Web/tree/integration/upstream-2026-11-06) |
+| Ana entegrasyon dalı | `integration/upstream-2026-11-06`, aktif entegrasyon dalı | [Dal](https://github.com/trpolaris/NFSU2-Web/tree/integration/upstream-2026-11-06) |
 | Ana entegrasyon PR'ı | PR #21, açık ve taslak; henüz birleştirilmedi | [PR #21](https://github.com/trpolaris/NFSU2-Web/pull/21) |
 | World Map protokol dalı | `integration/world-map-mapd`, HEAD `ecf7f03` | [Dal](https://github.com/trpolaris/NFSU2-Web/tree/integration/world-map-mapd) |
 | Minimap/NEARD çalışma dalı | `feature/world-map-meets`, HEAD `1bb6b23` | [Dal](https://github.com/trpolaris/NFSU2-Web/tree/feature/world-map-meets) |
@@ -202,7 +202,7 @@ TRPOLARIS Minimap prototipinde:
 
 | Dal / çalışma | Son görünen durum | Yorum |
 |---|---|---|
-| PR #21 Multiplayer & Regression CI, kod HEAD'i `9b88a77` | [İptal edildi](https://github.com/trpolaris/NFSU2-Web/actions/runs/42311836043) | Son kod head'inin tam regresyonu iptal edildi. PR'ın güncel `87a890a` HEAD'ine daha sonra yalnızca README/rapor dokümantasyonu eklendi; bu dokümantasyon HEAD'i için yeni tam CI çalışması yok. |
+| PR #21 Multiplayer & Regression CI, kod HEAD'i `9b88a77` | [İptal edildi](https://github.com/trpolaris/NFSU2-Web/actions/runs/42311836043) | Son kod head'inin tam regresyonu iptal edildi. Bu CI çalışmasından sonra PR dalına README/rapor dokümantasyonu eklendi; güncel dokümantasyon HEAD'i için yeni tam CI çalışması yok. |
 | PR #21 image-rs, kod HEAD'i `9b88a77` | [Başarılı](https://github.com/trpolaris/NFSU2-Web/actions/runs/42311835834) | Container image workflow başarılı; bu, oyun/runtime testlerinin tamamının geçtiği anlamına gelmez. |
 | World Map MAPD dalı | [İptal edildi](https://github.com/trpolaris/NFSU2-Web/actions/runs/42313815558) | Başarılı test olarak sayılmaz. |
 | Minimap/NEARD dalı, HEAD `1bb6b23` | [Çalışıyor](https://github.com/trpolaris/NFSU2-Web/actions/runs/42357359231) | Son writer düzeltmesi sonrası yeni CI bekleniyor. |
