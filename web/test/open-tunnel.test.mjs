@@ -26,9 +26,9 @@ test('tunnel is disabled by default and can be enabled and disabled in saved set
 });
 test('the I/O worker resolves tunnel paths using the declared track list', () => {
   const io = fs.readFileSync(new URL('../src/host/io-worker.ts', import.meta.url), 'utf8');
-  assert.match(io, /TUNNEL_TRACKS\s*=\s*\[/);
-  assert.match(io, /TUNNEL_TRACKS as readonly string\[\]\)\.includes\(normalized\)/);
-  assert.doesNotMatch(io, /TUNNEL_TRACKS\.has\(/);
+  assert.match(io, /TUNNEL_TRACKS\s*=\s*new Set\(\[/);
+  assert.match(io, /TUNNEL_TRACKS\.has\(normalized\)/);
+  assert.doesNotMatch(io, /TUNNEL_TRACKS as readonly string\[\]\)/);
 });
 
 test('preload uses originals by default and only the complete selected overlay when enabled', () => {
