@@ -643,8 +643,8 @@ dependencies = [
 name = "nfsu2-names"
 version = "0.1.0"
 dependencies = [
- "icu_properties",
  "serde_json",
+ "unicode-general-category",
  "unicode-normalization",
 ]
 
