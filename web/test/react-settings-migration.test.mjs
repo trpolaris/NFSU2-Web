@@ -150,7 +150,8 @@ test('Mod Library, updates and diagnostics are React-owned over DOM-free service
 
 test('unsupported experimental rim settings stay out of the panel and portable profiles', () => {
   assert.match(service, /key: 'catchup'/);
-  assert.match(service, /PROFILE_SETTING_KEYS = \\[[^]]*catchup/);
+  const profileKeys = service.slice(service.indexOf('export const PROFILE_SETTING_KEYS'), service.indexOf('const PROFILE_SETTING_SET'));
+  assert.ok(profileKeys.includes("'catchup'"));
   assert.match(service, /key: 'open_tunnel'/);
   assert.doesNotMatch(service, /ug2net_parts|others_mod_parts/);
   assert.match(service, /PROFILE_SETTING_KEYS = \[[^]]*open_tunnel/);
