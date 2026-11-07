@@ -1866,6 +1866,11 @@ impl Hub {
         ));
     }
 
+    /// The measured utilization of the hub's own thread (0..1), used to back off NEARD replies.
+    pub fn set_thread_busy(&mut self, busy: f64) {
+        self.thread_busy = if busy.is_finite() { busy.clamp(0.0, 1.0) } else { 0.0 };
+    }
+
     /// free roam is busy: the cap is under `ask_cap` (the start page does not ask new players then)
     pub fn crowded(&self) -> bool {
         self.cap < self.o.ask_cap
