@@ -23,6 +23,10 @@ use crate::{PeerEntry, ROAM_HUB_VIP, RoamOptions};
 
 /// roam_core.h RC_PEERS_V1: what a core of version 1 reads (its group was 8, and it drops a longer list)
 const DEGREE_V1: usize = 7;
+const MAPD_MAX: usize = 2048;
+const MAP_TOL_M: f64 = 2.0;
+const MAP_TOL_H: u8 = 8;
+const MAP_LOBBIES_GAP_MS: f64 = 1000.0;
 
 /// Minimap response budget: a single datagram is capped at 1152 bytes of entries.
 const NEAR_MAX: usize = wire::MAPD_BYTES / wire::MAPD_PLACE;
@@ -312,6 +316,7 @@ fn sanitize(o: RoamOptions) -> RoamOptions {
         map_max: n(o.map_max, d.map_max).min(wire::MAP_PER * 3),
         map_gap_ms: f(o.map_gap_ms, d.map_gap_ms),
         map_fresh_ms: f(o.map_fresh_ms, d.map_fresh_ms),
+        near_gap_ms: f(o.near_gap_ms, d.near_gap_ms),
     }
 }
 
@@ -335,6 +340,7 @@ struct Stats {
     race_reports: u64,
     /// `[cheat]` lines logged
     cheat_lines: u64,
+    nears: u64,
 }
 
 /// one pair of a room weighed (every pair of a room of at most `exact_room` players): since when it is linked; a and b
@@ -1101,171 +1107,7 @@ impl Hub {
         m.sent = Some((req, next));
         m.at = now;
         self.nears.insert(vip, m);
-        // (the links come first: a hub's thread busy with them answers each minimap a second or so, its game asks
-        // again a second after a question not answered)
-        let gap = if self.thread_busy >= NEAR_BUSY_HIGH {
-            1000.0
-        } else if self.thread_busy >= NEAR_BUSY_LOW {
-            500.0
-        } else {
-            self.o.near_gap_ms
-        };
-        self.near_at.insert(vip, now + gap);
-    }
-
-    /// every room's players a map shows (`map_shown`) now, by room and NEAR_CELL_M cell of where each is (`ahead`)
-    fn near_grid_of(&self, now: f64) -> NearGrid {
-        let mut v: Vec<((u32, i32, i32), NearItem)> = Vec::with_capacity(self.order.len());
-        for &q in &self.order {
-            let Some(o) = self.player(q).filter(|o| self.map_shown(q, o, now)) else { continue };
-            let at = ahead(o, now);
-            let left = (MAP_AHEAD_MS - (now - o.pos_at).max(0.0)).max(0.0) / 1000.0;
-            let it = NearItem { slot: q, x: at[0] as f32, y: at[1] as f32, vx: o.v[0] as f32, vy: o.v[1] as f32, left: left as f32 };
-            v.push(((o.room, near_cell(at[1]), near_cell(at[0])), it));
-        }
-        v.sort_unstable_by_key(|e| e.0);
-        let mut pos = vec![u32::MAX; v.iter().map(|e| e.1.slot as usize + 1).max().unwrap_or(0)];
-        for (k, e) in v.iter().enumerate() {
-            pos[e.1.slot as usize] = k as u32;
-        }
-        NearGrid { at: now, keys: v.iter().map(|e| e.0).collect(), items: v.into_iter().map(|e| e.1).collect(), pos }
-    }
-
-    fn neard(&mut self, slot: u32, req: u16, most: u16, base: u16, radius: u16, now: f64) {
-        let max = NEAR_MAX.min(most as usize);
-        let r = (radius as f64).min(NEAR_M);
-        let Some(p) = self.player(slot) else { return };
-        if p.impostor || self.near_at.get(&p.vip).is_some_and(|&t| now < t) {
-            return;
-        }
-        let (room, vip, port, hub_port) = (p.room, p.vip, p.port, p.hub_port);
-        if self.near_grid.as_ref().is_none_or(|g| g.at > now) {
-            self.near_grid = Some(self.near_grid_of(now));
-        }
-        let mut m = self.nears.remove(&vip).unwrap_or_default();
-        let mut found = std::mem::take(&mut self.near_found);
-        found.clear();
-        {
-            let (Some(p), Some(grid)) = (self.player(slot), self.near_grid.as_ref()) else { return };
-            if let Some(me) = p.p.is_some().then(|| ahead(p, now)) {
-                let fresh = m.cands_of.is_some_and(|(at, s, rr, mm, ox, oy)| {
-                    s == slot && rr == radius && mm == most && now - at < NEAR_CANDS_MS && (me[0] - ox).hypot(me[1] - oy) < NEAR_MOVE_M
-                });
-                if !fresh {
-                    let mut links: Vec<u32> = p.links.iter().map(|l| l.slot).collect();
-                    links.sort_unstable();
-                    // (the grid has each player where it was at its making, up to a tick ago: its rows are read farther
-                    // out, and each player moved on from there)
-                    let keep = r + NEAR_KEEP_M;
-                    let reach = keep + NEAR_SLACK_M;
-                    let (x0, x1, y0, y1) =
-                        (near_cell(me[0] - reach), near_cell(me[0] + reach), near_cell(me[1] - reach), near_cell(me[1] + reach));
-                    let (mx, my, k2, since) = (me[0] as f32, me[1] as f32, (keep * keep) as f32, ((now - grid.at) / 1000.0) as f32);
-                    let blocks = !self.blocks.is_empty();
-                    // the players of the cells cx0..=cx1 of row cy within `keep`, past itself, its links and the ones it
-                    // keeps apart from
-                    let row = |found: &mut Vec<(u32, u32)>, cy: i32, cx0: i32, cx1: i32| {
-                        if cx0 > cx1 {
-                            return;
-                        }
-                        let a = grid.keys.partition_point(|k| *k < (room, cy, cx0));
-                        let z = a + grid.keys[a..].partition_point(|k| *k <= (room, cy, cx1));
-                        for (k, it) in grid.items[a..z].iter().enumerate() {
-                            let dt = since.min(it.left);
-                            let (dx, dy) = (it.x + it.vx * dt - mx, it.y + it.vy * dt - my);
-                            let d2 = dx * dx + dy * dy;
-                            if d2 > k2 || it.slot == slot || links.binary_search(&it.slot).is_ok() {
-                                continue;
-                            }
-                            if blocks && self.player(it.slot).is_some_and(|o| self.apart_from(slot, it.slot, p, o)) {
-                                continue;
-                            }
-                            // (a distance's bits are in its order: it is not negative)
-                            found.push((d2.to_bits(), (a + k) as u32));
-                        }
-                    };
-                    // the cells within NEAR_FIRST cells of its own first: in a crowd its candidates are all there (they
-                    // cover NEAR_FIRST cells less the slack all round it), and the rest of the reach is not read
-                    let (cx, cy) = (near_cell(me[0]), near_cell(me[1]));
-                    let (fx0, fx1, fy0, fy1) =
-                        ((cx - NEAR_FIRST).max(x0), (cx + NEAR_FIRST).min(x1), (cy - NEAR_FIRST).max(y0), (cy + NEAR_FIRST).min(y1));
-                    for y in fy0..=fy1 {
-                        row(&mut found, y, fx0, fx1);
-                    }
-                    let inner = (NEAR_FIRST as f64 * NEAR_CELL_M - NEAR_SLACK_M).min(keep);
-                    let inner2 = (inner * inner) as f32;
-                    if found.iter().filter(|x| f32::from_bits(x.0) <= inner2).count() < 2 * max {
-                        for y in y0..=y1 {
-                            if (fy0..=fy1).contains(&y) {
-                                row(&mut found, y, x0, fx0 - 1);
-                                row(&mut found, y, fx1 + 1, x1);
-                            } else {
-                                row(&mut found, y, x0, x1);
-                            }
-                        }
-                    }
-                    if found.len() > 2 * max {
-                        found.select_nth_unstable(2 * max);
-                        found.truncate(2 * max);
-                    }
-                    m.cands.clear();
-                    m.cands.extend(found.iter().map(|x| grid.items[x.1 as usize].slot));
-                    m.cands_of = Some((now, slot, radius, most, me[0], me[1]));
-                    found.clear();
-                }
-                // each candidate where the grid has it now (looked up by its slot in the grid's list, which holds the
-                // ones the maps show), the nearest `max` within the radius
-                let (mx, my, r2, since) = (me[0] as f32, me[1] as f32, (r * r) as f32, ((now - grid.at) / 1000.0) as f32);
-                for &q in &m.cands {
-                    let Some(&k) = grid.pos.get(q as usize).filter(|&&k| k != u32::MAX) else { continue };
-                    let it = &grid.items[k as usize];
-                    let dt = since.min(it.left);
-                    let (dx, dy) = (it.x + it.vx * dt - mx, it.y + it.vy * dt - my);
-                    let d2 = dx * dx + dy * dy;
-                    if d2 <= r2 {
-                        found.push((d2.to_bits(), it.slot));
-                    }
-                }
-                if found.len() > max {
-                    found.select_nth_unstable(max);
-                }
-            }
-        }
-        let total = found.len().min(u16::MAX as usize) as u16;
-        // each one placed where it is now, as its last SNAP has it (one gone from free roam since the grid: not)
-        let mut list: Vec<MapCand> = found[..found.len().min(max)]
-            .iter()
-            .filter_map(|&(_, q)| {
-                self.player(q).filter(|o| o.room == room && self.map_shown(q, o, now)).map(|o| map_cand(q, o, ahead(o, now)))
-            })
-            .collect();
-        list.sort_unstable_by_key(|c| c.slot);
-        self.near_found = found;
-        if base != 0 && m.sent.as_ref().is_some_and(|s| s.0 == base) {
-            m.held = m.sent.take();
-        }
-        let from: &[MapSent] = match &m.held {
-            Some((q, l)) if base != 0 && *q == base => l,
-            _ => &[],
-        };
-        let (mut b, (mut e, mut ends, mut next)) =
-            (if from.is_empty() { 0 } else { base }, map_diff(from, &list, now, NEAR_TOL_M, NEAR_TOL_H));
-        if e.len() > wire::MAPD_BYTES || ends.len() > 255 {
-            (b, (e, ends, next)) = (0, map_diff(&[], &list, now, NEAR_TOL_M, NEAR_TOL_H));
-        }
-        let mut f = vec![0u8; F_DATA + wire::mapd_len(e.len())];
-        f[0] = KIND_UDP;
-        f[4..8].copy_from_slice(&ROAM_HUB_VIP.to_be_bytes());
-        f[8..12].copy_from_slice(&vip.to_be_bytes());
-        f[12..14].copy_from_slice(&hub_port.to_be_bytes());
-        f[14..16].copy_from_slice(&port.to_be_bytes());
-        wire::write_mapd(&mut f[F_DATA..], wire::MSG_NEARD, self.id, self.seq, req, b, 0, 1, total, ends.len() as u8, &e);
-        self.seq = self.seq.wrapping_add(1);
-        (self.send)(vip, Bytes::from(f));
         self.st.nears += 1;
-        m.sent = Some((req, next));
-        m.at = now;
-        self.nears.insert(vip, m);
         // (the links come first: a hub's thread busy with them answers each minimap a second or so, its game asks
         // again a second after a question not answered)
         let gap = if self.thread_busy >= NEAR_BUSY_HIGH {
@@ -1279,7 +1121,6 @@ impl Hub {
     }
 
     /// every room's players a map shows (`map_shown`) now, by room and NEAR_CELL_M cell of where each is (`ahead`)
-
     fn near_grid_of(&self, now: f64) -> NearGrid {
         let mut v: Vec<((u32, i32, i32), NearItem)> = Vec::with_capacity(self.order.len());
         for &q in &self.order {
