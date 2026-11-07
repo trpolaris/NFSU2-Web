@@ -148,6 +148,16 @@ test('Mod Library, updates and diagnostics are React-owned over DOM-free service
   assert.match(react, /function DiagnosticsReactPanel\(\)/);
 });
 
+test('unsupported experimental rim settings stay out of the panel and portable profiles', () => {
+  assert.match(service, /key: 'open_tunnel'/);
+  assert.doesNotMatch(service, /ug2net_parts|others_mod_parts/);
+  assert.match(service, /PROFILE_SETTING_KEYS = \[[^]]*open_tunnel/);
+  assert.doesNotMatch(service, /PROFILE_SETTING_KEYS = \[[^]]*(?:ug2net_parts|others_mod_parts)/);
+  const settings = read('src/app/settings.ts');
+  assert.match(settings, /key: 'open_tunnel'/);
+  assert.doesNotMatch(settings, /^#?\s*(?:ug2net_parts|others_mod_parts)\s*=/m);
+});
+
 test('Mod and profile export services return JSON payloads while React owns browser downloads', () => {
   assert.match(platform, /export function exportModList\(\): ModListExportPayload/);
   assert.match(platform, /content: JSON\.stringify\(\{ schema: 1, mods \}/);
