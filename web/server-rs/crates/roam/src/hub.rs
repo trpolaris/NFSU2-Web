@@ -1107,7 +1107,6 @@ impl Hub {
         m.sent = Some((req, next));
         m.at = now;
         self.nears.insert(vip, m);
-        self.st.nears += 1;
         // (the links come first: a hub's thread busy with them answers each minimap a second or so, its game asks
         // again a second after a question not answered)
         let gap = if self.thread_busy >= NEAR_BUSY_HIGH {
