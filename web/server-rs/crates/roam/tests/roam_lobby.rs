@@ -468,6 +468,7 @@ fn configured_car_bans_only_reported_multiplayer_player_cars_over_threshold() {
     assert_eq!((c.kw, c.kg, c.kmh, c.rating), (2829.0, 1338.0, 381.0, 1451.0));
     assert_eq!(c.place, "1st of 4");
     assert_eq!(k.info("carBans"), 1.0);
+    drop(got);
 
     // A second report for the same lobby is deduplicated by the hub.
     k.from(W(0), &race_report(100, 0xC4, 4, 27, 1451.0, 2829.0));
