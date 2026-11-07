@@ -795,3 +795,61 @@ impl Deny {
         self.generation.load(std::sync::atomic::Ordering::Relaxed)
     }
 }
+
+const CHAT_PROFANITY_WORDS: &[&str] = &[
+    "amk", "aq", "amq", "amina", "aminakoyim", "aminakoyayim", "aminasokim",
+    "ananisik", "ananisikeyim", "amcik", "amcigi", "amcigim", "amciklar",
+    "sik", "siki", "sikim", "sikerim", "sikeyim", "sikiyim", "sikiyor", "sikmek",
+    "siktim", "sikti", "sikis", "sikik", "siktir", "siktirgit",
+    "orospu", "orospucocugu", "orospuevladi", "pic", "pici", "picin", "picoglu",
+    "yarrak", "yarak", "yarram", "yarra", "pezevenk", "kahpe", "serefsiz", "pust", "surtuk",
+    "kurwa", "fuck", "shit", "bitch", "asshole", "asshat", "cunt", "dickhead",
+    "cock", "bastard", "motherfucker", "wanker", "twat", "bollocks",
+];
+const CHAT_PROFANITY_PREFIXES: &[&str] = &[
+    "amina", "amcik", "sikt", "siker", "sikey", "sikiy", "sikim",
+    "orosp", "yarr", "serefsiz", "pezevenk", "surtuk",
+    "kurw", "fuck", "shit", "bitch", "cunt", "asshole", "asshat",
+    "motherfuck", "wanker", "twat", "bollock",
+];
+
+fn chat_profanity_word(word: &[u8]) -> bool {
+    CHAT_PROFANITY_WORDS.iter().any(|candidate| word == candidate.as_bytes())
+        || CHAT_PROFANITY_PREFIXES.iter().any(|prefix| word.starts_with(prefix.as_bytes()))
+}
+
+/// Returns the first profane chat span after the same Unicode/lookalike normalization used for names.
+pub fn chat_profanity(line: &str) -> Option<&str> {
+    let mut words: Vec<(usize, usize)> = Vec::new();
+    let mut from = None;
+    for (i, ch) in line.char_indices().chain([(line.len(), ' ')]) {
+        match (ch.is_whitespace(), from) {
+            (true, Some(f)) => {
+                let e = f + line[f..i].trim_end_matches('!').len();
+                if e > f { words.push((f, e)); }
+                from = None;
+            }
+            (false, None) => from = Some(i),
+            _ => {}
+        }
+    }
+    let letters: Vec<Vec<u8>> = words.iter().map(|&(a, b)| {
+        scan(&line[a..b]).map(|value| value.s.get().to_vec()).unwrap_or_default()
+    }).collect();
+    for (index, word) in letters.iter().enumerate() {
+        if chat_profanity_word(word) { return Some(&line[words[index].0..words[index].1]); }
+    }
+    // Also catch words intentionally separated into single letters, such as "a m k" or "f u c k".
+    let mut index = 0;
+    while index < words.len() {
+        let run = letters[index..].iter().take_while(|word| word.len() == 1).count();
+        if run >= 2 {
+            let joined: Vec<u8> = letters[index..index + run].iter().map(|word| word[0]).collect();
+            if chat_profanity_word(&joined) {
+                return Some(&line[words[index].0..words[index + run - 1].1]);
+            }
+        }
+        index += run.max(1);
+    }
+    None
+}
