@@ -24,6 +24,9 @@ use crate::{PeerEntry, ROAM_HUB_VIP, RoamOptions};
 /// roam_core.h RC_PEERS_V1: what a core of version 1 reads (its group was 8, and it drops a longer list)
 const DEGREE_V1: usize = 7;
 const MAPD_MAX: usize = 2048;
+const MAPD_MAX_Z: usize = wire::MAPD_PARTS * (wire::MAPD_BYTES / wire::MAPD_PLACE_Z);
+const STAY_M: f64 = 25.0;
+const PARKED_MS: f64 = 60_000.0;
 const MAP_TOL_M: f64 = 2.0;
 const MAP_TOL_H: u8 = 8;
 const MAP_LOBBIES_GAP_MS: f64 = 1000.0;
@@ -45,9 +48,9 @@ const MAP_AHEAD_MS: f64 = 500.0;
 const MAP_KEEP_MS: f64 = 10_000.0;
 
 #[derive(Clone, Copy)]
-struct MapCand { slot: u32, id: u32, p: [f64; 3], x: i16, y: i16, heading: u8, vx: i8, vy: i8 }
+struct MapCand { slot: u32, id: u32, p: [f64; 3], x: i16, y: i16, heading: u8, vx: i8, vy: i8, parked: bool }
 #[derive(Clone, Copy)]
-struct MapSent { slot: u32, id: u32, x: i16, y: i16, heading: u8, vx: i8, vy: i8, t: f64 }
+struct MapSent { slot: u32, id: u32, x: i16, y: i16, heading: u8, vx: i8, vy: i8, parked: bool, t: f64 }
 struct NearGrid { at: f64, keys: Vec<(u32, i32, i32)>, items: Vec<NearItem>, pos: Vec<u32> }
 #[derive(Clone, Copy)]
 struct NearItem { slot: u32, x: f32, y: f32, vx: f32, vy: f32, left: f32 }
@@ -187,6 +190,9 @@ struct Player {
     v: [f64; 3],
     heading: u8,
     pos_at: f64,
+    /// Where recent SNAPs have stayed within 25 m; eligible for Car Meet after 60 seconds.
+    stay: [f64; 2],
+    stay_at: f64,
     seen: f64,
     /// its HELLO says it takes race lobbies (its map questions get the room's lobbies too)
     lobbies: bool,
@@ -517,7 +523,7 @@ pub struct Hub {
     map_at: HashMap<u32, f64>,
     maps: HashMap<u32, MapHeld>,
     lobbies_at: HashMap<u32, f64>,
-    map_cands: HashMap<u32, Vec<MapCand>>,
+    map_cands: HashMap<u32, (f64, Vec<MapCand>)>,
     near_at: HashMap<u32, f64>,
     nears: HashMap<u32, MapHeld>,
     near_grid: Option<NearGrid>,
@@ -786,6 +792,8 @@ impl Hub {
                     v: [0.0; 3],
                     heading: 0,
                     pos_at: 0.0,
+                    stay: [0.0; 2],
+                    stay_at: f64::INFINITY,
                     seen: 0.0,
                     lobbies: false,
                     crews: [0; wire::CREWS],
@@ -857,6 +865,10 @@ impl Hub {
                 crewed = Some((was, p.crews[0] != 0));
             }
             Msg::Snap { sender, status, p: pos, v, heading, t_us, clock } if sender == p.id => {
+                let (dx, dy) = (pos[0] - p.stay[0], pos[1] - p.stay[1]);
+                if p.p.is_none() || dx * dx + dy * dy > STAY_M * STAY_M || !matches!(status, 2 | 5) {
+                    (p.stay, p.stay_at) = ([pos[0], pos[1]], now);
+                }
                 p.p = Some(pos);
                 p.v = v;
                 p.heading = heading;
@@ -868,7 +880,7 @@ impl Hub {
                     p.watch.reset();
                 }
             }
-            Msg::MapReq { req, max, base } if sender == p.id => ask = Some((req, max, base)),
+            Msg::MapReq { req, max, base, flags } if sender == p.id => ask = Some((req, max, base, flags)),
             Msg::NearReq { req, max, base, radius } if sender == p.id => near_ask = Some((req, max, base, radius)),
             Msg::Chat { scope, channel, text } if sender == p.id => chat = Some((scope, channel, text.to_string())),
             Msg::Lobby { op, to: 0, lobby, race, x, y, n, max, state, ids } if sender == p.id => match op {
@@ -904,8 +916,8 @@ impl Hub {
             self.results = results;
         }
         match ask {
-            Some((req, max, Some(base))) => self.mapd(slot, req, max, base, now),
-            Some((req, _max, None)) => self.map(slot, req, now),
+            Some((req, max, Some(base), flags)) => self.mapd(slot, req, max, base, flags & wire::MAPREQ_PARKED != 0, now),
+            Some((req, _max, None, _flags)) => self.map(slot, req, now),
             None => {}
         }
         if let Some((req, max, base, radius)) = near_ask {
@@ -916,12 +928,12 @@ impl Hub {
         }
     }
 
-    fn mapd(&mut self, slot: u32, req: u16, most: u16, base: u16, now: f64) {
-        let max = self.o.map_max.min(MAPD_MAX).min(most as usize);
+    fn mapd(&mut self, slot: u32, req: u16, most: u16, base: u16, parked: bool, now: f64) {
+        let max = self.o.map_max.min(if parked { MAPD_MAX_Z } else { MAPD_MAX }).min(most as usize);
         let Some(p) = self.player(slot) else { return };
         if p.impostor || self.map_at.get(&p.vip).is_some_and(|&t| now < t) { return; }
         let (room, at, vip, port, hub_port, lobbies) = (p.room, p.p.unwrap_or_default(), p.vip, p.port, p.hub_port, p.lobbies);
-        let cands = self.map_cands.remove(&room).unwrap_or_else(|| self.map_room(room, now));
+        let (at_t, cands) = self.map_cands.remove(&room).unwrap_or_else(|| (now, self.map_room(room, now)));
         let Some(p) = self.player(slot) else { return };
         let mut links: Vec<u32> = p.links.iter().map(|l| l.slot).collect();
         links.sort_unstable();
@@ -929,7 +941,7 @@ impl Hub {
             c.slot != slot && links.binary_search(&c.slot).is_err()
                 && !self.player(c.slot).is_some_and(|o| self.apart_from(slot, c.slot, p, o))
         }).copied().collect();
-        self.map_cands.insert(room, cands);
+        self.map_cands.insert(room, (at_t, cands));
         let total = list.len().min(u16::MAX as usize) as u16;
         if list.len() > max {
             list.select_nth_unstable_by_key(max, |c| order_key(distance(&at, &c.p)));
@@ -939,10 +951,10 @@ impl Hub {
         let mut m = self.maps.remove(&vip).unwrap_or_default();
         if base != 0 && m.sent.as_ref().is_some_and(|s| s.0 == base) { m.held = m.sent.take(); }
         let from: &[MapSent] = match &m.held { Some((r,l)) if base != 0 && *r == base => l, _ => &[] };
-        let (mut b, (mut entries, mut ends, mut next)) = (if from.is_empty(){0}else{base}, map_diff(from,&list,now,MAP_TOL_M,MAP_TOL_H));
+        let (mut b, (mut entries, mut ends, mut next)) = (if from.is_empty(){0}else{base}, map_diff(from,&list,at_t,MAP_TOL_M,MAP_TOL_H,parked));
         let mut parts = map_parts(&ends);
         if parts.len() > wire::MAPD_PARTS {
-            (b,(entries,ends,next))=(0,map_diff(&[],&list,now,MAP_TOL_M,MAP_TOL_H));
+            (b,(entries,ends,next))=(0,map_diff(&[],&list,at_t,MAP_TOL_M,MAP_TOL_H,parked));
             parts=map_parts(&ends);
         }
         for (k,&(a,z)) in parts.iter().enumerate() {
@@ -951,7 +963,7 @@ impl Hub {
             frame[0]=KIND_UDP;frame[4..8].copy_from_slice(&ROAM_HUB_VIP.to_be_bytes());
             frame[8..12].copy_from_slice(&vip.to_be_bytes());frame[12..14].copy_from_slice(&hub_port.to_be_bytes());
             frame[14..16].copy_from_slice(&port.to_be_bytes());
-            wire::write_mapd(&mut frame[F_DATA..],wire::MSG_MAPD,self.id,self.seq,req,b,k as u8,parts.len() as u8,total,(z-a) as u8,&entries[s0..s1]);
+            wire::write_mapd(&mut frame[F_DATA..],wire::MSG_MAPD,self.id,self.seq,req,b,k as u8,parts.len() as u8,total,(z-a) as u8,if parked { wire::HF_MAPZ } else { 0 },&entries[s0..s1]);
             self.seq=self.seq.wrapping_add(1);(self.send)(vip,Bytes::from(frame));
         }
         m.sent=Some((req,next));m.at=now;self.maps.insert(vip,m);
@@ -1077,7 +1089,7 @@ impl Hub {
         let mut list: Vec<MapCand> = found[..found.len().min(max)]
             .iter()
             .filter_map(|&(_, q)| {
-                self.player(q).filter(|o| o.room == room && self.map_shown(q, o, now)).map(|o| map_cand(q, o, ahead(o, now)))
+                self.player(q).filter(|o| o.room == room && self.map_shown(q, o, now)).map(|o| map_cand(q, o, ahead(o, now), now))
             })
             .collect();
         list.sort_unstable_by_key(|c| c.slot);
@@ -1090,9 +1102,9 @@ impl Hub {
             _ => &[],
         };
         let (mut b, (mut e, mut ends, mut next)) =
-            (if from.is_empty() { 0 } else { base }, map_diff(from, &list, now, NEAR_TOL_M, NEAR_TOL_H));
+            (if from.is_empty() { 0 } else { base }, map_diff(from, &list, now, NEAR_TOL_M, NEAR_TOL_H, false));
         if e.len() > wire::MAPD_BYTES || ends.len() > 255 {
-            (b, (e, ends, next)) = (0, map_diff(&[], &list, now, NEAR_TOL_M, NEAR_TOL_H));
+            (b, (e, ends, next)) = (0, map_diff(&[], &list, now, NEAR_TOL_M, NEAR_TOL_H, false));
         }
         let mut f = vec![0u8; F_DATA + wire::mapd_len(e.len())];
         f[0] = KIND_UDP;
@@ -1100,7 +1112,7 @@ impl Hub {
         f[8..12].copy_from_slice(&vip.to_be_bytes());
         f[12..14].copy_from_slice(&hub_port.to_be_bytes());
         f[14..16].copy_from_slice(&port.to_be_bytes());
-        wire::write_mapd(&mut f[F_DATA..], wire::MSG_NEARD, self.id, self.seq, req, b, 0, 1, total, ends.len() as u8, &e);
+        wire::write_mapd(&mut f[F_DATA..], wire::MSG_NEARD, self.id, self.seq, req, b, 0, 1, total, ends.len() as u8, 0, &e);
         self.seq = self.seq.wrapping_add(1);
         (self.send)(vip, Bytes::from(f));
         self.st.nears += 1;
@@ -1144,7 +1156,7 @@ impl Hub {
     fn map_room(&self, room: u32, now: f64) -> Vec<MapCand> {
         let mut list:Vec<MapCand>=self.order.iter().filter_map(|&q|{
             let o=self.player(q)?;
-            (o.room==room&&self.map_shown(q,o,now)).then(||map_cand(q,o,ahead(o,now)))
+            (o.room==room&&self.map_shown(q,o,now)).then(||map_cand(q,o,ahead(o,now),now))
         }).collect();
         list.sort_unstable_by_key(|c|c.slot);list
     }
@@ -2440,20 +2452,23 @@ fn ahead(p:&Player,now:f64)->[f64;3]{
     let at=p.p.unwrap_or_default();let dt=(now-p.pos_at).clamp(0.0,MAP_AHEAD_MS)/1000.0;
     [at[0]+p.v[0]*dt,at[1]+p.v[1]*dt,at[2]+p.v[2]*dt]
 }
-fn map_cand(slot:u32,o:&Player,p:[f64;3])->MapCand{
+fn map_cand(slot:u32,o:&Player,p:[f64;3],now:f64)->MapCand{
     let c=|x:f64|(x+0.5).floor().clamp(-32767.0,32767.0) as i16;
     let v=|x:f64|x.round().clamp(-127.0,127.0) as i8;
-    MapCand{slot,id:o.id,p,x:c(p[0]),y:c(p[1]),heading:o.heading,vx:v(o.v[0]),vy:v(o.v[1])}
+    MapCand{slot,id:o.id,p,x:c(p[0]),y:c(p[1]),heading:o.heading,vx:v(o.v[0]),vy:v(o.v[1]),parked:now-o.stay_at>=PARKED_MS}
 }
 fn near_cell(x:f64)->i32{(x/NEAR_CELL_M).floor() as i32}
 
 /// Encode the changes from the browser's held map to the current slot-ordered candidates.
-fn map_diff(from:&[MapSent],list:&[MapCand],now:f64,tol_m:f64,tol_h:u8)->(Vec<u8>,Vec<usize>,Vec<MapSent>){
+fn map_diff(from:&[MapSent],list:&[MapCand],now:f64,tol_m:f64,tol_h:u8,parked:bool)->(Vec<u8>,Vec<usize>,Vec<MapSent>){
     let(mut e,mut ends,mut next)=(Vec::new(),Vec::new(),Vec::with_capacity(list.len()));
+    let pk=|c:&MapCand| parked && c.parked && c.slot < wire::MAPD_PARKED as u32;
     let place=|e:&mut Vec<u8>,c:&MapCand|{
-        e.extend_from_slice(&(c.slot as u16).to_le_bytes());e.extend_from_slice(&c.x.to_le_bytes());e.extend_from_slice(&c.y.to_le_bytes());
+        e.extend_from_slice(&(c.slot as u16 | if pk(c) { wire::MAPD_PARKED } else { 0 }).to_le_bytes());
+        e.extend_from_slice(&c.x.to_le_bytes());e.extend_from_slice(&c.y.to_le_bytes());
         e.extend_from_slice(&[c.heading,c.vx as u8,c.vy as u8]);
-        MapSent{slot:c.slot,id:c.id,x:c.x,y:c.y,heading:c.heading,vx:c.vx,vy:c.vy,t:now}
+        if parked { e.extend_from_slice(&((c.p[2]+0.5).floor().clamp(-32767.0,32767.0) as i16).to_le_bytes()); }
+        MapSent{slot:c.slot,id:c.id,x:c.x,y:c.y,heading:c.heading,vx:c.vx,vy:c.vy,parked:pk(c),t:now}
     };
     let(mut i,mut j)=(0,0);
     while i<from.len()||j<list.len(){
@@ -2463,7 +2478,7 @@ fn map_diff(from:&[MapSent],list:&[MapCand],now:f64,tol_m:f64,tol_h:u8)->(Vec<u8
                 let dt=(now-a.t)/1000.0;
                 let(dx,dy)=(c.x as f64-(a.x as f64+a.vx as f64*dt),c.y as f64-(a.y as f64+a.vy as f64*dt));
                 let dh=c.heading.wrapping_sub(a.heading).min(a.heading.wrapping_sub(c.heading));
-                next.push(if a.id!=c.id||dx*dx+dy*dy>tol_m*tol_m||dh>tol_h{place(&mut e,c)}else{*a});
+                next.push(if a.id!=c.id||dx*dx+dy*dy>tol_m*tol_m||dh>tol_h||a.parked!=pk(c){place(&mut e,c)}else{*a});
                 (i,j)=(i+1,j+1);
             }
             (Some(a),c) if c.is_none_or(|c|a.slot<c.slot)=>{e.extend_from_slice(&(a.slot as u16|wire::MAPD_GONE).to_le_bytes());i+=1;}
