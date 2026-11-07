@@ -63,9 +63,34 @@ function dataLookup(rel: string): DNode | null {
   }
   return cur;
 }
+
+const TUNNEL_TRACKS = new Set([
+  'tracks/l4ra.bun',
+  'tracks/streaml4ra.bun',
+  'tracks/routesl4ra/pathsfreeroam.bin',
+]);
+let tunnelPackReady: boolean | null = null;
+
+/** A partial pack must never mix city, streaming geometry and navigation from different maps. */
+function tunnelOverlayReady(): boolean {
+  if (tunnelPackReady !== null) return tunnelPackReady;
+  const flag = cfg?.env?.NFSU2_OPEN_TUNNEL ?? '';
+  if (!/^(1|on|true)$/i.test(flag)) return (tunnelPackReady = false);
+  tunnelPackReady = [...TUNNEL_TRACKS].every(path => {
+    const node = dataLookup(`MODPACKS/open-tunnel/${path}`);
+    return !!node && !node.dir;
+  });
+  if (!tunnelPackReady) console.warn('[data] Construction Tunnel pack is incomplete; using the original map');
+  return tunnelPackReady;
+}
 /** A file the game opens: a movie's AV1 copy in its place where the page plays AV1 (NFSU2_MOVIE_CODEC = av1,
  *  movie.ts) and the folder has one (tools/movies_av1.py), else the file itself. */
 function dataFile(rel: string): DNode | null {
+  const normalized = rel.replace(/\\\\/g, '/').replace(/^\\/+/, '').replace(/\\/{2,}/g, '/').toLowerCase();
+  if (TUNNEL_TRACKS.has(normalized) && tunnelOverlayReady()) {
+    const overlay = dataLookup(`MODPACKS/open-tunnel/${normalized}`);
+    if (overlay && !overlay.dir) return overlay;
+  }
   const n = dataLookup(rel);
   if (!n || n.dir || cfg.env.NFSU2_MOVIE_CODEC !== 'av1') return n;
   const a = av1Path(n.path);
