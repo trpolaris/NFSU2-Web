@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
+#include <sys/stat.h>
 int fileio_resolve_game(const char *, char *, size_t);
 static int opentunnel_resolve(const char *rel, char *out, size_t cap){
     static const char *const files[] = {
@@ -22,7 +23,8 @@ static int opentunnel_resolve(const char *rel, char *out, size_t cap){
             for (unsigned i = 0; i < 3; ++i){
                 char name[256];
                 snprintf(name, sizeof name, "MODPACKS/open-tunnel/%s", files[i]);
-                if (!fileio_resolve_game(name, paths[i], sizeof paths[i])){
+                struct stat st;
+                if (!fileio_resolve_game(name, paths[i], sizeof paths[i]) || stat(paths[i], &st) != 0 || !S_ISREG(st.st_mode) || st.st_size <= 0){
                     enabled = 0;
                     fprintf(stderr, "[open-tunnel] incomplete pack: using the original map\n");
                     break;
