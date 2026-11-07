@@ -331,7 +331,7 @@ static void t_roundtrip(void){
 
 /* ---- 3. hostile datagrams ----------------------------------------------------------------- */
 static void t_fuzz(long iters){
-    uint8_t b[1600], base[16][RC_MAX_DGRAM]; int bn[16];
+    uint8_t b[1600], base[17][RC_MAX_DGRAM]; int bn[17];
     rc_msg m;
     /* one valid datagram of each type, to mutate */
     for (int t = 1; t <= 16; t++){
@@ -354,6 +354,12 @@ static void t_fuzz(long iters){
                                   m.u.raceres.row[0].done = 2.f; m.u.raceres.row[1].id = 10; m.u.raceres.row[1].done = 1.5f; }
         bn[t - 1] = rc_encode(&m, base[t - 1], RC_MAX_DGRAM);
     }
+    /* MAPD has type 18 because type 17 is used by the TRPOLARIS typed chat bridge. */
+    static const uint8_t me[RC_MAPD_PLACE + 2] = { 3, 0, 10, 0, 20, 0, 64, 5, 0xfb, 4, 0x80 };
+    memset(&m,0,sizeof m);m.h.type=RC_MSG_MAPD;m.h.sender=9;
+    m.u.mapd.req=1;m.u.mapd.base=0;m.u.mapd.part=0;m.u.mapd.nparts=1;m.u.mapd.total=2;m.u.mapd.n=2;
+    m.u.mapd.data=me;m.u.mapd.len=sizeof me;
+    bn[16]=rc_encode(&m,base[16],RC_MAX_DGRAM);
     rc_session s; rc_config cf; memset(&cf, 0, sizeof cf); cf.self_id = 1; cf.port = 1; cf.max_players = 8; cf.rate_hz = 20; cf.test_mode = 1;
     cf.duels = 1; cf.lobbies = 1; cf.say = 1;
     rc_io io = { 0, 0, 0, 0 };
@@ -364,7 +370,7 @@ static void t_fuzz(long iters){
         int kind = (int)(rnd() % 4);
         if (kind == 0){ len = (int)(rnd() % 1300); for (int i = 0; i < len; i++) b[i] = (uint8_t)rnd(); }
         else {
-            int t = (int)(rnd() % 16); len = bn[t]; memcpy(b, base[t], (size_t)len);
+            int t = (int)(rnd() % 17); len = bn[t]; memcpy(b, base[t], (size_t)len);
             int nm = 1 + (int)(rnd() % 6);
             for (int k = 0; k < nm; k++) b[rnd() % (uint32_t)len] = (uint8_t)rnd();
             if (kind == 2) len = (int)(rnd() % (uint32_t)(len + 1));
@@ -1540,11 +1546,44 @@ static void t_say(void){
           "say inbox: %d kept, %u dropped, %d taken", kept, g_n[1].say_dropped, taken);
 }
 
+/* ---- MAPD and minimap wire compatibility ----------------------------------------------- */
+static void t_mapd_codec(void){
+    rc_msg m; uint8_t b[RC_MAX_DGRAM], legacy[RC_MAX_DGRAM];
+    static const uint8_t entries[RC_MAPD_PLACE + 2] = { 3, 0, 10, 0, 20, 0, 64, 5, 0xfb, 4, 0x80 };
+    memset(&m, 0, sizeof m); m.h.type = RC_MSG_MAPD; m.h.sender = 9;
+    m.u.mapd.req = 1; m.u.mapd.base = 0; m.u.mapd.part = 0; m.u.mapd.nparts = 1;
+    m.u.mapd.total = 2; m.u.mapd.n = 2; m.u.mapd.data = entries; m.u.mapd.len = sizeof entries;
+    int n = rc_encode(&m, b, sizeof b);
+    CHECK(n == 16 + 9 + (int)sizeof entries + 4, "MAPD encodes its variable entry payload (%d)", n);
+    CHECK(rc_decode(b, n, &m) == RC_OK && m.h.type == RC_MSG_MAPD, "MAPD decodes");
+    CHECK(m.u.mapd.req == 1 && m.u.mapd.n == 2 && m.u.mapd.len == sizeof entries, "MAPD retains request, count and payload length");
+
+    memset(&m, 0, sizeof m); m.h.type = RC_MSG_NEARREQ; m.h.sender = 9;
+    m.u.nearreq.req = 7; m.u.nearreq.max = RC_NEAR_MAX; m.u.nearreq.base = 3; m.u.nearreq.radius = 350;
+    n = rc_encode(&m, b, sizeof b);
+    CHECK(n == 16 + 8 + 4, "NEARREQ encodes its fixed request");
+    CHECK(rc_decode(b, n, &m) == RC_OK && m.h.type == RC_MSG_NEARREQ, "NEARREQ decodes");
+    CHECK(m.u.nearreq.req == 7 && m.u.nearreq.max == RC_NEAR_MAX && m.u.nearreq.base == 3 && m.u.nearreq.radius == 350,
+          "NEARREQ fields round-trip");
+
+    /* A pre-delta MAPREQ carries only its request number. */
+    memset(&m, 0, sizeof m); m.h.type = RC_MSG_MAPREQ; m.h.sender = 9; m.u.mapreq.req = 11;
+    n = rc_encode(&m, b, sizeof b);
+    memcpy(legacy, b, 18);
+    legacy[6] = 22; legacy[7] = 0;
+    uint32_t crc = rc_crc32(legacy, 18);
+    legacy[18] = (uint8_t)crc; legacy[19] = (uint8_t)(crc >> 8); legacy[20] = (uint8_t)(crc >> 16); legacy[21] = (uint8_t)(crc >> 24);
+    CHECK(rc_decode(legacy, 22, &m) == RC_OK && m.h.type == RC_MSG_MAPREQ, "legacy two-byte MAPREQ still decodes");
+    CHECK(m.u.mapreq.req == 11 && m.u.mapreq.max == RC_MAP_MAX_V1 && m.u.mapreq.base == 0,
+          "legacy MAPREQ receives its version-one defaults");
+}
+
 int main(int argc, char **argv){
     long fuzz = argc > 1 ? atol(argv[1]) : 200000;
     printf("roam_unit: core %d, protocol %d\n", RC_CORE_VER, RC_PROTO_VER);
     t_layout();
     t_roundtrip();
+    t_mapd_codec();
     t_fuzz(fuzz);
     t_session();
     t_review();
@@ -1560,57 +1599,6 @@ int main(int argc, char **argv){
     t_guard();
     printf("roam_unit: %d passed, %d failed\n", g_pass, g_fail);
     return g_fail ? 1 : 0;
-    /* MAPD has type 18 because type 17 is used by the TRPOLARIS typed chat bridge. */
-    static const uint8_t me[RC_MAPD_PLACE + 2] = { 3, 0, 10, 0, 20, 0, 64, 5, 0xfb, 4, 0x80 };
-    memset(&m,0,sizeof m);m.h.type=RC_MSG_MAPD;m.h.sender=9;
-    m.u.mapd.req=1;m.u.mapd.base=0;m.u.mapd.part=0;m.u.mapd.nparts=1;m.u.mapd.total=2;m.u.mapd.n=2;
-    m.u.mapd.data=me;m.u.mapd.len=sizeof me;
-    bn[16]=rc_encode(&m,base[16],RC_MAX_DGRAM);
-    rc_session s; rc_config cf; memset(&cf, 0, sizeof cf); cf.self_id = 1; cf.port = 1; cf.max_players = 8; cf.rate_hz = 20; cf.test_mode = 1;
-    cf.duels = 1; cf.lobbies = 1; cf.say = 1;
-    rc_io io = { 0, 0, 0, 0 };
-    rc_session_init(&s, &cf, &io);
-    long accepted = 0, refused = 0, bad = 0;
-    for (long it = 0; it < iters; it++){
-        int len;
-        int kind = (int)(rnd() % 4);
-        if (kind == 0){ len = (int)(rnd() % 1300); for (int i = 0; i < len; i++) b[i] = (uint8_t)rnd(); }
-        else {
-            int t = (int)(rnd() % 17); len = bn[t]; memcpy(b, base[t], (size_t)len);
-            int nm = 1 + (int)(rnd() % 6);
-            for (int k = 0; k < nm; k++) b[rnd() % (uint32_t)len] = (uint8_t)rnd();
-            if (kind == 2) len = (int)(rnd() % (uint32_t)(len + 1));
-            if (kind == 3){                                    /* keep the CRC valid: field fuzzing past the checksum */
-                if (len >= 20){ uint32_t c = rc_crc32(b, (uint32_t)len - 4); b[6] = (uint8_t)len; b[7] = (uint8_t)(len >> 8);
-                    c = rc_crc32(b, (uint32_t)len - 4); b[len - 4] = (uint8_t)c; b[len - 3] = (uint8_t)(c >> 8); b[len - 2] = (uint8_t)(c >> 16); b[len - 1] = (uint8_t)(c >> 24);
-                    b[0] = 'N'; b[1] = '2'; b[2] = 'F'; b[3] = 'R'; b[4] = 1; }
-            }
-        }
-        int e = rc_decode(b, len, &m);
-        if (e == RC_OK){
-            accepted++;
-            int okk = m.h.len == len && len <= RC_MAX_DGRAM;
-            if (m.h.type == RC_MSG_HELLO) okk = okk && strlen(m.u.hello.name) <= RC_NAME_MAX && m.u.hello.n_seen <= RC_MAX_PEERS;
-            if (m.h.type == RC_MSG_PEERS) okk = okk && m.u.peers.n <= RC_MAX_PEERS;
-            if (m.h.type == RC_MSG_SNAP){ okk = okk && m.u.snap.n >= 1 && m.u.snap.n <= 3;
-                for (int k = 0; k < m.u.snap.n && okk; k++) for (int i = 0; i < 3; i++)
-                    okk = okk && isfinite(m.u.snap.s[k].p[i]) && fabsf(m.u.snap.s[k].p[i]) <= 20000.f; }
-            if (m.h.type == RC_MSG_CFG) okk = okk && m.u.cfg.data >= b && m.u.cfg.data + m.u.cfg.dlen <= b + len - 4;
-            if (m.h.type == RC_MSG_DUEL) okk = okk && m.u.duel.op >= 1 && m.u.duel.op < RC_DUEL__N && m.u.duel.to && m.u.duel.duel;
-            if (m.h.type == RC_MSG_LOBBY){ const rc_lobby *l = &m.u.lobby;
-                okk = okk && l->op >= 1 && l->op < RC_LOBBY__N && l->lobby && l->race && l->max >= 2 && l->max <= RC_LOBBY_MAX && l->n <= l->max;
-                for (int k = 0; k < l->n && okk; k++) okk = l->ids[k] != 0; }
-            if (m.h.type == RC_MSG_LOBBIES) okk = okk && m.u.lobbies.n <= RC_LOBBIES_MAX && m.u.lobbies.data + (size_t)m.u.lobbies.n * RC_LOBBIES_ENTRY <= b + len - 4;
-            if (!okk){ bad++; if (bad < 5) printf("  fuzz: accepted datagram breaks an invariant (type %d)\n", m.h.type); }
-        } else refused++;
-        /* and through a session (state machine, reassembly) */
-        rc_receive(&s, 0x7f000001u + (rnd() % 4u), (uint16_t)(1 + rnd() % 3), b, len, it * 1000);
-        if (it % 1000 == 0) rc_tick(&s, it * 1000);
-    }
-    CHECK(bad == 0, "fuzz: %ld accepted datagrams break invariants", bad);
-    CHECK(s.n_duel_in == 0, "fuzz: no DUEL from a stranger reaches the game (%d)", s.n_duel_in);
-    CHECK(s.n_lobby_in == 0 && s.lobbies_gen == 0, "fuzz: no LOBBY from a stranger, no LOBBIES from a non-hub (%d, %u)", s.n_lobby_in, s.lobbies_gen);
-    CHECK(s.n_say_in == 0, "fuzz: no SAY from a stranger reaches the game (%d)", s.n_say_in);
-    printf("  fuzz: %ld datagrams, %ld accepted, %ld refused, session rx %u bad %u policy %u\n", iters, accepted, refused, s.rx, s.rx_bad, s.rx_policy);
+
 }
 }
