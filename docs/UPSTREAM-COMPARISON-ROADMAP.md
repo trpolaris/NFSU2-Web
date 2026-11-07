@@ -206,9 +206,9 @@ TRPOLARIS Minimap prototipinde:
 
 | Dal / çalışma | Son görünen durum | Yorum |
 |---|---|---|
-| PR #21 Multiplayer & Regression CI, code snapshot `6c0f3ffe` | [Çalışıyor](https://github.com/trpolaris/NFSU2-Web/actions/runs/42373606320) | MODPACKS/native runtime syntax, TypeScript, web build ve Cargo.lock geçti; Rust workspace testleri sürüyor. Ardından yeni crowd script'i commit'i `243b7a4d` için ayrı run açıldı. |
+| PR #21 Multiplayer & Regression CI, code snapshot `0ba914d6` | [Çalışıyor](https://github.com/trpolaris/NFSU2-Web/actions/runs/42373978697) · [duplicate run](https://github.com/trpolaris/NFSU2-Web/actions/runs/42373974309) | Current HEAD native runtime syntax, TypeScript, web build ve Cargo.lock geçti; Rust workspace testleri çalışıyor. |
 | PR #21 Multiplayer & Regression CI, code snapshot `243b7a4d` | [Beklemede/çalışıyor](https://github.com/trpolaris/NFSU2-Web/actions/runs/42373691932) | Car Meet crowd script'i dahil son HEAD'in native syntax, Rust, protocol ve web regresyonlarını doğrulayacak. |
-| PR #21 image-rs, code snapshot `243b7a4d` | [Çalışıyor](https://github.com/trpolaris/NFSU2-Web/actions/runs/42373691806) | Container image build bu exact HEAD için sürüyor. |
+| PR #21 image-rs, code snapshot `0ba914d6` | [Başarılı](https://github.com/trpolaris/NFSU2-Web/actions/runs/42373978772) | Container image build bu exact HEAD üzerinde geçti; Multiplayer testleri ayrı takip ediliyor. |
 | World Map MAPD ve Minimap NEARD | Ayrı çalışma dallarından seçici port edildi | Bu eski dal CI kayıtları PR #21'in güncel HEAD testlerinin yerine geçmez. |
 
 Daha eski ara commit'lerde TypeScript, web build, Cargo.lock, Rust testleri, GPS native C testleri, mailbox layout kontrolü ve sentetik Online yük testi gibi adımların geçtiği kayıtlar bulunabilir. Ancak **eski commit'in yeşil olması yeni HEAD'in de yeşil olduğu anlamına gelmez.** Sonuçlar daima ilgili dalın son commit'i ve o commit'e ait Actions run üzerinden okunmalıdır.
