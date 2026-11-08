@@ -441,7 +441,7 @@ fn lookalike(ch: char) -> char {
 /// `\p{M}`: a mark (Mn, Mc, Me), including the Unicode 17 marks missing from our Unicode 16 category table.
 fn is_mark(ch: char) -> bool {
     matches!(get_general_category(ch), GeneralCategory::NonspacingMark | GeneralCategory::SpacingMark | GeneralCategory::EnclosingMark)
-        || matches!(ch as u32, 0x10EFA..=0x10EFF | 0x1E6E3 | 0x1E6E6 | 0x1E6EE..=0x1E6EF | 0x1E6F5)
+        || matches!(ch as u32, 0x10EFA..=0x10EFF | 0x1ACF..=0x1ADD | 0x1E6E3 | 0x1E6E6 | 0x1E6EE..=0x1E6EF | 0x1E6F5)
 }
 
 /// A character still unassigned by Node 24's Unicode 17 ICU data. Our general-category crate is Unicode 16,
@@ -451,7 +451,7 @@ fn unknown(ch: char) -> bool {
     let cp = ch as u32;
     let assigned_in_17 = matches!(
         cp,
-        0x10EC2..=0x10EC7 | 0x10ED0..=0x10ED8 | 0x10EFA..=0x10EFF
+        0x10EC2..=0x10EC7 | 0x10ED0..=0x10ED8 | 0x10EFA..=0x10EFF | 0x1ACF..=0x1ADD
             | 0x1E6C0..=0x1E6DE | 0x1E6E0..=0x1E6F5 | 0x1E6FE..=0x1E6FF
     );
     !ch.is_ascii() && get_general_category(ch) == GeneralCategory::Unassigned && !assigned_in_17

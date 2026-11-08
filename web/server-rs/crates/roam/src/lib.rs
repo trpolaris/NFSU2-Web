@@ -536,13 +536,7 @@ mod tests {
         assert_eq!(track_room(0x1234_5678, 4301), 942_920_901);
         assert_eq!(track_room(0xFFFF_FFFF, 4201), 2_745_435_750);
         let world = 0xBEEF_0002;
-        let counts = HashMap::from([
-            (0, 5),
-            (track_room(0, 4711), 2),
-            (track_room(0, 4605), 1),
-            (world, 3),
-            (track_room(world, 4311), 4),
-        ]);
+        let counts = HashMap::from([(0, 5), (track_room(0, 4711), 2), (track_room(0, 4605), 1), (world, 3), (track_room(world, 4311), 4)]);
         assert_eq!(world_count(&counts, 0), 8);
         assert_eq!(world_count(&counts, world), 7);
         assert_eq!(world_count(&counts, 0xBEEF_0003), 0);
