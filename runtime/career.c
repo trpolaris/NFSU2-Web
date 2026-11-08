@@ -304,24 +304,6 @@ static uint32_t outrun_car(uint32_t k){   /* k = 0: the nearest one on the map *
 static int outrun_start(uint32_t k, int quiet){
     uint32_t race = MR32(G_RACE), car = outrun_car(k), p = MR32(G_PLAYER1);
     long f = autotest_frame();
-    if (!strcasecmp(cmd, "mpcredit")){
-        if (!a1[0] || a3[0]){
-            fprintf(stderr, "[career] f=%ld mpcredit: usage NAME[,NAME...] [MARGIN] (a career race name; optional margin below 0 uses the minimum)\\n", f);
-            return 1;
-        }
-        float margin = -1.f;
-        if (a2[0]){
-            char *end = 0;
-            margin = strtof(a2, &end);
-            if (end == a2 || *end || !isfinite(margin)){
-                fprintf(stderr, "[career] f=%ld mpcredit: invalid margin %s\\n", f, a2);
-                return 1;
-            }
-        }
-        int count = mpcredit_test(a1, margin);
-        fprintf(stderr, "[career] f=%ld mpcredit: processed %d race(s), margin %.2f\\n", f, count, (double)margin);
-        return 1;
-    }
     if (!race || !player1_ok() || MR32(race) != RCSTATE_RACING || MR32(race + 0x24u) != 1 || MR32(G_RACETYPE)){
         fprintf(stderr, "[career] f=%ld outrun: not in free roam\n", f); return -1; }
     if (!car){ if (!quiet) fprintf(stderr, "[career] f=%ld outrun: no tuner on the map (slot %u)\n", f, k); return 0; }
@@ -1025,6 +1007,24 @@ int career_cmd(CPU *c, const char *line, long *wait_start){
     const char *rest = line + used;
     sscanf(rest, "%63s %63s %199s", a1, a2, a3);
     long f = autotest_frame();
+    if (!strcasecmp(cmd, "mpcredit")){
+        if (!a1[0] || a3[0]){
+            fprintf(stderr, "[career] f=%ld mpcredit: usage NAME[,NAME...] [MARGIN] (a career race name; optional margin below 0 uses the minimum)\n", f);
+            return 1;
+        }
+        float margin = -1.f;
+        if (a2[0]){
+            char *end = 0;
+            margin = strtof(a2, &end);
+            if (end == a2 || *end || !isfinite(margin)){
+                fprintf(stderr, "[career] f=%ld mpcredit: invalid margin %s\n", f, a2);
+                return 1;
+            }
+        }
+        int count = mpcredit_test(a1, margin);
+        fprintf(stderr, "[career] f=%ld mpcredit: processed %d race(s), margin %.2f\n", f, count, (double)margin);
+        return 1;
+    }
     if (!strcasecmp(cmd, "autopilot") && !strncasecmp(a1, "on", 2) && a2[0]){
         /* "autopilot on TMO": wait (up to TMO frames) for a human driver in
          * player 1's car; the AI is handed the car in the main loop after */
