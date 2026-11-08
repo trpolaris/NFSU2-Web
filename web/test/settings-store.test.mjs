@@ -71,7 +71,7 @@ test('the save owner creates a missing template and upgrades an older settings f
   assert.equal(fresh.text, null);
   assert.match(logs.join('\n'), /wrote template \/save\/settings\.ini/);
 
-  const firstLine = TEMPLATE.slice(0, TEMPLATE.indexOf('\\n'));
+  const firstLine = TEMPLATE.slice(0, TEMPLATE.indexOf('\n'));
 
   const oldText = firstLine + '\nlanguage = turkish\n';
   const oldDisk = memoryFiles(oldText);
