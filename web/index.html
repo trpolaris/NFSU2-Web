@@ -281,6 +281,10 @@
           <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.5 3.8 5.5 3.8 9S14.5 18.5 12 21M12 3C9.5 5.5 8.2 8.5 8.2 12s1.3 6.5 3.8 9"/></svg>
           <span class="menu-tab-copy"><b data-i18n>World</b><small data-i18n>Choose your Free Roam world</small></span><small class="menu-tab-number">›</small>
         </button>
+        <button type="button" class="menu-tab hover-glow-cyan" data-menu-tab="tracks" aria-pressed="false" hidden>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 16.5 7 6h10l3 10.5M7 6l5 12 5-12M3 17h18"/></svg>
+          <span class="menu-tab-copy"><b data-i18n>Tracks</b><small data-i18n>Race tracks and player counts</small></span><small class="menu-tab-number">›</small>
+        </button>
         <button type="button" class="menu-tab hover-glow-amber" data-menu-tab="radio" aria-pressed="false">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16v13H4zM4 7l13-4M8 11h8M8 15h3"/><circle cx="17" cy="15" r="1.5"/></svg>
           <span class="menu-tab-copy"><b>Müzik sistemi</b><small>Radyo ve oynatma</small></span><small class="menu-tab-number">›</small>
@@ -433,6 +437,16 @@
             </div>
           </div>
           <p class="menu-inline-note" id="menu-world-status" role="status" aria-live="polite" data-i18n>World changes apply to the running game and are saved for the next Play.</p>
+        </section>
+
+        <section class="menu-page" data-menu-page="tracks" hidden>
+          <div class="menu-page-title">
+            <span class="menu-section-label" data-i18n>06 / FREE ROAM</span>
+            <h4 data-i18n>Race tracks</h4>
+            <p class="hint" data-i18n>Travel to a race track's own free-roam map. Each spot has its own player room.</p>
+          </div>
+          <div class="menu-controls-grid" id="menu-tracks-box" aria-live="polite"></div>
+          <p class="menu-inline-note" id="menu-tracks-note" role="status" aria-live="polite" hidden></p>
         </section>
 
         <section class="menu-page" data-menu-page="radio" hidden>

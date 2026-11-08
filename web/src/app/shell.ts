@@ -47,7 +47,7 @@ import { turnOnAutosave } from './profile';
 import { crewControl, showCrewCounts } from './crew-control';
 import { putKey, SettingsService } from './settings-service';
 import { SettingsFile } from './settings-store';
-import { askCrews, askWorlds, queueText, roomHash, serverAnswers, watchPlayers, type PlayerCounts } from './players';
+import { askCrews, askSpots, askWorlds, queueText, roomHash, serverAnswers, watchPlayers, type PlayerCounts } from './players';
 import { isOwn, noGhost, WORLDS, worldName, worldRooms } from './worlds';
 import { checkCrew, CREW_MAX, crewList, crewsOf, crewsValue, rgbsValue, rgbWords, type Crew } from './crews';
 import { queueCrewInvite, removeCrewInvite, type PendingCrewInvite } from './crew-invite-queue';
@@ -55,7 +55,8 @@ import { privacy, SCRUB_NOTE } from './privacy';
 import { SavesPanel } from './saves-ui';
 import { saveScreenshot } from './shots';
 import { forgetLink, VaultPanel } from './vault-ui';
-import { FriendsApi, FriendsPanel } from './friends';
+import { FriendsApi, FriendsPanel, type FriendRow } from './friends';
+import { atName, friendSpot, SAID_LOCKED, SAID_NOT_FOUND, SAID_NOT_NOW, TRACKS, trackRooms, travelSaid, travelState, whyText, WHY_COOP } from './tracks';
 import { FriendPrompt } from './friend-prompt';
 import { Radio, MODES, radioWasOn, type Mode } from '../radio';
 import { canPickMusic, pickMusic } from '../radio-folder';
@@ -154,6 +155,8 @@ let solidCars: boolean | null = null;    // the running game's free roam has sol
 let liveWorld: string | null = null;     // the running game's Free Roam world; null outside Free Roam
 let menuWorldCounts = new Map<number, number>();
 let menuWorldAsk = 0;
+let menuTrackCounts = new Map<number, number>();
+let menuTrackAsk = 0;
 let roamCrews: Crew[] | null = null;     // the running game's crews: as it started, then as the menu changed them (null: no free roam)
 let crewDraft = '';                      // the crew name being typed in the menu
 let pendingCrewInvites: PendingCrewInvite[] = []; // up to four invites wait here until accepted, declined or this game ends
@@ -993,7 +996,9 @@ function onExit(s: GameSession, code: number) {
   session = null;
   liveWorld = null;
   menuWorldAsk++;
+  menuTrackAsk++;
   menuWorldCounts = new Map();
+  menuTrackCounts = new Map();
   quitAt = null;
   lastExit = { code, seconds };
   endStage();
@@ -1350,6 +1355,8 @@ function openMenu() {
   crews.textContent = crewsLabel();
   const worldsTab = m.querySelector<HTMLButtonElement>('[data-menu-tab="worlds"]');
   if (worldsTab) worldsTab.hidden = liveWorld === null || !session?.net?.room;
+  const tracksTab = m.querySelector<HTMLButtonElement>('[data-menu-tab="tracks"]');
+  if (tracksTab) tracksTab.hidden = !travelNow();
   m.querySelector<HTMLButtonElement>('[data-act="quit"]')!.textContent = quitLabel();
   showRadio(m);
   syncChatMenuAppearance();
@@ -1364,7 +1371,8 @@ function openMenu() {
   $('#stage').classList.add('cursor');
   void friendsPanel.refresh();
   const activeTab = m.dataset.activeTab || 'chat';
-  selectMenuTab(activeTab === 'worlds' && (liveWorld === null || !session?.net?.room) ? 'multiplayer' : activeTab);
+  selectMenuTab(activeTab === 'worlds' && (liveWorld === null || !session?.net?.room) ? 'multiplayer'
+    : activeTab === 'tracks' && !travelNow() ? 'multiplayer' : activeTab);
   m.showModal();
 }
 /** Switch the F9 control deck between real, native game features. */
@@ -1386,6 +1394,97 @@ function selectMenuTab(name: string) {
     drawMenuWorlds();
     void refreshMenuWorldCounts();
   }
+  if (name === 'tracks') {
+    drawMenuTracks();
+    void refreshMenuTrackCounts();
+  }
+}
+
+/** The game's travel state exists only when a compatible career runtime has attached the Tracks feature. */
+const travelNow = () => (session?.input?.travel ? travelState(session.status?.read()?.get('travel')) : null);
+function openTracks() {
+  if (!travelNow()) return;
+  const menu = $<HTMLDialogElement>('#menu');
+  if (!menu.open) openMenu();
+  selectMenuTab('tracks');
+  const box = $('#menu-tracks-box');
+  (box.querySelector<HTMLElement>('[aria-current="true"]') ?? box.querySelector<HTMLElement>('button:not(:disabled)'))?.focus();
+}
+function drawMenuTracks() {
+  const box = $('#menu-tracks-box'), note = $('#menu-tracks-note');
+  const state = travelNow();
+  box.replaceChildren();
+  if (!state) { note.hidden = true; return; }
+  const { at, why } = state;
+  note.textContent = whyText(why);
+  note.hidden = !why;
+  if (at) {
+    const card = document.createElement('div');
+    card.className = 'menu-control-card';
+    const heading = document.createElement('h5'); heading.textContent = t('Back to the city');
+    const detail = document.createElement('p'); detail.className = 'hint'; detail.textContent = t('Return to Bayview city free roam.');
+    const action = document.createElement('button'); action.type = 'button'; action.className = 'btn menu-action';
+    action.textContent = t('Back to the city');
+    action.disabled = !!why && why !== WHY_COOP;
+    action.onclick = () => travelTo(0);
+    card.append(heading, detail, action); box.append(card);
+  }
+  TRACKS.forEach((spot, i) => {
+    const card = document.createElement('div'); card.className = 'menu-control-card';
+    const heading = document.createElement('h5'); heading.textContent = t(spot.name);
+    const count = menuTrackCounts.get(trackRooms(roomHash(liveWorld ?? ''))[i]);
+    const detail = document.createElement('p'); detail.className = 'hint';
+    detail.textContent = count === undefined ? t('Player count unavailable') : t('{n} in free roam', { n: count });
+    const action = document.createElement('button'); action.type = 'button'; action.className = 'btn menu-action';
+    const selected = at === i + 1;
+    action.textContent = selected ? t('Current track') : t('Go to track');
+    action.disabled = selected || !!why;
+    action.setAttribute('aria-pressed', String(selected));
+    action.onclick = () => travelTo(i + 1);
+    card.append(heading, detail, action); box.append(card);
+  });
+}
+async function refreshMenuTrackCounts() {
+  const game = session, ask = ++menuTrackAsk, world = liveWorld;
+  if (!game?.net?.room || world === null || offline) return;
+  const hashes = trackRooms(roomHash(world));
+  const counts = await askSpots(hashes, 5000);
+  if (!counts || ask !== menuTrackAsk || session !== game || liveWorld !== world ||
+      !$<HTMLDialogElement>('#menu').open || $('#menu').dataset.activeTab !== 'tracks') return;
+  menuTrackCounts = counts;
+  drawMenuTracks();
+}
+function travelTo(spot: number) {
+  const state = travelNow(), game = session, menu = $<HTMLDialogElement>('#menu');
+  if (!state || !game?.input?.travel || state.at === spot || (state.why && !(spot === 0 && state.why === WHY_COOP))) return;
+  menu.close();
+  log.add(`[app] Tracks: ${spot ? TRACKS[spot - 1].name : 'back to the city'}`);
+  game.input.travel(spot);
+}
+async function joinFriend(friend: FriendRow) {
+  const game = session;
+  if (!game?.input?.travelFriend || !travelNow() || friend.where !== 'roam' || typeof friend.at !== 'number') return;
+  if (friend.room !== undefined && roomHash(friend.room) !== roomHash(liveWorld ?? '')) {
+    await switchMenuWorld(friend.room);
+    if (session !== game || roomHash(friend.room) !== roomHash(liveWorld ?? '')) return;
+  }
+  const before = travelSaid(game.status?.read()?.get('travel_said'), -1)?.n ?? 0;
+  if (game.input.travelFriend(roomHash(friend.name), friendSpot(friend.room, friend.at))) {
+    $<HTMLDialogElement>('#menu').close();
+    watchFriendTravel(friend.name, before);
+  }
+}
+function watchFriendTravel(name: string, before: number) {
+  const game = session, until = performance.now() + 60000;
+  const timer = window.setInterval(() => {
+    const said = travelSaid(game?.status?.read()?.get('travel_said'), before);
+    if (!said && session === game && performance.now() < until) return;
+    window.clearInterval(timer);
+    if (!said || session !== game) return;
+    if (said.what === SAID_LOCKED) toast(t('{name} is in a part of the city your career has not opened yet.', { name }), 5000);
+    else if (said.what === SAID_NOT_FOUND) toast(t('{name} could not be found in free roam.', { name }), 5000);
+    else if (said.what === SAID_NOT_NOW && whyText(said.why)) toast(whyText(said.why), 5000);
+  }, 250);
 }
 
 /** Draw the F9 World page using the game's live Free Roam room. */
@@ -1691,6 +1790,7 @@ async function menuAction(act: string) {
       break;
     }
     case 'crews': openCrews(); break;
+    case 'tracks': openTracks(); break;
     case 'world-own-save': {
       const input = $<HTMLInputElement>('#menu-own-world');
       await switchMenuWorld(input.value);
@@ -2133,7 +2233,8 @@ export async function boot() {
   };
   window.dispatchEvent(new Event('trp-vault-ready'));
   const friendsApi = new FriendsApi(() => vault ? vault.token() : Promise.resolve(null));
-  friendsPanel = new FriendsPanel($('#friends-panel'), friendsApi, logLine, () => resolved().env.NFSU2_ROAM_ROOM ?? '');
+  friendsPanel = new FriendsPanel($('#friends-panel'), friendsApi, logLine, () => resolved().env.NFSU2_ROAM_ROOM ?? '',
+    friend => void joinFriend(friend), () => !!session?.input?.travelFriend && !!travelNow());
   friendPrompt = new FriendPrompt($('#stage'), { api: friendsApi, friendKey: () => { const key = resolved().env.NFSU2_KEY_FRIEND; return !key ? 'KeyF' : key.toLowerCase() === 'off' ? null : key; }, toast, log: logLine, refresh: () => { void friendsPanel.refresh(true); } });
   Object.assign(window, {
     __trpFriendsBridge: {

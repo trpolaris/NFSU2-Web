@@ -101,7 +101,7 @@ export class FriendsPanel {
   private filter = '';
   private page = 0;
 
-  constructor(private root: HTMLElement, private api: FriendsApi, private log: (line: string) => void, private room: () => string = () => '', private join?: (friend: FriendRow) => void) {
+  constructor(private root: HTMLElement, private api: FriendsApi, private log: (line: string) => void, private room: () => string = () => '', private join?: (friend: FriendRow) => void, private canJoin: () => boolean = () => true) {
     root.classList.add('menu-friends-panel');
     root.innerHTML = `
       <div class="friends-panel-head">
@@ -397,7 +397,7 @@ export class FriendsPanel {
         ? [f.room ? `Free Roam · ${f.room}` : 'Free Roam', spot].filter(Boolean).join(' · ')
         : f.where === 'online' ? 'Online lobisi' : 'Çevrimdışı';
       const actions = [this.action('remove', f.name, 'Kaldır'), this.action('block', f.name, 'Engelle')];
-      if (this.join && f.where === 'roam' && typeof f.at === 'number') {
+      if (this.join && this.canJoin() && f.where === 'roam' && typeof f.at === 'number') {
         const join = el('button', 'friends-row-action', 'Katıl'); join.type = 'button'; join.dataset.friendJoin = f.name; actions.unshift(join);
       }
       list.append(this.item(f.name, state, actions));
