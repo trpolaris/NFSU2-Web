@@ -21,7 +21,7 @@ export type NameKind = 'you' | 'profile' | 'crew' | 'room' | 'player';
 const RANK: Record<NameKind, number> = { you: 0, profile: 1, crew: 2, room: 3, player: 4 };
 /** what the game prints for nobody in particular, and NAME, which hundreds of players keep as their name */
 const NOBODY = new Set(['Player', 'A player', 'a player', 'a friend', 'you', '?', 'NAME']);
-const SALT_KEY = 'nfsu2.logsalt';
+import { localStore, LOG_SALT } from './prefs';
 
 /** "[4!] " before a game thread's line */
 const THREAD = /^\[\d+!\] /;
@@ -102,8 +102,8 @@ function hash4(salt: string, s: string): string {
 function browserSalt(): string {
   const fresh = () => Array.from(crypto.getRandomValues(new Uint8Array(12)), b => b.toString(16).padStart(2, '0')).join('');
   try {
-    let s = localStorage.getItem(SALT_KEY);
-    if (!s) { s = fresh(); localStorage.setItem(SALT_KEY, s); }
+    let s = localStore.get(LOG_SALT);
+    if (!s) { s = fresh(); localStore.set(LOG_SALT, s); }
     return s;
   } catch { return fresh(); }      // storage off: the stand-ins hold for this page only
 }

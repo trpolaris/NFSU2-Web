@@ -356,13 +356,14 @@ export function describeMap(m: WheelMap, hat: number): string {
     (m.learned ? 'set up by the player' : m.placed ? `the model's own (axes placed by ${m.placed})` : 'guessed');
 }
 
+import { localStore, SHIFTER, WHEEL } from '../app/prefs';
+
 // ---- the player's set-up, kept in this browser per model ------------------------------------------------------
-const KEY = 'nfsu2.wheel.', SHIFTER_KEY = 'nfsu2.shifter.';
 /** a model's part of the keys: its USB ids, or its name where the browser gives none */
 const modelKey = (id: string) => { const u = usbIds(id); return u ? `${u.vendor}:${u.product}` : id.slice(0, 80); };
 /** the key a wheel's set-up is kept under */
 export function wheelKey(id: string): string {
-  return KEY + modelKey(id);
+  return WHEEL + modelKey(id);
 }
 /** Restore the player's steering and pedal set-up; external pedals are kept only while connected. */
 export function withSetUp(guess: WheelMap, kept: WheelMap, has: (id: string) => boolean = () => true): WheelMap {
@@ -378,18 +379,18 @@ const shifterPicks = new Map<string, ShifterMode>();
 /** what the player picked for the model's shifter (default push-up) */
 export function loadShifter(id: string): ShifterMode {
   let v: string | null | undefined = shifterPicks.get(modelKey(id));
-  try { v ??= localStorage.getItem(SHIFTER_KEY + modelKey(id)); } catch { /* storage off */ }
+  try { v ??= localStore.get(SHIFTER + modelKey(id)); } catch { /* storage off */ }
   return SHIFTER_MODES.find(m => m === v) ?? 'push-up';
 }
 /** keep the player's pick for the model's shifter; gamepad.ts reads it again on the event */
 export function saveShifter(id: string, mode: ShifterMode) {
   shifterPicks.set(modelKey(id), mode);
-  try { localStorage.setItem(SHIFTER_KEY + modelKey(id), mode); } catch { /* storage off: for this page only */ }
+  try { localStore.set(SHIFTER + modelKey(id), mode); } catch { /* storage off: for this page only */ }
   dispatchEvent(new Event(WHEEL_MAP_EVENT));
 }
 export function loadMap(id: string): WheelMap | null {
   try {
-    const m = JSON.parse(localStorage.getItem(wheelKey(id)) ?? 'null') as WheelMap | null;
+    const m = localStore.getJSON(wheelKey(id)) as WheelMap | null;
     const ok = (p: Pedal | null) => p === null || (Number.isInteger(p.axis) && p.axis >= 0 && isFinite(p.rest) && isFinite(p.full) && (p.pad === undefined || (typeof p.pad === 'string' && p.pad.length > 0 && p.pad.length <= 128)));
     return m && Number.isInteger(m.steer) && isFinite(m.centre) && isFinite(m.lock) && m.lock !== 0 && ok(m.gas) && ok(m.brake) &&
       Array.isArray(m.buttons) ? m : null;
@@ -397,7 +398,7 @@ export function loadMap(id: string): WheelMap | null {
 }
 /** keep the player's set-up (null: back to the guess); gamepad.ts reads it again on the event */
 export function saveMap(id: string, m: WheelMap | null) {
-  try { if (m) localStorage.setItem(wheelKey(id), JSON.stringify(m)); else localStorage.removeItem(wheelKey(id)); }
+  try { if (m) localStore.setJSON(wheelKey(id), m); else localStore.remove(wheelKey(id)); }
   catch { /* storage off: the guess stays */ }
   dispatchEvent(new Event(WHEEL_MAP_EVENT));
 }
