@@ -107,7 +107,7 @@ static uint32_t player_car(void){
 static uint32_t gcall_main(CPU *c, uint32_t fn, uint32_t ecx, unsigned n, const uint32_t *args){
     CPU save = *c;
     c->esp = (c->esp - 512u) & ~15u;
-    for (int i = (int)n - 1; i >= 0; i--) PUSH32(c, args[i]);
+    for (int i = (int)n - 1; i >= 0; i--) PUSH32(args[i]);
     c->ecx = ecx;
     PUSH32(c, MAINLOOP_RET);
     dispatch_indirect(c, fn);
