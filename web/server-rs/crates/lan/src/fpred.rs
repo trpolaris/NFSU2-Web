@@ -209,11 +209,11 @@ pub fn write(v: &Fields, out: &mut Vec<u8>) -> bool {
     for i in 0..3 {
         out.extend_from_slice(&((v[V + i] as f64 / 100.0) as f32).to_le_bytes());
     }
-    for i in Q..Q + 4 {
-        out.extend_from_slice(&(v[i] as i16).to_le_bytes());
+    for value in &v[Q..Q + 4] {
+        out.extend_from_slice(&(*value as i16).to_le_bytes());
     }
-    for i in W..W + 3 {
-        out.extend_from_slice(&(v[i] as i16).to_le_bytes());
+    for value in &v[W..W + 3] {
+        out.extend_from_slice(&(*value as i16).to_le_bytes());
     }
     out.extend_from_slice(&(v[STEER] as i16).to_le_bytes());
     out.extend_from_slice(&[v[THR] as u8, v[BRK] as u8]);
@@ -223,8 +223,8 @@ pub fn write(v: &Fields, out: &mut Vec<u8>) -> bool {
     if v[FLAGS] & HF_STATEX != 0 {
         out.push(x as u8);
         if let Some((hyd, slip, eng)) = groups {
-            for i in WZ..WZ + 4 {
-                out.extend_from_slice(&(v[i] as i16).to_le_bytes());
+            for value in &v[WZ..WZ + 4] {
+                out.extend_from_slice(&(*value as i16).to_le_bytes());
             }
             out.push(v[NOS] as u8);
             if hyd {

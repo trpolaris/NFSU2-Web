@@ -110,6 +110,8 @@ const NONE: u32 = u32::MAX;
 
 /// a race lobby a player hosts (roam_core.h RC_MSG_LOBBY, an advert to the hub): its id, the race, where it starts,
 /// its players (n, the host first), the most it takes and its state
+type LobbyAdvert = (i16, i16, u32, u8, u8, u8);
+
 #[derive(Clone, Copy, Debug)]
 struct HubLobby {
     id: u32,
@@ -1514,7 +1516,7 @@ impl Hub {
             return;
         }
         let (room, at) = (p.room, p.p.unwrap_or_default());
-        let mut near: Vec<(u64, (i16, i16, u32, u8, u8, u8))> = Vec::new();
+        let mut near: Vec<(u64, LobbyAdvert)> = Vec::new();
         for &q in &self.order {
             let Some(o) = self.player(q) else { continue };
             let Some((l, t)) = o.lobby else { continue };
@@ -1529,7 +1531,7 @@ impl Hub {
         }
         near.sort_by_key(|e| e.0);
         near.truncate(wire::LOBBIES_MAX);
-        let list: Vec<(i16, i16, u32, u8, u8, u8)> = near.into_iter().map(|e| e.1).collect();
+        let list: Vec<LobbyAdvert> = near.into_iter().map(|e| e.1).collect();
         let (vip, port, hub_port) = (p.vip, p.port, p.hub_port);
         let mut f = vec![0u8; F_DATA + wire::lobbies_len(list.len())];
         f[0] = KIND_UDP;
@@ -2506,10 +2508,8 @@ fn link_many(slots: &[Option<Player>], list: &[u32], w: &Weigh, s: &mut Scratch)
         }
         near_a.push(n);
         let mut n = Near::from(grid, view[i], i as u32, found.pop().unwrap_or_default());
-        if view[i] != soon[i] {
-            if let Some((d, j)) = n.next(grid, soon) {
-                heap.push(Cand::by(d, i as u32, j, WALK_VIEW));
-            }
+        if view[i] != soon[i] && let Some((d, j)) = n.next(grid, soon) {
+            heap.push(Cand::by(d, i as u32, j, WALK_VIEW));
         }
         near_v.push(n);
     }

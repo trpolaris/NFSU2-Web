@@ -1240,12 +1240,25 @@ static int jdlz_native(uint32_t blk, uint32_t out){
         if (f1 == 1u){ if (!left || s >= s_end) return 0; f1 = (uint32_t)*s++ | 0x100u; left--; }
         if (f2 == 1u){ if (!left || s >= s_end) return 0; f2 = (uint32_t)*s++ | 0x100u; left--; }
     }
-    return 1;
+    return o == end;                                    /* accept only a complete output */
 }
 void sub_00574670(CPU *restrict c){
     static int verify = -1;
     if (verify < 0){ const char *e = getenv("NFSU2_JDLZ_VERIFY"); verify = e && *e == '1'; }
     uint32_t e = c->esp, blk = MR32(e + 4u), out = MR32(e + 8u);
+    /* The streamer allocates its entry's size (+0xC), not a compressed block's claimed output size (+8). */
+    if (blk && out && MR32(e) == 0x0048d095u && mem_is_committed(c->esi + 0xcu) &&
+        mem_is_committed(blk) && mem_is_committed(blk + 15u) && MR32(blk) == JDLZ_TAG) {
+        uint32_t entry = MR32(c->esi + 0xcu), declared = MR32(blk + 8u);
+        if (declared > entry) {
+            if (range_committed(out, entry)) memset(&MR8(out), 0, entry);
+            static unsigned said;
+            if (said++ < 16)
+                fprintf(stderr, "[jdlz] f=%ld block 0x%08x says %u unpacked, streamer entry is %u: refused\\n",
+                        autotest_frame(), blk, declared, entry);
+            c->eax = 0; POP32(c->eip); return;
+        }
+    }
     if (blk && out && mem_is_committed(blk) && mem_is_committed(blk + 15u) && MR32(blk) == JDLZ_TAG && MR8(blk + 4u) == 2){
         uint32_t size = MR32(blk + 8u);
         if (!verify){
