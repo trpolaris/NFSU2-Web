@@ -486,6 +486,9 @@ static void lifecycle_poll(void){
 int mprace_owns_input(void);
 void sms_request(int id);
 void photo_input(int cmd, int a, int b);                 /* photo.c */
+/* Strong definitions from the optional career travel module override these safe defaults. */
+__attribute__((weak)) void travel_ask(int where){ (void)where; }
+__attribute__((weak)) void travel_ask_friend(uint32_t name, int spot){ (void)name; (void)spot; }
 static int g_muted;
 static void handle(const InEv *e){
     int mute = mprace_owns_input();
@@ -526,6 +529,8 @@ static void handle(const InEv *e){
     case IEV_LOG: watchdog_log_download(); break;
     case IEV_SMS: sms_request(e->a); break;
     case IEV_PHOTO: photo_input(e->dik, e->a, e->b); break;
+    case IEV_TRAVEL: travel_ask(e->a); break;
+    case IEV_TRAVEL_FRIEND: travel_ask_friend((uint32_t)e->a, e->b); break;
     default: break;
     }
 }

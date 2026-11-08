@@ -85,6 +85,8 @@ enum {
     IEV_LOG = 12,         /* Download log: how long ago the last frame was, a stall report if long (watchdog.c) */
     IEV_SMS = 13,         /* a = a text message of ours for the game's phone (sms.c) */
     IEV_PHOTO = 14,       /* photo mode (photo.c): dik = what (PH_*), a, b its values */
+    IEV_TRAVEL = 17,      /* career Free Roam Tracks: a = spot (0 city, 1..9 race track) */
+    IEV_TRAVEL_FRIEND = 18, /* career Free Roam Friends: a = friend name hash, b = spot (0 city, 1..9 race track) */
 };
 enum {                    /* event flags */
     IKF_REPEAT = 1,       /* autorepeat */
