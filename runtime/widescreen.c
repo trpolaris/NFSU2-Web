@@ -252,6 +252,7 @@ void ws_hud_marker(float *x, float *y){
 
 int ws_hook(CPU *c, uint32_t ip){
     ws_init();
+    if (ip == HOOK_SITE(0x00581475)){ void hiddenraces_frame(void); hiddenraces_frame(); }
     switch (ip){
     /* sub_005c7ec0, projection setup per eView ([ebp+4] = view id):
      *   P00 = 1/tan(FOV*hscale/2) stored at 0x5c7fee,

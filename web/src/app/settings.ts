@@ -154,6 +154,8 @@ export const KEYS: readonly KeyDef[] = [
   // the game's language (runtime/language.c; the page fetches ahead only its language pack: datacache.ts).  Not in
   // bundle.m's table: there a lower-case key, so it reaches the runtime as NFSU2_LANGUAGE all the same
   { key: 'language', env: 'NFSU2_LANGUAGE', kind: 'enum', vals: LANGUAGES.join('|'), scope: 'web' },
+  // Show the career races normally hidden on the map (runtime/hiddenraces.c).
+  { key: 'show_hidden_races', env: 'NFSU2_SHOW_HIDDEN_RACES', kind: 'bool', scope: 'web' },
   // GPS distance beneath the native direction arrow (runtime/gpsdistance.c).
   { key: 'gps_distance', env: 'NFSU2_GPS_DISTANCE', kind: 'bool', scope: 'web' },
   // Career rubberbanding: original, noboost (no boost beyond an AI's own pace) or off.
@@ -231,6 +233,9 @@ export const TEMPLATE = `# NFSU2 settings, read at every launch.
 # Distance to the GPS destination under the direction arrow, in the units
 # selected by Speedometer Units. This is a straight-line distance, not a road
 # route, and is hidden when GPS has no active destination. [NFSU2_GPS_DISTANCE]
+# Show all career races the game normally hides. Does not alter profile progress. [NFSU2_SHOW_HIDDEN_RACES]
+#show_hidden_races = off
+
 #gps_distance = off
 
 # Career rubberbanding: original preserves the game's behaviour; noboost keeps the waiting
