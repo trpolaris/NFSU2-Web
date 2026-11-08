@@ -15,10 +15,17 @@ typedef struct {
     int      mode;                 /* the network race's type [0x850088]: 0 circuit, 1 sprint, 2 drag, 3 drift, 4 URL, 0xA Street X */
     int      track, laps, reverse;
     int      players;              /* the host: the lobby's players, itself too (it starts once they are all ready) */
+    uint32_t credit;               /* the career race when a win counts in this player's career, else 0 */
+    int      heats;                /* URL race heats; 1 for any other */
+    int      nfriends;             /* friends or crew-mates whose win counts for us too */
+    char     friends[6][16];       /* their LAN names */
 } MpRace;
 enum { MPR_IDLE = 0, MPR_OUT, MPR_LAN, MPR_RACE, MPR_BACK, MPR_DONE, MPR_FAILED };
 /* what quitting a started race with its pause menu's Quit costs the bank (what it holds at most) */
 #define MPRACE_QUIT_FEE 75
+#define MPRACE_QUIT_SHARE_NUM 3
+#define MPRACE_QUIT_SHARE_DEN 16
+#define MPRACE_PRIZE_FLOOR { 400, 300, 200, 100 }
 /* a race's evening out (mprace.c balance_race): a car's engine power at most this much up, and down; the faster
  * cars' share of the way (their target between the cars' middle and the best); how much of its way to the target
  * each car's rating goes (the rest of the gap stays: the better car stays a little ahead), and in a drag race (where
@@ -44,6 +51,13 @@ void mprace_ack(void);
  * prize the career's bank got for it */
 int  mprace_place(void);
 int  mprace_prize(void);
+int  mprace_prize_of(int place);
+enum { MPC_NONE = 0, MPC_WON, MPC_FRIEND };
+int  mprace_credit(void);
+int  mprace_credited(void);
+int  mprace_counts(void);
+int  mprace_topup(void);
+const char *mprace_winner(void);
 /* the race's results as the game showed them (its results' rows, in their order): each racer's LAN name, whether it
  * finished, its time (s) or, in a drift race, its points, its row's time whether it finished or not (s: one still on
  * the way when the race ended, 30 s after the first, has that), how far it came (laps), the way it drove (m: its
@@ -74,7 +88,8 @@ void mprace_player_gone(void);
 /* the player is in career free roam again while the trip is not over (it made its way back by hand, or the trip
  * lost its way): the trip is over, as done once raced (the prize, if the crib did not pay it, into the bank now),
  * else as failed */
-void mprace_end_in_roam(void);
+struct CPU;
+void mprace_end_in_roam(struct CPU *c);
 /* the game's input is the trip's own: the player's keys, mouse and pad are
  * not passed on (runtime/web/input_web.c, dinput_pad.c) */
 int  mprace_owns_input(void);
