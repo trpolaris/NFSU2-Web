@@ -100,6 +100,7 @@
 #else
 #define MPRACES         1
 #include "mprace.h"
+#include "mpcredit.h"
 #endif
 #define G_FLOW          0x008654a4u   /* GameFlowManager state: 3 front end, 6 in the world */
 #define G_GAMEMODE      0x00850078u   /* 1 career, 0x200 LAN */
@@ -4479,29 +4480,6 @@ static int mp_counts(uint32_t r){
     return MR8(r + 0x37u) == stage && MR8(r + 0x34u) == 3u;
 }
 
-/* A hub-marked mutual friendship; script overrides exist only in input-script tests. */
-static int mp_friend(uint32_t id){
-    const rc_peer *p = mp_peer(id);
-    if (!p) return 0;
-    const char *e = mp_test_env("NFSU2_MPRACE_TEST_FRIENDS");
-    if (e && *e){
-        size_t n = strlen(p->name);
-        for (const char *s = e; *s; ){
-            const char *c = strchr(s, ','); size_t k = c ? (size_t)(c - s) : strlen(s);
-            if (n && k == n && !strncasecmp(s, p->name, n)) return 1;
-            s += k + (c ? 1 : 0);
-        }
-        return 0;
-    }
-    return rc_peer_friend(&g_s, (int)(p - g_s.peer));
-}
-static int mp_crewmate(uint32_t id){
-    for (int i = 0; i < RC_TABLE; i++)
-        if (g_s.peer[i].state == RC_PS_EST && g_s.peer[i].id == id) return rc_peer_crew(&g_s, i) >= 0;
-    return 0;
-}
-static int mp_mate(uint32_t id){ return mp_friend(id) || mp_crewmate(id); }
-
 /* the spot of trigger e (a type-13 trigger), or MPS_NONE */
 static void spot_of(CPU *c, uint32_t e, uint32_t stage, MpSpot *sp){
     memset(sp, 0, sizeof *sp);
@@ -4707,6 +4685,37 @@ static const char *mp_name(uint32_t id){
     const rc_peer *p = mp_peer(id);
     return p && p->name[0] ? p->name : "a player";
 }
+/* A hub-marked mutual friendship; script overrides exist only in input-script tests. */
+static int mp_friend(uint32_t id){
+    const rc_peer *p = mp_peer(id);
+    if (!p) return 0;
+    const char *e = mp_test_env("NFSU2_MPRACE_TEST_FRIENDS");
+    if (e && *e){
+        size_t n = strlen(p->name);
+        for (const char *s = e; *s; ){
+            const char *c = strchr(s, ','); size_t k = c ? (size_t)(c - s) : strlen(s);
+            if (n && k == n && !strncasecmp(s, p->name, n)) return 1;
+            s += k + (c ? 1 : 0);
+        }
+        return 0;
+    }
+    return rc_peer_friend(&g_s, (int)(p - g_s.peer));
+}
+static int mp_crewmate(uint32_t id){
+    for (int i = 0; i < RC_TABLE; i++)
+        if (g_s.peer[i].state == RC_PS_EST && g_s.peer[i].id == id) return rc_peer_crew(&g_s, i) >= 0;
+    return 0;
+}
+static int mp_mate(uint32_t id){ return mp_friend(id) || mp_crewmate(id); }
+
+
+/* A race lobby of a later career stage is not joinable here, unless its host is our friend/crew-mate. */
+static int mp_kept_out(const MpLobby *l){
+    uint32_t stage = rd32(G_CAREER + C_STAGE);
+    uint32_t rs = l && l->race && ok(l->race, RACE_SZ) ? MR8(l->race + 0x37u) : 0;
+    return rs && stage > rs && !mp_mate(l->host) ? (int)rs : 0;
+}
+
 /* Car ratings are sent in the car-look record. Keep the cache per peer's
  * config generation so a changed car is picked up without decoding each frame. */
 static struct { uint32_t id, gen; float rating; char car[RC_CFG_TYPE_NAME + 1]; } g_mprt[RC_TABLE];
@@ -5340,6 +5349,32 @@ static void js_race(MpJs *j, uint32_t r){
     uint8_t ty = MR8(r + 0xfu); int laps = MR8(r + 0x1bu), lo = ty == 2 ? 4 : 2;
     if (MR8(r + 0x34u) != 2u && (ty == 0 || ty == 2 || ty == 5) && laps > 1) js_int(j, "laps", laps < lo ? lo : laps > 10 ? 10 : laps);
 }
+
+/* URL races with multiple heats: current heat, track and points standing. */
+static void js_heats(MpJs *j){
+    MpSeries s; static int ct = -1, cr = -1; static char tn[64];
+    if (!mprace_series(&s) || !g_mp.l.race || s.heat < 1 || s.heat > 3) return;
+    uint32_t r = g_mp.l.race, k = (uint32_t)s.heat - 1u;
+    int num = (int)(int16_t)MR16(r + 0x18u + 4u * k), rev = MR8(r + 0x1au + 4u * k) & 1;
+    if (num != ct || rev != cr){ ct = num; cr = rev; track_name((uint32_t)num, rev, tn, sizeof tn); }
+    js_int(j, "heat", s.heat);
+    if (tn[0]) js_str(j, "track", tn);
+    if (s.final){ js_int(j, "fin", 1); return; }
+    if (!s.n) return;
+    js_key(j, "stand"); js_raw(j, "[");
+    for (int i = 0; i < s.n; i++){
+        const char *nm = s.p[i].name[0] ? s.p[i].name : "?";
+        for (int q = 0; q < g_mp.l.n && q < RC_LOBBY_MAX; q++)
+            if (s.p[i].name[0] && !strcasecmp(g_mp.lan[q], s.p[i].name)){ nm = g_mp.names[q]; break; }
+        char t[32];
+        js_raw(j, i ? ",{\"n\":" : "{\"n\":"); js_val(j, nm);
+        snprintf(t, sizeof t, ",\"p\":%d", s.p[i].points); js_raw(j, t);
+        if (s.p[i].ours) js_raw(j, ",\"me\":1");
+        js_raw(j, "}");
+    }
+    js_raw(j, "]");
+}
+
 #define MP_GAUGE_EVEN 0.85f
 static void js_players(MpJs *j, const MpLobby *l){
     js_key(j, "names"); js_raw(j, "[");
