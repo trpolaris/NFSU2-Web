@@ -454,7 +454,7 @@ fn read_as_nfkd_without_marks_and_lookalikes() {
     assert!(!blocked_name("Dani\u{a7f1}99GS"));
     // Only code points assigned in Unicode 17 are exempted from the older category table's Unassigned result.
     assert!(
-        !unknown('\u{10ec2}')
+        !unknown('\u{a7f1}') && !unknown('\u{10ec2}')
             && !unknown('\u{10ed0}')
             && !unknown('\u{1acf}')
             && !unknown('\u{1e6c0}')
