@@ -500,8 +500,10 @@ async fn addresses_24000_round_the_ninety_six_24s_full_past_them() {
     let mut want: Vec<String> = (0..16).map(|b| format!("10.77.{b}.2")).collect();
     want.extend(["10.77.16.2".to_string(), "10.77.17.2".to_string()]);
     assert_eq!(first, want);
-    assert_eq!(ip_str(got[24]), "10.77.0.3");
-    assert_eq!(ip_str(got[5999]), "10.77.23.251");
+    assert_eq!(ip_str(got[24]), "10.77.24.2");
+    assert_eq!(ip_str(got[95]), "10.77.95.2", "last /24 before the host byte advances");
+    assert_eq!(ip_str(got[96]), "10.77.0.3", "first /24 after the host byte advances");
+    assert_eq!(ip_str(got[5999]), "10.77.47.64");
     assert_eq!(got.iter().collect::<HashSet<_>>().len(), 24000, "all distinct");
     let mut sorted = got.clone();
     sorted.sort();
