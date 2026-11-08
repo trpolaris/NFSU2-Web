@@ -731,7 +731,8 @@ impl Host for FakeHost {
 
 /// a free-roam hub on the switch for the tests that keeps what it is told of blocks (`Host::blocks`): (vip, names), and
 /// (vip, none) for a browser that left (`Host::peer_gone`)
-pub struct BlockHub(pub Arc<Mutex<Vec<(u32, Vec<String>)>>>);
+pub type BlockMessages = Vec<(u32, Vec<String>)>;
+pub struct BlockHub(pub Arc<Mutex<BlockMessages>>);
 
 impl Host for BlockHub {
     fn vip(&self) -> u32 {
