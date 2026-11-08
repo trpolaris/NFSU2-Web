@@ -218,7 +218,7 @@ test('input: two fingers turn the car whichever finger the browser says came fir
     const m = mouseEvents(proc, ptr, h);
     assert.ok(m.some(([t, btn]) => t === 'down' && btn === 2), `${label}: middle button went down: ${JSON.stringify(m)}`);
     assert.ok(m.some(([t, btn]) => t === 'up' && btn === 2), `${label}: middle button went up`);
-    assert.ok(logs.some(l => /\\[touch\\] a two-finger turn: 1 moves, ended by a finger lifted/.test(l)), logs.join('\\n'));
+    assert.ok(logs.some(l => /\[touch\] a two-finger turn: 1 moves, ended by a finger lifted/.test(l)), logs.join('\n'));
     i.detach();
   }
 });

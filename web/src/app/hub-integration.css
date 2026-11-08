@@ -590,3 +590,24 @@ body, button, input, select, textarea {
     transition-duration: .01ms;
   }
 }
+
+/* A same-tab route from the game surface to the public Player Hub. */
+.menu-header-actions .hub-entry {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid var(--hub-shell-border);
+  border-radius: 9px;
+  color: var(--hub-shell-text);
+  background: rgba(255, 255, 255, .035);
+  font-size: .65rem;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-decoration: none;
+}
+.menu-header-actions .hub-entry:hover {
+  border-color: rgba(255, 105, 69, .35);
+  background: var(--hub-shell-coral-soft);
+}

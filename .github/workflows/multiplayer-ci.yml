@@ -194,6 +194,22 @@ jobs:
           printf 'MZ' > out/ci/fixture-game/SPEED2.EXE
           node web/tools/online-load.mjs --clients 40 --seconds 20 --data "$PWD/out/ci/fixture-game" --out out/ci/online-load --ci
 
+      - name: Focused diagnostics for integration regressions
+        run: |
+          status=0
+          for file in \
+            web/test/page-lifecycle.test.mjs \
+            web/test/net-crews.test.mjs \
+            web/test/hub-shell-integration.test.mjs \
+            web/test/i18n.test.mjs \
+            web/test/log-english.test.mjs \
+            web/test/packs.test.mjs; do
+            node --test --test-reporter=tap "$file" || status=1
+          done
+          python3 -I tools/test_packcheck.py -v || status=1
+          node web/tools/i18n-keys.mjs --check || status=1
+          exit "$status"
+
       - name: Install Chromium for browser-based tests
         working-directory: web
         run: npx playwright install --with-deps chromium
