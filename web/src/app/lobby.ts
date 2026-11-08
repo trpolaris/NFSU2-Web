@@ -23,6 +23,10 @@ interface LobbyState {
   car?: string[]; vs?: number;
   why?: string; step?: string; text?: string;
   /** trip, once the race's results came: their rows in order; prize: what ours won */
+  /** c: players whose victory counts in their own career; fr/cr: our friends and crew-mates */
+  counts?: number; c?: number[]; fr?: number[]; cr?: number[];
+  /** career credit: 1 our win, 2 a friend/crew-mate win; credited -1 means the game rejected it */
+  credit?: number; credited?: number;
   res?: RaceResult[]; prize?: number;
 }
 /** a row of the race's results: the player's name, f 1 finished, t its time (s) or p a drift's points, me 1 ours */
@@ -75,6 +79,8 @@ function noteText(s: string): string {
     [/^(.+) called off the race$/, m => t('{name} called off the race', { name: m[1] })],
     [/^(.+) seemed away: the race is called off$/, m => t('{name} seemed away: the race is called off', { name: m[1] })],
     [/^The multiplayer race did not happen: (.*)$/, m => t('The multiplayer race did not happen: {why}', { why: m[1] })],
+    [/^Multiplayer race: (\d+)(st|nd|rd|th) place, \$(\d+)\. Only a win counts in your career$/, m => t('Multiplayer race: {pos} place, ${prize}. Only a win counts in your career', { pos: m[1] + m[2], n: m[1], prize: m[3] })],
+    [/^Multiplayer race: (\d+)(st|nd|rd|th) place\. Only a win counts in your career$/, m => t('Multiplayer race: {pos} place. Only a win counts in your career', { pos: m[1] + m[2], n: m[1] })],
     [/^Multiplayer race: (\d+)(st|nd|rd|th) place, \$(\d+)$/, m => t('Multiplayer race: {pos} place, ${prize}', { pos: m[1] + m[2], n: m[1], prize: m[3] })],
     [/^Multiplayer race: (\d+)(st|nd|rd|th) place$/, m => t('Multiplayer race: {pos} place', { pos: m[1] + m[2], n: m[1] })],
     [/^Multiplayer race: you quit it, \$(\d+) fee$/, m => t('Multiplayer race: you quit it, ${fee} fee', { fee: m[1] })],
@@ -155,6 +161,9 @@ export class LobbyPanel {
       const li = el('li', i < names.length ? 'taken' : 'open');
       li.append(el('span', 'lobby-n', String(i + 1)));
       li.append(el('span', 'lobby-name', i < names.length ? names[i] : t('open')));
+      if (i < names.length && s.fr?.[i] && i !== s.me) li.append(el('span', 'lobby-tag', t('friend')));
+      else if (i < names.length && s.cr?.[i] && i !== s.me) li.append(el('span', 'lobby-tag', t('crew')));
+      if (i < names.length && s.c?.[i] && i !== s.me) li.append(el('span', 'lobby-star', '★'));
       if (i < names.length && (i === 0 || i === s.me)) li.append(el('span', 'lobby-tag', i === 0 ? t('host') : t('you')));
       const w = i < names.length ? this.said.get(names[i]) : undefined;
       if (w) li.append(el('span', 'lobby-said', w.text));
@@ -163,6 +172,18 @@ export class LobbyPanel {
     return ol;
   }
 
+  /** why a race counts in our career, including a friend or crew-mate win */
+  private career(s: LobbyState) {
+    if (!s.counts) return [];
+    const friend = (s.fr ?? []).some(Boolean), crew = (s.cr ?? []).some(Boolean);
+    const message = friend && crew ? "A win counts in your career, and so does a friend's or crew-mate's"
+      : friend ? "A win counts in your career, and so does a friend's"
+      : crew ? "A win counts in your career, and so does a crew-mate's"
+      : "A win counts in your career";
+    const d = el('div', 'lobby-why');
+    d.append(el('span', 'lobby-star', '★ '), t(message));
+    return [d];
+  }
   /** a compact race-adjusted performance comparison for the lobby's cars */
   private gauge(s: LobbyState): HTMLElement | null {
     if (!(s.vs && s.vs > 0)) return null;
@@ -189,17 +210,17 @@ export class LobbyPanel {
           this.act('Enter', t('Open a lobby')));
         break;
       case 'join': {
-        kids.push(...this.title(s, host), this.places(s));
+        kids.push(...this.title(s, host), this.places(s), ...this.career(s));
         const gauge = this.gauge(s); if (gauge) kids.push(gauge);
         kids.push(this.act('Enter', t('Join')));
         break;
       }
       case 'full':
-        kids.push(...this.title(s, host), this.places(s), el('div', 'lobby-why', t('This lobby is full.')), this.act('Enter', t('Open another')));
+        kids.push(...this.title(s, host), this.places(s), ...this.career(s), el('div', 'lobby-why', t('This lobby is full.')), this.act('Enter', t('Open another')));
         break;
       case 'lobby': {
         const mine = s.me === 0;
-        kids.push(...this.title(s, mine ? undefined : host), this.places(s, s.st === 'asked'));
+        kids.push(...this.title(s, mine ? undefined : host), this.places(s, s.st === 'asked'), ...this.career(s));
         const gauge = this.gauge(s); if (gauge) kids.push(gauge);
         if (s.st === 'count') kids.push(el('div', 'lobby-count', t('Starting in {n}', { n: s.t ?? 0 })));
         else if (s.st === 'asked') kids.push(this.act(null, t('Joining {host}\'s {kind}…', { host, kind: game(s.kind ?? 'race') })));
@@ -234,7 +255,8 @@ export class LobbyPanel {
       if (r.me) li.append(el('span', 'lobby-tag', t('you')));
       const what = !r.f ? t('DNF') : r.p !== undefined ? tn(r.p, '{n} point', '{n} points') : r.t !== undefined ? raceTime(r.t) : '';
       if (what) li.append(el('span', 'lobby-time', what));
-      if (r.me && s.prize) li.append(el('span', 'lobby-prize', `+$${s.prize}`));
+      if (r.me && s.credit && s.credited !== -1) li.append(el('span', 'lobby-prize', '★ ' + t(s.credit === 2 ? "Friend's win" : 'Career win')));
+      else if (r.me && s.prize) li.append(el('span', 'lobby-prize', '+$' + s.prize));
       ol.append(li);
     }
     box.append(ol);
