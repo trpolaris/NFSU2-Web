@@ -513,8 +513,11 @@ pub(crate) fn write_peers(b: &mut [u8], sender: u32, seq: u16, list: impl ExactS
             b[o..o + 4].copy_from_slice(&c.to_le_bytes());
             o += 4;
         }
-        if marks.len() == n { b[o..o + n].copy_from_slice(marks); }
-        else { b[o..o + n].fill(0); }
+        if marks.len() == n {
+            b[o..o + n].copy_from_slice(marks);
+        } else {
+            b[o..o + n].fill(0);
+        }
     }
     let crc = crc32fast::hash(&b[..len - CRC]);
     b[len - CRC..].copy_from_slice(&crc.to_le_bytes());
@@ -784,7 +787,6 @@ mod map_protocol_tests {
         }
     }
 }
-
 
 #[cfg(test)]
 mod peer_mark_tests {
