@@ -20,7 +20,7 @@
 
 use std::collections::HashMap;
 use std::fmt::Write as _;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
@@ -551,6 +551,6 @@ impl Claims {
 }
 
 /// names.json is replaced as one private, synced file; a failed write leaves the prior copy intact.
-fn write_atomic(file: &std::path::Path, body: &[u8]) -> Result<(), String> {
+fn write_atomic(file: &Path, body: &[u8]) -> Result<(), String> {
     Options::new().make_folder().write(file, body).map_err(|e| e.to_string())
 }

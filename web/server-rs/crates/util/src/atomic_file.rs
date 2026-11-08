@@ -69,17 +69,15 @@ impl Options {
 
     /// what `fill` writes into the temporary file, in place of `file`
     pub fn write_with(self, file: &Path, fill: impl FnOnce(&mut File) -> io::Result<()>) -> Result<(), Failed> {
-        if self.folder {
-            if let Some(dir) = file.parent() {
-                let mut b = fs::DirBuilder::new();
-                b.recursive(true);
-                #[cfg(unix)]
-                {
-                    use std::os::unix::fs::DirBuilderExt;
-                    b.mode(0o700);
-                }
-                b.create(dir).map_err(|error| Failed { step: Step::Folder, path: dir.to_path_buf(), tmp: PathBuf::new(), error })?;
+        if let Some(dir) = file.parent().filter(|_| self.folder) {
+            let mut b = fs::DirBuilder::new();
+            b.recursive(true);
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::DirBuilderExt;
+                b.mode(0o700);
             }
+            b.create(dir).map_err(|error| Failed { step: Step::Folder, path: dir.to_path_buf(), tmp: PathBuf::new(), error })?;
         }
         let tmp = temp_name(file, self.hidden);
         let mut f = match open_new(&tmp) {
@@ -267,3 +265,4 @@ mod tests {
         let _ = fs::remove_dir_all(&d);
     }
 }
+
