@@ -90,6 +90,8 @@ export const KEYS: readonly KeyDef[] = [
   { key: 'fps_counter', env: 'NFSU2_FPS_COUNTER', kind: 'enum', vals: 'off|on|detailed', scope: 'web', device: true },   // the page draws it
   // the game's Full Scene Anti-Aliasing at four WebGPU samples; phones turn it off by default
   { key: 'fsaa', env: 'NFSU2_FSAA', kind: 'bool', scope: 'web', device: true },
+  // anisotropic filtering where the game's texture samplers ask for it (phones and tablets off: device.ts)
+  { key: 'anisotropic', env: 'NFSU2_ANISOTROPIC', kind: 'bool', scope: 'web', device: true },
   { key: 'metal_hud', env: 'MTL_HUD_ENABLED', kind: 'bool', scope: 'mac' },
   // frame rate
   { key: 'fps', env: 'NFSU2_FPS', kind: 'enum', vals: 'auto|30|60|120|240|uncapped|off|native|vanilla|game|max', scope: 'web', device: true },
@@ -213,6 +215,11 @@ export const TEMPLATE = `# NFSU2 settings, read at every launch.
 # The game's Full Scene Anti-Aliasing (Options > Display > Customize Display Settings).
 # Four WebGPU samples; new computers start with it on. Phones: off. [NFSU2_FSAA]
 #fsaa = on
+
+# Sharper road lines and building fronts at an angle: anisotropic filtering
+# wherever the game asks for it. Computers: on; phones and tablets: off.
+# [NFSU2_ANISOTROPIC]
+#anisotropic = on
 
 # The game's language: english, french, german, italian, spanish, dutch,
 # swedish, danish, korean, chinese, japanese, russian, thai, portuguese

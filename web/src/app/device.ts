@@ -37,8 +37,8 @@ export function deviceKind(): 'phone' | 'tablet' | 'pc' {
  *  bars over the game).  Players' cars shown in free roam: 16 on phones, 24 on tablets, 32 elsewhere (an iPhone
  *  was stopped for memory as 22 friends' cars loaded at once at the new career's start, 2026-10-25). */
 export function deviceDefaults(): Record<string, string> {
-  if (isPhone()) return { render: rememberedRender() === 'backing' ? 'backing' : 'scale:0.75', fullscreen: fullScreenFails() ? 'off' : 'on', roam_max_cars: '16', fsaa: 'off' };
-  return touchFirst() ? { roam_max_cars: '24' } : {};
+  if (isPhone()) return { render: rememberedRender() === 'backing' ? 'backing' : 'scale:0.75', fullscreen: fullScreenFails() ? 'off' : 'on', roam_max_cars: '16', fsaa: 'off', anisotropic: 'off' };
+  return touchFirst() ? { roam_max_cars: '24', anisotropic: 'off' } : { anisotropic: 'on' };
 }
 
 /** Adapter name returned by the WebGPU check; held only in this tab. */

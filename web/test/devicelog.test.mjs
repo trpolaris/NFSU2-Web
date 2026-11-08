@@ -68,6 +68,20 @@ test("free roam's players' cars shown: 16 on a phone, 24 on a tablet, the file's
 });
 
 
+test('anisotropic filtering is enabled by default on computers, and disabled on phones and tablets', () => {
+  const on = (ua, touchPoints, w, h, coarse) => {
+    Object.defineProperty(globalThis, 'navigator', { value: { userAgent: ua, maxTouchPoints: touchPoints }, configurable: true, writable: true });
+    globalThis.screen = { width: w, height: h };
+    globalThis.matchMedia = () => ({ matches: coarse });
+    return deviceDefaults().anisotropic;
+  };
+  const mac = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Safari/605.1.15';
+  assert.equal(on('Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Mobile/15E148 Safari/604.1', 5, 390, 844, true), 'off');
+  assert.equal(on(mac, 5, 820, 1180, true), 'off');                                   // an iPad
+  assert.equal(on(mac, 0, 1512, 982, false), 'on');                                  // a Mac
+  assert.equal(on('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36', 10, 1920, 1080, false), 'on'); // a touch laptop
+});
+
 test('PowerVR B-Series phones default to windowed mode; other adapters keep fullscreen', () => {
   Object.defineProperty(globalThis, 'navigator', { value: {
     userAgent: 'Mozilla/5.0 (Linux; Android 16; 2412DPC0AG) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Mobile Safari/537.36',

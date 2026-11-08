@@ -34,6 +34,12 @@ export interface EncodeStats {
   direct: boolean;
 }
 
+/** Use the game's anisotropy request on linear, mipmapped game textures, never on render targets. */
+export function anisotropicSamplerKey(k: number, renderTarget: boolean): number {
+  const mn = k & 3, mg = (k >> 2) & 3, mp = (k >> 4) & 3, al = (k >> 12) & 7;
+  return !renderTarget && mn === 2 && mg === 2 && mp !== 0 && al !== 0 ? (k & ~3) | 3 : k;
+}
+
 interface Tex {
   serial: number; tex: GPUTexture; fmt: number; w: number; h: number; levels: number; cube: boolean; rt: boolean;
   view: GPUTextureView;            // sampling view (2d, or cube)
@@ -88,6 +94,8 @@ export class Encoder {
   private vsMods = new Map<number, GPUShaderModule>();
   private psMods = new Map<number, GPUShaderModule>();
   private samplers = new Map<number, GPUSampler>();
+  /** Anisotropic filtering where the game's sampler asks for it (web setting, off on touch devices). */
+  aniso = false;
   private pipes = new Map<number, GPURenderPipeline | null>();
   private bg1 = new Map<string, GPUBindGroup>();
   private destroyLater: { destroy(): void }[] = [];
@@ -889,8 +897,12 @@ export class Encoder {
       // group 1: textures and samplers (a texture bound as this pass's target samples white)
       const cube = psEff >= PSCUBE;
       const t1 = u32[w + D.tex1], t2 = u32[w + D.tex2], t3 = u32[w + D.tex3];
-      const s0 = u32[w + D.smp], s1 = u32[w + D.smp + 1], s2 = u32[w + D.smp + 2], s3 = u32[w + D.smp + 3];
+      let s0 = u32[w + D.smp], s1 = u32[w + D.smp + 1], s2 = u32[w + D.smp + 2], s3 = u32[w + D.smp + 3];
       const v0 = this.texFor(t0, cube, passCube), v1 = this.texFor(t1, false, passCube), v2 = this.texFor(t2, false, passCube), v3 = this.texFor(t3, false, passCube);
+      if (this.aniso) {
+        s0 = anisotropicSamplerKey(s0, v0.rt); s1 = anisotropicSamplerKey(s1, v1.rt);
+        s2 = anisotropicSamplerKey(s2, v2.rt); s3 = anisotropicSamplerKey(s3, v3.rt);
+      }
       // the same textures and samplers as the previous draw (the common case): nothing to do
       if (b1[0] !== (cube ? 1 : 0) || b1[1] !== v0.serial || b1[2] !== v1.serial || b1[3] !== v2.serial || b1[4] !== v3.serial
           || b1[5] !== s0 || b1[6] !== s1 || b1[7] !== s2 || b1[8] !== s3) {

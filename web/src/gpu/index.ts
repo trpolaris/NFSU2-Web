@@ -37,6 +37,10 @@ export interface RendererOptions {
   logShaders?: boolean;
   /** measure GPU time per frame with timestamp queries (first pass begin to composite end) */
   gpuTiming?: boolean;
+  /** enable anisotropic filtering wherever the game's own texture samplers request it */
+  aniso?: boolean;
+  /** tests: an autotest dump labelled <name>_af also writes the same frame with anisotropic filtering toggled, <name>_af1 */
+  anisoDump?: boolean;
   /** keep canvas.width/height at the element's size in device pixels (the game resets its device to follow) */
   autoSize?: boolean;
   /** false: at a render scale below 1 the canvas stays at the view's size and the picture is composited over it (the
@@ -231,6 +235,8 @@ export async function attachRenderer(proc: GameProcess, canvas: HTMLCanvasElemen
   }
   let enc: Encoder;
   try { enc = new Encoder(device, mem, reg.ptr, log); } catch (e) { giveUp(e); }
+  enc.aniso = !!opts.aniso;
+  if (enc.aniso) log('[gpu] anisotropic filtering where the game asks for it');
   enc.logShaders = !!opts.logShaders;
   for (const id of opts.watchTex ?? []) enc.watchTex.add(id);
   if (opts.trace === 'dumps') enc.traceDumps = true; else for (const f of opts.trace ?? []) enc.traceSeq.add(f);
@@ -494,6 +500,15 @@ export async function attachRenderer(proc: GameProcess, canvas: HTMLCanvasElemen
     const rbRead = rbTex ? copyOut(ce, rbTex) : null;
     device.queue.submit([ce.finish()]);
     enc.afterSubmit();
+    if (opts.anisoDump && dumpName?.endsWith('_af')) {
+      enc.aniso = !enc.aniso;
+      const ce2 = device.createCommandEncoder();
+      enc.encodeFrame(b, ce2, undefined);
+      reads.push({ name: dumpName + '1', rb: copyOut(ce2, enc.screen!) });
+      device.queue.submit([ce2.finish()]);
+      enc.afterSubmit();
+      enc.aniso = !enc.aniso;
+    }
     if (rbId) readForGame(rbId, rbRead, U[fw + F.rbDst], U[fw + F.rbPitch], U[fw + F.rbRows]);
     // quick chat's places over the cars in this very frame (GwMarks in its constants, from a module that writes them)
     if (opts.onMarks) {

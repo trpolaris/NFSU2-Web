@@ -20,7 +20,8 @@ export type {
 } from './contract';
 
 export const attachRenderer: AttachRenderer = async (proc, canvas, o) => {
-  const r = await gpuAttach(proc, canvas, { log: o.log, artifacts: o.artifacts, dumpScale: o.dumpScale, onLost: o.onLost, onMarks: o.onMarks, gpuTiming: true });
+  const r = await gpuAttach(proc, canvas, { log: o.log, artifacts: o.artifacts, dumpScale: o.dumpScale, onLost: o.onLost, onMarks: o.onMarks,
+    aniso: o.env.NFSU2_ANISOTROPIC === '1', gpuTiming: true });
   return {
     detach: () => r.detach(),
     imageRect: () => r.imageRect(),
