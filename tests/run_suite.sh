@@ -39,10 +39,12 @@ keyboard:kb_rebind_save.txt:waitmem [0x008654a4]==6 satisfied:
 careerbot:career_bot.txt:segment done:NFSU2_CAREER_BOT_RACES=2 ALARM=600
 lan_host:lan_host_short.txt:auth NAME 'SUITEHOST':NFSU2_NET=loopback NFSU2_NET_LOOPOFFSET=2101
 "
-# opt-in, run only when named: needs a career save from stage 2 on in
-# NFSU2_SAVE_SEED (tests/scripts/career_outrun.txt)
+# opt-in, run only when named. outrun needs a career save from stage 2 on.
+# mpcreditpending needs NFSU2_SAVE_SEED with a career save and MP_RACE naming an
+# available, not-yet-won career race (for example S2_DRAG_2).
 OPT="
 outrun:career_outrun.txt:player completion 6 (6 won:NFSU2_CAREER_RACEWIN=3
+mpcreditpending:mpcredit_pending.txt:MP_CREDIT_QUEUE_DONE:
 "
 [ $# -gt 0 ] && ALL="$ALL$OPT"
 pass=0; fail=0

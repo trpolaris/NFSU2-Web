@@ -29,6 +29,8 @@
  *                              only implementation: the heap track's soaks
  *                              and the LAN race scripts use it too
  *   racewin                    finish the player now (1st if nobody finished)
+ *   mpcredit NAME[,NAME...] [MARGIN]  queue a test career win for the next crib
+ *                              (test-only; MARGIN below 0 uses the minimum)
  *   careerlist                 log stage, bank and the available races
  *   fnglist [x]                log the active front-end packages (overlays too;
  *                              x: FNGInfo flags and control mask)
@@ -55,6 +57,7 @@
  * and "*" between two operands (multiply), e.g. "*(*0x890118+0xbd0)".
  */
 #include "cpu.h"
+#include "mpcredit.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -301,6 +304,24 @@ static uint32_t outrun_car(uint32_t k){   /* k = 0: the nearest one on the map *
 static int outrun_start(uint32_t k, int quiet){
     uint32_t race = MR32(G_RACE), car = outrun_car(k), p = MR32(G_PLAYER1);
     long f = autotest_frame();
+    if (!strcasecmp(cmd, "mpcredit")){
+        if (!a1[0] || a3[0]){
+            fprintf(stderr, "[career] f=%ld mpcredit: usage NAME[,NAME...] [MARGIN] (a career race name; optional margin below 0 uses the minimum)\\n", f);
+            return 1;
+        }
+        float margin = -1.f;
+        if (a2[0]){
+            char *end = 0;
+            margin = strtof(a2, &end);
+            if (end == a2 || *end || !isfinite(margin)){
+                fprintf(stderr, "[career] f=%ld mpcredit: invalid margin %s\\n", f, a2);
+                return 1;
+            }
+        }
+        int count = mpcredit_test(a1, margin);
+        fprintf(stderr, "[career] f=%ld mpcredit: processed %d race(s), margin %.2f\\n", f, count, (double)margin);
+        return 1;
+    }
     if (!race || !player1_ok() || MR32(race) != RCSTATE_RACING || MR32(race + 0x24u) != 1 || MR32(G_RACETYPE)){
         fprintf(stderr, "[career] f=%ld outrun: not in free roam\n", f); return -1; }
     if (!car){ if (!quiet) fprintf(stderr, "[career] f=%ld outrun: no tuner on the map (slot %u)\n", f, k); return 0; }
@@ -991,7 +1012,7 @@ static void queue(const char *line){
 int career_is_cmd(const char *cmd){
     static const char *const k[] = { "call", "memdump", "waitx", "teleport", "autopilot", "racewin",
                                      "careerlist", "careergo", "shopgo", "peekx", "fnglist", "bot", "waitfe", "tapfe", "waitroam", "showgo", "cargo", "watchw",
-                                     "outrun", "outrunwin", "visual", 0 };
+                                     "outrun", "outrunwin", "visual", "mpcredit", 0 };
     for (int i = 0; k[i]; i++) if (!strcasecmp(cmd, k[i])) return 1;
     return 0;
 }
