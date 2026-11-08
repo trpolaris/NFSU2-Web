@@ -29,8 +29,8 @@ import { LogRing, downloadBlob, stamp } from './logs';
 import { LastGameKeeper, lastGameEnd, lastGameLine, lastGameToOffer, type LastGame } from './lastgame';
 import { browserBrief, deviceBrief } from './devicelog';
 import { canFullscreen, enterFullscreen, exitFullscreen, fromHomeScreen, homeScreenInstead, isFullscreen, keepScreenOn, measureRefresh, settledSize, trackCanvasSize } from './display';
-import { deviceDefaults, isPhone, markTouch, noPinchZoom, noteGraphics, padSeen, phoneScreen, touchFirst } from './device';
-import { phoneSeed, phoneUpgrade } from './phonegraphics';
+import { deviceDefaults, deviceKind, isPhone, markTouch, noPinchZoom, noteGraphics, padSeen, phoneScreen, touchFirst } from './device';
+import { deviceSeed, phoneUpgrade } from './phonegraphics';
 import { markPad, padPress, pageDialog } from './padnav';
 import { controlsSheet, controlsState as createControlsState, type ControlsSheet, type ControlsState, type Family, type Tab } from './controls';
 import { askMotion, levelHorizon, menuSize, onLevelHorizon, onSteering, setLevelHorizon, setSteering, steering, STEERING, steeringName, touchSize, type Size, type Steering, TouchControls } from './touch';
@@ -729,8 +729,11 @@ async function startGame() {
     log.add(`[app] registry seeded from ${q.get('reg')} (page address)`);
   } else if (!await exists(SAVE, reg)) {
     if (r.env.NFSU2_SEED_REGISTRY === '0') log.add('[app] no registry yet, the game will run its first-run check');
-    else if (isPhone()) { await writeFile(SAVE, reg, phoneSeed(registryDefaults)); log.add(`[app] first launch, registry seeded with the built-in defaults and a phone's graphics (/save/${reg})`); }
-    else { await writeFile(SAVE, reg, registryDefaults); log.add(`[app] first launch, registry seeded with the built-in defaults (/save/${reg})`); }
+    else {
+      const kind = deviceKind();
+      await writeFile(SAVE, reg, deviceSeed(kind, registryDefaults));
+      log.add(`[app] first launch, registry seeded with the built-in defaults${kind === 'phone' ? " and a phone's graphics" : kind === 'pc' ? ' and Full Scene Anti-Aliasing on' : ''} (/save/${reg})`);
+    }
   } else if (isPhone()) {
     // a phone that started before the phone graphics (phonegraphics.ts): once
     const text = await readText(SAVE, reg);        // null: not read (it is there), left as it is for the next start

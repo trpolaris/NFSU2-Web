@@ -40,6 +40,14 @@ export function phoneSeed(seed: string): string {
   return withDwords(seed, { ...PHONE_GRAPHICS, [PHONE_MARK]: 1 });
 }
 
+/** a new computer's registry starts with the game's Full Scene Anti-Aliasing enabled. */
+export const COMPUTER_GRAPHICS: Readonly<Record<string, number>> = { g_FSAALevel: 1 };
+
+/** the registry defaults for a first launch on this device class. */
+export function deviceSeed(kind: 'phone' | 'tablet' | 'pc', seed: string): string {
+  return kind === 'phone' ? phoneSeed(seed) : kind === 'pc' ? withDwords(seed, COMPUTER_GRAPHICS) : seed;
+}
+
 /** a phone's registry from before the phone graphics: the text to write (the phone graphics when every graphics option,
  *  the seed's g_ values but the resolution, still has the seed's value; else only the mark), or null once it has the mark */
 export function phoneUpgrade(text: string, seed: string): { text: string; lowered: boolean } | null {

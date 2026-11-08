@@ -88,6 +88,8 @@ export const KEYS: readonly KeyDef[] = [
   { key: 'mirror', env: 'NFSU2_MIRROR', kind: 'enum', vals: 'original|high|#', scope: 'mac' },
   { key: 'texture_filtering', env: 'NFSU2_TEXTURE_FILTERING', kind: 'enum', vals: 'game|anisotropic', scope: 'mac' },
   { key: 'fps_counter', env: 'NFSU2_FPS_COUNTER', kind: 'enum', vals: 'off|on|detailed', scope: 'web', device: true },   // the page draws it
+  // the game's Full Scene Anti-Aliasing at four WebGPU samples; phones turn it off by default
+  { key: 'fsaa', env: 'NFSU2_FSAA', kind: 'bool', scope: 'web', device: true },
   { key: 'metal_hud', env: 'MTL_HUD_ENABLED', kind: 'bool', scope: 'mac' },
   // frame rate
   { key: 'fps', env: 'NFSU2_FPS', kind: 'enum', vals: 'auto|30|60|120|240|uncapped|off|native|vanilla|game|max', scope: 'web', device: true },
@@ -205,6 +207,10 @@ export const TEMPLATE = `# NFSU2 settings, read at every launch.
 # one; original = as in the game, where only the intro ends early; off = they
 # are not played.  [NFSU2_INTRO]
 #intro = skippable
+
+# The game's Full Scene Anti-Aliasing (Options > Display > Customize Display Settings).
+# Four WebGPU samples; new computers start with it on. Phones: off. [NFSU2_FSAA]
+#fsaa = on
 
 # The game's language: english, french, german, italian, spanish, dutch,
 # swedish, danish, korean, chinese, japanese, russian, thai, portuguese
