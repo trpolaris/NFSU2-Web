@@ -7,6 +7,7 @@
 //!     HELLO every second), each as one bundle entry for all of them, as the page sends them (web/src/net TxBundle)
 //!   - idle: free roam on but not driving (in a race, a shop or the menus): only its HELLO to the hub every second,
 //!     with that status, and the page's pings; it holds a place and sends next to nothing
+//!
 //! What it measures, from the players' side:
 //!   - how many friends each has (the hub's lists: 32 when the server keeps up, fewer when its busy cap cuts them)
 //!   - snapshots sent (one per friend) and received, so how many got lost on the way (the switch drops a datagram
@@ -444,7 +445,7 @@ impl Bot {
                 }
                 // its state, byte for byte, as its sender made it
                 self.snaps_seen = self.snaps_seen.wrapping_add(1);
-                if u16::from_le_bytes([m[14], m[15]]) & HF_STATEX != 0 && m.len() >= 22 + STATE && self.snaps_seen % self.check_every == 0 {
+                if u16::from_le_bytes([m[14], m[15]]) & HF_STATEX != 0 && m.len() >= 22 + STATE && self.snaps_seen.checked_rem(self.check_every) == Some(0) {
                     sh.checked.inc();
                     let n = u16::from_le_bytes([m[18], m[19]]) as usize;
                     let mut want = state(n, t, self.spread);
