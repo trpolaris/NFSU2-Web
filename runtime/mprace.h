@@ -65,6 +65,10 @@ const char *mprace_winner(void);
 #define MPRACE_RESULTS_MAX 6
 typedef struct { char name[16]; int finished, ours, points; float time, clock, done, dist; } MpResult;
 int  mprace_results(MpResult *r, int max);
+/* standings of a URL race's heats: heat (1..), total heats, final result flag and point rows */
+typedef struct { int heat, heats, final, n; struct { char name[16]; int points, ours; } p[MPRACE_RESULTS_MAX]; } MpSeries;
+int  mprace_series(MpSeries *s);
+int  mprace_heat_results(MpResult *r, int max);
 /* our car's engine power in the race as evened out (1: as it was) */
 float mprace_factor(void);
 /* a network race of this type (its N_MODE: circuit 0, sprint 1, drag 2, drift 3, URL 4, Street X 10) evens
