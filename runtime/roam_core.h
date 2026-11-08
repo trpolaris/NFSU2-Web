@@ -216,6 +216,7 @@ enum { RC_PLAT_MAC = 1, RC_PLAT_WIN = 2, RC_PLAT_TOOL = 3 };
 /* header flags (HELLO, core 8 and up): this player reads the crew marks of
  * the hub's PEERS (RC_HF_CREW above); a hub sends them to no other */
 #define RC_HF_HUBCREW    0x0400
+#define RC_MARK_FRIEND   0x80       /* mutual friend bit in a hub PEERS crew mark */
 /* decoder results */
 enum { RC_OK = 0, RC_E_SHORT = -1, RC_E_MAGIC = -2, RC_E_VERSION = -3, RC_E_LENGTH = -4,
        RC_E_CRC = -5, RC_E_TYPE = -6, RC_E_FIELD = -7, RC_E_TRAIL = -8, RC_E_RANGE = -9 };
@@ -306,6 +307,7 @@ typedef struct {
     uint8_t  flags;                /* RC_RR_* */
     uint8_t  type;                 /* the car's CarTypeInfo index */
     int8_t   cls;                  /* the game's class: 0 fastest .. 3, -1 not rated */
+    uint8_t  credit;               /* MPC_*: 0 none, 1 own win, 2 friend/crew win */
     float    rating;               /* the game's rating of the car */
     float    field;                /* the average rating of the race's cars */
     float    factor;               /* the car's engine power times this in the race (1: as it is) */
@@ -516,6 +518,7 @@ typedef struct {
     uint8_t  reads_crews;          /* its HELLO says it reads crews (RC_HF_CREW) */
     uint8_t  n_crews;  uint32_t crews[RC_CREW_MAX];   /* its crews, as its last HELLO had them (an older core's, or no hub) */
     uint8_t  n_hub_crews; uint32_t hub_crews[RC_CREW_MAX];   /* our crews it is in too, as the hub's last list naming it said */
+    uint8_t  hub_friend;                                     /* mutual friend according to hub PEERS mark */
     uint16_t cfg_rev_seen;         /* what the peer announces */
     int      hears_us, lost;
     int      hears_miss;           /* with the hub: one HELLO without our id forgiven (hub mode only) */
@@ -619,6 +622,7 @@ int  rc_peer_listed(const rc_session *s, int i);
 /* the first of our crews (conf.crews) that peer i is in too: 0 .. n_crews - 1, or -1 (as the hub's list marks it,
  * or as its HELLO names its crews: an older core's, or without a hub) */
 int  rc_peer_crew(const rc_session *s, int i);
+int  rc_peer_friend(const rc_session *s, int i);
 /* our crews changed while the session runs: at most RC_CREW_MAX, 0s and
  * repeats left out; the hub (or without one, the peers) hears them at the
  * next tick */
