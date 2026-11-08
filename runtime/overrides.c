@@ -1279,6 +1279,34 @@ static int pack_refused(CPU *c, uint32_t blk, uint32_t out, const char *why){
     pack_refuse(c, blk, out, 1, pk, off, why);
     return 1;
 }
+/* RAWW v1 is a literal payload.  Copy pack-backed blocks only after checking
+ * the declared input/output spans and both ends of the source file range. */
+static int pack_raww(CPU *c, uint32_t blk, uint32_t out){
+    const char *pk = 0, *data_pk = 0, *last_pk = 0;
+    int64_t off = -1, data_off = -1, last_off = -1;
+    if (!fileio_pack_bytes(blk, 16u, &pk, &off)) return 0;
+    uint32_t size = MR32(blk + 8u), room = pack_out_room(c, blk);
+    if (size > room || blk > UINT32_MAX - 16u ||
+        !range_committed(blk + 16u, size) || !range_committed(out, size)){
+        pack_refuse(c, blk, out, 1, pk, off, "has an invalid RAWW input/output range");
+        return 1;
+    }
+    if (size){
+        uint32_t first_n = size < 16u ? size : 16u;
+        int first = fileio_pack_bytes(blk + 16u, first_n, &data_pk, &data_off);
+        uint32_t last_at = blk + 16u + size - 1u;
+        int last = fileio_pack_bytes(last_at, 1u, &last_pk, &last_off);
+        if (first != 1 || last != 1 || data_pk != pk || last_pk != pk ||
+            data_off != off + 16 || last_off != off + 16 + (int64_t)size - 1){
+            pack_refuse(c, blk, out, 1, pk, off, "is truncated or no longer matches its pack file");
+            return 1;
+        }
+        memmove(&MR8(out), &MR8(blk + 16u), size);
+    }
+    c->eax = size;
+    POP32(c->eip);
+    return 1;
+}
 void sub_00574670(CPU *restrict c){
     static int verify = -1;
     if (verify < 0){ const char *e = getenv("NFSU2_JDLZ_VERIFY"); verify = e && *e == '1'; }
@@ -1302,11 +1330,14 @@ void sub_00574670(CPU *restrict c){
      * Unknown pack blocks must not be sent to the original game's dispatcher. */
     if (blk && out && range_committed(blk, 16u)){
         uint32_t tag = MR32(blk), ver = MR8(blk + 4u);
-        if (!((tag == JDLZ_TAG && ver == 2u) || (tag == RAWW_TAG && ver == 1u) ||
-              tag == HUFF_TAG || tag == COMP_TAG) &&
-            pack_refused(c, blk, out, "uses an unsupported block kind or version"))
+        if (!((tag == JDLZ_TAG && ver == 2u) || (tag == RAWW_TAG && ver == 1u)) &&
+            pack_refused(c, blk, out, "uses a format without a bounded pack decoder"))
             return;
     }
+
+    if (blk && out && range_committed(blk, 16u) &&
+        MR32(blk) == RAWW_TAG && MR8(blk + 4u) == 1u && pack_raww(c, blk, out))
+        return;
 
     if (blk && out && mem_is_committed(blk) && mem_is_committed(blk + 15u) &&
         MR32(blk) == JDLZ_TAG && MR8(blk + 4u) == 2u){
