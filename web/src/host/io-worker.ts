@@ -178,8 +178,10 @@ function memPut(key: string, b: Uint8Array) {
   const budget = cacheDir && keeping ? MEM_KEPT : MEM_ALONE;
   for (const [k, v] of memBlocks) { if (memBytes <= budget) break; memBlocks.delete(k); memBytes -= v.length; }
 }
+/** this worker's global (the libraries type self as a window's) */
+const me = self as unknown as DedicatedWorkerGlobalScope;
 // a line for the game's log (F9 > Download log), as "[data] ...": what a read waited for on the server
-const note = (s: string) => (self as unknown as Worker).postMessage({ t: 'log', s });
+const note = (s: string) => me.postMessage({ t: 'log', s });
 // At most FETCHES block requests in flight (the server holds each client address to 64 requests at once, so a
 // household of players behind one address stays well inside it).  A block comes compressed when the server offers
 // it (the browser undoes the Content-Encoding), else as a byte range of the file.  A try that fails on the way (no
@@ -526,7 +528,7 @@ async function op(o: Op, a: bigint[]): Promise<number> {
       if (e.kind && oflags & 4) return E.EXIST;
       const fh = e.kind ? e.h as FileSystemFileHandle : await e.parent.getFileHandle(e.name, { create: true });
       let sh: FileSystemSyncAccessHandle;
-      try { sh = await (fh as any).createSyncAccessHandle({ mode: 'readwrite-unsafe' }); } catch { return E.ACCES; }
+      try { sh = await fh.createSyncAccessHandle({ mode: 'readwrite-unsafe' }); } catch { return E.ACCES; }
       if (oflags & 8) sh.truncate(0);
       const fd = allocFd({ mount: 'save', kind: 'file', path: rel, pos: 0, append: !!(fdflags & 1), sh, fh, wrote: !!(oflags & 8) });
       dv().setUint32(n(8), fd, true); return 0;
@@ -537,7 +539,7 @@ async function op(o: Op, a: bigint[]): Promise<number> {
       if (f.sh) { f.sh.flush(); f.sh.close(); }
       fds.delete(n(0));
       // posted before the call returns, so the page hears of a save before the game can exit after it
-      if (f.wrote) (self as unknown as Worker).postMessage({ t: 'saved', path: f.path });
+      if (f.wrote) me.postMessage({ t: 'saved', path: f.path });
       return 0;
     }
     case Op.FdRead: case Op.FdPread: {
@@ -603,7 +605,7 @@ async function op(o: Op, a: bigint[]): Promise<number> {
       if (!f.dirents || a[3] === 0n) {
         const list: { name: string; type: number; ino: number }[] = [{ name: '.', type: FT_DIR, ino: 1 }, { name: '..', type: FT_DIR, ino: 1 }];
         if (f.mount === 'data') { const nd = f.node ?? dataLookup(f.path); for (const k of nd?.kids?.values() ?? []) list.push({ name: k.name, type: k.dir ? FT_DIR : FT_FILE, ino: k.ino }); }
-        else for await (const [name, h] of (f.dh as any).entries() as AsyncIterable<[string, FileSystemHandle]>)
+        else for await (const [name, h] of f.dh!.entries())
           list.push({ name, type: h.kind === 'directory' ? FT_DIR : FT_FILE, ino: inoOf(joinRel(f.path, name)) });
         f.dirents = list;
       }
@@ -662,7 +664,7 @@ async function op(o: Op, a: bigint[]): Promise<number> {
 // 1000 ms); 50 also bounds one that would be to a few frames.
 const DOORBELL_WAIT_MS = 50;
 let offPage = false, memSaid = 0;
-function memGrew() { const b = memory.buffer; if (b.byteLength <= memSaid) return; memSaid = b.byteLength; (self as unknown as Worker).postMessage({ t: 'mem', buf: b }); }
+function memGrew() { const b = memory.buffer; if (b.byteLength <= memSaid) return; memSaid = b.byteLength; me.postMessage({ t: 'mem', buf: b }); }
 async function serve() {
   let seen = Atomics.load(ctl, CTL_IO_DOORBELL);
   for (;;) {
@@ -676,7 +678,7 @@ async function serve() {
         rpcI32[b + 2] = r; Atomics.store(rpcI32, b, RPC_DONE); Atomics.notify(rpcI32, b);
       });
     }
-    const w = (Atomics as any).waitAsync(ctl, CTL_IO_DOORBELL, seen, DOORBELL_WAIT_MS);
+    const w = Atomics.waitAsync(ctl, CTL_IO_DOORBELL, seen, DOORBELL_WAIT_MS);
     if (w.async) await w.value;
     seen = Atomics.load(ctl, CTL_IO_DOORBELL);
   }
@@ -686,9 +688,9 @@ onmessage = async (e: MessageEvent<Init | { t: 'save-ready' } | { t: 'give'; por
   if ('t' in e.data) {
     if (e.data.t === 'give') {
       try { e.data.port.postMessage(memory); }
-      catch (x) { (self as unknown as Worker).postMessage({ t: 'give-here', slot: e.data.slot, memory }); }
+      catch (x) { me.postMessage({ t: 'give-here', slot: e.data.slot, memory }); }
       e.data.port.close();
-    } else if (e.data.t === 'give-page') (self as unknown as Worker).postMessage({ t: 'give-here', slot: e.data.slot, memory });
+    } else if (e.data.t === 'give-page') me.postMessage({ t: 'give-here', slot: e.data.slot, memory });
     return;
   }
   cfg = e.data.cfg;
@@ -697,9 +699,9 @@ onmessage = async (e: MessageEvent<Init | { t: 'save-ready' } | { t: 'give'; por
     try {
       const got = allocMemory(e.data.tries ?? []);
       memory = got.memory; offPage = true;
-      (self as unknown as Worker).postMessage({ t: 'memory', buf: memory.buffer, note: got.note });
+      me.postMessage({ t: 'memory', buf: memory.buffer, note: got.note });
     } catch (err) {
-      (self as unknown as Worker).postMessage({ t: 'io-error', msg: err instanceof Error ? err.message : String(err), range: err instanceof RangeError, note: (err as { note?: string } | null)?.note });
+      me.postMessage({ t: 'io-error', msg: err instanceof Error ? err.message : String(err), range: err instanceof RangeError, note: (err as { note?: string } | null)?.note });
       return;
     }
   }
@@ -713,9 +715,9 @@ onmessage = async (e: MessageEvent<Init | { t: 'save-ready' } | { t: 'give'; por
     fds.set(3, { mount: 'data', kind: 'dir', path: '', pos: 0, append: false, node: dataRoot, preopen: '/data' });
     fds.set(4, { mount: 'save', kind: 'dir', path: '', pos: 0, append: false, dh: saveRoot, preopen: '/save' });
     fds.set(5, { mount: 'dev', kind: 'dir', path: '', pos: 0, append: false, preopen: '/dev' });
-    (self as unknown as Worker).postMessage({ t: 'io-ready', files: inoNext });
+    me.postMessage({ t: 'io-ready', files: inoNext });
     void serve();
   } catch (err) {
-    (self as unknown as Worker).postMessage({ t: 'io-error', msg: String(err) });
+    me.postMessage({ t: 'io-error', msg: String(err) });
   }
 };

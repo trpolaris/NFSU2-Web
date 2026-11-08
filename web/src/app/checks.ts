@@ -82,7 +82,7 @@ export function checkIsolation(): Check {
   // browser's address space before Play allocates the actual game memory.
   try { new WebAssembly.Memory({ initial: 1, maximum: 1, shared: true }); }
   catch (e) { return check('isolation', label, 'fail', N('Shared WebAssembly memory is not available: {error}'), 'PAGE-NO-MEMORY', { error: String(e) }); }
-  if (typeof (Atomics as { waitAsync?: unknown }).waitAsync !== 'function') {
+  if (typeof Atomics.waitAsync !== 'function') {
     return check('isolation', label, 'fail', N('This browser is too old for the game (no Atomics.waitAsync). Update {browser}.'), 'PAGE-NO-WAITASYNC', { browser: browserName() });
   }
   return check('isolation', label, 'ok', N('HTTPS or localhost, cross-origin isolated, threads and shared memory available.'));

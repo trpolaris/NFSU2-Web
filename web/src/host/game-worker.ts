@@ -20,7 +20,9 @@ let tid = 0;
 // in ms: the runtime subtracts it from the time it held the guest lock to get
 // the guest thread's busy time (runtime/win32_ext.c, [status] gcpu)
 let blockedMs = 0;
-const post = (m: ToPage) => (self as unknown as Worker).postMessage(m);
+/** this worker's global (the libraries type self as a window's) */
+const me = self as unknown as DedicatedWorkerGlobalScope;
+const post = (m: ToPage) => me.postMessage(m);
 
 // The I/O worker sends the shared Memory on a port. If the browser cannot clone it,
 // request it through the page as a compatibility fallback.
@@ -233,7 +235,7 @@ function stackFrames(): number {
 function hostImports(): Record<string, (...a: any[]) => any> {
   return {
     // nfsu2_host_register(kind, ptr, size): tells the page where a shared structure lives
-    register: (kind: number, ptr: number, size: number) => { (self as unknown as Worker).postMessage({ t: 'register', kind, ptr, size }); return 0; },
+    register: (kind: number, ptr: number, size: number) => { me.postMessage({ t: 'register', kind, ptr, size }); return 0; },
     // milliseconds since the page's time origin (same clock in every worker)
     now_ms: () => T0MS + performance.now(),
     // ms this thread has spent blocked in host waits (I/O, sleeps) so far
