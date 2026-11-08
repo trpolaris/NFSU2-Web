@@ -6616,6 +6616,42 @@ static void track_follow(void){
          rh_frame(), travel_room() ? "on a race track's map" : "back in the city", previous, want, left);
 }
 
+/* travel.c: a linked mutual friend's current pose, identified by the same name hash as the page.
+ * A slot is only eligible while its peer is still a mutual friend and its Free Roam car is visible. */
+int roam_game_friend_at(uint32_t name, float p[3], uint16_t *heading){
+    uint32_t w = world();
+    if (!w || !name || !p || !heading) return 0;
+    for (int k = 0; k < NSLOT; k++){
+        const Slot *s = &g_sl[k];
+        if (s->st != SL_ACTIVE || s->hidden || s->world != w || !ok(s->car, 0x410u) || !mp_friend(s->peer_id)) continue;
+        const rc_peer *peer = mp_peer(s->peer_id);
+        if (!peer || !peer->name[0] || rc_room_hash(peer->name) != name) continue;
+        p[0] = MRF32(s->car + 0x60u);
+        p[1] = MRF32(s->car + 0x64u);
+        p[2] = MRF32(s->car + 0x68u);
+        *heading = MR16(s->car + 0x40cu);
+        return 1;
+    }
+    return 0;
+}
+
+/* travel.c: no outrun, race lobby or multiplayer race trip under way. */
+int roam_game_alone(void){
+    if (g_racing) return 0;
+#if DUELS
+    if (g_du.st != DU_IDLE) return 0;
+#endif
+#if MPRACES
+    if (g_mp.st != MP_IDLE) return 0;
+#endif
+    return 1;
+}
+
+/* travel.c: after a hot-position jump, remote cars remain ghosts until they clear our car. */
+void roam_game_jumped(void){
+    if (g_inited && O.on) ghost_all();
+}
+
 #endif
 void roam_game_frame(CPU *c){
     if (!g_inited) init_once(c);
