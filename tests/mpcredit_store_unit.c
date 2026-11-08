@@ -41,6 +41,23 @@ int main(void){
     assert(mpcredit_store_read(path, out, 2, &count) == MPCREDIT_STORE_MISSING);
     assert(count == 0);
 
+    /* Read the exact v1 layout written by the original mpcredit.c writer:
+     * 3 dwords (magic, version, count), then {race hash, float bits} pairs. */
+    uint32_t v1_file[3u + 2u * 2u] = {
+        TEST_MAGIC, TEST_VERSION, 2u,
+        entries[0].race_hash, 0u,
+        entries[1].race_hash, 0u
+    };
+    memcpy(&v1_file[4], &entries[0].margin, sizeof v1_file[4]);
+    memcpy(&v1_file[6], &entries[1].margin, sizeof v1_file[6]);
+    raw_write(path, v1_file, sizeof v1_file);
+    assert(mpcredit_store_read(path, out, 2, &count) == MPCREDIT_STORE_OK);
+    assert(count == 2);
+    for (size_t i = 0; i < 2; i++){
+        assert(out[i].race_hash == entries[i].race_hash);
+        assert(out[i].margin == entries[i].margin);
+    }
+
     assert(mpcredit_store_write(path, entries, 2));
     assert(mpcredit_store_read(path, out, 2, &count) == MPCREDIT_STORE_OK);
     assert(count == 2);
@@ -86,9 +103,13 @@ int main(void){
     float nan_margin;
     memcpy(&nan_margin, &nan_bits, sizeof nan_margin);
     MpCreditStoreEntry bad = { 0x12345678u, nan_margin };
-    assert(!mpcredit_store_write(path, &bad, 1));
     assert(mpcredit_store_write(path, entries, 2));
+    assert(!mpcredit_store_write(path, &bad, 1));
     assert(mpcredit_store_read(path, out, 2, &count) == MPCREDIT_STORE_OK && count == 2);
+    for (size_t i = 0; i < 2; i++){
+        assert(out[i].race_hash == entries[i].race_hash);
+        assert(out[i].margin == entries[i].margin);
+    }
     assert(mpcredit_store_write(path, 0, 0));
     assert(mpcredit_store_read(path, out, 2, &count) == MPCREDIT_STORE_MISSING);
     assert(count == 0);

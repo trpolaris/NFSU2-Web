@@ -1,0 +1,8 @@
+# Multiplayer Career Credits: reload a queued MPWINS.DAT from an existing save tree.
+# Run after mpcreditpending with NFSU2_SAVE_SEED=<prior run>/save.
+0     bot on
++0    waitroam 18000
++0    bot off
++0    careerlist
++0    log MP_CREDIT_RESTORE_DONE
++60   quit
