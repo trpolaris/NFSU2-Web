@@ -434,11 +434,17 @@ fn read_as_nfkd_without_marks_and_lookalikes() {
     assert_eq!(text("\u{39d}\u{430}\u{20ac}"), "Nae");
     // Unicode 17 marks are stripped like Node 24's ICU, although the Rust category table is Unicode 16.
     assert_eq!(text("a\u{10efb}b"), "ab");
+    assert_eq!(text("a\u{10efc}b"), "ab");
+    assert_eq!(text("a\u{10eff}b"), "ab");
     assert_eq!(text("a\u{1e6e3}b"), "ab");
     assert_eq!(text("a\u{1e6e6}b"), "ab");
     assert!(blocked_name("Vaå\u{2061}nDyk\u{1e6e3}e8⁷81"));
     assert!(!blocked_name("kiⓘ𝜘ϵ\u{10efb}𝟨6ŗaⓒc𝑜0ṅ#"));
     assert!(!blocked_name("D\u{e003f}𝔸nᵑ𝗂9₉9GsV\u{1e6e6}an  D\u{1ace}yk€"));
+    // Only code points assigned in Unicode 17 are exempted from the older category table's Unassigned result.
+    assert!(!unknown('\u{10ec2}') && !unknown('\u{10ed0}') && !unknown('\u{1e6c0}') && !unknown('\u{1e6fe}'));
+    assert!(unknown('\u{10ec0}') && unknown('\u{1e6df}') && unknown('\u{1e6f6}'));
+    assert!(is_mark('\u{10efc}') && is_mark('\u{1e6f5}'));
     // a keycap: the digit stays, the variation selector and the enclosing keycap are marks
     assert_eq!(text("1\u{fe0f}\u{20e3}"), "1");
     // the ligature and the fraction come apart, the emoji and the zero-width joiner stay
