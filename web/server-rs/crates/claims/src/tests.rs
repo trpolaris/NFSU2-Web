@@ -117,15 +117,9 @@ fn a_vault_use_holds_its_current_name() {
     c.used(&a, later + 3 * DAY_MS);
     assert_eq!(
         c.status("Alex", Some(&a), later + 3 * DAY_MS),
-        Status::Yours {
-            until: later + 2 * DAY_MS + GRACE_DAYS * DAY_MS,
-            current: false
-        }
+        Status::Yours { until: later + 2 * DAY_MS + GRACE_DAYS * DAY_MS, current: false }
     );
-    assert_eq!(
-        c.mine(&a, later + 3 * DAY_MS).unwrap().until,
-        later + 3 * DAY_MS + HOLD_DAYS * DAY_MS
-    );
+    assert_eq!(c.mine(&a, later + 3 * DAY_MS).unwrap().until, later + 3 * DAY_MS + HOLD_DAYS * DAY_MS);
 }
 
 #[test]
@@ -233,7 +227,6 @@ fn a_file_edited_by_hand() {
     std::fs::write(dir.path().join("names.json"), "{not json").unwrap();
     assert_eq!(Claims::open(dir.path(), NOW).count(NOW), 0);
 }
-
 
 #[test]
 fn pruning_is_rate_limited_but_expired_names_are_not_live() {

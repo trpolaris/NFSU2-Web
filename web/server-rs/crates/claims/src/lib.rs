@@ -444,10 +444,8 @@ impl Claims {
         let (mut names, mut owners) = {
             let g = self.inner.read();
             let names = g.names.values().filter(|c| c.live(now)).cloned().collect::<Vec<_>>();
-            let owners = g.owners.iter()
-                .filter(|(_, r)| r.changed > 0)
-                .map(|(o, r)| (o.clone(), r.changed, r.prev.clone()))
-                .collect::<Vec<_>>();
+            let owners =
+                g.owners.iter().filter(|(_, r)| r.changed > 0).map(|(o, r)| (o.clone(), r.changed, r.prev.clone())).collect::<Vec<_>>();
             (names, owners)
         };
         names.sort_by(|a, b| a.made.cmp(&b.made).then_with(|| a.name.cmp(&b.name)));

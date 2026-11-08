@@ -350,12 +350,7 @@ mod tests {
         // New and legacy paths address the same encrypted record; no save migration is needed.
         assert_eq!(kit.request("GET", "/cloud/v1/saves", &[], b"").await.status, 401);
 
-        let made = kit.request(
-            "PUT",
-            "/cloud/v1/saves",
-            &[BEARER, ("If-None-Match", "*")],
-            b"cloud box",
-        ).await;
+        let made = kit.request("PUT", "/cloud/v1/saves", &[BEARER, ("If-None-Match", "*")], b"cloud box").await;
         assert_eq!(made.status, 201);
         assert_eq!(made.header("x-trpolaris-cloud-saved"), made.header("x-vault-saved"));
         let tag = made.header("etag").unwrap().to_string();
@@ -363,12 +358,7 @@ mod tests {
         let legacy_read = kit.request("GET", "/vault", &[BEARER], b"").await;
         assert_eq!(legacy_read.body.as_slice(), &b"cloud box"[..]);
 
-        let legacy_update = kit.request(
-            "PUT",
-            "/vault",
-            &[BEARER, ("If-Match", &tag)],
-            b"legacy update",
-        ).await;
+        let legacy_update = kit.request("PUT", "/vault", &[BEARER, ("If-Match", &tag)], b"legacy update").await;
         assert_eq!(legacy_update.status, 200);
 
         let cloud_read = kit.request("GET", "/cloud/v1/saves", &[BEARER], b"").await;

@@ -4,8 +4,8 @@
 mod kit;
 
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 use std::process::Command;
+use std::sync::Arc;
 
 use kit::*;
 use nfsu2_roam::{CarBan, CarBans, RoamOptions};
@@ -421,7 +421,6 @@ fn race_reports_on_the_wire_roam_core_and_the_hub_agree() {
     );
 }
 
-
 /// A lobby RACEREP: its sender's own car, before the race's engine balancing.
 fn race_report(sender: u32, lobby: u32, players: u8, car_type: u8, rating: f32, kw: f32) -> Vec<u8> {
     let mut p = vec![0u8; 64];
@@ -445,10 +444,8 @@ fn configured_car_bans_only_reported_multiplayer_player_cars_over_threshold() {
     let told: Arc<Mutex<Vec<CarBan>>> = Default::default();
     let t = told.clone();
     let call = Arc::new(move |c: CarBan| t.lock().push(c));
-    let mut k = Kit::new(RoamOptions {
-        car_bans: Some(CarBans { kw: Some(1500.0), rating: Some(3000.0), call }),
-        ..RoamOptions::default()
-    });
+    let mut k =
+        Kit::new(RoamOptions { car_bans: Some(CarBans { kw: Some(1500.0), rating: Some(3000.0), call }), ..RoamOptions::default() });
     k.from(W(0), &hello_with(100, &HelloOpts { core: 5, name: b"Evl", ..Default::default() }));
 
     // An honest car, a race alone, and a traffic vehicle do not trigger a ban.
@@ -480,4 +477,3 @@ fn configured_car_bans_only_reported_multiplayer_player_cars_over_threshold() {
     off.from(W(1), &race_report(101, 0xD1, 4, 27, 5000.0, 9999.0));
     assert_eq!(off.info("carBans"), 0.0);
 }
-

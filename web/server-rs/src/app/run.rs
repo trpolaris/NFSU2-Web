@@ -63,10 +63,7 @@ fn env_num(name: &str, def: u64) -> u64 {
 /// the World Map MAPD ceiling: 512 by default; 2048 maximum, or 1664 for height-bearing requests.
 /// Zero and invalid values keep the conservative default; legacy MAP is capped separately in the hub.
 fn map_max_from_env(value: Option<&str>, default: usize) -> usize {
-    value.and_then(|v| v.trim().parse::<u64>().ok())
-        .filter(|&v| v > 0)
-        .unwrap_or(default as u64)
-        .min(2048) as usize
+    value.and_then(|v| v.trim().parse::<u64>().ok()).filter(|&v| v > 0).unwrap_or(default as u64).min(2048) as usize
 }
 
 /// the state folder: made private to this server's user (the files inside are 0600 too)
@@ -109,7 +106,9 @@ async fn reload_cert(app: &Arc<App>, tls: &Arc<TlsState>) {
 /// No policy is active unless the operator explicitly configures at least one positive threshold.
 fn car_bans_from_env() -> Option<(CarBans, mpsc::UnboundedReceiver<CarBan>)> {
     let raw = std::env::var("NFSU2_CAR_BANS").unwrap_or_default();
-    if raw.trim().is_empty() { return None; }
+    if raw.trim().is_empty() {
+        return None;
+    }
     let (mut kw, mut rating) = (None, None);
     for part in raw.split([',', ' ']).filter(|p| !p.trim().is_empty()) {
         let Some((key, value)) = part.split_once('=') else {
@@ -133,12 +132,20 @@ fn car_bans_from_env() -> Option<(CarBans, mpsc::UnboundedReceiver<CarBan>)> {
             }
         }
     }
-    if kw.is_none() && rating.is_none() { return None; }
+    if kw.is_none() && rating.is_none() {
+        return None;
+    }
     let (tx, rx) = mpsc::unbounded_channel();
-    let call = Arc::new(move |c: CarBan| { let _ = tx.send(c); });
+    let call = Arc::new(move |c: CarBan| {
+        let _ = tx.send(c);
+    });
     let mut thresholds = Vec::new();
-    if let Some(v) = kw { thresholds.push(format!("{v:.0} kW or more")); }
-    if let Some(v) = rating { thresholds.push(format!("rating {v:.0} or more")); }
+    if let Some(v) = kw {
+        thresholds.push(format!("{v:.0} kW or more"));
+    }
+    if let Some(v) = rating {
+        thresholds.push(format!("rating {v:.0} or more"));
+    }
     log::line(&format!("[ban] automatic race bans enabled: {}", thresholds.join(" or ")));
     Some((CarBans { kw, rating, call }, rx))
 }

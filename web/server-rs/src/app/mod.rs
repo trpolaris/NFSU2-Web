@@ -20,8 +20,8 @@ mod kept;
 mod lan;
 mod manifest;
 mod names;
-mod pool;
 mod player_hub;
+mod pool;
 #[cfg(test)]
 mod route_tests;
 mod run;
@@ -271,7 +271,9 @@ impl App {
     ) -> App {
         let host_check = HostCheck::new(&o.hosts);
         let friends = match (online.as_ref(), names.as_ref()) {
-            (Some(online), Some(names)) => Some(friends::FriendsRoute::new(online.clone(), names.claims.clone(), lan.clone(), roam.clone())),
+            (Some(online), Some(names)) => {
+                Some(friends::FriendsRoute::new(online.clone(), names.claims.clone(), lan.clone(), roam.clone()))
+            }
             _ => None,
         };
         let real_roots: Arc<Mutex<HashMap<String, String>>> = Arc::default();
@@ -724,9 +726,8 @@ impl App {
         if let (Some(room), Some(r)) = (room, &self.roam) {
             m.insert("room".into(), serde_json::Value::from(r.in_room(room).min(players)));
         }
-        let rooms: Vec<u32> = u.param("rooms").map_or(Vec::new(), |rooms| {
-            rooms.split(',').filter_map(|h| h.parse::<u32>().ok()).take(ROOMS_ASKED).collect()
-        });
+        let rooms: Vec<u32> =
+            u.param("rooms").map_or(Vec::new(), |rooms| rooms.split(',').filter_map(|h| h.parse::<u32>().ok()).take(ROOMS_ASKED).collect());
         if let Some(r) = self.roam.as_ref().filter(|_| !rooms.is_empty()) {
             let counts = rooms.iter().map(|&room| serde_json::Value::from(r.in_room(room).min(players))).collect();
             m.insert("rooms".into(), serde_json::Value::Array(counts));

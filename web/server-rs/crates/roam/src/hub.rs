@@ -58,14 +58,52 @@ const MAP_AHEAD_MS: f64 = 500.0;
 const MAP_KEEP_MS: f64 = 10_000.0;
 
 #[derive(Clone, Copy)]
-struct MapCand { slot: u32, id: u32, p: [f64; 3], x: i16, y: i16, heading: u8, vx: i8, vy: i8, parked: bool }
+struct MapCand {
+    slot: u32,
+    id: u32,
+    p: [f64; 3],
+    x: i16,
+    y: i16,
+    heading: u8,
+    vx: i8,
+    vy: i8,
+    parked: bool,
+}
 #[derive(Clone, Copy)]
-struct MapSent { slot: u32, id: u32, x: i16, y: i16, heading: u8, vx: i8, vy: i8, parked: bool, t: f64 }
-struct NearGrid { at: f64, keys: Vec<(u32, i32, i32)>, items: Vec<NearItem>, pos: Vec<u32> }
+struct MapSent {
+    slot: u32,
+    id: u32,
+    x: i16,
+    y: i16,
+    heading: u8,
+    vx: i8,
+    vy: i8,
+    parked: bool,
+    t: f64,
+}
+struct NearGrid {
+    at: f64,
+    keys: Vec<(u32, i32, i32)>,
+    items: Vec<NearItem>,
+    pos: Vec<u32>,
+}
 #[derive(Clone, Copy)]
-struct NearItem { slot: u32, x: f32, y: f32, vx: f32, vy: f32, left: f32 }
+struct NearItem {
+    slot: u32,
+    x: f32,
+    y: f32,
+    vx: f32,
+    vy: f32,
+    left: f32,
+}
 #[derive(Default)]
-struct MapHeld { held: Option<(u16, Vec<MapSent>)>, sent: Option<(u16, Vec<MapSent>)>, at: f64, cands: Vec<u32>, cands_of: Option<(f64, u32, u16, u16, f64, f64)> }
+struct MapHeld {
+    held: Option<(u16, Vec<MapSent>)>,
+    sent: Option<(u16, Vec<MapSent>)>,
+    at: f64,
+    cands: Vec<u32>,
+    cands_of: Option<(f64, u32, u16, u16, f64, f64)>,
+}
 
 /// no slot, no place in a room
 const NONE: u32 = u32::MAX;
@@ -172,20 +210,37 @@ fn race_line(player: &str, r: &wire::RaceRep) -> String {
 
 /// A race with others in a player's own car type, past an operator-configured power/rating threshold.
 fn server_bans(c: &CarBans, r: &wire::RaceRep) -> bool {
-    r.players >= 2 && r.car_type < 31
-        && (c.kw.is_some_and(|kw| r.kw >= kw) || c.rating.is_some_and(|rating| r.rating >= rating))
+    r.players >= 2 && r.car_type < 31 && (c.kw.is_some_and(|kw| r.kw >= kw) || c.rating.is_some_and(|rating| r.rating >= rating))
 }
 fn car_ban(vip: u32, name: &str, r: &wire::RaceRep) -> CarBan {
     let place = match r.place {
         0 if r.quit => "quit".to_string(),
         0 => "did not finish".to_string(),
-        n => format!("{n}{} of {}", match n { 1 => "st", 2 => "nd", 3 => "rd", _ => "th" }, r.players),
+        n => format!(
+            "{n}{} of {}",
+            match n {
+                1 => "st",
+                2 => "nd",
+                3 => "rd",
+                _ => "th",
+            },
+            r.players
+        ),
     };
     CarBan {
-        vip, name: name.to_string(),
+        vip,
+        name: name.to_string(),
         car: r.name.iter().map(|&c| c as char).collect(),
-        car_type: r.car_type, kw: r.kw, kg: r.kg, kmh: r.kmh, rating: r.rating,
-        kind: results::mode_name(r.mode).to_string(), laps: r.laps, place, lobby: r.lobby, race: r.race,
+        car_type: r.car_type,
+        kw: r.kw,
+        kg: r.kg,
+        kmh: r.kmh,
+        rating: r.rating,
+        kind: results::mode_name(r.mode).to_string(),
+        laps: r.laps,
+        place,
+        lobby: r.lobby,
+        race: r.race,
     }
 }
 
@@ -496,10 +551,7 @@ fn friend_id(a: &str, b: &str) -> u32 {
 /// A player's mutual friends as stable ids; one-way names never make priority links.
 fn friend_ids(owner: Option<&Arc<str>>, friends: Option<&Vec<Arc<str>>>) -> Vec<u32> {
     let (Some(owner), Some(friends)) = (owner, friends) else { return Vec::new() };
-    let mut ids: Vec<u32> = friends.iter()
-        .filter(|other| other.as_ref() != owner.as_ref())
-        .map(|other| friend_id(owner, other))
-        .collect();
+    let mut ids: Vec<u32> = friends.iter().filter(|other| other.as_ref() != owner.as_ref()).map(|other| friend_id(owner, other)).collect();
     ids.sort_unstable();
     ids.dedup();
     ids
@@ -971,16 +1023,23 @@ impl Hub {
     fn mapd(&mut self, slot: u32, req: u16, most: u16, base: u16, parked: bool, now: f64) {
         let max = mapd_limit(self.o.map_max, most as usize, parked);
         let Some(p) = self.player(slot) else { return };
-        if p.impostor || self.map_at.get(&p.vip).is_some_and(|&t| now < t) { return; }
+        if p.impostor || self.map_at.get(&p.vip).is_some_and(|&t| now < t) {
+            return;
+        }
         let (room, at, vip, port, hub_port, lobbies) = (p.room, p.p.unwrap_or_default(), p.vip, p.port, p.hub_port, p.lobbies);
         let (at_t, cands) = self.map_cands.remove(&room).unwrap_or_else(|| (now, self.map_room(room, now)));
         let Some(p) = self.player(slot) else { return };
         let mut links: Vec<u32> = p.links.iter().map(|l| l.slot).collect();
         links.sort_unstable();
-        let mut list: Vec<MapCand> = cands.iter().filter(|c| {
-            c.slot != slot && links.binary_search(&c.slot).is_err()
-                && !self.player(c.slot).is_some_and(|o| self.apart_from(slot, c.slot, p, o))
-        }).copied().collect();
+        let mut list: Vec<MapCand> = cands
+            .iter()
+            .filter(|c| {
+                c.slot != slot
+                    && links.binary_search(&c.slot).is_err()
+                    && !self.player(c.slot).is_some_and(|o| self.apart_from(slot, c.slot, p, o))
+            })
+            .copied()
+            .collect();
         self.map_cands.insert(room, (at_t, cands));
         let total = list.len().min(u16::MAX as usize) as u16;
         if list.len() > max {
@@ -989,27 +1048,52 @@ impl Hub {
             list.sort_unstable_by_key(|c| c.slot);
         }
         let mut m = self.maps.remove(&vip).unwrap_or_default();
-        if base != 0 && m.sent.as_ref().is_some_and(|s| s.0 == base) { m.held = m.sent.take(); }
-        let from: &[MapSent] = match &m.held { Some((r,l)) if base != 0 && *r == base => l, _ => &[] };
-        let (mut b, (mut entries, mut ends, mut next)) = (if from.is_empty(){0}else{base}, map_diff(from,&list,at_t,MAP_TOL_M,MAP_TOL_H,parked));
+        if base != 0 && m.sent.as_ref().is_some_and(|s| s.0 == base) {
+            m.held = m.sent.take();
+        }
+        let from: &[MapSent] = match &m.held {
+            Some((r, l)) if base != 0 && *r == base => l,
+            _ => &[],
+        };
+        let (mut b, (mut entries, mut ends, mut next)) =
+            (if from.is_empty() { 0 } else { base }, map_diff(from, &list, at_t, MAP_TOL_M, MAP_TOL_H, parked));
         let mut parts = map_parts(&ends);
         if parts.len() > wire::MAPD_PARTS {
-            (b,(entries,ends,next))=(0,map_diff(&[],&list,at_t,MAP_TOL_M,MAP_TOL_H,parked));
-            parts=map_parts(&ends);
+            (b, (entries, ends, next)) = (0, map_diff(&[], &list, at_t, MAP_TOL_M, MAP_TOL_H, parked));
+            parts = map_parts(&ends);
         }
-        for (k,&(a,z)) in parts.iter().enumerate() {
-            let (s0,s1)=(if a==0{0}else{ends[a-1]},if z==0{0}else{ends[z-1]});
-            let mut frame=vec![0u8;F_DATA+wire::mapd_len(s1-s0)];
-            frame[0]=KIND_UDP;frame[4..8].copy_from_slice(&ROAM_HUB_VIP.to_be_bytes());
-            frame[8..12].copy_from_slice(&vip.to_be_bytes());frame[12..14].copy_from_slice(&hub_port.to_be_bytes());
+        for (k, &(a, z)) in parts.iter().enumerate() {
+            let (s0, s1) = (if a == 0 { 0 } else { ends[a - 1] }, if z == 0 { 0 } else { ends[z - 1] });
+            let mut frame = vec![0u8; F_DATA + wire::mapd_len(s1 - s0)];
+            frame[0] = KIND_UDP;
+            frame[4..8].copy_from_slice(&ROAM_HUB_VIP.to_be_bytes());
+            frame[8..12].copy_from_slice(&vip.to_be_bytes());
+            frame[12..14].copy_from_slice(&hub_port.to_be_bytes());
             frame[14..16].copy_from_slice(&port.to_be_bytes());
-            wire::write_mapd(&mut frame[F_DATA..],wire::MSG_MAPD,self.id,self.seq,req,b,k as u8,parts.len() as u8,total,(z-a) as u8,if parked { wire::HF_MAPZ } else { 0 },&entries[s0..s1]);
-            self.seq=self.seq.wrapping_add(1);(self.send)(vip,Bytes::from(frame));
+            wire::write_mapd(
+                &mut frame[F_DATA..],
+                wire::MSG_MAPD,
+                self.id,
+                self.seq,
+                req,
+                b,
+                k as u8,
+                parts.len() as u8,
+                total,
+                (z - a) as u8,
+                if parked { wire::HF_MAPZ } else { 0 },
+                &entries[s0..s1],
+            );
+            self.seq = self.seq.wrapping_add(1);
+            (self.send)(vip, Bytes::from(frame));
         }
-        m.sent=Some((req,next));m.at=now;self.maps.insert(vip,m);
-        self.map_at.insert(vip,now+self.o.map_gap_ms);
-        if lobbies&&!self.lobbies_at.get(&vip).is_some_and(|&t|now<t){
-            self.lobbies_at.insert(vip,now+MAP_LOBBIES_GAP_MS);self.lobbies(slot,req,now);
+        m.sent = Some((req, next));
+        m.at = now;
+        self.maps.insert(vip, m);
+        self.map_at.insert(vip, now + self.o.map_gap_ms);
+        if lobbies && !self.lobbies_at.get(&vip).is_some_and(|&t| now < t) {
+            self.lobbies_at.insert(vip, now + MAP_LOBBIES_GAP_MS);
+            self.lobbies(slot, req, now);
         }
     }
 
@@ -1194,11 +1278,16 @@ impl Hub {
     }
 
     fn map_room(&self, room: u32, now: f64) -> Vec<MapCand> {
-        let mut list:Vec<MapCand>=self.order.iter().filter_map(|&q|{
-            let o=self.player(q)?;
-            (o.room==room&&self.map_shown(q,o,now)).then(||map_cand(q,o,ahead(o,now),now))
-        }).collect();
-        list.sort_unstable_by_key(|c|c.slot);list
+        let mut list: Vec<MapCand> = self
+            .order
+            .iter()
+            .filter_map(|&q| {
+                let o = self.player(q)?;
+                (o.room == room && self.map_shown(q, o, now)).then(|| map_cand(q, o, ahead(o, now), now))
+            })
+            .collect();
+        list.sort_unstable_by_key(|c| c.slot);
+        list
     }
 
     /// A typed line, relayed only to the sender's active FreeRoam room or selected Crew.
@@ -1209,48 +1298,92 @@ impl Hub {
         const RATE_MAX: usize = 4;
         let (sender_id, room, sender_name) = {
             let Some(Some(p)) = self.slots.get_mut(slot as usize) else { return };
-            if p.impostor || p.id == 0 { return; }
+            if p.impostor || p.id == 0 {
+                return;
+            }
             p.chat_at.retain(|&at| now - at < RATE_MS);
-            if p.chat_at.len() >= RATE_MAX { return; }
+            if p.chat_at.len() >= RATE_MAX {
+                return;
+            }
             p.chat_at.push(now);
             (p.id, p.room, p.name.clone())
         };
-        if text.trim().is_empty() { return; }
+        if text.trim().is_empty() {
+            return;
+        }
         let recipients: Vec<(u32, u16, u16)> = match scope {
             0 => {
-                if channel != 0 { return; }
+                if channel != 0 {
+                    return;
+                }
                 // All: active players in this configured FreeRoam room, except blocked pairs.
                 let Some(sender) = self.player(slot) else { return };
-                if !matches!(sender.status, 2 | 5) || sender.p.is_none() || now - sender.pos_at > ACTIVE_MS { return; }
-                self.order.iter().filter_map(|&q| {
-                    let p = self.player(q)?;
-                    if p.impostor || p.room != room || !matches!(p.status, 2 | 5) || p.p.is_none()
-                        || now - p.pos_at > ACTIVE_MS || now - p.seen > ACTIVE_MS
-                        || (q != slot && self.apart_from(slot, q, sender, p)) { return None; }
-                    Some((p.vip, p.port, p.hub_port))
-                }).collect()
+                if !matches!(sender.status, 2 | 5) || sender.p.is_none() || now - sender.pos_at > ACTIVE_MS {
+                    return;
+                }
+                self.order
+                    .iter()
+                    .filter_map(|&q| {
+                        let p = self.player(q)?;
+                        if p.impostor
+                            || p.room != room
+                            || !matches!(p.status, 2 | 5)
+                            || p.p.is_none()
+                            || now - p.pos_at > ACTIVE_MS
+                            || now - p.seen > ACTIVE_MS
+                            || (q != slot && self.apart_from(slot, q, sender, p))
+                        {
+                            return None;
+                        }
+                        Some((p.vip, p.port, p.hub_port))
+                    })
+                    .collect()
             }
             1 => {
-                if channel == 0 { return; }
+                if channel == 0 {
+                    return;
+                }
                 // Crew: both ends must be active in this room and share the selected Crew hash.
                 let Some(sender) = self.player(slot) else { return };
-                if !sender.crews.contains(&channel) || !matches!(sender.status, 2 | 5)
-                    || sender.p.is_none() || now - sender.pos_at > ACTIVE_MS { return; }
-                self.order.iter().filter_map(|&q| {
-                    let p = self.player(q)?;
-                    if p.impostor || p.room != room || !p.crews.contains(&channel) || !matches!(p.status, 2 | 5)
-                        || p.p.is_none() || now - p.pos_at > ACTIVE_MS || now - p.seen > ACTIVE_MS
-                        || (q != slot && self.apart_from(slot, q, sender, p)) { return None; }
-                    Some((p.vip, p.port, p.hub_port))
-                }).collect()
+                if !sender.crews.contains(&channel)
+                    || !matches!(sender.status, 2 | 5)
+                    || sender.p.is_none()
+                    || now - sender.pos_at > ACTIVE_MS
+                {
+                    return;
+                }
+                self.order
+                    .iter()
+                    .filter_map(|&q| {
+                        let p = self.player(q)?;
+                        if p.impostor
+                            || p.room != room
+                            || !p.crews.contains(&channel)
+                            || !matches!(p.status, 2 | 5)
+                            || p.p.is_none()
+                            || now - p.pos_at > ACTIVE_MS
+                            || now - p.seen > ACTIVE_MS
+                            || (q != slot && self.apart_from(slot, q, sender, p))
+                        {
+                            return None;
+                        }
+                        Some((p.vip, p.port, p.hub_port))
+                    })
+                    .collect()
             }
             _ => return,
         };
-        if recipients.is_empty() { return; }
+        if recipients.is_empty() {
+            return;
+        }
         let clean = text.trim();
-        if nfsu2_names::chat_slur(clean).is_some() || nfsu2_names::chat_profanity(clean).is_some() { return; }
+        if nfsu2_names::chat_slur(clean).is_some() || nfsu2_names::chat_profanity(clean).is_some() {
+            return;
+        }
         let bytes = clean.as_bytes();
-        if bytes.len() > wire::CHAT_MAX_BYTES || clean.chars().count() > wire::CHAT_MAX_CHARS { return; }
+        if bytes.len() > wire::CHAT_MAX_BYTES || clean.chars().count() > wire::CHAT_MAX_CHARS {
+            return;
+        }
         for (vip, port, hub_port) in recipients {
             let name = sender_name.as_bytes();
             let size = wire::HDR + 8 + name.len().min(32) + bytes.len() + wire::CRC;
@@ -1413,13 +1546,11 @@ impl Hub {
     pub fn peer_gone(&mut self, vip: u32) {
         self.blocks.remove(&vip);
         self.room_names.remove(&vip);
-        let owner = self.friend_owner.remove(&vip)
-            .or_else(|| self.players().find(|p| p.vip == vip).and_then(|p| p.owner.clone()));
+        let owner = self.friend_owner.remove(&vip).or_else(|| self.players().find(|p| p.vip == vip).and_then(|p| p.owner.clone()));
         // One claimed-name account may have several open game pages. Removing one tab must not
         // erase the reciprocal friendships still used by its other tabs.
-        let owner_has_other_page = owner.as_ref().is_some_and(|owner| {
-            self.friend_owner.values().any(|other| other.as_ref() == owner.as_ref())
-        });
+        let owner_has_other_page =
+            owner.as_ref().is_some_and(|owner| self.friend_owner.values().any(|other| other.as_ref() == owner.as_ref()));
         if let Some(owner) = owner.as_ref().filter(|_| !owner_has_other_page) {
             for list in self.friends.values_mut() {
                 list.retain(|f| f.as_ref() != owner.as_ref());
@@ -1446,7 +1577,9 @@ impl Hub {
     /// this player had a slot. Mirror that already-mutual relation now; do not wait for an F9 refresh.
     fn friends_on_arrival(&mut self, vip: u32, owner: &Arc<str>) {
         self.friend_owner.entry(vip).or_insert_with(|| owner.clone());
-        let incoming: Vec<Arc<str>> = self.friends.iter()
+        let incoming: Vec<Arc<str>> = self
+            .friends
+            .iter()
             .filter(|(_, owners)| owners.iter().any(|other| other.as_ref() == owner.as_ref()))
             .filter_map(|(other_vip, _)| self.friend_owner.get(other_vip))
             .filter(|other| other.as_ref() != owner.as_ref())
@@ -1486,21 +1619,17 @@ impl Hub {
             }
         }
         let owners_set: HashSet<Arc<str>> = owners.iter().cloned().collect();
-        let mut theirs: Vec<u32> = self.players()
+        let mut theirs: Vec<u32> = self
+            .players()
             .filter(|p| p.owner.as_ref().is_some_and(|owner| owners_set.contains(owner)))
             .map(|p| p.vip)
             .filter(|&other_vip| other_vip != vip)
             .collect();
         theirs.sort_unstable();
         theirs.dedup();
-        let removed_owners: HashSet<Arc<str>> = previous.iter()
-            .filter(|old| !owners_set.contains(*old))
-            .cloned()
-            .collect();
-        let mut removed_vips: Vec<u32> = self.players()
-            .filter(|p| p.owner.as_ref().is_some_and(|owner| removed_owners.contains(owner)))
-            .map(|p| p.vip)
-            .collect();
+        let removed_owners: HashSet<Arc<str>> = previous.iter().filter(|old| !owners_set.contains(*old)).cloned().collect();
+        let mut removed_vips: Vec<u32> =
+            self.players().filter(|p| p.owner.as_ref().is_some_and(|owner| removed_owners.contains(owner))).map(|p| p.vip).collect();
         removed_vips.sort_unstable();
         removed_vips.dedup();
         for other_vip in removed_vips {
@@ -1543,13 +1672,21 @@ impl Hub {
     /// Where each claimed friend is playing now (the last tick's live, non-impostor Free Roam players only).
     pub fn whereabouts(&self, owners: &[Arc<str>]) -> Vec<Option<Whereabouts>> {
         let now = (self.now)();
-        owners.iter().map(|owner| {
-            self.players().filter(|p| p.owner.as_ref().is_some_and(|o| o.as_ref() == owner.as_ref())
-                && matches!(p.status, 2 | 5) && p.p.is_some()
-                && now - p.pos_at <= self.o.stale_ms && !p.impostor)
-                .last()
-                .map(|p| Whereabouts { room: p.room, room_name: self.room_names.get(&p.vip).cloned() })
-        }).collect()
+        owners
+            .iter()
+            .map(|owner| {
+                self.players()
+                    .filter(|p| {
+                        p.owner.as_ref().is_some_and(|o| o.as_ref() == owner.as_ref())
+                            && matches!(p.status, 2 | 5)
+                            && p.p.is_some()
+                            && now - p.pos_at <= self.o.stale_ms
+                            && !p.impostor
+                    })
+                    .last()
+                    .map(|p| Whereabouts { room: p.room, room_name: self.room_names.get(&p.vip).cloned() })
+            })
+            .collect()
     }
 
     /// browser `vip`'s page blocks these players, by the name over their car (`Block`): logged, so that the operator
@@ -2489,53 +2626,86 @@ fn link_many(slots: &[Option<Player>], list: &[u32], w: &Weigh, s: &mut Scratch)
 }
 
 /// whether one of the two players' browsers blocks the other (`Hub::blocks`)
-fn ahead(p:&Player,now:f64)->[f64;3]{
-    let at=p.p.unwrap_or_default();let dt=(now-p.pos_at).clamp(0.0,MAP_AHEAD_MS)/1000.0;
-    [at[0]+p.v[0]*dt,at[1]+p.v[1]*dt,at[2]+p.v[2]*dt]
+fn ahead(p: &Player, now: f64) -> [f64; 3] {
+    let at = p.p.unwrap_or_default();
+    let dt = (now - p.pos_at).clamp(0.0, MAP_AHEAD_MS) / 1000.0;
+    [at[0] + p.v[0] * dt, at[1] + p.v[1] * dt, at[2] + p.v[2] * dt]
 }
-fn map_cand(slot:u32,o:&Player,p:[f64;3],now:f64)->MapCand{
-    let c=|x:f64|(x+0.5).floor().clamp(-32767.0,32767.0) as i16;
-    let v=|x:f64|x.round().clamp(-127.0,127.0) as i8;
-    MapCand{slot,id:o.id,p,x:c(p[0]),y:c(p[1]),heading:o.heading,vx:v(o.v[0]),vy:v(o.v[1]),parked:now-o.stay_at>=PARKED_MS}
+fn map_cand(slot: u32, o: &Player, p: [f64; 3], now: f64) -> MapCand {
+    let c = |x: f64| (x + 0.5).floor().clamp(-32767.0, 32767.0) as i16;
+    let v = |x: f64| x.round().clamp(-127.0, 127.0) as i8;
+    MapCand {
+        slot,
+        id: o.id,
+        p,
+        x: c(p[0]),
+        y: c(p[1]),
+        heading: o.heading,
+        vx: v(o.v[0]),
+        vy: v(o.v[1]),
+        parked: now - o.stay_at >= PARKED_MS,
+    }
 }
-fn near_cell(x:f64)->i32{(x/NEAR_CELL_M).floor() as i32}
+fn near_cell(x: f64) -> i32 {
+    (x / NEAR_CELL_M).floor() as i32
+}
 
 /// Encode the changes from the browser's held map to the current slot-ordered candidates.
-fn map_diff(from:&[MapSent],list:&[MapCand],now:f64,tol_m:f64,tol_h:u8,parked:bool)->(Vec<u8>,Vec<usize>,Vec<MapSent>){
-    let(mut e,mut ends,mut next)=(Vec::new(),Vec::new(),Vec::with_capacity(list.len()));
-    let pk=|c:&MapCand| parked && c.parked && c.slot < wire::MAPD_PARKED as u32;
-    let place=|e:&mut Vec<u8>,c:&MapCand|{
+fn map_diff(from: &[MapSent], list: &[MapCand], now: f64, tol_m: f64, tol_h: u8, parked: bool) -> (Vec<u8>, Vec<usize>, Vec<MapSent>) {
+    let (mut e, mut ends, mut next) = (Vec::new(), Vec::new(), Vec::with_capacity(list.len()));
+    let pk = |c: &MapCand| parked && c.parked && c.slot < wire::MAPD_PARKED as u32;
+    let place = |e: &mut Vec<u8>, c: &MapCand| {
         e.extend_from_slice(&(c.slot as u16 | if pk(c) { wire::MAPD_PARKED } else { 0 }).to_le_bytes());
-        e.extend_from_slice(&c.x.to_le_bytes());e.extend_from_slice(&c.y.to_le_bytes());
-        e.extend_from_slice(&[c.heading,c.vx as u8,c.vy as u8]);
-        if parked { e.extend_from_slice(&((c.p[2]+0.5).floor().clamp(-32767.0,32767.0) as i16).to_le_bytes()); }
-        MapSent{slot:c.slot,id:c.id,x:c.x,y:c.y,heading:c.heading,vx:c.vx,vy:c.vy,parked:pk(c),t:now}
-    };
-    let(mut i,mut j)=(0,0);
-    while i<from.len()||j<list.len(){
-        let(a,c)=(from.get(i),list.get(j));let was=e.len();
-        match(a,c){
-            (Some(a),Some(c)) if a.slot==c.slot=>{
-                let dt=(now-a.t)/1000.0;
-                let(dx,dy)=(c.x as f64-(a.x as f64+a.vx as f64*dt),c.y as f64-(a.y as f64+a.vy as f64*dt));
-                let dh=c.heading.wrapping_sub(a.heading).min(a.heading.wrapping_sub(c.heading));
-                next.push(if a.id!=c.id||dx*dx+dy*dy>tol_m*tol_m||dh>tol_h||a.parked!=pk(c){place(&mut e,c)}else{*a});
-                (i,j)=(i+1,j+1);
-            }
-            (Some(a),c) if c.is_none_or(|c|a.slot<c.slot)=>{e.extend_from_slice(&(a.slot as u16|wire::MAPD_GONE).to_le_bytes());i+=1;}
-            (_,Some(c))=>{next.push(place(&mut e,c));j+=1;}
-            _=>break,
+        e.extend_from_slice(&c.x.to_le_bytes());
+        e.extend_from_slice(&c.y.to_le_bytes());
+        e.extend_from_slice(&[c.heading, c.vx as u8, c.vy as u8]);
+        if parked {
+            e.extend_from_slice(&((c.p[2] + 0.5).floor().clamp(-32767.0, 32767.0) as i16).to_le_bytes());
         }
-        if e.len()>was{ends.push(e.len());}
+        MapSent { slot: c.slot, id: c.id, x: c.x, y: c.y, heading: c.heading, vx: c.vx, vy: c.vy, parked: pk(c), t: now }
+    };
+    let (mut i, mut j) = (0, 0);
+    while i < from.len() || j < list.len() {
+        let (a, c) = (from.get(i), list.get(j));
+        let was = e.len();
+        match (a, c) {
+            (Some(a), Some(c)) if a.slot == c.slot => {
+                let dt = (now - a.t) / 1000.0;
+                let (dx, dy) = (c.x as f64 - (a.x as f64 + a.vx as f64 * dt), c.y as f64 - (a.y as f64 + a.vy as f64 * dt));
+                let dh = c.heading.wrapping_sub(a.heading).min(a.heading.wrapping_sub(c.heading));
+                next.push(if a.id != c.id || dx * dx + dy * dy > tol_m * tol_m || dh > tol_h || a.parked != pk(c) {
+                    place(&mut e, c)
+                } else {
+                    *a
+                });
+                (i, j) = (i + 1, j + 1);
+            }
+            (Some(a), c) if c.is_none_or(|c| a.slot < c.slot) => {
+                e.extend_from_slice(&(a.slot as u16 | wire::MAPD_GONE).to_le_bytes());
+                i += 1;
+            }
+            (_, Some(c)) => {
+                next.push(place(&mut e, c));
+                j += 1;
+            }
+            _ => break,
+        }
+        if e.len() > was {
+            ends.push(e.len());
+        }
     }
-    (e,ends,next)
+    (e, ends, next)
 }
-fn map_parts(ends:&[usize])->Vec<(usize,usize)>{
-    let mut parts=vec![(0,0)];
-    for(k,&end)in ends.iter().enumerate(){
-        let(a,z)=*parts.last().unwrap();let start=if a==0{0}else{ends[a-1]};
-        if z>a&&(end-start>wire::MAPD_BYTES||z-a==255){parts.push((k,k+1));}
-        else{parts.last_mut().unwrap().1=k+1;}
+fn map_parts(ends: &[usize]) -> Vec<(usize, usize)> {
+    let mut parts = vec![(0, 0)];
+    for (k, &end) in ends.iter().enumerate() {
+        let (a, z) = *parts.last().unwrap();
+        let start = if a == 0 { 0 } else { ends[a - 1] };
+        if z > a && (end - start > wire::MAPD_BYTES || z - a == 255) {
+            parts.push((k, k + 1));
+        } else {
+            parts.last_mut().unwrap().1 = k + 1;
+        }
     }
     parts
 }
@@ -2543,7 +2713,6 @@ fn map_parts(ends:&[usize])->Vec<(usize,usize)>{
 fn blocked(blocks: &HashMap<u32, Block>, a: &Player, b: &Player) -> bool {
     blocks.get(&a.vip).is_some_and(|k| k.has(b)) || blocks.get(&b.vip).is_some_and(|k| k.has(a))
 }
-
 
 #[cfg(test)]
 mod map_capacity_tests {
@@ -2575,10 +2744,7 @@ mod map_capacity_tests {
 
     #[test]
     fn mapd_full_snapshots_fit_sixteen_wire_bounded_parts() {
-        for (count, bytes_per_place) in [
-            (MAPD_MAX, wire::MAPD_PLACE),
-            (MAPD_MAX_Z, wire::MAPD_PLACE_Z),
-        ] {
+        for (count, bytes_per_place) in [(MAPD_MAX, wire::MAPD_PLACE), (MAPD_MAX_Z, wire::MAPD_PLACE_Z)] {
             let ends: Vec<usize> = (1..=count).map(|n| n * bytes_per_place).collect();
             let parts = map_parts(&ends);
             assert_eq!(parts.len(), wire::MAPD_PARTS, "the full snapshot uses all MAPD parts");

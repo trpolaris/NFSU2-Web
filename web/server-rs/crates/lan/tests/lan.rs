@@ -599,11 +599,7 @@ async fn a_receiver_that_never_reads_is_cut_by_the_keepalive_tick() {
     // B can enqueue its next frame before the test observes the previous frame crossing
     // send_buffer; that next send is then cut as Slow instead of letting keepalive cut Queue.
     let frames_out = |state: &Value| {
-        state["peers"]
-            .as_array()?
-            .iter()
-            .find(|p| p["vip"].as_str() == Some(pa_vip.as_str()))
-            .and_then(|p| p["framesOut"].as_u64())
+        state["peers"].as_array()?.iter().find(|p| p["vip"].as_str() == Some(pa_vip.as_str())).and_then(|p| p["framesOut"].as_u64())
     };
     let mut n = 0;
     let mut max_q = 0usize;
@@ -654,10 +650,7 @@ async fn a_receiver_that_never_reads_is_cut_by_the_keepalive_tick() {
     }
     let q = buffered(&sw);
     max_q = max_q.max(q);
-    println!(
-        "A's queue {q} bytes (peak {max_q}) after {n} frames in {:.0} ms",
-        ms_since(t_flood)
-    );
+    println!("A's queue {q} bytes (peak {max_q}) after {n} frames in {:.0} ms", ms_since(t_flood));
     let cuts_at_flood = sw.info().await["cuts"].clone();
     assert!(
         max_q > 16 << 10 || cuts_at_flood["queue"] == 1,

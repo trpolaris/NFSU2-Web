@@ -199,7 +199,9 @@ pub struct CarBans {
     pub call: Arc<dyn Fn(CarBan) + Send + Sync>,
 }
 impl std::fmt::Debug for CarBans {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result { f.write_str("CarBans") }
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("CarBans")
+    }
 }
 
 impl Default for RoamOptions {
@@ -446,7 +448,9 @@ fn run(
             Cmd::Blocks(vip, names) => guard(|| hub.blocks(vip, names)),
             Cmd::Friends(vip, me, owners) => guard(|| hub.friends(vip, me, owners)),
             Cmd::RoomName(vip, name) => guard(|| hub.room_name(vip, name)),
-            Cmd::Where(owners, tx) => guard(|| { let _ = tx.send(hub.whereabouts(&owners)); }),
+            Cmd::Where(owners, tx) => guard(|| {
+                let _ = tx.send(hub.whereabouts(&owners));
+            }),
             Cmd::Stop => {
                 // no more ticks, so no more lists: the switch's send goes too (it holds the switch, which holds
                 // this hub)

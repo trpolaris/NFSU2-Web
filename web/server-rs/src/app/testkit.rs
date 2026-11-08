@@ -95,12 +95,14 @@ impl Kit {
         let bans = Arc::new(nfsu2_bans::Bans::open(std::path::Path::new(&o.state)).expect("the bans"));
         // The Friends route and Online Buddy host must share one Claims store, as production does.
         let claims = vault.as_ref().map(|_| Arc::new(nfsu2_claims::Claims::in_memory()));
-        let online = o.online.then(|| OnlineHost::spawn(OnlineOptions {
-            state_dir: Some(std::path::PathBuf::from(&o.state).join("online")),
-            log: Arc::new(|_: &str, _: Option<&str>| {}),
-            tap: None,
-            claims: claims.clone(),
-        }));
+        let online = o.online.then(|| {
+            OnlineHost::spawn(OnlineOptions {
+                state_dir: Some(std::path::PathBuf::from(&o.state).join("online")),
+                log: Arc::new(|_: &str, _: Option<&str>| {}),
+                tap: None,
+                claims: claims.clone(),
+            })
+        });
         let names = claims.clone().map(|c| super::names::NamesRoute::new(c, None));
         let app = Arc::new(App::new(o, real_state, key, lan, online, None, vault, names, bans, 2, 0, compress_threads));
         app.refresh_manifest().await.expect("the manifest");

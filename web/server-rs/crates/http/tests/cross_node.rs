@@ -599,17 +599,14 @@ fn decode_chunked_response(text: &str) -> Option<(String, String, String)> {
     let head_end = chars.windows(4).position(|w| w[0] == '\r' && w[1] == '\n' && w[2] == '\r' && w[3] == '\n')? + 4;
     let head: String = chars[..head_end].iter().collect();
     let is_chunked = head.split("\r\n").skip(1).any(|line| {
-        line.split_once(':').is_some_and(|(name, value)| {
-            name.eq_ignore_ascii_case("transfer-encoding") && value.trim().eq_ignore_ascii_case("chunked")
-        })
+        line.split_once(':')
+            .is_some_and(|(name, value)| name.eq_ignore_ascii_case("transfer-encoding") && value.trim().eq_ignore_ascii_case("chunked"))
     });
     if !is_chunked {
         return None;
     }
 
-    let find_crlf = |from: usize| {
-        (from..chars.len().saturating_sub(1)).find(|&i| chars[i] == '\r' && chars[i + 1] == '\n')
-    };
+    let find_crlf = |from: usize| (from..chars.len().saturating_sub(1)).find(|&i| chars[i] == '\r' && chars[i + 1] == '\n');
     let mut pos = head_end;
     let mut body = String::new();
     loop {

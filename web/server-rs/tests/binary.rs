@@ -547,8 +547,7 @@ async fn players_counts_free_roams_crews() {
     // World counts: room 0 is the main world (Bob), room 5 has Ann, room 9 is empty; order is preserved.
     assert_eq!(srv.get("/players?rooms=0,5,9").await.1, format!(r#"{head},"rooms":[1,1,0]}}"#));
     // At most eight valid u32 hashes; invalid entries are ignored, duplicates retain their requested positions.
-    assert_eq!(srv.get("/players?rooms=5,x,,5,1,2,3,4,6,7,8").await.1,
-               format!(r#"{head},"rooms":[1,1,0,0,0,0,0,0]}}"#));
+    assert_eq!(srv.get("/players?rooms=5,x,,5,1,2,3,4,6,7,8").await.1, format!(r#"{head},"rooms":[1,1,0,0,0,0,0,0]}}"#));
     assert_eq!(srv.get("/players?rooms=x").await.1, format!("{head}}}"), "none asked: no rooms");
     assert_eq!(srv.get("/players?crews=8%2C7&room=5").await.1, format!(r#"{head},"room":1,"crews":[2,1]}}"#), "as URLSearchParams asks");
     // (a + in a query is a space, as URLSearchParams reads it)
@@ -769,7 +768,11 @@ async fn kicks_and_bans_through_the_control_socket() {
     srv.ready().await;
     let host = format!("localhost:{port}");
     let sock = state.join("control.sock").to_string_lossy().to_string();
-    assert!(srv.lines().contains(&format!("  bans      : 0; nfsu2-server ctl who, kick, ban, unban, bans (through {sock})")), "{:?}", srv.lines());
+    assert!(
+        srv.lines().contains(&format!("  bans      : 0; nfsu2-server ctl who, kick, ban, unban, bans (through {sock})")),
+        "{:?}",
+        srv.lines()
+    );
     let hello = |name: &str, id: &str| serde_json::json!({ "t": "hello", "name": name, "id": id }).to_string();
     let ann = Browser::open_from(&host, port, "", None, None, Some("192.0.2.1")).await;
     ann.text(&hello("Ann", "page-ann"));

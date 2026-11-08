@@ -6,11 +6,11 @@ use std::sync::Arc;
 
 use bytes::Bytes;
 use nfsu2_claims::{Claims, owner_of_token};
-use nfsu2_lan::LanSwitch;
-use nfsu2_roam::RoamHub;
 use nfsu2_headers::Cache;
 use nfsu2_http::{Request, Response};
+use nfsu2_lan::LanSwitch;
 use nfsu2_online::{FriendAsk, FriendReply, OnlineHost};
+use nfsu2_roam::RoamHub;
 use nfsu2_util::Rate;
 use serde_json::{Value, json};
 
@@ -44,8 +44,7 @@ impl FriendsRoute {
             let Some(owner) = mail_claims.holder(to, nfsu2_util::now_ms() as i64) else { return false };
             let value = json!({ "t": "friend", "op": "mail", "from": message.from, "body": message.body, "at": message.t });
             let data = Bytes::from(nfsu2_util::json::stringify(&value));
-            mail_lan.vips_of_owner(&owner).into_iter()
-                .fold(false, |sent, vip| mail_lan.send_text(vip, data.clone()) || sent)
+            mail_lan.vips_of_owner(&owner).into_iter().fold(false, |sent, vip| mail_lan.send_text(vip, data.clone()) || sent)
         }));
         FriendsRoute {
             online,
@@ -68,10 +67,7 @@ impl FriendsRoute {
     fn update_hub(&self, owner: &Arc<str>, reply: &FriendReply) {
         let Some(me) = reply.me.as_ref() else { return };
         let now = nfsu2_util::now_ms() as i64;
-        let owners: Vec<Arc<str>> = reply.friends.iter()
-            .filter(|f| f.mutual)
-            .filter_map(|f| self.claims.holder(&f.name, now))
-            .collect();
+        let owners: Vec<Arc<str>> = reply.friends.iter().filter(|f| f.mutual).filter_map(|f| self.claims.holder(&f.name, now)).collect();
         if let Some(roam) = &self.roam {
             for vip in self.lan.vips_of_owner(owner) {
                 roam.friends(vip, owner.clone(), owners.clone());
@@ -81,36 +77,50 @@ impl FriendsRoute {
     }
 
     async fn page_json(&self, r: FriendReply) -> Value {
-        let names: Vec<Option<Arc<str>>> = r.friends.iter().map(|f| {
-            if f.mutual { self.claims.holder(&f.name, nfsu2_util::now_ms() as i64) } else { None }
-        }).collect();
+        let names: Vec<Option<Arc<str>>> =
+            r.friends.iter().map(|f| if f.mutual { self.claims.holder(&f.name, nfsu2_util::now_ms() as i64) } else { None }).collect();
         let found: Vec<Arc<str>> = names.iter().flatten().cloned().collect();
         let mut places = match &self.roam {
             Some(roam) => roam.whereabouts(found).await.ok().unwrap_or_default().into_iter(),
             None => Vec::new().into_iter(),
         };
-        let friends: Vec<Value> = r.friends.into_iter().zip(names).map(|(f, owner)| {
-            let where_ = owner.and_then(|_| places.next().flatten());
-            let mut row = serde_json::Map::new();
-            row.insert("name".into(), f.name.into());
-            row.insert("where".into(), if where_.is_some() { "roam" } else if f.mutual && f.online { "online" } else { "" }.into());
-            if let Some(place) = where_ {
-                if place.room == 0 {
-                    row.insert("room".into(), "".into());
-                } else if let Some(name) = place.room_name {
-                    row.insert("room".into(), name.into());
+        let friends: Vec<Value> = r
+            .friends
+            .into_iter()
+            .zip(names)
+            .map(|(f, owner)| {
+                let where_ = owner.and_then(|_| places.next().flatten());
+                let mut row = serde_json::Map::new();
+                row.insert("name".into(), f.name.into());
+                row.insert(
+                    "where".into(),
+                    if where_.is_some() {
+                        "roam"
+                    } else if f.mutual && f.online {
+                        "online"
+                    } else {
+                        ""
+                    }
+                    .into(),
+                );
+                if let Some(place) = where_ {
+                    if place.room == 0 {
+                        row.insert("room".into(), "".into());
+                    } else if let Some(name) = place.room_name {
+                        row.insert("room".into(), name.into());
+                    }
                 }
-            }
-            if f.mutual {
-                if let Some(contact) = f.contact { row.insert("contact".into(), contact.into()); }
-            }
-            Value::Object(row)
-        }).collect();
+                if f.mutual {
+                    if let Some(contact) = f.contact {
+                        row.insert("contact".into(), contact.into());
+                    }
+                }
+                Value::Object(row)
+            })
+            .collect();
         let asks = r.asks;
         let sent = r.sent;
-        let mail: Vec<Value> = r.mail.into_iter()
-            .map(|m| json!({ "from": m.from, "body": m.body, "at": m.t }))
-            .collect();
+        let mail: Vec<Value> = r.mail.into_iter().map(|m| json!({ "from": m.from, "body": m.body, "at": m.t })).collect();
         json!({
             "me": r.me,
             "done": r.done,
@@ -137,10 +147,9 @@ impl FriendsRoute {
         {
             return (reply, "name");
         }
-        let Some(friend) = reply.friends.iter()
-            .find(|f| f.mutual && f.name.eq_ignore_ascii_case(name))
-            .map(|f| f.name.clone())
-        else { return (reply, "none") };
+        let Some(friend) = reply.friends.iter().find(|f| f.mutual && f.name.eq_ignore_ascii_case(name)).map(|f| f.name.clone()) else {
+            return (reply, "none");
+        };
         let Some(theirs) = self.claims.holder(&friend, nfsu2_util::now_ms() as i64) else {
             return (reply, "away");
         };
@@ -153,8 +162,7 @@ impl FriendsRoute {
         }
         let notice = json!({ "t": "friend", "op": "crew", "name": me, "crew": crew, "room": room });
         let data = Bytes::from(nfsu2_util::json::stringify(&notice));
-        let delivered = self.lan.vips_of_owner(&theirs).into_iter()
-            .fold(false, |any, vip| self.lan.send_text(vip, data.clone()) || any);
+        let delivered = self.lan.vips_of_owner(&theirs).into_iter().fold(false, |any, vip| self.lan.send_text(vip, data.clone()) || any);
         (reply, if delivered { "sent" } else { "away" })
     }
 
@@ -169,9 +177,12 @@ impl FriendsRoute {
         let Some(peer_owner) = self.claims.holder(name, now) else {
             return (name.to_string(), "theirs");
         };
-        let Some(peer_name) = self.claims.mine(&peer_owner, now).map(|m| m.name).filter(|n| {
-            nfsu2_claims::canonical(n).is_some_and(|n| Some(n) == nfsu2_claims::canonical(name))
-        }) else {
+        let Some(peer_name) = self
+            .claims
+            .mine(&peer_owner, now)
+            .map(|m| m.name)
+            .filter(|n| nfsu2_claims::canonical(n).is_some_and(|n| Some(n) == nfsu2_claims::canonical(name)))
+        else {
             return (name.to_string(), "theirs");
         };
         if peer_owner.as_ref() == owner.as_ref() {
@@ -208,7 +219,9 @@ impl FriendsRoute {
             return app.plain(q, s, 403, "Forbidden", &[], Cache::Store, true).await;
         }
         if q.method != "GET" && q.method != "HEAD" && q.method != "POST" {
-            return app.plain(q, s, 405, "Method not allowed", &[("allow", "GET, HEAD, POST"), ("connection", "close")], Cache::Store, true).await;
+            return app
+                .plain(q, s, 405, "Method not allowed", &[("allow", "GET, HEAD, POST"), ("connection", "close")], Cache::Store, true)
+                .await;
         }
         let (_, key, site) = app.client(q);
         if !self.reads.take(&key, &site) {
@@ -247,9 +260,7 @@ impl FriendsRoute {
                     }
                     // Resolve a typed name to the exact spelling of its active claim when possible.
                     let now = nfsu2_util::now_ms() as i64;
-                    let claimed = self.claims.holder(&name, now)
-                        .and_then(|o| self.claims.mine(&o, now))
-                        .map(|m| m.name);
+                    let claimed = self.claims.holder(&name, now).and_then(|o| self.claims.mine(&o, now)).map(|m| m.name);
                     FriendAsk::AskByName(claimed.unwrap_or(name))
                 }
                 Some("accept") => FriendAsk::Answer(name, true),
@@ -260,8 +271,8 @@ impl FriendsRoute {
                     if !self.messages.take(&owner, "") {
                         return Self::json(app, q, s, 200, &json!({ "done": "rate" })).await;
                     }
-                    let body: String = b.get("body").and_then(Value::as_str).unwrap_or("").chars()
-                        .take(nfsu2_online::PAGE_MSG_LEN).collect();
+                    let body: String =
+                        b.get("body").and_then(Value::as_str).unwrap_or("").chars().take(nfsu2_online::PAGE_MSG_LEN).collect();
                     FriendAsk::Send(name, body)
                 }
                 Some("discord") => {
@@ -310,33 +321,42 @@ impl FriendsRoute {
 }
 
 fn friend_state(has_claim: bool, mutual: bool, asks: bool, sent: bool) -> &'static str {
-    if !has_claim { "claim" }
-    else if mutual { "friends" }
-    else if asks { "asks" }
-    else if sent { "asked" }
-    else { "new" }
+    if !has_claim {
+        "claim"
+    } else if mutual {
+        "friends"
+    } else if asks {
+        "asks"
+    } else if sent {
+        "asked"
+    } else {
+        "new"
+    }
 }
 
 /// Clean crew and room names without applying the LAN room's display-name fallback:
 /// an empty room must remain the shared/default room, not become "player".
 fn tidy_invite_name(input: &str) -> String {
-    let is_format = |ch: char| matches!(ch,
-        '\u{00ad}' | '\u{0600}'..='\u{0605}' | '\u{061c}' | '\u{06dd}' | '\u{070f}' |
-        '\u{180e}' | '\u{200b}'..='\u{200f}' | '\u{202a}'..='\u{202e}' |
-        '\u{2060}'..='\u{2064}' | '\u{2066}'..='\u{206f}' | '\u{feff}' |
-        '\u{fff9}'..='\u{fffb}'
-    );
+    let is_format = |ch: char| {
+        matches!(ch,
+            '\u{00ad}' | '\u{0600}'..='\u{0605}' | '\u{061c}' | '\u{06dd}' | '\u{070f}' |
+            '\u{180e}' | '\u{200b}'..='\u{200f}' | '\u{202a}'..='\u{202e}' |
+            '\u{2060}'..='\u{2064}' | '\u{2066}'..='\u{206f}' | '\u{feff}' |
+            '\u{fff9}'..='\u{fffb}'
+        )
+    };
     let mut clean = String::with_capacity(input.len());
     for ch in input.chars() {
         if ch.is_whitespace() {
-            if !clean.is_empty() && !clean.ends_with(' ') { clean.push(' '); }
+            if !clean.is_empty() && !clean.ends_with(' ') {
+                clean.push(' ');
+            }
         } else if !ch.is_control() && !is_format(ch) {
             clean.push(ch);
         }
     }
     clean.trim_end().to_string()
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -353,10 +373,7 @@ mod tests {
     }
 
     async fn claim(kit: &Kit, who: (&str, &str), name: &str) {
-        assert_eq!(
-            kit.request("PUT", "/vault", &[who, ("If-None-Match", "*")], b"saves").await.status,
-            201
-        );
+        assert_eq!(kit.request("PUT", "/vault", &[who, ("If-None-Match", "*")], b"saves").await.status, 201);
         let body = json!({ "name": name }).to_string();
         let answer = kit.request("POST", "/names", &[who, ("content-type", "application/json")], body.as_bytes()).await;
         assert_eq!(answer.status, 200, "claim {name}: {}", String::from_utf8_lossy(&answer.body));
@@ -375,10 +392,7 @@ mod tests {
         let kit = Kit::start(&["--online", "on"], |_| {}).await;
 
         assert_eq!(kit.request("GET", "/friends", &[], b"").await.status, 401);
-        assert_eq!(
-            kit.request("GET", "/friends", &[A, ("Origin", "https://evil.example")], b"").await.status,
-            403
-        );
+        assert_eq!(kit.request("GET", "/friends", &[A, ("Origin", "https://evil.example")], b"").await.status, 403);
 
         claim(&kit, A, "Alex").await;
         claim(&kit, B, "Bianca").await;
@@ -437,33 +451,58 @@ mod tests {
         claim(&kit, A, "Alex").await;
         claim(&kit, B, "Bianca").await;
 
-        let not_friends = post(&kit, A, json!({
-            "op": "crew", "name": "Bianca", "crew": "Night Owls", "room": "Blue Room"
-        })).await;
+        let not_friends = post(
+            &kit,
+            A,
+            json!({
+                "op": "crew", "name": "Bianca", "crew": "Night Owls", "room": "Blue Room"
+            }),
+        )
+        .await;
         assert_eq!(not_friends["done"], "none");
 
         post(&kit, A, json!({ "op": "ask", "name": "Bianca" })).await;
         post(&kit, B, json!({ "op": "accept", "name": "Alex" })).await;
 
-        let blocked_crew = post(&kit, A, json!({
-            "op": "crew", "name": "Bianca", "crew": "x_fag_x", "room": ""
-        })).await;
+        let blocked_crew = post(
+            &kit,
+            A,
+            json!({
+                "op": "crew", "name": "Bianca", "crew": "x_fag_x", "room": ""
+            }),
+        )
+        .await;
         assert_eq!(blocked_crew["done"], "name");
 
-        let long_crew = post(&kit, A, json!({
-            "op": "crew", "name": "Bianca", "crew": "x".repeat(25), "room": ""
-        })).await;
+        let long_crew = post(
+            &kit,
+            A,
+            json!({
+                "op": "crew", "name": "Bianca", "crew": "x".repeat(25), "room": ""
+            }),
+        )
+        .await;
         assert_eq!(long_crew["done"], "name");
 
-        let long_room = post(&kit, A, json!({
-            "op": "crew", "name": "Bianca", "crew": "Night Owls", "room": "x".repeat(64)
-        })).await;
+        let long_room = post(
+            &kit,
+            A,
+            json!({
+                "op": "crew", "name": "Bianca", "crew": "Night Owls", "room": "x".repeat(64)
+            }),
+        )
+        .await;
         assert_eq!(long_room["done"], "name");
 
         // A valid mutual invite without an active Free Roam page must not be delivered.
-        let away = post(&kit, A, json!({
-            "op": "crew", "name": "Bianca", "crew": "  Night   Owls ", "room": "Blue  Room"
-        })).await;
+        let away = post(
+            &kit,
+            A,
+            json!({
+                "op": "crew", "name": "Bianca", "crew": "  Night   Owls ", "room": "Blue  Room"
+            }),
+        )
+        .await;
         assert_eq!(away["done"], "away");
     }
 
@@ -482,5 +521,4 @@ mod tests {
         assert_eq!(tidy_invite_name("Blue\nRoom"), "Blue Room");
         assert_eq!(tidy_invite_name("   "), "");
     }
-
 }

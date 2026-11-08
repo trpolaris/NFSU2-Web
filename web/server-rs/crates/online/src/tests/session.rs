@@ -720,11 +720,7 @@ fn check(s: &Session, seed: u64) {
         assert_eq!(*text, back.serialize(), "seed {seed}: stats.json read back");
     }
     let _buddies = crate::buddy::Buddies::new(dir.clone(), Default::default());
-    assert_eq!(
-        r.buddies,
-        crate::buddy::shelf_reread(tmp.path()),
-        "seed {seed}: each Messenger shelf file reads back as written"
-    );
+    assert_eq!(r.buddies, crate::buddy::shelf_reread(tmp.path()), "seed {seed}: each Messenger shelf file reads back as written");
     // what the session went through (each seed's share of the rules)
     let n = |p: &str| r.lines.iter().filter(|l| l.contains(p)).count();
     eprintln!(

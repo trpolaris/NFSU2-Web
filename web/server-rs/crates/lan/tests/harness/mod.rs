@@ -120,7 +120,8 @@ async fn serve(lan: Arc<LanSwitch>, mut s: TcpStream) {
         let code: u16 = arg("code").parse().unwrap_or(4001);
         let m = json!({ "t": if code == 4001 { "kick" } else { "ban" }, "msg": arg("msg") });
         let done = lan.expel(arg("vip").parse().unwrap_or(0), Bytes::from(m.to_string()), code);
-        let answer = format!("HTTP/1.1 {}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n", if done { "200 OK" } else { "404 Not Found" });
+        let answer =
+            format!("HTTP/1.1 {}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n", if done { "200 OK" } else { "404 Not Found" });
         let _ = s.write_all(answer.as_bytes()).await;
         return;
     }

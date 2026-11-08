@@ -117,7 +117,12 @@ pub(crate) enum Msg<'a> {
         flags: u16,
     },
     /// Nearby-player minimap request (radius in metres).
-    NearReq { req: u16, max: u16, base: u16, radius: u16 },
+    NearReq {
+        req: u16,
+        max: u16,
+        base: u16,
+        radius: u16,
+    },
     /// a race lobby (roam_core.h RC_MSG_LOBBY), checked as roam_core.c's lobby_ok: what the hub keeps of one sent to
     /// it (to 0)
     Lobby {
@@ -138,7 +143,11 @@ pub(crate) enum Msg<'a> {
     /// the race's results as its game showed them (roam_core.h rc_raceres), checked as roam_core.c's raceres_ok
     RaceRes(RaceRes),
     /// a typed chat line: scope 0 is active players in the room; scope 1 is members of one Crew hash
-    Chat { scope: u8, channel: u32, text: &'a str },
+    Chat {
+        scope: u8,
+        channel: u32,
+        text: &'a str,
+    },
     Bye,
     Other,
 }
@@ -374,8 +383,12 @@ pub(crate) fn decode(d: &[u8]) -> Option<(u8, u32, Msg<'_>)> {
         MSG_MAPREQ if end == HDR + 2 => Msg::MapReq { req: u16_le(d, 16), max: MAP_MAX_V1, base: None, flags: 0 },
         MSG_MAPREQ if end == HDR + 4 => Msg::MapReq { req: u16_le(d, 16), max: u16_le(d, 18), base: None, flags: 0 },
         MSG_MAPREQ if end == HDR + 6 => Msg::MapReq { req: u16_le(d, 16), max: u16_le(d, 18), base: Some(u16_le(d, 20)), flags: 0 },
-        MSG_MAPREQ if end == HDR + 8 => Msg::MapReq { req: u16_le(d, 16), max: u16_le(d, 18), base: Some(u16_le(d, 20)), flags: u16_le(d, 22) },
-        MSG_NEARREQ if end == HDR + 8 => Msg::NearReq { req: u16_le(d, 16), max: u16_le(d, 18), base: u16_le(d, 20), radius: u16_le(d, 22) },
+        MSG_MAPREQ if end == HDR + 8 => {
+            Msg::MapReq { req: u16_le(d, 16), max: u16_le(d, 18), base: Some(u16_le(d, 20)), flags: u16_le(d, 22) }
+        }
+        MSG_NEARREQ if end == HDR + 8 => {
+            Msg::NearReq { req: u16_le(d, 16), max: u16_le(d, 18), base: u16_le(d, 20), radius: u16_le(d, 22) }
+        }
         MSG_LOBBY => {
             // op arg state max, to, lobby, race, x y, t, n, a reserved byte, then n ids (roam_core.c rc_encode)
             if end < HDR + 24 {
@@ -405,8 +418,12 @@ pub(crate) fn decode(d: &[u8]) -> Option<(u8, u32, Msg<'_>)> {
             let scope = d[HDR];
             let channel = u32_le(d, HDR + 1);
             let n = u16_le(d, HDR + 5) as usize;
-            if scope > 1 || (scope == 0 && channel != 0) || (scope == 1 && channel == 0)
-                || n == 0 || n > CHAT_MAX_BYTES || end != HDR + 7 + n
+            if scope > 1
+                || (scope == 0 && channel != 0)
+                || (scope == 1 && channel == 0)
+                || n == 0
+                || n > CHAT_MAX_BYTES
+                || end != HDR + 7 + n
             {
                 return None;
             }
@@ -437,7 +454,13 @@ pub fn decode_roam(d: &[u8]) -> Option<RoamMsg> {
         },
         Msg::Snap { sender, status, p, .. } => RoamMsg::Snap { sender, status, p },
         Msg::Bye => RoamMsg::Bye { sender },
-        Msg::MapReq { .. } | Msg::NearReq { .. } | Msg::Lobby { .. } | Msg::RaceRep(_) | Msg::RaceRes(_) | Msg::Chat { .. } | Msg::Other => RoamMsg::Other { kind, sender },
+        Msg::MapReq { .. }
+        | Msg::NearReq { .. }
+        | Msg::Lobby { .. }
+        | Msg::RaceRep(_)
+        | Msg::RaceRes(_)
+        | Msg::Chat { .. }
+        | Msg::Other => RoamMsg::Other { kind, sender },
     })
 }
 
@@ -456,14 +479,7 @@ pub(crate) fn peers_crew_len(n: usize, k: usize) -> usize {
 /// receiver's crews, at most CREWS, none 0) the list ends in its crew marks (HF_CREW on it): `mine`, then a byte per
 /// entry, `marks[i]` bit c: entry i is in crew `mine[c]` too.  So a player learns which of its peers are in its crews
 /// without anyone's crews but its own going out.
-pub(crate) fn write_peers(
-    b: &mut [u8],
-    sender: u32,
-    seq: u16,
-    list: impl ExactSizeIterator<Item = PeerEntry>,
-    mine: &[u32],
-    marks: &[u8],
-) {
+pub(crate) fn write_peers(b: &mut [u8], sender: u32, seq: u16, list: impl ExactSizeIterator<Item = PeerEntry>, mine: &[u32], marks: &[u8]) {
     let len = b.len();
     let n = list.len();
     b[..4].copy_from_slice(b"N2FR");
@@ -545,15 +561,7 @@ pub(crate) fn map_len(n: usize) -> usize {
 
 /// A hub-to-client chat datagram. The request has no sender name; the hub adds the
 /// verified name from the live player table in this response.
-pub(crate) fn write_chat(
-    b: &mut [u8],
-    sender: u32,
-    seq: u16,
-    scope: u8,
-    channel: u32,
-    name: &[u8],
-    text: &[u8],
-) {
+pub(crate) fn write_chat(b: &mut [u8], sender: u32, seq: u16, scope: u8, channel: u32, name: &[u8], text: &[u8]) {
     let len = b.len();
     let name_len = name.len().min(32);
     let text_len = text.len().min(CHAT_MAX_BYTES);
@@ -582,8 +590,18 @@ pub(crate) fn mapd_len(bytes: usize) -> usize {
 /// Writes a MAPD/NEARD datagram. `kind` must be MSG_MAPD or MSG_NEARD.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn write_mapd(
-    b: &mut [u8], kind: u8, sender: u32, seq: u16, req: u16, base: u16,
-    part: u8, nparts: u8, total: u16, n: u8, flags: u16, entries: &[u8],
+    b: &mut [u8],
+    kind: u8,
+    sender: u32,
+    seq: u16,
+    req: u16,
+    base: u16,
+    part: u8,
+    nparts: u8,
+    total: u16,
+    n: u8,
+    flags: u16,
+    entries: &[u8],
 ) {
     debug_assert!(kind == MSG_MAPD || kind == MSG_NEARD);
     debug_assert_eq!(b.len(), mapd_len(entries.len()));
@@ -631,7 +649,6 @@ pub(crate) fn write_map(b: &mut [u8], sender: u32, seq: u16, req: u16, part: u8,
     let crc = crc32fast::hash(&b[..len - CRC]);
     b[len - CRC..].copy_from_slice(&crc.to_le_bytes());
 }
-
 
 #[cfg(test)]
 mod chat_tests {
@@ -693,7 +710,6 @@ mod chat_tests {
     }
 }
 
-
 #[cfg(test)]
 mod map_protocol_tests {
     use super::*;
@@ -720,7 +736,8 @@ mod map_protocol_tests {
         assert!(matches!(decode(&full).unwrap().2, Msg::MapReq { req: 9, max: 300, base: None, .. }));
         let delta = request(MSG_MAPREQ, &[9u16.to_le_bytes(), 300u16.to_le_bytes(), 4u16.to_le_bytes()].concat());
         assert!(matches!(decode(&delta).unwrap().2, Msg::MapReq { req: 9, max: 300, base: Some(4), flags: 0 }));
-        let parked = request(MSG_MAPREQ, &[9u16.to_le_bytes(), 300u16.to_le_bytes(), 4u16.to_le_bytes(), MAPREQ_PARKED.to_le_bytes()].concat());
+        let parked =
+            request(MSG_MAPREQ, &[9u16.to_le_bytes(), 300u16.to_le_bytes(), 4u16.to_le_bytes(), MAPREQ_PARKED.to_le_bytes()].concat());
         assert!(matches!(decode(&parked).unwrap().2, Msg::MapReq { req: 9, max: 300, base: Some(4), flags: MAPREQ_PARKED }));
     }
 
@@ -744,7 +761,9 @@ mod map_protocol_tests {
             entries.extend_from_slice(&10i16.to_le_bytes());
             entries.extend_from_slice(&20i16.to_le_bytes());
             entries.extend_from_slice(&[3u8, 4, 5]);
-            if flags & HF_MAPZ != 0 { entries.extend_from_slice(&30i16.to_le_bytes()); }
+            if flags & HF_MAPZ != 0 {
+                entries.extend_from_slice(&30i16.to_le_bytes());
+            }
             let mut b = vec![0u8; mapd_len(entries.len())];
             write_mapd(&mut b, kind, 7, 11, 2, 1, 0, 1, 1, 1, flags, &entries);
             assert_eq!(b[5], kind);

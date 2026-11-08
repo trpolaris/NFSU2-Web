@@ -71,7 +71,6 @@ fn playing_holds_the_claim() {
     assert_eq!(claims.mine(&owner('A'), now).unwrap().until, now + nfsu2_claims::HOLD_DAYS * nfsu2_claims::DAY_MS);
 }
 
-
 #[test]
 fn mutual_buddies_link_first_without_named_crews_and_survive_another_page_closing() {
     let mut k = Kit::new(RoamOptions { degree: 1, view_m: 1e-9, ..RoamOptions::default() });
@@ -107,7 +106,6 @@ fn mutual_buddies_link_first_without_named_crews_and_survive_another_page_closin
     k.step(RoamOptions::default().stale_ms + 1.0);
     assert_eq!(k.hub.whereabouts(std::slice::from_ref(&bianca)), vec![None]);
 }
-
 
 #[test]
 fn a_friend_who_enters_after_the_list_sync_gets_the_reciprocal_link() {

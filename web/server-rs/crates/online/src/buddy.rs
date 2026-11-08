@@ -521,10 +521,7 @@ pub(crate) fn shelf_texts(dir: &Path) -> Vec<String> {
 /// the same lists read and written again
 #[cfg(test)]
 pub(crate) fn shelf_reread(dir: &Path) -> Vec<String> {
-    shelf_texts(dir)
-        .iter()
-        .map(|t| list_json(&list_of_json(crate::jsonparse::parse(t).unwrap().as_object().unwrap()).unwrap()))
-        .collect()
+    shelf_texts(dir).iter().map(|t| list_json(&list_of_json(crate::jsonparse::parse(t).unwrap().as_object().unwrap()).unwrap())).collect()
 }
 
 /// a time the file keeps (ms since 1970, whole)
@@ -1647,7 +1644,8 @@ impl Core {
             .filter(|(k, (_, t))| waits(t) && not_friend(k) && !bs.blocks(&mk, k))
             .map(|(_, (n, _))| n.clone())
             .collect();
-        let sent = l.into_iter().flat_map(|l| l.r.iter()).filter(|(k, (_, t))| waits(t) && not_friend(k)).map(|(_, (n, _))| n.clone()).collect();
+        let sent =
+            l.into_iter().flat_map(|l| l.r.iter()).filter(|(k, (_, t))| waits(t) && not_friend(k)).map(|(_, (n, _))| n.clone()).collect();
         let contact = l.and_then(|l| l.contact.clone());
         FriendReply { me: Some(me), done, friends, asks, sent, mail, contact }
     }

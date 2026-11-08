@@ -207,8 +207,8 @@ pub const ANYWHERE: &[&str] = &[
 /// short words that match only as a part of the name on its own
 pub const WHOLE: &[&str] = &[
     "fag", "dyke", "coon", "spic", "paki", "kike", "gook", "chink", "niga", "nyga", "ngga", "neger", "xach", "xoxol", "hohol", "ukrop",
-    "pider", "pedik", "nazi", "taliban", "rape", "nig", "killnig", "fucknig", "hatenig", "pedo", "goy", "hilter", "heilh",
-    "heilah", "heilss", "ssheil", "heilhit", "hitlor", "adolf", "adolph", "reich",
+    "pider", "pedik", "nazi", "taliban", "rape", "nig", "killnig", "fucknig", "hatenig", "pedo", "goy", "hilter", "heilh", "heilah",
+    "heilss", "ssheil", "heilhit", "hitlor", "adolf", "adolph", "reich",
 ];
 /// words that match where they start or end a part of the name (or its letters together)
 pub const EDGE: &[&str] = &["niga", "nyga", "hitla", "hitle", "nazi"];
@@ -797,20 +797,88 @@ impl Deny {
 }
 
 const CHAT_PROFANITY_WORDS: &[&str] = &[
-    "amk", "aq", "amq", "amina", "aminakoyim", "aminakoyayim", "aminasokim",
-    "ananisik", "ananisikeyim", "amcik", "amcigi", "amcigim", "amciklar",
-    "sik", "siki", "sikim", "sikerim", "sikeyim", "sikiyim", "sikiyor", "sikmek",
-    "siktim", "sikti", "sikis", "sikik", "siktir", "siktirgit",
-    "orospu", "orospucocugu", "orospuevladi", "pic", "pici", "picin", "picoglu",
-    "yarrak", "yarak", "yarram", "yarra", "pezevenk", "kahpe", "serefsiz", "pust", "surtuk",
-    "kurwa", "fuck", "shit", "bitch", "asshole", "asshat", "cunt", "dickhead",
-    "cock", "bastard", "motherfucker", "wanker", "twat", "bollocks",
+    "amk",
+    "aq",
+    "amq",
+    "amina",
+    "aminakoyim",
+    "aminakoyayim",
+    "aminasokim",
+    "ananisik",
+    "ananisikeyim",
+    "amcik",
+    "amcigi",
+    "amcigim",
+    "amciklar",
+    "sik",
+    "siki",
+    "sikim",
+    "sikerim",
+    "sikeyim",
+    "sikiyim",
+    "sikiyor",
+    "sikmek",
+    "siktim",
+    "sikti",
+    "sikis",
+    "sikik",
+    "siktir",
+    "siktirgit",
+    "orospu",
+    "orospucocugu",
+    "orospuevladi",
+    "pic",
+    "pici",
+    "picin",
+    "picoglu",
+    "yarrak",
+    "yarak",
+    "yarram",
+    "yarra",
+    "pezevenk",
+    "kahpe",
+    "serefsiz",
+    "pust",
+    "surtuk",
+    "kurwa",
+    "fuck",
+    "shit",
+    "bitch",
+    "asshole",
+    "asshat",
+    "cunt",
+    "dickhead",
+    "cock",
+    "bastard",
+    "motherfucker",
+    "wanker",
+    "twat",
+    "bollocks",
 ];
 const CHAT_PROFANITY_PREFIXES: &[&str] = &[
-    "amina", "amcik", "sikt", "siker", "sikey", "sikiy", "sikim",
-    "orosp", "yarr", "serefsiz", "pezevenk", "surtuk",
-    "kurw", "fuck", "shit", "bitch", "cunt", "asshole", "asshat",
-    "motherfuck", "wanker", "twat", "bollock",
+    "amina",
+    "amcik",
+    "sikt",
+    "siker",
+    "sikey",
+    "sikiy",
+    "sikim",
+    "orosp",
+    "yarr",
+    "serefsiz",
+    "pezevenk",
+    "surtuk",
+    "kurw",
+    "fuck",
+    "shit",
+    "bitch",
+    "cunt",
+    "asshole",
+    "asshat",
+    "motherfuck",
+    "wanker",
+    "twat",
+    "bollock",
 ];
 
 fn chat_profanity_word(word: &[u8]) -> bool {
@@ -826,18 +894,21 @@ pub fn chat_profanity(line: &str) -> Option<&str> {
         match (ch.is_whitespace(), from) {
             (true, Some(f)) => {
                 let e = f + line[f..i].trim_end_matches('!').len();
-                if e > f { words.push((f, e)); }
+                if e > f {
+                    words.push((f, e));
+                }
                 from = None;
             }
             (false, None) => from = Some(i),
             _ => {}
         }
     }
-    let letters: Vec<Vec<u8>> = words.iter().map(|&(a, b)| {
-        scan(&line[a..b]).map(|value| value.s.get().to_vec()).unwrap_or_default()
-    }).collect();
+    let letters: Vec<Vec<u8>> =
+        words.iter().map(|&(a, b)| scan(&line[a..b]).map(|value| value.s.get().to_vec()).unwrap_or_default()).collect();
     for (index, word) in letters.iter().enumerate() {
-        if chat_profanity_word(word) { return Some(&line[words[index].0..words[index].1]); }
+        if chat_profanity_word(word) {
+            return Some(&line[words[index].0..words[index].1]);
+        }
     }
     // Also catch words intentionally separated into single letters, such as "a m k" or "f u c k".
     let mut index = 0;

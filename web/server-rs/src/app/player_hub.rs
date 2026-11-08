@@ -103,8 +103,13 @@ impl HubStore {
         let parent = self.path.parent().ok_or("player hub store has no parent directory")?;
         fs::create_dir_all(parent).map_err(|e| format!("create player hub state directory: {e}"))?;
         let temp = self.path.with_extension(format!("json.tmp-{}", std::process::id()));
-        let mut file = OpenOptions::new().create(true).truncate(true).write(true).mode(0o600)
-            .open(&temp).map_err(|e| format!("open player hub temporary store: {e}"))?;
+        let mut file = OpenOptions::new()
+            .create(true)
+            .truncate(true)
+            .write(true)
+            .mode(0o600)
+            .open(&temp)
+            .map_err(|e| format!("open player hub temporary store: {e}"))?;
         serde_json::to_writer(&mut file, state).map_err(|e| format!("serialize player hub store: {e}"))?;
         file.write_all(b"\n").map_err(|e| format!("write player hub store: {e}"))?;
         file.sync_all().map_err(|e| format!("sync player hub store: {e}"))?;
@@ -120,10 +125,15 @@ impl HubStore {
         let mut state = self.state.lock();
         if let Some(token) = token.filter(|v| valid_token(v)) {
             let hash = digest_hex(token.as_bytes());
-            if let Some(session) = state.sessions.get(&hash).filter(|s| {
-                let age = now.saturating_sub(s.created_at);
-                (0..=SESSION_MAX_AGE_MS).contains(&age)
-            }).cloned() {
+            if let Some(session) = state
+                .sessions
+                .get(&hash)
+                .filter(|s| {
+                    let age = now.saturating_sub(s.created_at);
+                    (0..=SESSION_MAX_AGE_MS).contains(&age)
+                })
+                .cloned()
+            {
                 return Ok((token.to_string(), false, session));
             }
         }
@@ -140,12 +150,7 @@ impl HubStore {
 
         let token = nfsu2_util::js::base64url(&nfsu2_util::rand::bytes(32));
         let csrf = nfsu2_util::js::base64url(&nfsu2_util::rand::bytes(32));
-        let session = PlayerSession {
-            csrf,
-            created_at: now,
-            profile: PlayerProfile::default(),
-            garage: Vec::new(),
-        };
+        let session = PlayerSession { csrf, created_at: now, profile: PlayerProfile::default(), garage: Vec::new() };
         state.sessions.insert(digest_hex(token.as_bytes()), session.clone());
         if let Err(e) = self.persist(&state) {
             *state = before;
@@ -158,10 +163,16 @@ impl HubStore {
         let token = token.filter(|v| valid_token(v))?;
         let hash = digest_hex(token.as_bytes());
         let now = nfsu2_util::now_ms();
-        let session = self.state.lock().sessions.get(&hash).filter(|s| {
-            let age = now.saturating_sub(s.created_at);
-            (0..=SESSION_MAX_AGE_MS).contains(&age)
-        }).cloned()?;
+        let session = self
+            .state
+            .lock()
+            .sessions
+            .get(&hash)
+            .filter(|s| {
+                let age = now.saturating_sub(s.created_at);
+                (0..=SESSION_MAX_AGE_MS).contains(&age)
+            })
+            .cloned()?;
         Some((hash, session))
     }
 
@@ -228,7 +239,9 @@ fn clean_text(input: &str, max: usize) -> String {
 }
 fn constant_time_eq(a: &str, b: &str) -> bool {
     let (a, b) = (a.as_bytes(), b.as_bytes());
-    if a.len() != b.len() { return false; }
+    if a.len() != b.len() {
+        return false;
+    }
     a.iter().zip(b).fold(0u8, |diff, (x, y)| diff | (x ^ y)) == 0
 }
 fn cookie_token(cookie: Option<&str>) -> Option<String> {
@@ -238,7 +251,9 @@ fn cookie_token(cookie: Option<&str>) -> Option<String> {
     })
 }
 fn json_body(bytes: &[u8]) -> Result<Value, &'static str> {
-    if bytes.len() > MAX_BODY { return Err("request body too large"); }
+    if bytes.len() > MAX_BODY {
+        return Err("request body too large");
+    }
     serde_json::from_slice(bytes).map_err(|_| "invalid JSON body")
 }
 
@@ -270,7 +285,9 @@ impl App {
             });
             let cookie = if created {
                 Some(format!("{SESSION_COOKIE}={token}; Path=/; Max-Age={SESSION_MAX_AGE}; HttpOnly; Secure; SameSite=Strict"))
-            } else { None };
+            } else {
+                None
+            };
             return self.hub_json(q, s, 200, body, cookie.as_deref()).await;
         }
 
@@ -297,12 +314,20 @@ impl App {
                     "connectedSeconds": now.saturating_sub(player.since).max(0) / 1000
                 }));
             }
-            return self.hub_json(q, s, 200, json!({
-                "players": players,
-                "count": players.len(),
-                "updatedAt": now,
-                "source": "live-switch"
-            }), None).await;
+            return self
+                .hub_json(
+                    q,
+                    s,
+                    200,
+                    json!({
+                        "players": players,
+                        "count": players.len(),
+                        "updatedAt": now,
+                        "source": "live-switch"
+                    }),
+                    None,
+                )
+                .await;
         }
 
         let token = cookie_token(q.headers.get("cookie"));
@@ -314,11 +339,19 @@ impl App {
             return self.hub_json(q, s, 200, json!({ "profile": session.profile }), None).await;
         }
         if path == "/api/v1/garage" && (q.method == "GET" || q.method == "HEAD") {
-            return self.hub_json(q, s, 200, json!({
-                "vehicles": session.garage,
-                "count": session.garage.len(),
-                "origin": "player-entered"
-            }), None).await;
+            return self
+                .hub_json(
+                    q,
+                    s,
+                    200,
+                    json!({
+                        "vehicles": session.garage,
+                        "count": session.garage.len(),
+                        "origin": "player-entered"
+                    }),
+                    None,
+                )
+                .await;
         }
 
         if q.method != "POST" && q.method != "PUT" && q.method != "DELETE" {
@@ -373,7 +406,9 @@ impl App {
             let notes = clean_text(body.get("notes").and_then(Value::as_str).unwrap_or(""), 160);
             let year_raw = body.get("year").and_then(Value::as_u64);
             let year = year_raw.map(|v| v as u16);
-            if manufacturer.is_empty() || model.is_empty() || body.get("manufacturer").and_then(Value::as_str).is_none()
+            if manufacturer.is_empty()
+                || model.is_empty()
+                || body.get("manufacturer").and_then(Value::as_str).is_none()
                 || body.get("model").and_then(Value::as_str).is_none()
                 || year_raw.is_some_and(|y| !(1990..=2035).contains(&y))
             {
@@ -396,11 +431,20 @@ impl App {
                 return self.hub_error(q, s, 400, "invalid vehicle id").await;
             }
             return match self.hub.remove_vehicle(&session_hash, id) {
-                Ok(vehicles) => self.hub_json(q, s, 200, json!({
-                    "vehicles": vehicles,
-                    "count": vehicles.len(),
-                    "origin": "player-entered"
-                }), None).await,
+                Ok(vehicles) => {
+                    self.hub_json(
+                        q,
+                        s,
+                        200,
+                        json!({
+                            "vehicles": vehicles,
+                            "count": vehicles.len(),
+                            "origin": "player-entered"
+                        }),
+                        None,
+                    )
+                    .await
+                }
                 Err(e) if e == "vehicle not found" => self.hub_error(q, s, 404, &e).await,
                 Err(e) => {
                     nfsu2_util::log::error(&e);
@@ -419,9 +463,13 @@ impl App {
         h.set("content-type", "application/json; charset=utf-8");
         h.set("content-length", body.len().to_string());
         h.set("cache-control", "private, no-store");
-        if let Some(cookie) = cookie { h.set("set-cookie", cookie); }
+        if let Some(cookie) = cookie {
+            h.set("set-cookie", cookie);
+        }
         s.head(code, h.0);
-        if q.method != "HEAD" { send(s, body.as_bytes()).await?; }
+        if q.method != "HEAD" {
+            send(s, body.as_bytes()).await?;
+        }
         finish(s).await
     }
 

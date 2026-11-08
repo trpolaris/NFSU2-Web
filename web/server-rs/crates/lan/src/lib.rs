@@ -1059,10 +1059,7 @@ impl LanSwitch {
     /// The virtual addresses whose open pages use this claimed-name keyphrase.
     /// The owner is read from the switch's authenticated Hello, never from a client-supplied field.
     pub fn vips_of_owner(&self, owner: &str) -> Vec<u32> {
-        self.all.load().iter()
-            .filter(|p| p.open() && p.conn.owner.get().is_some_and(|o| o.as_ref() == owner))
-            .map(|p| p.vip)
-            .collect()
+        self.all.load().iter().filter(|p| p.open() && p.conn.owner.get().is_some_and(|o| o.as_ref() == owner)).map(|p| p.vip).collect()
     }
 
     /// A small page notification as a WebSocket text frame (not a binary host datagram).

@@ -185,7 +185,9 @@ pub type Mapd = (u16, u16, u8, u8, u16, Vec<MapdEntry>);
 /// Decode a MAPD datagram from a switch frame.
 pub fn mapd_of(f: &[u8]) -> Option<Mapd> {
     let d = f.get(16..)?;
-    if *d.get(5)? != 18 { return None; }
+    if *d.get(5)? != 18 {
+        return None;
+    }
     let count = *d.get(24)? as usize;
     let (mut o, mut entries) = (25usize, Vec::with_capacity(count));
     for _ in 0..count {
@@ -194,14 +196,14 @@ pub fn mapd_of(f: &[u8]) -> Option<Mapd> {
             entries.push((key & 0x7fff, None));
             o += 2;
         } else {
-            let i = |k: usize| -> Option<i16> {
-                Some(i16::from_le_bytes([*d.get(o + k)?, *d.get(o + k + 1)?]))
-            };
+            let i = |k: usize| -> Option<i16> { Some(i16::from_le_bytes([*d.get(o + k)?, *d.get(o + k + 1)?])) };
             entries.push((key, Some((i(2)?, i(4)?, *d.get(o + 6)?, *d.get(o + 7)? as i8, *d.get(o + 8)? as i8))));
             o += 9;
         }
     }
-    if o + 4 != d.len() { return None; }
+    if o + 4 != d.len() {
+        return None;
+    }
     let u = |k: usize| -> Option<u16> { Some(u16::from_le_bytes([*d.get(k)?, *d.get(k + 1)?])) };
     Some((u(16)?, u(18)?, *d.get(20)?, *d.get(21)?, u(22)?, entries))
 }
@@ -214,7 +216,9 @@ pub fn nearreq(sender: u32, req: u16, max: u16, base: u16, radius: u16) -> Vec<u
 /// Decode a NEARD datagram from a switch frame.
 pub fn neard_of(f: &[u8]) -> Option<Mapd> {
     let d = f.get(16..)?;
-    if *d.get(5)? != 20 { return None; }
+    if *d.get(5)? != 20 {
+        return None;
+    }
     let count = *d.get(24)? as usize;
     let (mut o, mut entries) = (25usize, Vec::with_capacity(count));
     for _ in 0..count {
@@ -223,14 +227,14 @@ pub fn neard_of(f: &[u8]) -> Option<Mapd> {
             entries.push((key & 0x7fff, None));
             o += 2;
         } else {
-            let i = |k: usize| -> Option<i16> {
-                Some(i16::from_le_bytes([*d.get(o + k)?, *d.get(o + k + 1)?]))
-            };
+            let i = |k: usize| -> Option<i16> { Some(i16::from_le_bytes([*d.get(o + k)?, *d.get(o + k + 1)?])) };
             entries.push((key, Some((i(2)?, i(4)?, *d.get(o + 6)?, *d.get(o + 7)? as i8, *d.get(o + 8)? as i8))));
             o += 9;
         }
     }
-    if o + 4 != d.len() { return None; }
+    if o + 4 != d.len() {
+        return None;
+    }
     let u = |k: usize| -> Option<u16> { Some(u16::from_le_bytes([*d.get(k)?, *d.get(k + 1)?])) };
     Some((u(16)?, u(18)?, *d.get(20)?, *d.get(21)?, u(22)?, entries))
 }

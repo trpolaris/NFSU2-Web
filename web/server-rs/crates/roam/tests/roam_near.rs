@@ -5,7 +5,9 @@ use kit::*;
 use nfsu2_roam::RoamOptions;
 
 #[allow(non_snake_case)]
-fn W(i: u32) -> u32 { 0x0A4D_0002 + i }
+fn W(i: u32) -> u32 {
+    0x0A4D_0002 + i
+}
 
 fn join(k: &mut Kit, i: u32) {
     k.from(W(i), &hello_with(100 + i, &HelloOpts { core: 4, ..Default::default() }));
