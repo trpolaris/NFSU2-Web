@@ -26,12 +26,21 @@ impl Bucket {
         Self::new_at(rate, mono_ms())
     }
     pub fn new_at(rate: f64, now: f64) -> Self {
-        Bucket { rate, cap: rate * 2.0, v: rate * 2.0, t: now }
+        Self::with_burst_at(rate, rate * 2.0, now)
+    }
+    /// at most `burst` stored
+    pub fn with_burst_at(rate: f64, burst: f64, now: f64) -> Self {
+        Bucket { rate, cap: burst, v: burst, t: now }
+    }
+    /// what there is at `now`, the bucket left as it is
+    #[inline]
+    pub fn level_at(&self, now: f64) -> f64 {
+        self.cap.min(self.v + (now - self.t) / 1000.0 * self.rate)
     }
     /// refilled to `now`, and `n` is there
     #[inline]
     pub fn has_at(&mut self, now: f64, n: f64) -> bool {
-        self.v = self.cap.min(self.v + (now - self.t) / 1000.0 * self.rate);
+        self.v = self.level_at(now);
         self.t = now;
         self.v >= n
     }
@@ -151,24 +160,16 @@ impl Budget {
 pub struct Rate {
     burst: f64,
     rate: f64,
-    m: Mutex<HashMap<String, RateBucket>>,
-}
-
-struct RateBucket {
-    v: f64,
-    t: f64,
-    cap: f64,
-    rate: f64,
+    m: Mutex<HashMap<String, Bucket>>,
 }
 
 impl Rate {
     pub fn new(burst: f64, per_sec: f64) -> Self {
         Rate { burst, rate: per_sec, m: Mutex::new(HashMap::new()) }
     }
-    fn one<'a>(m: &'a mut HashMap<String, RateBucket>, k: &str, burst: f64, rate: f64, scale: f64, now: f64) -> &'a mut RateBucket {
-        let b = m.entry(k.to_string()).or_insert_with(|| RateBucket { v: burst * scale, t: now, cap: burst * scale, rate: rate * scale });
-        b.v = b.cap.min(b.v + (now - b.t) / 1000.0 * b.rate);
-        b.t = now;
+    fn one<'a>(m: &'a mut HashMap<String, Bucket>, k: &str, burst: f64, rate: f64, scale: f64, now: f64) -> &'a mut Bucket {
+        let b = m.entry(k.to_string()).or_insert_with(|| Bucket::with_burst_at(rate * scale, burst * scale, now));
+        b.has_at(now, 0.0);
         b
     }
     pub fn take(&self, key: &str, site: &str) -> bool {
@@ -189,18 +190,28 @@ impl Rate {
     pub fn check(&self, key: &str, site: &str) -> bool {
         let now = mono_ms();
         let m = self.m.lock();
-        let left = |k: &str| m.get(k).is_none_or(|b| b.cap.min(b.v + (now - b.t) / 1000.0 * b.rate) >= 1.0);
+        let left = |k: &str| m.get(k).is_none_or(|b| b.level_at(now) >= 1.0);
         left(key) && (site.is_empty() || left(&format!("site {site}")))
     }
     pub fn prune(&self) {
         let now = mono_ms();
-        self.m.lock().retain(|_, b| b.v + (now - b.t) / 1000.0 * b.rate < b.cap);
+        self.m.lock().retain(|_, b| b.level_at(now) < b.cap);
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_bucket_of_its_own_burst() {
+        let mut b = Bucket::with_burst_at(2.0, 5.0, 0.0);
+        assert!(b.take_at(0.0, 5.0) && !b.take_at(0.0, 1.0));
+        assert_eq!(b.level_at(1000.0), 2.0);
+        assert_eq!(b.v, 0.0, "a look takes nothing and fills nothing");
+        assert_eq!(b.level_at(10_000.0), 5.0, "no more than the burst");
+        assert!(b.take_at(500.0, 1.0) && !b.take_at(500.0, 0.5));
+    }
 
     #[test]
     fn bucket_refills_and_spends_into_debt() {

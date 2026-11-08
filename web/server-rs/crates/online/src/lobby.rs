@@ -63,7 +63,7 @@ use std::sync::Arc;
 use hmac::{Hmac, Mac};
 use indexmap::{IndexMap, IndexSet};
 use md5::Md5;
-use nfsu2_util::{js, rand, vip_str};
+use nfsu2_util::{Bucket, js, rand, vip_str};
 use sha2::{Digest, Sha256};
 
 use crate::aries::{FieldMap, Fields, FrameReader, MAX_FRAME, V, encode_fields, encode_frame, is_secret};
@@ -273,30 +273,6 @@ const SLOT_TYPES: [u32; 6] = [0, 1, 3, 2, 4, 5];
 /// finish and report, no limit (the table comes once the result stands)
 const RESULTS_WAIT_MS: f64 = 60_000.0;
 
-/// A token bucket: `rate` a second, at most `burst`, full at the start (on the lobby's clock)
-#[derive(Clone, Copy, Debug)]
-pub struct LBucket {
-    pub rate: f64,
-    pub cap: f64,
-    pub v: f64,
-    pub t: f64,
-}
-
-impl LBucket {
-    pub fn new(rate: f64, burst: f64, now: f64) -> LBucket {
-        LBucket { rate, cap: burst, v: burst, t: now }
-    }
-    pub fn take(&mut self, now: f64, n: f64) -> bool {
-        self.v = self.cap.min(self.v + (now - self.t) / 1000.0 * self.rate);
-        self.t = now;
-        if self.v < n {
-            return false;
-        }
-        self.v -= n;
-        true
-    }
-}
-
 pub struct Session {
     pub id: SessId,
     pub conn: ConnId,
@@ -318,10 +294,10 @@ pub struct Session {
     t0: f64,
     pub last_in: f64,
     last_ping: f64,
-    msgs: LBucket,
-    chats: LBucket,
-    creates: LBucket,
-    acts: LBucket,
+    msgs: Bucket,
+    chats: Bucket,
+    creates: Bucket,
+    acts: Bucket,
     mute_until: f64,
     /// when its lines that read as a slur were said (those of the last slur_window_ms)
     slurs: Vec<f64>,
@@ -927,10 +903,10 @@ impl Core {
                 t0: t,
                 last_in: t,
                 last_ping: t,
-                msgs: LBucket::new(l.msg_rate, 2.0 * l.msg_rate, t),
-                chats: LBucket::new(l.chat_rate, 5.0, t),
-                creates: LBucket::new(l.create_rate, 3.0, t),
-                acts: LBucket::new(l.act_rate, 4.0, t),
+                msgs: Bucket::with_burst_at(l.msg_rate, 2.0 * l.msg_rate, t),
+                chats: Bucket::with_burst_at(l.chat_rate, 5.0, t),
+                creates: Bucket::with_burst_at(l.create_rate, 3.0, t),
+                acts: Bucket::with_burst_at(l.act_rate, 4.0, t),
                 mute_until: 0.0,
                 slurs: Vec::new(),
                 gone: false,
@@ -953,7 +929,7 @@ impl Core {
                 return;
             }
             let now = self.now();
-            if !self.lobby.sm(s).msgs.take(now, 1.0) {
+            if !self.lobby.sm(s).msgs.take_at(now, 1.0) {
                 return self.ldrop(s, "too many messages");
             }
             if !four_printable(&m.kind) {
@@ -1344,7 +1320,7 @@ impl Core {
             }
         }
         let now = self.now();
-        if !self.lobby.sm(s).acts.take(now, 1.0) {
+        if !self.lobby.sm(s).acts.take_at(now, 1.0) {
             return self.lsend(s, "move", &[], "full");
         }
         let old = self.lobby.s(s).room;
@@ -1484,7 +1460,7 @@ impl Core {
         self.lsend(s, "+who", &w, "");
         // to the others at act_rate: past it they see it with the player's next record (a room, a game)
         let now = self.now();
-        if !self.lobby.sm(s).acts.take(now, 1.0) {
+        if !self.lobby.sm(s).acts.take_at(now, 1.0) {
             return;
         }
         if let Some(r) = self.lobby.s(s).room.filter(|r| self.lobby.room(*r).is_some()) {
@@ -1895,7 +1871,7 @@ impl Core {
         if now < self.lobby.s(s).mute_until {
             return self.lsend(s, "mesg", &[], "mute");
         }
-        if !self.lobby.sm(s).chats.take(now, 1.0) {
+        if !self.lobby.sm(s).chats.take_at(now, 1.0) {
             let mute = self.lobby.l.mute_ms;
             self.lobby.sm(s).mute_until = now + mute;
             self.llog(&format!("[online] {}: chat flood, muted for {} s", self.who(s), js::number_to_string(mute / 1000.0)), s);
@@ -2085,7 +2061,7 @@ impl Core {
             self.game_leave(s, None);
         }
         let now = self.now();
-        if self.lobby.games.len() as f64 >= self.lobby.l.games || !self.lobby.sm(s).creates.take(now, 1.0) {
+        if self.lobby.games.len() as f64 >= self.lobby.l.games || !self.lobby.sm(s).creates.take_at(now, 1.0) {
             return self.lsend(s, "gcre", &[], "full");
         }
         let (vip, group) = {
@@ -2215,7 +2191,7 @@ impl Core {
 
     fn game_join(&mut self, s: SessId, f: &FieldMap) {
         let now = self.now();
-        if !self.lobby.sm(s).acts.take(now, 1.0) {
+        if !self.lobby.sm(s).acts.take_at(now, 1.0) {
             return self.lsend(s, "gjoi", &[], "full");
         }
         let ident = f.num("IDENT", f64::NAN);
