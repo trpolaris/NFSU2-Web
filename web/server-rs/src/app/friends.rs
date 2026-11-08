@@ -114,7 +114,9 @@ impl FriendsRoute {
                         row.insert("room".into(), name.into());
                     }
                 }
-                if f.mutual && let Some(contact) = f.contact {
+                if f.mutual
+                    && let Some(contact) = f.contact
+                {
                     row.insert("contact".into(), contact.into());
                 }
                 Value::Object(row)
