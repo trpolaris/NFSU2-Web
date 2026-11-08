@@ -206,10 +206,12 @@ static void qc_status(void){
 void racenet_heard(uint8_t *m, int n, uint32_t from);   /* racenet.c: the players' frame rates, */
 void racenet_carspam(CPU *c, const uint8_t *m, int n, uint32_t from);   /*   a joiner's car state straight from its game, */
 void racenet_list(const uint8_t *m, int n, uint32_t from);              /*   and the creator's list of the joiners */
+void mprace_quit_heard(uint8_t *m, int n, uint32_t from);              /* mprace.c: a racer that quit */
 static void got(CPU *c, uint8_t *m, int n, uint32_t from, uint32_t now){
     if (n >= 4 && !memcmp(m, "N2FS", 4)){ racenet_heard(m, n, from); return; }
     if (n >= 4 && !memcmp(m, "N2CS", 4)){ racenet_carspam(c, m, n, from); return; }
     if (n >= 4 && !memcmp(m, "N2PL", 4)){ racenet_list(m, n, from); return; }
+    if (n >= 4 && !memcmp(m, "N2QT", 4)){ mprace_quit_heard(m, n, from); return; }
     if (n >= MSG_N && !memcmp(m, "N2QC", 4)){ if (m[4] == 1 && vlan_race_sent_to(from, PEER_MS)) qc_got(m, from, now); return; }
     if (n < MSG_N || memcmp(m, "N2HN", 4) || m[4] != 1) return;
     char name[NAME_N];
