@@ -14,6 +14,15 @@ const built = await esbuild.build({
 });
 const { SettingsFile } = await import('data:text/javascript;base64,' + Buffer.from(built.outputFiles[0].text).toString('base64'));
 
+const settingsBuilt = await esbuild.build({
+  entryPoints: [path.join(HERE, '../src/app/settings.ts')],
+  bundle: true,
+  write: false,
+  format: 'esm',
+  platform: 'node',
+});
+const { TEMPLATE } = await import('data:text/javascript;base64,' + Buffer.from(settingsBuilt.outputFiles[0].text).toString('base64'));
+
 function memoryFiles(initial = null) {
   let disk = initial;
   let readError = null;
@@ -57,13 +66,13 @@ test('the save owner creates a missing template and upgrades an older settings f
   const missing = memoryFiles();
   const fresh = new SettingsFile(() => 'save', line => logs.push(line), missing.io);
 
-  assert.equal(await fresh.load(true), (await import('../src/app/settings.ts')).TEMPLATE);
+  assert.equal(await fresh.load(true), TEMPLATE);
   assert.equal(missing.disk, fresh.forGame);
   assert.equal(fresh.text, null);
   assert.match(logs.join('\n'), /wrote template \/save\/settings\.ini/);
 
-  const settings = await import('../src/app/settings.ts');
-  const firstLine = settings.TEMPLATE.slice(0, settings.TEMPLATE.indexOf('\n'));
+  const firstLine = TEMPLATE.slice(0, TEMPLATE.indexOf('\\n'));
+
   const oldText = firstLine + '\nlanguage = turkish\n';
   const oldDisk = memoryFiles(oldText);
   const upgraded = new SettingsFile(() => 'save', line => logs.push(line), oldDisk.io);
