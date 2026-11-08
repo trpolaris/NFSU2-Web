@@ -49,6 +49,8 @@ pub(crate) const CREWS: usize = 4;
 /// HELLO's flag: this player reads the crew marks of the hub's PEERS (roam_core.h RC_HF_HUBCREW, core 8): HF_CREW on a
 /// PEERS says the list ends in them (`write_peers`).  A core before it counts the longer list as bad, so it gets none.
 pub(crate) const HF_HUBCREW: u16 = 0x0400;
+/// mutual friend mark in a PEERS crew-mark byte, beyond the four crew bits
+pub(crate) const MARK_FRIEND: u8 = 0x80;
 /// the most ids a HELLO names (roam_core.h RC_MAX_PEERS: its decoder takes no more)
 const SEEN_MAX: usize = 32;
 /// a LOBBY's ops (roam_core.h RC_LOBBY_*) the hub keeps: the host's advert and its end, and a player's ask to join
@@ -481,18 +483,20 @@ pub(crate) fn peers_crew_len(n: usize, k: usize) -> usize {
 /// Writes a PEERS datagram into `b` (exactly `peers_len(n)` bytes long, or `peers_crew_len(n, mine.len())` with crews):
 /// list = [{ vip, port, id }] (at most 32: roam_core's RC_MAX_PEERS; 7 for a core of version 1).  With `mine` (the
 /// receiver's crews, at most CREWS, none 0) the list ends in its crew marks (HF_CREW on it): `mine`, then a byte per
-/// entry, `marks[i]` bit c: entry i is in crew `mine[c]` too.  So a player learns which of its peers are in its crews
-/// without anyone's crews but its own going out.
+/// entry, `marks[i]` bit c: entry i is in crew `mine[c]` too; MARK_FRIEND means it is a mutual friend. The receiver
+/// learns its own crews and friends without any other player's crew hashes being disclosed.
 pub(crate) fn write_peers(b: &mut [u8], sender: u32, seq: u16, list: impl ExactSizeIterator<Item = PeerEntry>, mine: &[u32], marks: &[u8]) {
     let len = b.len();
     let n = list.len();
+    let with = len > peers_len(n);
+    debug_assert!(marks.len() == n || marks.is_empty());
     b[..4].copy_from_slice(b"N2FR");
     b[4] = 1;
     b[5] = MSG_PEERS;
     b[6..8].copy_from_slice(&(len as u16).to_le_bytes());
     b[8..12].copy_from_slice(&sender.to_le_bytes());
     b[12..14].copy_from_slice(&seq.to_le_bytes());
-    b[14..16].copy_from_slice(&if mine.is_empty() { 0 } else { HF_CREW }.to_le_bytes());
+    b[14..16].copy_from_slice(&if with { HF_CREW } else { 0 }.to_le_bytes());
     // the count's low byte: one byte holds every count roam_core reads (RC_MAX_PEERS at most, as above)
     b[16] = n as u8;
     for (i, e) in list.enumerate() {
