@@ -68,6 +68,25 @@ int main(void){
     assert(mpcredit_store_read(path, out, 1, &count) == MPCREDIT_STORE_INVALID);
     assert(count == 0);
 
+    /* The runtime retains up to 128 wins across waiting and applied-but-unsaved
+     * records; every one must survive a profile reload. */
+    MpCreditStoreEntry full[MPCREDIT_STORE_MAX_ENTRIES];
+    MpCreditStoreEntry full_out[MPCREDIT_STORE_MAX_ENTRIES];
+    for (size_t i = 0; i < MPCREDIT_STORE_MAX_ENTRIES; i++){
+        full[i].race_hash = 0x10000000u + (uint32_t)i;
+        full[i].margin = (float)i - 32.f;
+    }
+    assert(mpcredit_store_write(path, full, MPCREDIT_STORE_MAX_ENTRIES));
+    assert(mpcredit_store_read(path, full_out, MPCREDIT_STORE_MAX_ENTRIES, &count) == MPCREDIT_STORE_OK);
+    assert(count == MPCREDIT_STORE_MAX_ENTRIES);
+    for (size_t i = 0; i < MPCREDIT_STORE_MAX_ENTRIES; i++){
+        assert(full_out[i].race_hash == full[i].race_hash);
+        assert(full_out[i].margin == full[i].margin);
+    }
+    assert(mpcredit_store_read(path, full_out, MPCREDIT_STORE_MAX_ENTRIES - 1u, &count) == MPCREDIT_STORE_INVALID);
+    assert(count == 0);
+    assert(mpcredit_store_write(path, entries, 2));
+
     MpCreditStoreEntry too_many[MPCREDIT_STORE_MAX_ENTRIES + 1u];
     memset(too_many, 0, sizeof too_many);
     assert(!mpcredit_store_write(path, too_many, MPCREDIT_STORE_MAX_ENTRIES + 1u));

@@ -474,7 +474,8 @@ static int win_now(CPU *c, uint32_t r, float margin){
  * profile again too: each load of player 1's profile reads the file again, garage_profile_loads) gives it again (a
  * race already won is left).  File: PEND_MAGIC, 1, the count, then a race's name hash and its margin (float) each.
  * The profile deleted: the file goes with it (garage_profile_deleted). */
-#define PEND_MAX 32
+#define PEND_MAX 128
+_Static_assert(PEND_MAX == MPCREDIT_STORE_MAX_ENTRIES, "pending career wins must fit MPWINS.DAT");
 #define PEND_FILE       "MPWINS.DAT"
 #define PEND_MAGIC      0x574d324eu   /* "N2MW" */
 int fileio_resolve_save(const char *win, char *out, size_t outsz);
@@ -517,7 +518,7 @@ static void pend_write(void){
         fprintf(stderr, "[mpcredit] %s: no place for " PEND_FILE " (no profile loaded?): the waiting wins are in memory only\n", g_pend.profile);
         return;
     }
-    MpCreditStoreEntry entries[PEND_MAX * 2];
+    MpCreditStoreEntry entries[PEND_MAX];
     size_t n = 0;
     for (int i = 0; i < g_pend.n; i++){
         entries[n].race_hash = MR32(g_pend.race[i] + 8u);
@@ -536,6 +537,7 @@ static void pend_write(void){
             ok ? "written atomically" : "WRITE FAILED (previous file kept)", g_pend.n, g_pend.ndone);
 }
 static int pend_waits(uint32_t r){ for (int k = 0; k < g_pend.n; k++) if (g_pend.race[k] == r) return 1; return 0; }
+static int pend_done(uint32_t r){ uint32_t h = MR32(r + 8u); for (int k = 0; k < g_pend.ndone; k++) if (g_pend.done[k] == h) return 1; return 0; }
 static void pend_wait(uint32_t r, float m){ if (r && !pend_waits(r) && g_pend.n < PEND_MAX){ g_pend.race[g_pend.n] = r; g_pend.margin[g_pend.n++] = m; } }
 /* the profile in play changed, or was loaded again: its file's wins wait now (given ones too: the crib gives a race
  * the career has not won, and leaves one it has).  The same profile again keeps what waited in memory as well */
@@ -575,7 +577,7 @@ static void pend_load(const char *name, unsigned loads){
 }
 /* a race waiting already (won twice before a crib): not again, the second win is the place's prize money (0) */
 static int pend_add(uint32_t r, float margin){
-    if (g_pend.n >= PEND_MAX || pend_waits(r)) return 0;
+    if (g_pend.n + g_pend.ndone >= PEND_MAX || pend_waits(r) || pend_done(r)) return 0;
     g_pend.race[g_pend.n] = r; g_pend.margin[g_pend.n++] = margin; g_pend.since = 0;
     pend_write();
     return 1;
@@ -619,6 +621,12 @@ int mpcredit_win(CPU *c, uint32_t race, float margin, int in_roam){
         if (!pend_add(race, margin)) return 0;
         fprintf(stderr, "[mpcredit] f=%ld %s: in free roam, the win waits for the next crib\n", autotest_frame(), race_name(race));
         return 1;
+    }
+    /* Do not grant a win which cannot be retained in the profile sidecar. */
+    if (g_pend.n + g_pend.ndone >= PEND_MAX){
+        fprintf(stderr, "[mpcredit] f=%ld MPWINS.DAT queue is full (%d records); career win deferred to avoid losing it\\n",
+                autotest_frame(), g_pend.n + g_pend.ndone);
+        return 0;
     }
     /* given in the crib: kept in the file too until the profile is written (the game's autosave off, the tab closed
      * before the player's own save: the next load gives it again) */

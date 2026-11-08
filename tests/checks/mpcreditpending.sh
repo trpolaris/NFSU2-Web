@@ -11,7 +11,7 @@ MAGIC="$(dd if="$FILE" bs=1 count=4 2>/dev/null || true)"
 [ "$MAGIC" = "N2MW" ] || { echo "MPWINS.DAT has an invalid magic header" >&2; exit 1; }
 COUNT="$(od -An -tu4 -j8 -N4 "$FILE" 2>/dev/null | tr -d '[:space:]')"
 case "$COUNT" in ''|*[!0-9]*) echo "MPWINS.DAT has an invalid entry count" >&2; exit 1 ;; esac
-[ "$COUNT" -ge 1 ] && [ "$COUNT" -le 64 ] || { echo "unexpected MPWINS.DAT entry count: $COUNT" >&2; exit 1; }
+[ "$COUNT" -ge 1 ] && [ "$COUNT" -le 128 ] || { echo "unexpected MPWINS.DAT entry count: $COUNT" >&2; exit 1; }
 BYTES="$(wc -c < "$FILE" | tr -d '[:space:]')"
 EXPECTED=$((12 + COUNT * 8))
 [ "$BYTES" -eq "$EXPECTED" ] || { echo "MPWINS.DAT size mismatch: $BYTES != $EXPECTED" >&2; exit 1; }

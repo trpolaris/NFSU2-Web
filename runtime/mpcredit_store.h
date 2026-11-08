@@ -4,7 +4,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#define MPCREDIT_STORE_MAX_ENTRIES 64u
+#define MPCREDIT_STORE_MAX_ENTRIES 128u
 
 typedef struct {
     uint32_t race_hash;
