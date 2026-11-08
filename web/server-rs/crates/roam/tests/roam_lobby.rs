@@ -478,7 +478,6 @@ fn configured_car_bans_only_reported_multiplayer_player_cars_over_threshold() {
     assert_eq!(off.info("carBans"), 0.0);
 }
 
-
 // a career-counting race report marks the reporter's win credit in the hub's log.
 #[test]
 fn a_race_that_counted_in_the_career_says_so() {
