@@ -477,3 +477,21 @@ fn configured_car_bans_only_reported_multiplayer_player_cars_over_threshold() {
     off.from(W(1), &race_report(101, 0xD1, 4, 27, 5000.0, 9999.0));
     assert_eq!(off.info("carBans"), 0.0);
 }
+
+
+// a career-counting race report marks the reporter's win credit in the hub's log.
+#[test]
+fn a_race_that_counted_in_the_career_says_so() {
+    let mut k = Kit::new(RoamOptions::default());
+    k.from(W(0), &hello_with(100, &HelloOpts { core: 5, name: b"Ann", ..Default::default() }));
+    let mut d = racerep(100, 0xA3, 1, 2, 0, 239.3, b"PEUGOT", 64);
+    d[16 + 17] = 2; // the reporter's career-credit byte
+    let n = d.len();
+    let crc = crc32fast::hash(&d[..n - 4]);
+    d[n - 4..].copy_from_slice(&crc.to_le_bytes());
+    k.from(W(0), &d);
+    let lines = k.lines.lock().clone();
+    assert_eq!(lines.len(), 1, "{lines:?}");
+    assert!(lines[0].starts_with("[race] lobby 000000a3"), "{lines:?}");
+    assert!(lines[0].ends_with("power x1.000; a friend's win in the career"), "{lines:?}");
+}
