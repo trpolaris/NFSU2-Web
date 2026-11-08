@@ -2442,7 +2442,7 @@ mod tests {
         // a third list pushes the least recently seen out of memory
         s.make_room(&none);
         s.lists.insert("charlie".into(), FriendsList::new("Charlie", "2026-10".into()));
-        assert!(!s.lists.contains_key("alpha") && s.fans.get("bravo").is_none(), "Alpha's list out, and its fan entry");
+        assert!(!s.lists.contains_key("alpha") && !s.fans.contains_key("bravo"), "Alpha's list out, and its fan entry");
         assert!(s.fetch("alpha", 0.0, &none), "back from the shelf");
         let x = s.list("Alpha").unwrap();
         assert_eq!((x.b.keys().map(String::as_str).collect::<Vec<_>>(), x.r.len(), x.owner.as_deref()), (vec!["bravo"], 1, Some(&*a)));

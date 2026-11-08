@@ -305,7 +305,7 @@ fn run(scene: &Scene, way: &Way) {
             }
         }
         // what the players see, every half second: the drivers, and the parked ones in free roam
-        if t >= warm && step_no % 5 == 0 {
+        if t >= warm && step_no.is_multiple_of(5) {
             for me in 0..scene.n {
                 let a = cars[me];
                 let drives = a.drives();

@@ -2569,9 +2569,7 @@ mod tests {
 
     #[test]
     fn slur_lines_share_a_window_and_reset_after_mute() {
-        let mut limits = Limits::default();
-        limits.slur_window_ms = 1000.0;
-        limits.slur_mute_ms = 5000.0;
+        let limits = Limits { slur_window_ms: 1000.0, slur_mute_ms: 5000.0, ..Limits::default() };
         let mut times = Vec::new();
         let mut until = 0.0;
 

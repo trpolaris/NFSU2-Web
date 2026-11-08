@@ -44,7 +44,11 @@ impl FriendsRoute {
             let Some(owner) = mail_claims.holder(to, nfsu2_util::now_ms() as i64) else { return false };
             let value = json!({ "t": "friend", "op": "mail", "from": message.from, "body": message.body, "at": message.t });
             let data = Bytes::from(nfsu2_util::json::stringify(&value));
-            mail_lan.vips_of_owner(&owner).into_iter().fold(false, |sent, vip| mail_lan.send_text(vip, data.clone()) || sent)
+            let mut sent = false;
+            for vip in mail_lan.vips_of_owner(&owner) {
+                sent |= mail_lan.send_text(vip, data.clone());
+            }
+            sent
         }));
         FriendsRoute {
             online,
@@ -110,10 +114,8 @@ impl FriendsRoute {
                         row.insert("room".into(), name.into());
                     }
                 }
-                if f.mutual {
-                    if let Some(contact) = f.contact {
-                        row.insert("contact".into(), contact.into());
-                    }
+                if f.mutual && let Some(contact) = f.contact {
+                    row.insert("contact".into(), contact.into());
                 }
                 Value::Object(row)
             })
@@ -162,7 +164,10 @@ impl FriendsRoute {
         }
         let notice = json!({ "t": "friend", "op": "crew", "name": me, "crew": crew, "room": room });
         let data = Bytes::from(nfsu2_util::json::stringify(&notice));
-        let delivered = self.lan.vips_of_owner(&theirs).into_iter().fold(false, |any, vip| self.lan.send_text(vip, data.clone()) || any);
+        let mut delivered = false;
+        for vip in self.lan.vips_of_owner(&theirs) {
+            delivered |= self.lan.send_text(vip, data.clone());
+        }
         (reply, if delivered { "sent" } else { "away" })
     }
 

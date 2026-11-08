@@ -1254,7 +1254,7 @@ void sub_00574670(CPU *restrict c){
             if (range_committed(out, entry)) memset(&MR8(out), 0, entry);
             static unsigned said;
             if (said++ < 16)
-                fprintf(stderr, "[jdlz] f=%ld block 0x%08x says %u unpacked, streamer entry is %u: refused\\n",
+                fprintf(stderr, "[jdlz] f=%ld block 0x%08x says %u unpacked, streamer entry is %u: refused\n",
                         autotest_frame(), blk, declared, entry);
             c->eax = 0; POP32(c->eip); return;
         }

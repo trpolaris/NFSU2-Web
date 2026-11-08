@@ -25,18 +25,13 @@ const SESSION_MAX_AGE_MS: i64 = SESSION_MAX_AGE * 1000;
 const MAX_SESSIONS: usize = 5_000;
 const MAX_BODY: usize = 32 * 1024;
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PlayerProfile {
     pub display_name: String,
     pub bio: String,
     pub favorite_car: String,
     pub updated_at: i64,
-}
-impl Default for PlayerProfile {
-    fn default() -> Self {
-        Self { display_name: String::new(), bio: String::new(), favorite_car: String::new(), updated_at: 0 }
-    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
