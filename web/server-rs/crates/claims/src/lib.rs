@@ -20,13 +20,13 @@
 
 use std::collections::HashMap;
 use std::fmt::Write as _;
-use std::io::Write;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
 use parking_lot::RwLock;
 use serde_json::Value;
+use nfsu2_util::atomic_file::Options;
 use sha2::{Digest, Sha256};
 
 #[cfg(test)]
@@ -550,27 +550,7 @@ impl Claims {
     }
 }
 
-/// the folder (0700 when it is made), a temporary file (0600), then the rename over `file`
-fn write_atomic(file: &Path, body: &[u8]) -> Result<(), String> {
-    let dir = file.parent().ok_or("no folder")?;
-    let mut b = std::fs::DirBuilder::new();
-    b.recursive(true);
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::DirBuilderExt;
-        b.mode(0o700);
-    }
-    b.create(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
-    let tmp = format!("{}.tmp-{}", file.display(), std::process::id());
-    let mut o = std::fs::OpenOptions::new();
-    o.write(true).create(true).truncate(true);
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::OpenOptionsExt;
-        o.mode(0o600);
-    }
-    let mut f = o.open(&tmp).map_err(|e| format!("{tmp}: {e}"))?;
-    f.write_all(body).map_err(|e| format!("{tmp}: {e}"))?;
-    drop(f);
-    std::fs::rename(&tmp, file).map_err(|e| format!("{}: {e}", file.display()))
+/// names.json is replaced as one private, synced file; a failed write leaves the prior copy intact.
+fn write_atomic(file: &std::path::Path, body: &[u8]) -> Result<(), String> {
+    Options::new().make_folder().write(file, body).map_err(|e| e.to_string())
 }
