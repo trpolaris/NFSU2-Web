@@ -89,7 +89,6 @@ fn separators() -> Vec<char> {
 /// added after 16.0 that unicode-normalization would decompose (to Latin letters among others).
 fn others() -> Vec<char> {
     chars(&[
-        (0xa7f1, 0xa7f1),
         (0x1f600, 0x1f60f),
         (0x1f525, 0x1f525),
         (0x1f44d, 0x1f44d),

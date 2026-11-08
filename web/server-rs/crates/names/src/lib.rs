@@ -424,7 +424,6 @@ fn lookalike(ch: char) -> char {
         '\u{051B}' => 'q',
         // Cyrillic ѕ, and Unicode modifier capital S (NFKD compatibility mapping in Node's ICU).
         '\u{0455}' => 's',
-        '\u{A7F1}' => 'S',
         // Cyrillic т, Greek τ
         '\u{0442}' | '\u{03C4}' => 't',
         // Greek υ
