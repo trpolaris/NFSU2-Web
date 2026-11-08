@@ -191,7 +191,7 @@ fn race_line(player: &str, r: &wire::RaceRep) -> String {
     let name: String = r.name.iter().map(|&c| c as char).collect();
     format!(
         "[race] lobby {:08x}, race {:08x} ({mode}, track {}, {} lap{}, {} cars): {player}{} {how}{time}; {name} (type {}), \
-         class {}, rating {:.1} (the cars' average {:.1}), {:.0} kW, {:.0} kg, {:.0} km/h, power x{:.3}",
+         class {}, rating {:.1} (the cars' average {:.1}), {:.0} kW, {:.0} kg, {:.0} km/h, power x{:.3}{}",
         r.lobby,
         r.race,
         r.track,
@@ -206,7 +206,12 @@ fn race_line(player: &str, r: &wire::RaceRep) -> String {
         r.kw,
         r.kg,
         r.kmh,
-        r.factor
+        r.factor,
+        match r.credit {
+            1 => "; won it in the career",
+            2 => "; a friend's win in the career",
+            _ => "",
+        }
     )
 }
 
@@ -282,6 +287,8 @@ struct Player {
     seen: f64,
     /// its HELLO says it takes race lobbies (its map questions get the room's lobbies too)
     lobbies: bool,
+    /// ...and reads the hub's crew marks (wire::HF_HUBCREW): its friends are marked in its lists even out of crews
+    marks: bool,
     /// its crews as its last HELLO named them (wire::HF_CREW), each once, 0 after them: its crew-mates of its room are
     /// linked with it first (`crew_pairs`), and /players counts them (`crew_counts`)
     crews: [u32; wire::CREWS],
