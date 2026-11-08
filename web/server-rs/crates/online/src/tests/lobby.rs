@@ -6,7 +6,7 @@
 //! of those still not ready, the lobby link closing at the start without ending the race, game passwords, leaving and
 //! deleting, the buddy login, and the limits.
 
-use super::world::{C, Opts, World, ip};
+use super::world::{C, Opts, World, ip, shelf_file};
 use crate::aries::{Fields, V, encode_fields, encode_frame};
 use crate::lobby::Limits;
 use crate::stats::{Race, RacePlayer};
@@ -887,10 +887,6 @@ fn ea_messenger() {
     assert_eq!(w.c(a).l("RGET").g("SIZE"), "1");
     assert_eq!(w.c(a).l("ROST").g("USER"), "Bravo");
     assert_eq!(w.c(a).l("ROST").g("ATTR"), "S", "the outgoing request is pending until accepted");
-    // presence changes reach the friend (at most once a second)
-    w.advance(1000.0);
-    w.send(b, "PSET", fields![("SHOW", "AWAY"), ("STAT", ""), ("PROD", "racing")]);
-    assert_eq!(w.c(a).l("PGET").g("SHOW"), "AWAY");
     // a message, and a game invite passed on with the sender named by the server
     w.send(a, "SEND", fields![("USER", "Bravo"), ("BODY", "race?\u{7}"), ("SUBJ", ""), ("TYPE", "C")]);
     assert_eq!(w.c(b).l("RECV").g("USER"), "Alpha");
@@ -907,6 +903,10 @@ fn ea_messenger() {
     assert_eq!(w.c(b).l("RNOT").g("USER"), "Alpha");
     assert_eq!(w.c(b).l("RNOT").g("CHNG"), "A");
     assert!(w.core.buddies.list("Bravo").unwrap().b.contains_key("alpha"));
+    // presence changes reach a mutual friend (at most once a second); one-way requests do not subscribe.
+    w.advance(1000.0);
+    w.send(b, "PSET", fields![("SHOW", "AWAY"), ("STAT", ""), ("PROD", "racing")]);
+    assert_eq!(w.c(a).l("PGET").g("SHOW"), "AWAY");
     let friends_lines = |w: &World| w.text().iter().filter(|l| l.contains("are friends")).count();
     assert_eq!(friends_lines(&w), 1);
     w.send(a, "RRSP", fields![("USER", "Bravo"), ("ANSW", "Y")]);
@@ -1053,7 +1053,7 @@ fn ea_messenger_away() {
     let (_, a) = messenger(&mut w, "10.77.0.2", "Alpha");
     assert_eq!(roster(&mut w, a), pair("Bravo", ""), "a request 31 days old");
     w.core.buddy_save();
-    let stored = std::fs::read_to_string(dir.join("buddies.json")).unwrap();
+    let stored = std::fs::read_to_string(shelf_file(&dir, "Alpha")).unwrap();
     assert!(!stored.contains("old news") && !stored.contains("\"R\""), "{stored}");
 }
 
