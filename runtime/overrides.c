@@ -1249,8 +1249,8 @@ void sub_00574670(CPU *restrict c){
     if (verify < 0){ const char *e = getenv("NFSU2_JDLZ_VERIFY"); verify = e && *e == '1'; }
     uint32_t e = c->esp, blk = MR32(e + 4u), out = MR32(e + 8u);
     /* The streamer allocates its entry's size (+0xC), not a compressed block's claimed output size (+8). */
-    if (blk && out && MR32(e) == 0x0048d095u && mem_is_committed(c->esi + 0xcu) &&
-        mem_is_committed(blk) && mem_is_committed(blk + 15u)) {
+    if (blk && out && MR32(e) == 0x0048d095u && c->esi <= UINT32_MAX - 0x10u &&
+        range_committed(c->esi + 0xcu, 4u) && range_committed(blk, 16u)) {
         uint32_t tag = MR32(blk), entry = MR32(c->esi + 0xcu), declared = MR32(blk + 8u);
         if ((tag == JDLZ_TAG || tag == RAWW_TAG || tag == HUFF_TAG) && declared > entry) {
             if (range_committed(out, entry)) memset(&MR8(out), 0, entry);
