@@ -830,7 +830,6 @@ let input = ''; process.stdin.on('data', d => { input += d; }); process.stdin.on
             .collect();
         // (a Unicode host is refused here where node writes it as punycode: none in the corpus)
         assert!(differ.is_empty(), "{} of {} differ:\\n{}", differ.len(), targets.len(), differ[..differ.len().min(30)].join("\\n"));
-
     }
 
     #[test]
