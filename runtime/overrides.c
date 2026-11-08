@@ -315,15 +315,15 @@ void overrides_install(void){
     d3dx_hle_install();
 }
 
-static uint64_t g_jdlz_n, g_jdlz_bytes, g_jdlz_lifted, g_jdlz_refused, g_pm_hits, g_pm_calls, g_pm_clears;
+static uint64_t g_jdlz_n, g_jdlz_bytes, g_jdlz_lifted, g_pack_blocks_refused, g_pm_hits, g_pm_calls, g_pm_clears;
 void overrides_report(void){
     if (g_pm_calls)
         fprintf(stderr,"  NewGetCarPart: %llu of %llu answers kept from before (all forgotten %llu times)\n", (unsigned long long)g_pm_hits,
                 (unsigned long long)g_pm_calls, (unsigned long long)g_pm_clears);
-    if (g_jdlz_n || g_jdlz_lifted || g_jdlz_refused)
-        fprintf(stderr,"  JDLZ: %llu blocks unpacked natively (%.1f MB), %llu by the game's code, %llu pack blocks refused\n",
+    if (g_jdlz_n || g_jdlz_lifted || g_pack_blocks_refused)
+        fprintf(stderr,"  JDLZ: %llu blocks unpacked natively (%.1f MB), %llu by the game's code, %llu malformed pack blocks refused\n",
                 (unsigned long long)g_jdlz_n, g_jdlz_bytes / 1048576.0,
-                (unsigned long long)g_jdlz_lifted, (unsigned long long)g_jdlz_refused);
+                (unsigned long long)g_jdlz_lifted, (unsigned long long)g_pack_blocks_refused);
     if (g_e2be0_calls)
         fprintf(stderr,"  sub_006e2be0: %llu calls, %llu NULL lists skipped\n",
                 (unsigned long long)g_e2be0_calls,(unsigned long long)g_null_list);
@@ -1260,7 +1260,7 @@ static void pack_refuse(CPU *c, uint32_t blk, uint32_t out, int pack,
                         const char *pk, int64_t off, const char *why){
     uint32_t n = pack_out_room(c, blk);
     if (range_committed(out, n)) memset(&MR8(out), 0, n);
-    if (g_jdlz_refused++ < 16){
+    if (g_pack_blocks_refused++ < 16){
         if (pack)
             fprintf(stderr, "[packs] %s: block at %lld (%u bytes, %u unpacked) %s; skipped\n",
                     pk ? pk : "?", (long long)off, MR32(blk + 0xcu), MR32(blk + 8u), why);
