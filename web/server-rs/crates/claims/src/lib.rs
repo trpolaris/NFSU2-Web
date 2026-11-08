@@ -24,9 +24,9 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
+use nfsu2_util::atomic_file::Options;
 use parking_lot::RwLock;
 use serde_json::Value;
-use nfsu2_util::atomic_file::Options;
 use sha2::{Digest, Sha256};
 
 #[cfg(test)]

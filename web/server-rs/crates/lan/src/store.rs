@@ -55,7 +55,6 @@ impl Store {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;

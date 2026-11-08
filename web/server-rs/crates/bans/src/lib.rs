@@ -24,11 +24,11 @@ use std::os::unix::fs::OpenOptionsExt;
 use std::path::{Path, PathBuf};
 
 use hmac::{Hmac, Mac};
+use nfsu2_util::atomic_file::Options;
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use sha2::Sha256;
-use nfsu2_util::atomic_file::Options;
 
 /// how long an address stays banned after it was last the banned player's (ms)
 pub const ADDR_MS: i64 = 7 * DAY;
