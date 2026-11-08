@@ -5,6 +5,9 @@
 use std::cell::{Cell, RefCell};
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
+use std::path::{Path, PathBuf};
+
+use sha2::{Digest, Sha256};
 use std::sync::Arc;
 
 use nfsu2_util::{FrameCtx, SendResult};
@@ -16,6 +19,13 @@ use crate::core::{Core, CoreOptions};
 use crate::lobby::Limits;
 use crate::vhost::{DATA, FIN, RST, SYN, SYNACK, VhostLimits, lan_frame};
 use crate::{Clocks, PORT_BUDDY, PORT_LOBBY, VHOST_VIP};
+
+/// The on-disk file for one EA Messenger persona in the sharded friends shelf.
+pub fn shelf_file(dir: &Path, name: &str) -> PathBuf {
+    let key = name.to_lowercase();
+    let hash: String = Sha256::digest(key.as_bytes()).iter().take(16).map(|b| format!("{b:02x}")).collect();
+    dir.join("friends").join(&hash[..2]).join(format!("{hash}.json"))
+}
 
 pub fn ip(s: &str) -> u32 {
     s.split('.').fold(0u32, |a, b| (a << 8) | b.parse::<u32>().unwrap())
