@@ -22,7 +22,7 @@ pub fn load_key(state: &str) -> io::Result<Vec<u8>> {
         }
     }
     let k = nfsu2_util::rand::bytes(32);
-    Options::new().make_folder().write(&f, &k).map_err(io::Error::from)?;
+    Options::new().make_folder().write(std::path::Path::new(&f), &k).map_err(io::Error::from)?;
     Ok(k)
 }
 
