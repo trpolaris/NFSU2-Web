@@ -264,3 +264,51 @@ test('Xbox One S 2016 mapping is used by the gamepad poller on Android', async (
     }
   });
 });
+
+test('a phone controller with a touch pad for its right stick under Chrome on Android: a still stick off centre reads as let go', async () => {
+  const G2 = await load('web/src/input/gamepad.ts');
+  const realNow = performance.now;
+  let t = 1000;
+  performance.now = () => t;
+  try {
+    await onBrowser(ANDROID_UA, 5, async (pads) => {
+      const buf = new SharedArrayBuffer(P.IM_BYTES), h = new Int32Array(buf), f = new Float32Array(buf), logs = [];
+      // After a tap, this controller keeps its last touch at -0.97 on axes 2 and 3.
+      const g = { id: 'GT NX Controller-T (Vendor: 4131 Product: 0009)', index: 0, mapping: '', connected: true,
+        axes: [0, 0, 0, 0, 0, 0, 0, 0, -1], buttons: Array.from({ length: 17 }, () => ({ pressed: false, value: 0 })) };
+      pads.push(g);
+      const p = new G2.PadPoller(h, new Uint8Array(buf), 0, () => {}, s => logs.push(s));
+      const rs = () => [+f[P.IM_PAD_AXIS + P.PAD_AXIS_RX].toFixed(2), +f[P.IM_PAD_AXIS + P.PAD_AXIS_RY].toFixed(2)];
+      const at = (ms, x, y) => { t += ms; if (x !== undefined) { g.axes[2] = x; g.axes[3] = y; } p.poll(); return rs(); };
+      at(0);
+      assert.deepEqual(at(16, -0.4, 0.2), [-0.4, 0.2]);             // finger on the pad
+      assert.deepEqual(at(16, -0.9671, -0.9685), [-0.97, -0.97]);  // last touch position, finger lifted
+      assert.deepEqual(at(1900), [-0.97, -0.97]);                  // less than two seconds: still reads
+      assert.deepEqual(at(200), [0, 0]);                           // then reads as let go
+      assert.ok(logs.some(s => /right stick stayed at \\[-0\\.97 -0\\.97\\] for 2 s/.test(s)));
+      assert.deepEqual(at(16, -0.9671, -0.9684), [-0.97, -0.97]);  // movement restores the axis
+      assert.deepEqual(at(16, 0, 0), [0, 0]);
+      assert.deepEqual(at(5000), [0, 0]);                          // centred axes need no intervention
+      p.dispose();
+    });
+  } finally { performance.now = realNow; }
+});
+
+test('a standard-mapping controller still reads a right stick held off centre', async () => {
+  const G2 = await load('web/src/input/gamepad.ts');
+  const realNow = performance.now;
+  let t = 1000;
+  performance.now = () => t;
+  try {
+    await onBrowser(ANDROID_UA, 5, async (pads) => {
+      const buf = new SharedArrayBuffer(P.IM_BYTES), h = new Int32Array(buf), f = new Float32Array(buf);
+      const g = { id: 'Xbox Wireless Controller (STANDARD GAMEPAD Vendor: 045e Product: 0b13)', index: 0, mapping: 'standard',
+        connected: true, axes: [0, 0, 0, 1], buttons: Array.from({ length: 17 }, () => ({ pressed: false, value: 0 })) };
+      pads.push(g);
+      const p = new G2.PadPoller(h, new Uint8Array(buf), 0, () => {}, () => {});
+      p.poll(); t += 5000; p.poll();
+      assert.equal(f[P.IM_PAD_AXIS + P.PAD_AXIS_RY], 1);  // standard mapping is never suppressed
+      p.dispose();
+    });
+  } finally { performance.now = realNow; }
+});

@@ -160,6 +160,7 @@ export function drivingPad(): Gamepad | null {
 interface Seen {
   index: number; id: string; std: boolean; axes0: number[]; ends: Set<number>; wheel: WheelInfo | null; map: WheelMap | null;
   hat: number; shifter: Shifter; mode: ShifterMode; hid: HidPadReader | null; oneS: OneS2016Reader | null; others: string;
+  rs: [number, number]; rsAt: number; rsSaid: boolean; // right-stick axes as last seen, since when, and whether logged
 }
 
 /** Other non-standard, non-wheel controllers may be separate pedals for the active wheel. */
@@ -215,6 +216,8 @@ function withTouch(s: PadSnapshot, t: TouchPad): PadSnapshot {
 /** a stick pressed in alone waits this long (ms) for the other, the menu's shortcut, before the game gets it (the horn,
  *  a car's hydraulics); let go before, the game gets it this long */
 const CHORD_MS = 120, TAP_MS = 80;
+/** a non-standard controller's right stick held exactly still off centre reads as let go after this (stillStick) */
+const STILL_MS = 2000;
 
 /** the left stick as four directions, PAD_D* bits: on past 0.55, off below 0.40 (runtime/dinput_pad.c's hat) */
 function stickDirs(x: number, y: number, prev: number): number {
@@ -369,7 +372,7 @@ export class PadPoller {
       const hid = !wheel && known && !std ? new HidPadReader(known.face, axes0, known.ltFirst, known.maker) : null;
       const oneS = !wheel && oneS2016Android(g) ? new OneS2016Reader() : null;
       k = this.seen = { index: g.index, id: g.id, std, axes0, ends, wheel, map: null, hat: std ? -1 : findHat(axes0),
-        shifter: new Shifter(), mode: 'off', hid, oneS, others: '' };
+        shifter: new Shifter(), mode: 'off', hid, oneS, others: '', rs: [0, 0], rsAt: performance.now(), rsSaid: false };
       if (oneS) this.log(`[pad] ${g.id}: read as ${oneS.describe()}`);
       if (g.mapping !== 'standard') {
         this.log(`[pad] ${g.id}: no standard mapping in this browser; ${g.axes.length} axes at ` +
@@ -411,7 +414,23 @@ export class PadPoller {
     }
     const s = mapStandard(g, k.std ? undefined : k.ends);
     if (!k.std && k.hat >= 0) s.buttons |= hatDirs(g.axes[k.hat]);
+    if (g.mapping !== 'standard') this.stillStick(k, g, s);
     return s;
+  }
+
+  /** A non-standard controller whose right stick has not moved for STILL_MS off centre reads as let go.
+   *  Touch pads used in place of a stick can keep the last touch position after the finger lifts; a real stick moved
+   *  by a thumb changes slightly within this interval. Apply only to the browser's non-standard Gamepad mapping. */
+  private stillStick(k: Seen, g: Gamepad, s: PadSnapshot) {
+    const x = g.axes[2] ?? 0, y = g.axes[3] ?? 0, now = performance.now();
+    if (x !== k.rs[0] || y !== k.rs[1]) { k.rs = [x, y]; k.rsAt = now; return; }
+    if (now - k.rsAt < STILL_MS || (s.axes[PAD_AXIS_RX] === 0 && s.axes[PAD_AXIS_RY] === 0)) return;
+    if (!k.rsSaid) {
+      k.rsSaid = true;
+      this.log('[pad] ' + g.id + ': the right stick stayed at [' + x.toFixed(2) + ' ' + y.toFixed(2) + '] for ' +
+        (STILL_MS / 1000) + ' s: read as let go until it moves (a touch pad in its place?)');
+    }
+    s.axes[PAD_AXIS_RX] = s.axes[PAD_AXIS_RY] = 0;
   }
 
   /** The page's share of the controller: Home, or the second stick pressed in while the other is, opens or closes its
