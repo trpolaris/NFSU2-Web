@@ -133,15 +133,15 @@ fn the_minimap_is_answered_less_often_while_the_hubs_thread_is_busy() {
     assert!(ask(&mut k, 0.0));
     assert!(!ask(&mut k, 100.0), "within 150 ms");
     assert!(ask(&mut k, 60.0));
-    k.hub.set_thread_busy(0.65);
+    *k.busy.lock() = 0.65;
     assert!(ask(&mut k, 200.0), "(the gap after the last answer was 150 ms)");
     assert!(!ask(&mut k, 300.0), "within 500 ms");
     assert!(ask(&mut k, 250.0));
-    k.hub.set_thread_busy(0.8);
+    *k.busy.lock() = 0.8;
     assert!(ask(&mut k, 600.0));
     assert!(!ask(&mut k, 700.0), "within a second");
     assert!(ask(&mut k, 350.0));
-    k.hub.set_thread_busy(0.1);
+    *k.busy.lock() = 0.1;
     assert!(ask(&mut k, 1000.0));
     assert!(ask(&mut k, 200.0));
 }
