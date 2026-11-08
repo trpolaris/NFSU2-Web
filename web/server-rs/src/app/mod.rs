@@ -157,6 +157,8 @@ const STATUS: [(u16, &str); 8] = [
 
 /// Maximum room/world hashes accepted by one public /players?rooms= query.
 const ROOMS_ASKED: usize = 8;
+/// Maximum race-track room hashes accepted by one public /players?spots= query.
+const SPOTS_ASKED: usize = 16;
 
 pub const ROBOTS_TXT: &str = "User-agent: *\nAllow: /\nDisallow: /data/\nDisallow: /data-manifest\nDisallow: /game.wasm\nDisallow: /game.json\nDisallow: /players\nDisallow: /lan\nDisallow: /vault\nDisallow: /cloud/\nDisallow: /names\nDisallow: /friends";
 
@@ -724,13 +726,19 @@ impl App {
         m.insert("roamBusy".into(), serde_json::Value::Bool(self.roam.as_ref().is_some_and(|r| r.crowded())));
         let room = u.param("room").and_then(|r| r.parse::<u32>().ok()).filter(|&r| r != 0);
         if let (Some(room), Some(r)) = (room, &self.roam) {
-            m.insert("room".into(), serde_json::Value::from(r.in_room(room).min(players)));
+            m.insert("room".into(), serde_json::Value::from(r.in_world(room).min(players)));
         }
         let rooms: Vec<u32> =
             u.param("rooms").map_or(Vec::new(), |rooms| rooms.split(',').filter_map(|h| h.parse::<u32>().ok()).take(ROOMS_ASKED).collect());
         if let Some(r) = self.roam.as_ref().filter(|_| !rooms.is_empty()) {
-            let counts = rooms.iter().map(|&room| serde_json::Value::from(r.in_room(room).min(players))).collect();
+            let counts = rooms.iter().map(|&room| serde_json::Value::from(r.in_world(room).min(players))).collect();
             m.insert("rooms".into(), serde_json::Value::Array(counts));
+        }
+        let spots: Vec<u32> =
+            u.param("spots").map_or(Vec::new(), |spots| spots.split(',').filter_map(|h| h.parse::<u32>().ok()).take(SPOTS_ASKED).collect());
+        if let Some(r) = self.roam.as_ref().filter(|_| !spots.is_empty()) {
+            let counts = spots.iter().map(|&spot| serde_json::Value::from(r.in_room(spot).min(players))).collect();
+            m.insert("spots".into(), serde_json::Value::Array(counts));
         }
         let crews: Vec<u32> = u.param("crews").map_or(Vec::new(), |c| {
             c.split(',').filter_map(|h| h.parse::<u32>().ok()).filter(|&h| h != 0).take(nfsu2_roam::CREWS).collect()

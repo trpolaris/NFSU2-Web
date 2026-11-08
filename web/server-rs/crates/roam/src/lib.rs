@@ -130,6 +130,23 @@ pub const ROAM_HUB_VIP: u32 = 0x0A4D_00FD;
 /// the most crews a player is in (roam_core.h RC_CREW_MAX), and so the most /players counts for one question
 pub const CREWS: usize = wire::CREWS;
 
+/// The race-track rooms a career free roam can visit (runtime/travel.c SPOTS), by spot key.
+pub const TRACK_KEYS: [u32; 9] = [4711, 4701, 4311, 4301, 4201, 4211, 4221, 4601, 4605];
+
+/// The room hash for a spot in the world with room hash base (runtime/roam_game.c room_at).
+pub fn track_room(base: u32, key: u32) -> u32 {
+    match base ^ key.wrapping_mul(0x9E37_79B1) {
+        0 => 1,
+        room => room,
+    }
+}
+
+/// Count players in a world and its track rooms from the hub's last tick.
+pub fn world_count(counts: &HashMap<u32, usize>, room: u32) -> usize {
+    let n = |key: u32| counts.get(&key).copied().unwrap_or(0);
+    n(room) + TRACK_KEYS.iter().map(|&key| n(track_room(room, key))).sum::<usize>()
+}
+
 /// The hub's options.  exact_room: a room of at most this many players sorts every pair of them; a larger one takes
 /// the pairs in the same order but only as far as it needs them: each player's nearest one after another (a grid)
 /// until it has its links (every pair of 2000 players in one room took the Node hub 1.5-4.5 s a tick, 1000 players
@@ -351,6 +368,11 @@ impl RoamHub {
         self.in_rooms.lock().map_or(0, |m| m.get(&room).copied().unwrap_or(0))
     }
 
+    /// Players in this world and any of its nine race-track rooms.
+    pub fn in_world(&self, room: u32) -> usize {
+        self.in_rooms.lock().map_or(0, |counts| world_count(&counts, room))
+    }
+
     /// the hub's `in_crews()`: how many browsers drive in free roam, or are paused there, in each of these crews
     /// (roam_core's rc_room_hash of a crew's word; any room), in their order (as of the hub's last tick)
     pub fn in_crews(&self, crews: &[u32]) -> Vec<usize> {
@@ -506,6 +528,25 @@ impl Host for RoamHub {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_world_counts_only_its_own_track_rooms() {
+        assert_eq!(track_room(0, 4711), 2_397_071_415);
+        assert_eq!(track_room(0, 4605), 199_754_989);
+        assert_eq!(track_room(0x1234_5678, 4301), 942_920_901);
+        assert_eq!(track_room(0xFFFF_FFFF, 4201), 2_745_435_750);
+        let world = 0xBEEF_0002;
+        let counts = HashMap::from([
+            (0, 5),
+            (track_room(0, 4711), 2),
+            (track_room(0, 4605), 1),
+            (world, 3),
+            (track_room(world, 4311), 4),
+        ]);
+        assert_eq!(world_count(&counts, 0), 8);
+        assert_eq!(world_count(&counts, world), 7);
+        assert_eq!(world_count(&counts, 0xBEEF_0003), 0);
+    }
 
     // a hub whose thread is stuck holds MAX_PENDING frames and leaves out the rest; each may keep
     // its reader's block of 16 KiB alive, 128 MiB at most
