@@ -241,6 +241,13 @@ static uint32_t gcall1(CPU *c, uint32_t fn, uint32_t ecx, uint32_t a){ return rh
 static uint32_t player_car(void){ uint32_t p = rd32(G_PLAYER1); return p ? rd32(p + 4u) : 0; }
 static uint32_t world(void){ uint32_t w = rd32(G_WORLD); return ok(w, 0x80) ? w : 0; }
 static int du_racing(uint32_t race);
+#ifdef ROAM_HOST_WIN
+/* The Windows companion has no Tracks runtime; stay in the base city room. */
+static uint32_t travel_room(void){ return 0; }
+#else
+uint32_t travel_room(void);
+#endif
+static uint32_t g_room_base;
 /* free roam: the career's world with no race but free roam's own one-racer
  * one, or an outrun with a friend (du_racing): that is still free roam.  On
  * free roam's own track: Performance Tuning / Dyno is one racer and no
@@ -6566,7 +6573,7 @@ static void crews_follow(void){
 /* Room changes from a friend invite wait until the player is safely driving
  * in Free Roam. The hub then links this page in the new room on its next HELLO. */
 uint32_t roam_plat_room(char name[64]);
-static uint32_t g_room_gen, g_room_base;
+static uint32_t g_room_gen;
 /* Optional travel module: the Windows companion has no Tracks runtime. */
 __attribute__((weak)) uint32_t travel_room(void){ return 0; }
 static uint32_t room_at(uint32_t base){
