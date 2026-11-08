@@ -1543,5 +1543,7 @@
   "Drive through the Construction Tunnel, including early in your career.": "Kariyerinizin başlarında bile inşaat hâlindeki tünelden geçin.",
   "Rubberbanding": "Lastik bant etkisi",
   "Career opponents ahead of you wait for you, ones behind get more power and grip. No boost: they still wait, but never beat their own pace. Off: neither, as Quick Race with Catch Up off.": "Kariyerde önündeki rakipler seni bekler, arkandakiler daha fazla güç ve yol tutuşu alır. Takviye yok: yine beklerler ama asla kendi temposundan hızlı gitmezler. Kapalı: ikisi de yok, Yakalama kapalıyken Hızlı Yarış gibi.",
-  "No boost": "Takviye yok"
+  "No boost": "Takviye yok",
+  "Show hidden races": "Gizli yarışları göster",
+  "Shows the career races the game normally hides on the map. Changes only in-memory tables; does not write to career save files.": "Oyunun normalde haritada gizlediği kariyer yarışlarını gösterir. Yalnızca bellekteki tabloları değiştirir; kariyer kayıt dosyalarına yazmaz."
 }

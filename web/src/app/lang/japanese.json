@@ -1444,5 +1444,7 @@
   "Drive through the Construction Tunnel, including early in your career.": "キャリア序盤から工事中のトンネルを走行できます。",
   "Rubberbanding": "ラバーバンド",
   "Career opponents ahead of you wait for you, ones behind get more power and grip. No boost: they still wait, but never beat their own pace. Off: neither, as Quick Race with Catch Up off.": "キャリアでは、前を走る相手はあなたを待ち、後ろの相手はパワーとグリップが上がります。ブーストなし：待つのはそのままで、本来のペースより速くはなりません。オフ：どちらもなし。キャッチアップをオフにしたクイックレースと同じです。",
-  "No boost": "ブーストなし"
+  "No boost": "ブーストなし",
+  "Show hidden races": "隠しレースを表示",
+  "Shows the career races the game normally hides on the map. Changes only in-memory tables; does not write to career save files.": "ゲームが通常は非表示にするキャリアレースをマップに表示します。メモリ上のテーブルのみを変更し、キャリアのセーブデータには書き込みません。"
 }

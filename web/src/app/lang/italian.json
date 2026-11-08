@@ -1540,5 +1540,7 @@
   "Drive through the Construction Tunnel, including early in your career.": "Attraversa il tunnel in costruzione, anche all’inizio della carriera.",
   "Rubberbanding": "Effetto elastico",
   "Career opponents ahead of you wait for you, ones behind get more power and grip. No boost: they still wait, but never beat their own pace. Off: neither, as Quick Race with Catch Up off.": "In carriera gli avversari davanti a te ti aspettano, quelli dietro ottengono più potenza e aderenza. Senza spinta: ti aspettano ancora, ma non superano mai il loro ritmo. Disattivato: nessuno dei due, come in Gara veloce con Recupero su No.",
-  "No boost": "Senza spinta"
+  "No boost": "Senza spinta",
+  "Show hidden races": "Mostra le gare nascoste",
+  "Shows the career races the game normally hides on the map. Changes only in-memory tables; does not write to career save files.": "Mostra sulla mappa le gare della carriera che il gioco normalmente nasconde. Modifica solo le tabelle in memoria e non scrive nei salvataggi della carriera."
 }

@@ -1517,5 +1517,7 @@
   "Drive through the Construction Tunnel, including early in your career.": "Fahre durch den Baustellentunnel, auch schon zu Beginn deiner Karriere.",
   "Rubberbanding": "Gummiband-Effekt",
   "Career opponents ahead of you wait for you, ones behind get more power and grip. No boost: they still wait, but never beat their own pace. Off: neither, as Quick Race with Catch Up off.": "Karrieregegner vor dir warten auf dich, die hinter dir bekommen mehr Leistung und Grip. Kein Boost: Sie warten weiter, fahren aber nie schneller als ihr eigenes Tempo. Aus: beides nicht, wie ein Quickrace mit Aufholen aus.",
-  "No boost": "Kein Boost"
+  "No boost": "Kein Boost",
+  "Show hidden races": "Verborgene Rennen anzeigen",
+  "Shows the career races the game normally hides on the map. Changes only in-memory tables; does not write to career save files.": "Zeigt die Karriererennen auf der Karte an, die das Spiel normalerweise verbirgt. Es werden nur Tabellen im Arbeitsspeicher geändert; Karrierespeicherstände bleiben unverändert."
 }

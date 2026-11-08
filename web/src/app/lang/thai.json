@@ -1444,5 +1444,7 @@
   "Drive through the Construction Tunnel, including early in your career.": "ขับผ่านอุโมงค์ที่กำลังก่อสร้างได้ แม้ในช่วงเริ่มต้นอาชีพ",
   "Rubberbanding": "เอฟเฟกต์หนังยาง",
   "Career opponents ahead of you wait for you, ones behind get more power and grip. No boost: they still wait, but never beat their own pace. Off: neither, as Quick Race with Catch Up off.": "ในโหมดอาชีพ คู่แข่งที่นำหน้าคุณจะรอคุณ ส่วนคันที่ตามหลังจะได้กำลังและการยึดเกาะมากขึ้น ไม่มีบูสต์: ยังรออยู่ แต่ไม่เร็วกว่าจังหวะของตัวเอง ปิด: ไม่มีทั้งสองอย่าง เหมือนการแข่งด่วนที่ปิดการไล่ตาม",
-  "No boost": "ไม่มีบูสต์"
+  "No boost": "ไม่มีบูสต์",
+  "Show hidden races": "แสดงการแข่งขันที่ซ่อนอยู่",
+  "Shows the career races the game normally hides on the map. Changes only in-memory tables; does not write to career save files.": "แสดงการแข่งขันในโหมดอาชีพที่เกมซ่อนไว้ตามปกติบนแผนที่ โดยแก้ไขเฉพาะตารางในหน่วยความจำและไม่เขียนลงไฟล์บันทึกอาชีพ"
 }
