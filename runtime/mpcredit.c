@@ -617,6 +617,11 @@ int mpcredit_win(CPU *c, uint32_t race, float margin, int in_roam){
     if (!race_in_table(race)){ fprintf(stderr, "[mpcredit] f=%ld race 0x%08x is not in the race table: left\n", autotest_frame(), race); return 0; }
     if (event_won(MR32(race + 8u))){ fprintf(stderr, "[mpcredit] f=%ld %s is won already: left\n", autotest_frame(), race_name(race)); return 0; }
     if (guest_rd32(G_GAMEMODE) != 1u){ fprintf(stderr, "[mpcredit] f=%ld %s: not in the career (mode 0x%x): left\n", autotest_frame(), race_name(race), guest_rd32(G_GAMEMODE)); return 0; }
+    if (pend_waits(race) || pend_done(race)){
+        fprintf(stderr, "[mpcredit] f=%ld %s already has a pending career win; duplicate credit refused\\n",
+                autotest_frame(), race_name(race));
+        return 0;
+    }
     if (in_roam){
         if (!pend_add(race, margin)) return 0;
         fprintf(stderr, "[mpcredit] f=%ld %s: in free roam, the win waits for the next crib\n", autotest_frame(), race_name(race));
@@ -624,7 +629,7 @@ int mpcredit_win(CPU *c, uint32_t race, float margin, int in_roam){
     }
     /* Do not grant a win which cannot be retained in the profile sidecar. */
     if (g_pend.n + g_pend.ndone >= PEND_MAX){
-        fprintf(stderr, "[mpcredit] f=%ld MPWINS.DAT queue is full (%d records); career win deferred to avoid losing it\\n",
+        fprintf(stderr, "[mpcredit] f=%ld MPWINS.DAT queue is full (%d records); career win deferred to avoid losing it\n",
                 autotest_frame(), g_pend.n + g_pend.ndone);
         return 0;
     }
