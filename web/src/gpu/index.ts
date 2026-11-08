@@ -14,6 +14,7 @@
 // finished GPU frame.  The main thread never blocks.
 import type { GameProcess } from '../host/process';
 import { HostKind } from '../host/abi';
+import { GPU_PIPELINES, localStore } from '../app/prefs';
 import { MemoryBuffer } from '../host/memory';
 import * as P from './proto';
 import { C, F } from './proto';
@@ -232,8 +233,8 @@ export async function attachRenderer(proc: GameProcess, canvas: HTMLCanvasElemen
   for (const id of opts.watchTex ?? []) enc.watchTex.add(id);
   if (opts.trace === 'dumps') enc.traceDumps = true; else for (const f of opts.trace ?? []) enc.traceSeq.add(f);
   // pipelines of earlier sessions, created asynchronously as their shaders arrive
-  const WARM_KEY = 'nfsu2.gpu.pipelines.v1';
-  try { const j = localStorage.getItem(WARM_KEY); if (j) enc.loadWarm(JSON.parse(j)); } catch { /* storage off: no warm-up */ }
+  const warm = localStore.getJSON(GPU_PIPELINES) as Parameters<Encoder['loadWarm']>[0] | null;
+  if (warm) try { enc.loadWarm(warm); } catch { /* not a list of pipelines: no warm-up */ }
   const vw = vreg.ptr >> 2, vf = vreg.ptr >> 3;
 
   // page -> game: view size, pixel ratio, features.  The view is the canvas element's box in device pixels (what
@@ -254,7 +255,7 @@ export async function attachRenderer(proc: GameProcess, canvas: HTMLCanvasElemen
   Atomics.notify(i32(), cw + C.attached);
   const warmTimer = setInterval(() => {
     if (!enc.warmDirty) return;
-    try { localStorage.setItem(WARM_KEY, JSON.stringify(enc.warmEntries().slice(-4000))); } catch { /* full or off */ }
+    try { localStore.setJSON(GPU_PIPELINES, enc.warmEntries().slice(-4000)); } catch { /* full or off */ }
   }, 5000);
   const maxInFlight = opts.maxInFlight ?? 2;
   let imgRect: { x: number; y: number; w: number; h: number } | null = null;
@@ -696,12 +697,12 @@ export async function attachRenderer(proc: GameProcess, canvas: HTMLCanvasElemen
     imageRect: () => imgRect ?? { x: 0, y: 0, w: canvas.width, h: canvas.height },
     flush: async () => {
       while (pending.size) await Promise.allSettled([...pending]);
-      if (enc.warmDirty) try { localStorage.setItem(WARM_KEY, JSON.stringify(enc.warmEntries().slice(-4000))); } catch { /* full or off */ }
+      if (enc.warmDirty) try { localStore.setJSON(GPU_PIPELINES, enc.warmEntries().slice(-4000)); } catch { /* full or off */ }
     },
     detach: () => {
       if (!alive) return;
       alive = false; cancelAnimationFrame(rafId); clearInterval(warmTimer); ro.disconnect();
-      if (enc.warmDirty) try { localStorage.setItem(WARM_KEY, JSON.stringify(enc.warmEntries().slice(-4000))); } catch { /* full or off */ }
+      if (enc.warmDirty) try { localStore.setJSON(GPU_PIPELINES, enc.warmEntries().slice(-4000)); } catch { /* full or off */ }
       // the game stops recording at its next present instead of waiting for a page
       // that is gone; a waiting present or a full resource queue wakes now
       const I = i32();
