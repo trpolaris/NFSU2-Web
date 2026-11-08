@@ -395,6 +395,8 @@ pub(crate) fn decode(d: &[u8]) -> Option<(u8, u32, Msg<'_>)> {
         MSG_NEARREQ if end == HDR + 8 => {
             Msg::NearReq { req: u16_le(d, 16), max: u16_le(d, 18), base: u16_le(d, 20), radius: u16_le(d, 22) }
         }
+        // Unlike an unknown type, a known request with a malformed payload is rejected.
+        MSG_NEARREQ => return None,
         MSG_LOBBY => {
             // op arg state max, to, lobby, race, x y, t, n, a reserved byte, then n ids (roam_core.c rc_encode)
             if end < HDR + 24 {
@@ -760,9 +762,10 @@ mod map_protocol_tests {
         let valid = request(MSG_NEARREQ, &payload);
         assert!(matches!(decode(&valid).unwrap().2, Msg::NearReq { req: 9, max: 64, base: 2, radius: 350 }));
         assert_eq!(valid[5], 19);
-        let mut bad = payload.clone();
-        bad.push(0);
-        assert!(decode(&request(MSG_NEARREQ, &bad)).is_none());
+        let mut long = payload.clone();
+        long.push(0);
+        assert!(decode(&request(MSG_NEARREQ, &long)).is_none());
+        assert!(decode(&request(MSG_NEARREQ, &payload[..6])).is_none());
     }
 
     #[test]
