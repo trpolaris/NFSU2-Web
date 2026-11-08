@@ -446,7 +446,7 @@ fn read_as_nfkd_without_marks_and_lookalikes() {
     assert_eq!(text("a\u{11b60}b"), "ab");
     assert_eq!(text("a\u{11b61}b"), "ab");
     assert_eq!(text("a\u{11b67}b"), "ab");
-    assert_eq!(text("\u{a7f1}"), "\u{a7f1}");
+    assert_eq!(text("\u{a7f1}"), "S");
     assert!(blocked_name("Vaå\u{2061}nDyk\u{1e6e3}e8⁷81"));
     assert!(!blocked_name("kiⓘ𝜘ϵ\u{10efb}𝟨6ŗaⓒc𝑜0ṅ#"));
     assert!(!blocked_name("D\u{e003f}𝔸nᵑ𝗂9₉9GsV\u{1e6e6}an  D\u{1ace}yk€"));

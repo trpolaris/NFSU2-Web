@@ -422,7 +422,7 @@ fn lookalike(ch: char) -> char {
         '\u{0440}' | '\u{03C1}' => 'p',
         // Cyrillic Kurdish ԛ
         '\u{051B}' => 'q',
-        // Cyrillic ѕ, and Unicode modifier capital S (NFKD compatibility mapping in Node's ICU).
+        // Cyrillic ѕ. Unicode modifier capital S is expanded in read(), to match Node's NFKD.
         '\u{0455}' => 's',
         // Cyrillic т, Greek τ
         '\u{0442}' | '\u{03C4}' => 't',
@@ -470,7 +470,7 @@ fn read(name: &str) -> Vec<char> {
             Some(ch) if unknown(ch) => (&piece[..piece.len() - ch.len_utf8()], Some(ch)),
             _ => (piece, None),
         };
-        out.extend(known.nfkd().filter(|&ch| !is_mark(ch)).map(lookalike));
+        out.extend(known.nfkd().filter(|&ch| !is_mark(ch)).map(|ch| if ch == '\u{A7F1}' { 'S' } else { ch }).map(lookalike));
         out.extend(new);
     }
     out
