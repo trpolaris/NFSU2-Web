@@ -151,7 +151,7 @@ fn slurs_blocks_and_complaints() {
     // the sender sees its line as said; the room does not
     w.send(a, "mesg", fields![("TEXT", "nate higgers")]);
     assert!(heard(&w, a, "nate higgers") && !heard(&w, b, "nate higgers") && !heard(&w, c, "nate higgers"));
-    assert!(w.logged("\"Alpha\": a line with \"nate higgers\" in it, shown to no one else"));
+    assert!(w.logged("\"Alpha\": a line with \"higgers\" in it, shown to no one else"));
     // swearing goes through
     w.advance(2000.0);
     w.send(a, "mesg", fields![("TEXT", "merci kurwa")]);
@@ -883,9 +883,10 @@ fn ea_messenger() {
     assert_eq!(w.c(a).l("PGET").g("USER"), "Bravo");
     assert_eq!(w.c(a).l("PGET").g("SHOW"), "CHAT");
     assert_eq!(w.c(b).l("RNOT").g("USER"), "Alpha");
-    w.send(a, "RGET", fields![("LIST", "B"), ("ID", 2)]);
+    w.send(a, "RGET", fields![("LIST", "B"), ("PEND", "Y"), ("ID", 2)]);
     assert_eq!(w.c(a).l("RGET").g("SIZE"), "1");
     assert_eq!(w.c(a).l("ROST").g("USER"), "Bravo");
+    assert_eq!(w.c(a).l("ROST").g("ATTR"), "S", "the outgoing request is pending until accepted");
     // presence changes reach the friend (at most once a second)
     w.advance(1000.0);
     w.send(b, "PSET", fields![("SHOW", "AWAY"), ("STAT", ""), ("PROD", "racing")]);
