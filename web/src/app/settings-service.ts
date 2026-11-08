@@ -1,6 +1,6 @@
 // Settings configuration and persistence service. This module owns settings.ini semantics only; it has no DOM surface.
 import { checkSetting, DEFAULTS, keyDef, resolveEnv, settingsPut, TEMPLATE, type Resolved } from './settings';
-import { readText, writeFile } from './savefs';
+import { SettingsFile } from './settings-store';
 import { playHorn, stopHorn } from './horn-preview';
 import { CREW_MAX, checkCrew, crewsOf, crewsValue, freeColour, rgbsValue, type Crew } from './crews';
 import { onlineName } from './claim';
@@ -177,10 +177,10 @@ export function resetLine(text: string, phys: number): string {
 }
 
 export interface SettingsDeps {
-  saveDir: string;
+  file: SettingsFile;
   environment: Record<string, string>;
   defaults?: Record<string, string>;
-  onSaved?(text: string): void;
+  onSaved?(text: string, previous: string | null): void;
   readOnly?(): boolean;
   say?(msg: string | Msg): void;
   onLoaded?(): void;
@@ -196,7 +196,7 @@ export class SettingsService {
   constructor(private deps: SettingsDeps) {}
 
   async load(): Promise<string | null> {
-    this.text = await readText(this.deps.saveDir, 'settings.ini');
+    this.text = await this.deps.file.read();
     this.resolve(this.text);
     return this.text;
   }
@@ -532,10 +532,10 @@ export class SettingsService {
   }
 
   private async write(next: string) {
-    await writeFile(this.deps.saveDir, 'settings.ini', next);
+    const previous = await this.deps.file.write(next);
     this.text = next;
     this.resolve(next);
-    this.deps.onSaved?.(next);
+    this.deps.onSaved?.(next, previous);
   }
 
   private moreLabel(g: Group): string {
