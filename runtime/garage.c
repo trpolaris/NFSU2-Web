@@ -490,8 +490,14 @@ void sub_0052a4c0(CPU *c){
     if(modparts_changed(c,g_kept.p))c->eax=(c->eax&~0xffu)|1u;
 }
 
+/* mpcredit.c keeps pending multiplayer career wins beside the profile. */
+void mpcredit_profile_written(const char *path);
+void mpcredit_profile_deleted(const char *path);
+unsigned garage_profile_loads(void){ return g_loads; }
+
 /* fileio.c: the game has written a profile (host path): its GARAGE file beside it */
 void garage_profile_written(const char *path){
+    mpcredit_profile_written(path);
     static uint8_t f[PROFILE_SIZE];
     FILE *in = fopen(path, "rb");
     if (!in) return;
@@ -529,6 +535,7 @@ void garage_profile_deleted(const char *path){
         snprintf(g, sizeof g, "%.*s/%s", sl ? (int)(sl - path) : 1, sl ? path : ".", files[i]);
         if (remove(g) == 0) fprintf(stderr, "[garage] %s deleted with its profile\n", g);
     }
+    mpcredit_profile_deleted(path);
 }
 
 /* slots 6-10 of the profile named name whose car part has fingerprint fp, 1:
