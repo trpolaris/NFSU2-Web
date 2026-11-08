@@ -850,7 +850,7 @@ impl Hub {
             return;
         };
         let k = key(from, sport);
-        let page_friends = self.friends.get(&from).cloned();
+        let mut page_friends = self.friends.get(&from).cloned();
         let found = self.by_key.get(&k).copied();
         if let Msg::Bye = m {
             if found.is_some() {
@@ -903,6 +903,9 @@ impl Hub {
                 });
                 if let Some(owner) = owner {
                     self.friends_on_arrival(from, owner);
+                    // The reciprocal list may have been mirrored by friends_on_arrival.
+                    // Refresh the snapshot so this same HELLO does not overwrite the new friend_ids with stale data.
+                    page_friends = self.friends.get(&from).cloned();
                 }
                 slot
             }
