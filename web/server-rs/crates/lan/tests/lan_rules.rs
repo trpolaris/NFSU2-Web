@@ -795,13 +795,16 @@ async fn bundles_each_frame_pays_the_budgets_a_broken_entry_ends_it() {
     sw2.close().await;
 }
 
+type DuePongQueue = VecDeque<(Instant, Vec<u8>)>;
+type SharedDuePongQueue = Arc<Mutex<DuePongQueue>>;
+
 /// A player on a plain socket that answers the switch's pings `delay` ms late (its path's queues), and counts the
 /// datagrams it gets by their free-roam message type (byte 21 of the frame: 1 HELLO, 3 SNAP).
 struct Laggy {
     vip: u32,
     delay: Arc<AtomicU64>,
     /// the pongs waiting for their time: when, and the ping's payload
-    due: Arc<Mutex<VecDeque<(Instant, Vec<u8>)>>>,
+    due: SharedDuePongQueue,
     counts: Arc<Mutex<[usize; 16]>>,
     tasks: Vec<JoinHandle<()>>,
 }
@@ -824,7 +827,7 @@ impl Laggy {
     async fn start(port: u16, name: &str, delay_ms: u64) -> Laggy {
         let (mut r, mut w) = raw_peer(port, name, "").await.into_split();
         let delay = Arc::new(AtomicU64::new(delay_ms));
-        let due: Arc<Mutex<VecDeque<(Instant, Vec<u8>)>>> = Arc::default();
+        let due: SharedDuePongQueue = Arc::default();
         let counts: Arc<Mutex<[usize; 16]>> = Arc::default();
         let (vtx, vrx) = tokio::sync::oneshot::channel();
         let (d, q, c) = (delay.clone(), due.clone(), counts.clone());
@@ -842,10 +845,9 @@ impl Laggy {
                     match op {
                         0x1 => {
                             let m: Value = serde_json::from_slice(&payload).unwrap();
-                            if m["t"] == "welcome" {
-                                if let Some(t) = vtx.take() {
-                                    let _ = t.send(vip_of(&m));
-                                }
+                            let welcome_tx = if m["t"] == "welcome" { vtx.take() } else { None };
+                            if let Some(t) = welcome_tx {
+                                let _ = t.send(vip_of(&m));
                             }
                         }
                         0x2 if payload.len() > 21 => c.lock().unwrap()[payload[21] as usize & 15] += 1,
@@ -1023,7 +1025,9 @@ async fn compact_bundles_carry_the_same_frames_in_fewer_bytes() {
     let (bf, bs) = (bytes(&full), bytes(&small));
     assert!(bs * 100 < bf * 85, "fewer bytes: {bs} against {bf}");
     // a client's compact bundle, alone or in a bundle, reaches nobody
-    let before = (small.got().frames.len(), sw.info().await["limited"].as_u64().unwrap());
+    let small_frame_count = small.got().frames.len();
+    let limited_before = sw.info().await["limited"].as_u64().unwrap();
+    let before = (small_frame_count, limited_before);
     let mut fake = vec![33u8, 0, 0, 0, 0x01, 0x01, 0x02, 0x00, 0x04];
     fake.extend_from_slice(b"evil");
     s.binary(frame_of(small.vip, &fake, 33, 47210, 47210));
