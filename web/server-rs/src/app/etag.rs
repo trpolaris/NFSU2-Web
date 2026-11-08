@@ -10,6 +10,7 @@ use hmac::{Hmac, Mac};
 use sha2::Sha256;
 
 use nfsu2_util::js;
+use nfsu2_util::atomic_file::Options;
 
 /// The key in the state folder (etag.key): kept when it has 32 bytes or more, else made anew (0600)
 pub fn load_key(state: &str) -> io::Result<Vec<u8>> {
@@ -21,8 +22,7 @@ pub fn load_key(state: &str) -> io::Result<Vec<u8>> {
         }
     }
     let k = nfsu2_util::rand::bytes(32);
-    let mut file = std::fs::OpenOptions::new().write(true).create(true).truncate(true).mode(0o600).open(&f)?;
-    io::Write::write_all(&mut file, &k)?;
+    Options::new().make_folder().write(&f, &k).map_err(io::Error::from)?;
     Ok(k)
 }
 
