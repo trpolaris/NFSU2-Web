@@ -11,7 +11,7 @@ import * as esbuild from 'esbuild';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const js = (await esbuild.build({ entryPoints: [path.join(ROOT, 'web/src/app/phonegraphics.ts')], bundle: true, format: 'esm', write: false })).outputFiles[0].text;
-const { PHONE_GRAPHICS, PHONE_MARK, phoneSeed, phoneUpgrade, withDwords } = await import('data:text/javascript;base64,' + Buffer.from(js).toString('base64'));
+const { PHONE_GRAPHICS, PHONE_MARK, COMPUTER_GRAPHICS, deviceSeed, phoneSeed, phoneUpgrade, withDwords } = await import('data:text/javascript;base64,' + Buffer.from(js).toString('base64'));
 const SEED = fs.readFileSync(path.join(ROOT, 'app/registry-defaults.txt'), 'utf8');
 
 const values = text => Object.fromEntries([...text.matchAll(/^d ([^=\n]+)=(\d+)\r?$/gm)].map(m => [m[1], +m[2]]));
@@ -64,4 +64,16 @@ test('CRLF lines keep their line ends', () => {
   const crlf = SEED.replace(/\n/g, '\r\n'), out = phoneSeed(crlf);
   assert.doesNotMatch(out.replace(/\r\n/g, ''), /\n/);
   assert.equal(values(out).g_RoadReflectionEnable, 0);
+});
+
+
+test("a new computer starts with FSAA on; tablet keeps the seed; phone keeps phone defaults", () => {
+  const seed = values(SEED), pcText = deviceSeed('pc', SEED), pc = values(pcText);
+  assert.deepEqual(COMPUTER_GRAPHICS, { g_FSAALevel: 1 });
+  assert.equal(seed.g_FSAALevel, 4294967295);
+  assert.equal(pc.g_FSAALevel, 1);
+  for (const k of Object.keys(seed)) if (k !== 'g_FSAALevel') assert.equal(pc[k], seed[k], k);
+  assert.equal(pcText.split('\\n').length, SEED.split('\\n').length);
+  assert.equal(deviceSeed('tablet', SEED), SEED);
+  assert.equal(deviceSeed('phone', SEED), phoneSeed(SEED));
 });

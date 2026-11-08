@@ -81,6 +81,8 @@ export interface RendererStats {
   /** draws dropped or changed: target texture missing, sampled texture = current target (drawn white),
    *  Z surface size differs from the target (Z off), vertex shader module missing */
   missingTarget: number; conflicts: number; zMismatch: number; noVs: number;
+  /** FSAA passes resolved from 4-sample render targets and stale-target refreshes. */
+  msPasses?: number; msRefreshes?: number;
   /** frames drawn straight into the canvas texture (no composite), and frames that kept the
    *  back buffer because they copied from the screen before drawing to it */
   direct: number; screenReadFirst: number;
@@ -677,6 +679,7 @@ export async function attachRenderer(proc: GameProcess, canvas: HTMLCanvasElemen
       pipelineMs: enc.pipeMs, pipelineMsMax: enc.pipeMsMax, gpuMsAvg: gpuMsN ? gpuMsTotal / gpuMsN : 0, gpuMsMax,
       encodeMsAvg: frames ? encMsTotal / frames : 0, encodeMsLast: encMsLast, drawsLast, passesLast, rafHz, inFlight,
       dumps: u32()[cw + C.dumpsDone], missingTarget: enc.missingTarget, conflicts: enc.conflicts, zMismatch: enc.zMismatch, noVs: enc.noVs,
+      ...(enc.msPasses ? { msPasses: enc.msPasses, msRefreshes: enc.msRefreshes } : {}),
       direct: directFrames, screenReadFirst: enc.screenReadFirst, slotWaits, slotWaitMsMax, pokes, unshown,
       texBytes: enc.texBytes, unpackBytes: enc.unpackBytes, astcBytes: enc.astcBytes }),
     window: (reset = false) => {
