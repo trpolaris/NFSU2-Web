@@ -77,6 +77,8 @@ void mprace_even_ratings(float *ratings, int n, int net_mode, float part);
  * held less, 0 before the crib) */
 int  mprace_quit(void);
 int  mprace_fee(void);
+/* racehorn.c: another racer sent N2QT after quitting from the pause menu */
+void mprace_quit_heard(uint8_t *m, int n, uint32_t from);
 /* the reason a failed trip gives ("the host's game was not found") */
 const char *mprace_why(void);
 /* a joiner's host closed its game (free roam heard it quit): the trip ends
