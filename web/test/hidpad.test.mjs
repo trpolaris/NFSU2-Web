@@ -285,7 +285,7 @@ test('a phone controller with a touch pad for its right stick under Chrome on An
       assert.deepEqual(at(16, -0.9671, -0.9685), [-0.97, -0.97]);  // last touch position, finger lifted
       assert.deepEqual(at(1900), [-0.97, -0.97]);                  // less than two seconds: still reads
       assert.deepEqual(at(200), [0, 0]);                           // then reads as let go
-      assert.ok(logs.some(s => /right stick stayed at \\[-0\\.97 -0\\.97\\] for 2 s/.test(s)));
+      assert.ok(logs.some(s => /right stick stayed at \[-0\.97 -0\.97\] for 2 s/.test(s)));
       assert.deepEqual(at(16, -0.9671, -0.9684), [-0.97, -0.97]);  // movement restores the axis
       assert.deepEqual(at(16, 0, 0), [0, 0]);
       assert.deepEqual(at(5000), [0, 0]);                          // centred axes need no intervention
