@@ -895,6 +895,8 @@ fn ea_messenger() {
     assert_eq!(w.c(b).l("GINV").g("USER"), "Alpha");
     assert_eq!(w.c(b).l("GINV").g("HOST"), "Alpha");
     assert_eq!(w.c(b).l("GINV").get("LKEY"), None);
+    // Withdraw Alpha's pending request so Bravo's next request is independent, not a crossing request.
+    w.send(a, "RDEM", fields![("USER", "Bravo"), ("ID", 8)]);
     // a friend request from Bravo (to Alpha: one that waits for Alpha's answer), accepted by Alpha: both lists
     w.send(b, "RADM", fields![("LRSC", "PC"), ("USER", "Alpha"), ("ID", 102), ("PRES", "Y")]);
     assert_eq!(w.c(a).l("RNOT").g("USER"), "Bravo");
