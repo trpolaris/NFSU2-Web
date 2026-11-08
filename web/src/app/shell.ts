@@ -40,11 +40,12 @@ import { DriftPanel } from './drift';
 import { PhotoMode } from './photo';
 import type { PadPage } from '../input/gamepad';
 import type { NetQueue, NetRemoved } from '../net';
-import { blockList, checkSetting, HOST_FIXED, pageOnly, resolveEnv, settingsUpgrade, TEMPLATE, type Resolved } from './settings';
+import { blockList, checkSetting, HOST_FIXED, pageOnly, resolveEnv, TEMPLATE, type Resolved } from './settings';
 import { exists, filesOf, listProfiles, PROFILES_DIR, readText, removeSaveDir, writeFile } from './savefs';
 import { turnOnAutosave } from './profile';
 import { crewControl, showCrewCounts } from './crew-control';
 import { putKey, SettingsService } from './settings-service';
+import { SettingsFile } from './settings-store';
 import { askCrews, askWorlds, queueText, roomHash, serverAnswers, watchPlayers, type PlayerCounts } from './players';
 import { isOwn, noGhost, WORLDS, worldName, worldRooms } from './worlds';
 import { checkCrew, CREW_MAX, crewList, crewsOf, crewsValue, rgbsValue, rgbWords, type Crew } from './crews';
@@ -167,7 +168,7 @@ let hiddenAt = 0;                        // when the page was hidden during a ga
 const checks = new Map<string, Check>();
 let diagnosticsBusy = false;
 let instance: ReturnType<typeof claimInstance>;
-let settingsText: string | null = null;
+let settingsFile: SettingsFile | null = null;
 let starting = false;                    // Play pressed, the session not there yet
 let fatal: { what: string; code?: string } | null = null;   // why the running game had to be stopped (English, for t())
 // the last game lost its graphics (GPU-LOST): Safari's WebGPU gives this page no adapter any more, so Play reloads it
@@ -398,23 +399,15 @@ function updatePlay() {
 
 // ------------------------------------------------------------- settings --
 async function loadSettings(): Promise<string | null> {
-  let text = await readText(SAVE, 'settings.ini');
-  if (text === null && instance.owner) {
-    text = TEMPLATE;
-    await writeFile(SAVE, 'settings.ini', text);
-    log.add(`[app] settings: wrote template /save/settings.ini`);
-  } else if (text !== null && instance.owner) {
-    const up = settingsUpgrade(text);
-    if (up) { text = up.text; await writeFile(SAVE, 'settings.ini', text); log.add(`[app] settings: added the new options ${up.added.join(', ')} to /save/settings.ini (commented out, defaults unchanged)`); }
-  }
-  settingsText = text;
+  if (!settingsFile) throw new Error('Settings file is not initialized');
+  const text = await settingsFile.load(instance.owner);
   // who plays on this server, asked again with this file's room and crews (the first question went without them)
   players?.now();
   return text;
 }
 /** this device's own defaults (a phone's: device.ts), below settings.ini and the page address */
 const DEVICE: Record<string, string> = { language: browserLanguage(), ...deviceDefaults() };
-function resolved(host: Record<string, string> = {}): Resolved { return resolveEnv(settingsText, ENVIRONMENT, host, DEVICE); }
+function resolved(host: Record<string, string> = {}): Resolved { return resolveEnv(settingsFile?.forGame ?? null, ENVIRONMENT, host, DEVICE); }
 /** the game's language (runtime/language.c): which language pack the page fetches ahead and counts */
 const language = (r: Resolved = resolved()) => (r.env.NFSU2_LANGUAGE ?? 'turkish').toLowerCase();
 /** the texture pack picked (runtime/web/texrep_web.c), '' for none: the one the page fetches ahead and counts */
@@ -477,11 +470,10 @@ async function askRoam(): Promise<boolean> {
   const answer = confirmBox(t('Free roam with others?'), body, t('Turn on'), false, '', t('Not now'));
   $<HTMLButtonElement>('#confirm-ok').focus();
   const on = await answer;
-  let text = putKey(settingsText ?? TEMPLATE, 'roam', on ? 'on' : 'off').text;
+  let text = putKey(settingsFile?.forGame ?? TEMPLATE, 'roam', on ? 'on' : 'off').text;
   const typed = field?.value.trim() ?? name;
   if (on && typed !== name) text = putKey(text, 'roam_name', typed || null).text;
-  await writeFile(SAVE, 'settings.ini', text);
-  settingsText = text;
+  await settingsFile!.write(text);
   void settings.refresh();
   log.add(`[app] free roam with others: ${on ? 'on' : 'off'} (asked at the first Play${c?.full === true ? ', the server full' : ''})${on && typed !== name ? `, name ${typed || '(the profile\'s)'}` : ''}`);
   return true;
@@ -933,7 +925,7 @@ const cap = (s: string) => s[0].toUpperCase() + s.slice(1);
 /** The page in the game's language (settings.ini language, the page address's on a development server): English until
  *  the player picks another, in Settings or in the list at the top.  A tab that does not own the saves follows the file. */
 function applyLanguage() {
-  void setLanguage(language(resolveEnv(settingsText ?? settings.text, ENVIRONMENT, {}, DEVICE)), logLine);
+  void setLanguage(language(resolveEnv(settingsFile?.forGame ?? settingsFile?.text ?? null, ENVIRONMENT, {}, DEVICE)), logLine);
 }
 
 /** the controller's share of the page while a game runs (gamepad.ts): Home, or both sticks pressed in, opens or
@@ -1460,11 +1452,10 @@ async function switchMenuWorld(room: string) {
     return;
   }
   liveWorld = next;
-  const text = putKey(settingsText ?? TEMPLATE, 'roam_room', next || null).text;
+  const text = putKey(settingsFile?.forGame ?? TEMPLATE, 'roam_room', next || null).text;
   try {
-    await writeFile(SAVE, 'settings.ini', text);
+    await settingsFile!.write(text);
     if (session !== game) return;
-    settingsText = text;
   } catch (e) {
     game.net.room(previous);
     liveWorld = previous;
@@ -1602,9 +1593,9 @@ async function menuCrews(list: Crew[], focus: (root: HTMLElement) => Element | n
   drawPopCrews(focus);
   void askPopCounts(1500);
   $('#menu [data-act="crews"]').textContent = crewsLabel();
-  let text = putKey(settingsText ?? TEMPLATE, 'roam_crew', list.length ? crewsValue(list.map(c => c.name)) : null).text;
+  let text = putKey(settingsFile?.forGame ?? TEMPLATE, 'roam_crew', list.length ? crewsValue(list.map(c => c.name)) : null).text;
   text = putKey(text, 'roam_crew_colours', list.length ? rgbsValue(list) : null).text;
-  try { await writeFile(SAVE, 'settings.ini', text); settingsText = text; void settings.refresh(); }
+  try { await settingsFile!.write(text); void settings.refresh(); }
   catch (e) { log.add(`[app] settings.ini not written: ${e}`); }
   log.add(`[app] crews: ${list.length ? list.map(c => `${c.name} (${c.rgb})`).join(', ') : 'none'} (the page menu)`);
 }
@@ -1690,8 +1681,8 @@ async function menuAction(act: string) {
       session.net.solid(solidCars);
       m.querySelector<HTMLButtonElement>('[data-act="solid"]')!.textContent = ghostLabel();
       // and in settings.ini for the next game, as Settings, Online, Ghost mode would
-      const text = putKey(settingsText ?? TEMPLATE, 'roam_collide', solidCars ? 'on' : 'off').text;
-      try { await writeFile(SAVE, 'settings.ini', text); settingsText = text; void settings.refresh(); }
+      const text = putKey(settingsFile?.forGame ?? TEMPLATE, 'roam_collide', solidCars ? 'on' : 'off').text;
+      try { await settingsFile!.write(text); void settings.refresh(); }
       catch (e) { log.add(`[app] settings.ini not written: ${e}`); }
       log.add(`[app] solid cars ${solidCars ? 'on' : 'off'} (the page menu)`);
       break;
@@ -2026,10 +2017,12 @@ export async function boot() {
   fps.extra = () => session?.stats() ?? {};
   // the language this browser showed last, at once (settings.ini says which it is: applyLanguage, once it is read)
   void setLanguage(lastLanguage(), logLine);
+  settingsFile = new SettingsFile(() => SAVE, line => log.add(line));
   settings = new SettingsService({
     // another language or texture pack counts other files as the game data (its pack); a keyphrase sends the file
-    saveDir: SAVE, environment: ENVIRONMENT, defaults: DEVICE, onSaved: text => {
-      const was = language() + '/' + texpack(); settingsText = text;
+    file: settingsFile!, environment: ENVIRONMENT, defaults: DEVICE, onSaved: (_text, previous) => {
+      const before = resolveEnv(previous, ENVIRONMENT, {}, DEVICE);
+      const was = language(before) + '/' + texpack(before);
       if (language() + '/' + texpack() !== was) void saves.refresh();
       vault?.changed(); players?.now();
       applyLanguage();
@@ -2305,7 +2298,7 @@ export async function boot() {
     get session() { return session; }, log, save: SAVE, download: () => download.status, offline: () => offline, displayHz: () => displayHz, retryModule: () => loadModule(),
     newer: () => newer, tried: () => tried, touch: () => touch.state(), textField: () => textField.state(), renderCheck: () => renderCheck?.state() ?? null,
     quickChat: () => quickChat.state(), quickChatStick: (x: number, y: number) => quickChat.stick(x, y),
-    env: () => resolved().env, settingsText: () => settingsText, checks: () => [...checks.values()],
+    env: () => resolved().env, settingsText: () => settingsFile?.forGame ?? settingsFile?.text ?? null, checks: () => [...checks.values()],
     fpsMode: (m?: FpsMode) => { if (m && FPS_MODES.includes(m)) fps.set(m); return fps.mode; },
     quitTimes: { forcedCloseMaxMs: FORCED_CLOSE_MAX_MS, stopAfterMs: STOP_AFTER_MS },
   };
