@@ -1205,6 +1205,8 @@ void sub_00639f20(CPU *c){
  * again is the same).  The other kinds: the game's.  NFSU2_JDLZ_VERIFY=1
  * (test aid): each block unpacked both ways, compared ("[jdlz] DIFFERS"). */
 #define JDLZ_TAG        0x5a4c444au
+#define RAWW_TAG        0x57574152u
+#define HUFF_TAG        0x46465548u
 void sub_00574670_orig(CPU *c);
 static int range_committed(uint32_t a, uint32_t n){
     if (!n) return 1;
@@ -1248,14 +1250,14 @@ void sub_00574670(CPU *restrict c){
     uint32_t e = c->esp, blk = MR32(e + 4u), out = MR32(e + 8u);
     /* The streamer allocates its entry's size (+0xC), not a compressed block's claimed output size (+8). */
     if (blk && out && MR32(e) == 0x0048d095u && mem_is_committed(c->esi + 0xcu) &&
-        mem_is_committed(blk) && mem_is_committed(blk + 15u) && MR32(blk) == JDLZ_TAG) {
-        uint32_t entry = MR32(c->esi + 0xcu), declared = MR32(blk + 8u);
-        if (declared > entry) {
+        mem_is_committed(blk) && mem_is_committed(blk + 15u)) {
+        uint32_t tag = MR32(blk), entry = MR32(c->esi + 0xcu), declared = MR32(blk + 8u);
+        if ((tag == JDLZ_TAG || tag == RAWW_TAG || tag == HUFF_TAG) && declared > entry) {
             if (range_committed(out, entry)) memset(&MR8(out), 0, entry);
             static unsigned said;
             if (said++ < 16)
-                fprintf(stderr, "[jdlz] f=%ld block 0x%08x says %u unpacked, streamer entry is %u: refused\n",
-                        autotest_frame(), blk, declared, entry);
+                fprintf(stderr, "[packs] block 0x%08x (tag %08x) says %u unpacked, streamer entry is %u: refused\n",
+                        blk, tag, declared, entry);
             c->eax = 0; POP32(c->eip); return;
         }
     }
