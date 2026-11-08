@@ -3,7 +3,6 @@
 //! described in Node's words (its `e.message`: the console line quotes it, as the Node server's line did).
 
 use std::io;
-use std::path::Path;
 
 use nfsu2_util::atomic_file::{Options, Step};
 use std::path::Path;
