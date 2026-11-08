@@ -2508,7 +2508,9 @@ fn link_many(slots: &[Option<Player>], list: &[u32], w: &Weigh, s: &mut Scratch)
         }
         near_a.push(n);
         let mut n = Near::from(grid, view[i], i as u32, found.pop().unwrap_or_default());
-        if view[i] != soon[i] && let Some((d, j)) = n.next(grid, soon) {
+        if view[i] != soon[i]
+            && let Some((d, j)) = n.next(grid, soon)
+        {
             heap.push(Cand::by(d, i as u32, j, WALK_VIEW));
         }
         near_v.push(n);

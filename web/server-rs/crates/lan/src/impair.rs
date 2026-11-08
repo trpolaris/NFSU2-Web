@@ -289,7 +289,9 @@ impl Impair {
                             heap.pop();
                             let Some(mut d) = held.remove(&s) else { continue };
                             // at the server: the receiver's leg down next (in the order frames got here)
-                            if d.up && let Some(im) = &sw.impair {
+                            if d.up
+                                && let Some(im) = &sw.impair
+                            {
                                 d.up = false;
                                 d.at = im.leg_time(d.to.vip, false, at);
                                 seq += 1;
