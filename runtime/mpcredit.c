@@ -100,6 +100,7 @@
 #include "guest.h"
 #include "game.h"
 #include "mpcredit.h"
+#include "mpcredit_store.h"
 #include "featurelist.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -507,24 +508,32 @@ static int pend_path(const char *name, char *out, size_t n, int write){
     fileio_resolve_save_w(win, out, n);
     return out[0] != 0;
 }
-/* the file as the lists are now (none left: no file) */
+/* Persist the waiting and just-applied wins as one versioned sidecar.
+ * The store writes a sibling temporary file and atomically renames it over
+ * MPWINS.DAT, so a short write cannot destroy the last complete copy. */
 static void pend_write(void){
     char path[1100];
     if (!pend_path(g_pend.profile, path, sizeof path, 1)){
         fprintf(stderr, "[mpcredit] %s: no place for " PEND_FILE " (no profile loaded?): the waiting wins are in memory only\n", g_pend.profile);
         return;
     }
-    int n = g_pend.n + g_pend.ndone;
-    if (!n){ if (remove(path) == 0) fprintf(stderr, "[mpcredit] %s: no wins wait, " PEND_FILE " gone\n", g_pend.profile); return; }
-    FILE *o = fopen(path, "wb");
-    if (!o){ fprintf(stderr, "[mpcredit] %s: cannot write %s\n", g_pend.profile, path); return; }
-    uint32_t hd[3] = { PEND_MAGIC, 1u, (uint32_t)n };
-    int ok = fwrite(hd, sizeof hd, 1, o) == 1;
-    for (int i = 0; i < g_pend.n; i++){ uint32_t e[2] = { MR32(g_pend.race[i] + 8u), fbits(g_pend.margin[i]) }; ok = ok && fwrite(e, sizeof e, 1, o) == 1; }
-    for (int i = 0; i < g_pend.ndone; i++){ uint32_t e[2] = { g_pend.done[i], fbits(g_pend.done_margin[i]) }; ok = ok && fwrite(e, sizeof e, 1, o) == 1; }
-    ok = fclose(o) == 0 && ok;
+    MpCreditStoreEntry entries[PEND_MAX * 2];
+    size_t n = 0;
+    for (int i = 0; i < g_pend.n; i++){
+        entries[n].race_hash = MR32(g_pend.race[i] + 8u);
+        entries[n++].margin = g_pend.margin[i];
+    }
+    for (int i = 0; i < g_pend.ndone; i++){
+        entries[n].race_hash = g_pend.done[i];
+        entries[n++].margin = g_pend.done_margin[i];
+    }
+    int ok = mpcredit_store_write(path, entries, n);
+    if (!n){
+        fprintf(stderr, "[mpcredit] %s: no wins wait, " PEND_FILE " %s\n", g_pend.profile, ok ? "gone" : "could not be removed");
+        return;
+    }
     fprintf(stderr, "[mpcredit] %s: " PEND_FILE " %s: %d waiting, %d given but not saved yet\n", g_pend.profile,
-            ok ? "written" : "WRITE FAILED", g_pend.n, g_pend.ndone);
+            ok ? "written atomically" : "WRITE FAILED (previous file kept)", g_pend.n, g_pend.ndone);
 }
 static int pend_waits(uint32_t r){ for (int k = 0; k < g_pend.n; k++) if (g_pend.race[k] == r) return 1; return 0; }
 static void pend_wait(uint32_t r, float m){ if (r && !pend_waits(r) && g_pend.n < PEND_MAX){ g_pend.race[g_pend.n] = r; g_pend.margin[g_pend.n++] = m; } }
@@ -544,16 +553,23 @@ static void pend_load(const char *name, unsigned loads){
         if (same && g_pend.n) pend_write();
         return;
     }
-    FILE *in = fopen(path, "rb");
-    if (!in){ fprintf(stderr, "[mpcredit] %s: the career's profile, %d wins wait\n", name, g_pend.n); if (g_pend.n) pend_write(); return; }
-    uint32_t hd[3] = { 0 }, e[2];
-    int ok = fread(hd, sizeof hd, 1, in) == 1 && hd[0] == PEND_MAGIC && hd[1] == 1u && hd[2] <= 64u;
-    for (uint32_t i = 0; ok && i < hd[2] && fread(e, sizeof e, 1, in) == 1; i++){
-        float m; memcpy(&m, &e[1], 4);
-        pend_wait(race_by_hash(e[0]), m);
+    MpCreditStoreEntry entries[MPCREDIT_STORE_MAX_ENTRIES];
+    size_t count = 0;
+    int status = mpcredit_store_read(path, entries, MPCREDIT_STORE_MAX_ENTRIES, &count);
+    if (status == MPCREDIT_STORE_MISSING){
+        fprintf(stderr, "[mpcredit] %s: the career's profile, %d wins wait (no " PEND_FILE ")\n", name, g_pend.n);
+        if (same && g_pend.n) pend_write();
+        return;
     }
-    fclose(in);
-    fprintf(stderr, "[mpcredit] %s: " PEND_FILE "%s, %d wins wait for the crib%s\n", name, ok ? "" : " is not one of ours", g_pend.n,
+    if (status != MPCREDIT_STORE_OK){
+        fprintf(stderr, "[mpcredit] %s: " PEND_FILE " %s; no partial records loaded, %d in-memory wins retained\n",
+                name, status == MPCREDIT_STORE_INVALID ? "is corrupt or has an unsupported format" : "could not be read",
+                g_pend.n);
+        return;
+    }
+    for (size_t i = 0; i < count; i++)
+        pend_wait(race_by_hash(entries[i].race_hash), entries[i].margin);
+    fprintf(stderr, "[mpcredit] %s: " PEND_FILE " read: %d wins wait for the crib%s\n", name, g_pend.n,
             same ? " (the profile loaded again)" : "");
     if (same) pend_write();
 }
