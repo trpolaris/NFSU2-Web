@@ -9,15 +9,17 @@
 
 /** how long a Left Ctrl press waits for AltGr's Right Alt (Windows sends the two together; this is the margin) */
 export const WAIT_MS = 25;
+import { ALTGR_CTRL, localStore as prefsStore } from '../app/prefs';
+
 /** a Right Alt as AltGraph this soon after a Left Ctrl press (still down) shows that the browser sends AltGr's Left Ctrl */
 const LEARN_MS = 50;
-const STORE_KEY = 'nfsu2.altgr-ctrl';
+const STORE_KEY = ALTGR_CTRL
 
 export interface AltGrKey { code: string; key: string; repeat: boolean }
 type Store = Pick<Storage, 'getItem' | 'setItem'>;
 
-function localStore(): Store | null {
-  try { return typeof localStorage === 'undefined' ? null : localStorage; } catch { return null; }
+function localStore(): Store {
+  return { getItem: prefsStore.get, setItem: (key, value) => { prefsStore.set(key, value); } };
 }
 
 export class AltGrCtrl {
