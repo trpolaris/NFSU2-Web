@@ -13,6 +13,8 @@
 // This module touches the DOM only when called with it, and imports nothing, so the pure modules (settings.ts) can
 // use it under node.
 
+import { localStore, PAGE_LANGUAGE } from './prefs';
+
 /** the game's languages (runtime/language.c), settings.ini language's values; english is the default */
 export const LANGUAGES = ['english', 'french', 'german', 'italian', 'spanish', 'dutch', 'swedish', 'danish', 'korean',
   'chinese', 'japanese', 'russian', 'thai', 'portuguese', 'polish', 'turkish'] as const;
@@ -156,7 +158,7 @@ export async function setLanguage(l: string, log?: (s: string) => void): Promise
   }
   if (asked !== want) return false;            // a newer pick came first
   current = want; dict = next; plural = null;
-  try { localStorage.setItem(STORE, want); } catch { /* not kept: the next start shows English until settings.ini is read */ }
+  localStore.set(PAGE_LANGUAGE, want); // (not kept: the next start shows English until settings.ini is read)
   if (typeof document !== 'undefined') {
     document.documentElement.lang = LOCALE[want];
     translatePage(document);
@@ -168,10 +170,9 @@ export async function setLanguage(l: string, log?: (s: string) => void): Promise
 }
 
 /** the language this browser showed last (the page asks for its file at once, before settings.ini is read) */
-const STORE = 'nfsu2-page-language';
 export function lastLanguage(): Language {
   let saved = '';
-  try { saved = localStorage.getItem(STORE) ?? ''; } catch { /* use the browser preference when storage is unavailable */ }
+  saved = localStore.get(PAGE_LANGUAGE) ?? '';
   return isLanguage(saved) ? saved : browserLanguage();
 }
 
