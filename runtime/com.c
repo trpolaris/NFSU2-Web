@@ -798,11 +798,11 @@ static void bb_multisample(uint32_t pp){
     uint32_t ty = 0, q = 0;
     if (pp && mem_is_committed(pp + 23u)){ ty = MR32(pp + 16u); q = MR32(pp + 20u); }
     if (!ms_offered(ty, q)){
-        if (ty) fprintf(stderr, "com: multisample type %u quality %u not offered: back buffer has 1 sample\\n", ty, q);
+        if (ty) fprintf(stderr, "com: multisample type %u quality %u not offered: back buffer has 1 sample\n", ty, q);
         ty = q = 0;
     }
     if (ty != g_bb_ms || q != g_bb_msq)
-        fprintf(stderr, "com: back buffer multisampling %s (type %u, quality %u)\\n", ty ? "4 samples" : "off", ty, q);
+        fprintf(stderr, "com: back buffer multisampling %s (type %u, quality %u)\n", ty ? "4 samples" : "off", ty, q);
     g_bb_ms = ty; g_bb_msq = q;
     if (fsaa_offered() && metal_available()){
         void metal_set_bb_samples(unsigned);
@@ -2493,7 +2493,8 @@ int com_call(CPU *c, uint32_t magic){
                                             metal_resize(w4,h4); }
                 }
             }
-            bb_multisample(ppp);\n            /* RESSCAN=1: find the game's OWN resolution table in guest memory.
+            bb_multisample(ppp);
+            /* RESSCAN=1: find the game's OWN resolution table in guest memory.
              * The table is not stored plainly in the EXE but built at run
              * time; patching it is the only clean way to carry 1080p into
              * every part of the game (aspect ratio, render targets, viewport). */
@@ -3558,7 +3559,9 @@ int com_call(CPU *c, uint32_t magic){
                     if (metal_available()){ void metal_resize(unsigned,unsigned);
                                             metal_resize(w3,h3); } }
             }
-            bb_multisample(pp3);\n            g_resets++;\n            /* The game must have released every render target before Reset
+            bb_multisample(pp3);
+            g_resets++;
+            /* The game must have released every render target before Reset
              * (D3D9 rule); release them on the Metal side too, otherwise every
              * resolution change leaked all of them. */
             if (metal_available()){ void metal_reset_rts(void); metal_reset_rts(); }
@@ -3724,7 +3727,7 @@ int com_call(CPU *c, uint32_t magic){
             MR32(sf+4)=w2; MR32(sf+8)=h2; MR32(sf+20)=f2; MR32(sf+40)=3;
             uint32_t ms2 = ms_offered(A(c,4), A(c,5)) && fmt_ms_colour(f2);
             if (A(c,4) && !ms2)
-                fprintf(stderr, "com: CreateRenderTarget %ux%u multisample type %u quality %u: drawn with 1 sample\\n",
+                fprintf(stderr, "com: CreateRenderTarget %ux%u multisample type %u quality %u: drawn with 1 sample\n",
                         w2, h2, A(c,4), A(c,5));
             if (metal_available()) MR32(sf+28)=metal_create_texture_ex(w2,h2,1,f2,ms2 ? 3u : 1u);
             if(pp) MR32(pp)=sf; r=0; }
