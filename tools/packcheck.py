@@ -46,7 +46,7 @@ holds them; and in each texture pack (TPK, chunk 0xB3300000) in it:
 Every memory file (GLOBAL/*MemoryFile.bin: headers the game reads in place of the file's own) that lists a spliced or
 replaced file must hold that file's header as it is served, at its size.
 """
-import argparse, os, struct, sys, zlib
+import argparse, io, os, struct, sys, wave, zlib
 from concurrent.futures import ProcessPoolExecutor
 
 KINDS = ('VINYLPACKS', 'MODPACKS', 'LANGPACKS', 'TEXPACKS')
@@ -513,10 +513,16 @@ def check_memfile(d):
 
 def wav_problems(b):
     """why b is not a sound runtime/whine.c plays (16-bit mono PCM, at most 4 MB), or []"""
-    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-    from whinepack import wav_check
-    why = wav_check('', b)
-    return ([why] if why else []) + ([f'{len(b)} bytes, past the 4 MB the runtime reads'] if len(b) > 4 << 20 else [])
+    try:
+        with wave.open(io.BytesIO(b), 'rb') as wav:
+            if wav.getcomptype() != 'NONE' or wav.getnchannels() != 1 or wav.getsampwidth() != 2:
+                return ['not 16-bit mono PCM']
+            expected = wav.getnframes() * wav.getnchannels() * wav.getsampwidth()
+            if len(wav.readframes(wav.getnframes())) != expected:
+                return ['WAV data ends before its declared sample count']
+    except (wave.Error, EOFError, OSError, struct.error) as e:
+        return [f'not a readable WAV file: {e}']
+    return [f'{len(b)} bytes, past the 4 MB the runtime reads'] if len(b) > 4 << 20 else []
 
 
 def check_parts(d, served):

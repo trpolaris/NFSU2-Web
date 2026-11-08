@@ -41,7 +41,7 @@ test('game runtime anchors and same-tab Hub navigation remain in the original HT
   const hubEntry = html.match(/<a class="hub-entry" href="\/hub\/"[^>]*>/);
   assert.ok(hubEntry, 'the Player Hub link remains available from the main page');
   assert.doesNotMatch(hubEntry[0], /target=/, 'the Hub opens in the current tab');
-  for (const id of ['play', 'progress', 'progress-fill', 'lang-pick', 'install-app']) {
+  for (const id of ['play', 'progress', 'progress-fill', 'first-run-language', 'install-app']) {
     assert.match(html, new RegExp('id="' + id + '"'), 'existing game anchor: ' + id);
   }
   assert.match(html, /<script type="module" src="\/main\.js"><\/script>/);
