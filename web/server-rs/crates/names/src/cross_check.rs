@@ -44,6 +44,7 @@ fn marks() -> Vec<char> {
         (0x93a, 0x94f),
         (0x1ab0, 0x1add),
         (0x1ae0, 0x1aeb),
+        (0x11b60, 0x11b67),
         (0x1dc0, 0x1dff),
         (0x20d0, 0x20f0),
         (0xfe00, 0xfe0f),
@@ -88,6 +89,7 @@ fn separators() -> Vec<char> {
 /// added after 16.0 that unicode-normalization would decompose (to Latin letters among others).
 fn others() -> Vec<char> {
     chars(&[
+        (0xa7f1, 0xa7f1),
         (0x1f600, 0x1f60f),
         (0x1f525, 0x1f525),
         (0x1f44d, 0x1f44d),

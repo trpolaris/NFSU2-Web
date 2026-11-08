@@ -443,13 +443,19 @@ fn read_as_nfkd_without_marks_and_lookalikes() {
     assert_eq!(text("a\u{1aeb}b"), "ab");
     assert_eq!(text("a\u{1e6e3}b"), "ab");
     assert_eq!(text("a\u{1e6e6}b"), "ab");
+    assert_eq!(text("a\u{11b60}b"), "ab");
+    assert_eq!(text("a\u{11b61}b"), "ab");
+    assert_eq!(text("a\u{11b67}b"), "ab");
+    assert_eq!(text("\u{a7f1}"), "S");
     assert!(blocked_name("Vaå\u{2061}nDyk\u{1e6e3}e8⁷81"));
     assert!(!blocked_name("kiⓘ𝜘ϵ\u{10efb}𝟨6ŗaⓒc𝑜0ṅ#"));
     assert!(!blocked_name("D\u{e003f}𝔸nᵑ𝗂9₉9GsV\u{1e6e6}an  D\u{1ace}yk€"));
+    assert!(!blocked_name("x\u{a7f1}Fag"));
+    assert!(!blocked_name("Dani\u{a7f1}99GS"));
     // Only code points assigned in Unicode 17 are exempted from the older category table's Unassigned result.
-    assert!(!unknown('\u{10ec2}') && !unknown('\u{10ed0}') && !unknown('\u{1acf}') && !unknown('\u{1e6c0}') && !unknown('\u{1e6fe}'));
-    assert!(unknown('\u{10ec0}') && unknown('\u{1ade}') && unknown('\u{1adf}') && unknown('\u{1aec}') && unknown('\u{1e6df}') && unknown('\u{1e6f6}'));
-    assert!(is_mark('\u{10efc}') && is_mark('\u{1acf}') && is_mark('\u{1add}') && is_mark('\u{1ae0}') && is_mark('\u{1aeb}') && is_mark('\u{1e6f5}'));
+    assert!(!unknown('\u{10ec2}') && !unknown('\u{10ed0}') && !unknown('\u{1acf}') && !unknown('\u{1e6c0}') && !unknown('\u{1e6fe}') && !unknown('\u{11b60}') && !unknown('\u{11b67}'));
+    assert!(unknown('\u{10ec0}') && unknown('\u{1ade}') && unknown('\u{1adf}') && unknown('\u{1aec}') && unknown('\u{1e6df}') && unknown('\u{1e6f6}') && unknown('\u{11b68}'));
+    assert!(is_mark('\u{10efc}') && is_mark('\u{1acf}') && is_mark('\u{1add}') && is_mark('\u{1ae0}') && is_mark('\u{1aeb}') && is_mark('\u{11b60}') && is_mark('\u{11b61}') && is_mark('\u{11b67}') && is_mark('\u{1e6f5}'));
     // a keycap: the digit stays, the variation selector and the enclosing keycap are marks
     assert_eq!(text("1\u{fe0f}\u{20e3}"), "1");
     // the ligature and the fraction come apart, the emoji and the zero-width joiner stay
