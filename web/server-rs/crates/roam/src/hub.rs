@@ -292,9 +292,6 @@ struct Player {
     /// its crews as its last HELLO named them (wire::HF_CREW), each once, 0 after them: its crew-mates of its room are
     /// linked with it first (`crew_pairs`), and /players counts them (`crew_counts`)
     crews: [u32; wire::CREWS],
-    /// its HELLO says it reads the crew marks of our lists (wire::HF_HUBCREW): its lists end in them while it is in
-    /// a crew (`lists`)
-    marks: bool,
     /// the race lobby it hosts, as its last advert to the hub had it, and when that came
     lobby: Option<(HubLobby, f64)>,
     /// the lobby it asked to join (its id), and when
@@ -1840,17 +1837,28 @@ impl Hub {
             let Some(Some(p)) = self.slots.get(slot as usize) else { continue };
             let links = &s.fresh[slot as usize];
             let slots = &self.slots;
-            // its crews and, a link each, which of them that player is in too: only to a player that reads them and
-            // is in a crew (so no crews but its own go out)
+            // Send only this receiver's crew names; each link gets crew bits and a mutual-friend bit.
             let mine = if p.marks && self.crewed > 0 { &p.crews[..crews_of(p).count()] } else { &[][..] };
+            let befriended = p.marks && !p.friend_ids.is_empty();
+            let with_marks = !mine.is_empty() || befriended;
             s.marks.clear();
-            if !mine.is_empty() {
+            if with_marks {
                 s.marks.extend(links.iter().map(|l| match slots.get(l.slot as usize) {
-                    Some(Some(q)) => mine.iter().enumerate().fold(0u8, |m, (c, h)| m | (q.crews.contains(h) as u8) << c),
+                    Some(Some(q)) => {
+                        let crews = mine.iter().enumerate().fold(0u8, |m, (c, h)| m | (q.crews.contains(h) as u8) << c);
+                        let friend = befriended && match (&p.owner, &q.owner) {
+                            (Some(a), Some(b)) if a != b => {
+                                let id = friend_id(a, b);
+                                p.friend_ids.binary_search(&id).is_ok() && q.friend_ids.binary_search(&id).is_ok()
+                            }
+                            _ => false,
+                        };
+                        crews | if friend { wire::MARK_FRIEND } else { 0 }
+                    }
                     _ => 0,
                 }));
             }
-            let n = F_DATA + if mine.is_empty() { wire::peers_len(links.len()) } else { wire::peers_crew_len(links.len(), mine.len()) };
+            let n = F_DATA + if with_marks { wire::peers_crew_len(links.len(), mine.len()) } else { wire::peers_len(links.len()) };
             if s.buf.capacity() < n {
                 s.buf = BytesMut::with_capacity(LIST_BLOCK.max(n));
             }
