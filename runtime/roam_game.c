@@ -248,8 +248,9 @@ static int du_racing(uint32_t race);
  * test run on URL track 4705), whose places are not the city's -- friends
  * saw those cars stand and race in the air over them (players, 2026-10-25) */
 static int roaming(void){
-    uint32_t race = rd32(G_RACE);
-    return rd32(G_FLOW) == 6u && rd32(G_TRACK) % 1000u == 0 && ok(race, 0xc44) && MR32(race) == 4u &&
+    uint32_t race = rd32(G_RACE), track = rd32(G_TRACK);
+    return rd32(G_FLOW) == 6u && (track % 1000u == 0 || (track % 100u == 0 && travel_room())) &&
+           ok(race, 0xc44) && MR32(race) == 4u &&
            (MR32(race + 0x24u) == 1u || du_racing(race)) &&
            !rd32(G_CAREER_RACE) && !(rd32(G_GAMEMODE) & 0x200u) && world() && player_car();
 }
@@ -6267,7 +6268,7 @@ static void init_once(CPU *c){
     if (rm && name_blocked(rm)){ rlog("[roam] the room setting reads as a slur: no room\n"); rm = 0; }
     snprintf(O.room, sizeof O.room, "%s", rm ? rm : "");
     rc_config cf; memset(&cf, 0, sizeof cf);
-    cf.self_id = roam_plat_random(); cf.port = (uint16_t)port; cf.room = rc_room_hash(O.room);
+    cf.self_id = roam_plat_random(); cf.port = (uint16_t)port; cf.room = rc_room_hash(O.room); g_room_base = cf.room;
     crews_parse(opt("NFSU2_ROAM_CREW"), &cf);
     snprintf(cf.name, sizeof cf.name, "%s", O.name[0] ? O.name : "Player");
 #ifdef ROAM_HOST_WIN
@@ -6565,7 +6566,13 @@ static void crews_follow(void){
 /* Room changes from a friend invite wait until the player is safely driving
  * in Free Roam. The hub then links this page in the new room on its next HELLO. */
 uint32_t roam_plat_room(char name[64]);
-static uint32_t g_room_gen;
+static uint32_t g_room_gen, g_room_base;
+/* Optional travel module: the Windows companion has no Tracks runtime. */
+__attribute__((weak)) uint32_t travel_room(void){ return 0; }
+static uint32_t room_at(uint32_t base){
+    uint32_t key = travel_room(), hash = base ^ key * 0x9E3779B1u;
+    return !key ? base : hash ? hash : 1u;
+}
 static void room_follow(void){
     char name[64];
     uint32_t gen = roam_plat_room(name);
@@ -6582,15 +6589,31 @@ static void room_follow(void){
         name[0] = 0;
     }
     uint32_t hash = rc_room_hash(name);
+    g_room_base = hash;
+    uint32_t want = room_at(hash);
     roam_plat_lock();
     uint32_t previous = g_s.conf.room;
-    int left = rc_set_room(&g_s, hash);
+    int left = rc_set_room(&g_s, want);
     g_alone_since = 0;
     g_alone_told = 0;
     roam_plat_unlock();
     snprintf(O.room, sizeof O.room, "%s", name);
     rlog("[roam] f=%ld room changed (the page): %08x -> %08x, %d friend(s) left with the old one\n",
-         rh_frame(), previous, hash, left);
+         rh_frame(), previous, want, left);
+}
+
+/* Each race-track map has its own multiplayer room, keyed like web/src/app/tracks.ts trackRoom(). */
+static void track_follow(void){
+    uint32_t want = room_at(g_room_base);
+    if (want == g_s.conf.room) return;
+    roam_plat_lock();
+    uint32_t previous = g_s.conf.room;
+    int left = rc_set_room(&g_s, want);
+    g_alone_since = 0;
+    g_alone_told = 0;
+    roam_plat_unlock();
+    rlog("[roam] f=%ld %s: room %08x -> %08x, %d friend(s) left with the other\n",
+         rh_frame(), travel_room() ? "on a race track's map" : "back in the city", previous, want, left);
 }
 
 #endif
@@ -6601,6 +6624,7 @@ void roam_game_frame(CPU *c){
     solid_follow();
     crews_follow();
     room_follow();
+    track_follow();
 #endif
     g_step++;
     uint64_t t0 = rh_ns();
