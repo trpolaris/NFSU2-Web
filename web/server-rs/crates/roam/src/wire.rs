@@ -784,3 +784,20 @@ mod map_protocol_tests {
         }
     }
 }
+
+
+#[cfg(test)]
+mod peer_mark_tests {
+    use super::*;
+
+    #[test]
+    fn peers_friend_marks_work_without_a_crew_list() {
+        let peer = PeerEntry { vip: u32::from_be_bytes([10, 77, 0, 5]), port: 47210, id: 42 };
+        let b = encode_peers_crews(7, 9, &[peer], &[], &[MARK_FRIEND]);
+        assert_ne!(u16_le(&b, 14) & HF_CREW, 0, "the optional marks extension is present");
+        let at = 17 + 10;
+        assert_eq!(b[at], 0, "no crew hashes are disclosed");
+        assert_eq!(b[at + 1], MARK_FRIEND, "the friend bit shares the marks byte");
+        assert_eq!(u32_le(&b, b.len() - CRC), crc32fast::hash(&b[..b.len() - CRC]), "CRC covers the extension");
+    }
+}
