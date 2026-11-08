@@ -15,6 +15,8 @@
   <a href="https://github.com/trpolaris/NFSU2-Web/releases"><img src="https://img.shields.io/github/v/release/trpolaris/NFSU2-Web?display_name=tag&label=Releases" alt="GitHub Release"></a>
 </p>
 
+<sub>README üstündeki CI rozetleri `main` dalını izler; açık PR'ların exact-HEAD durumu için GitHub Actions bağlantılarını kullanın.</sub>
+
 [🎮 Özellikler](#-nfsu2-web) · [🖥️ Kontrol Merkezi](#️-trpolaris-control-center) · [🧭 Player Hub](#-trpolaris-player-hub) · [🏗️ Mimari](#️-sistem-mimarisi) · [⚙️ Kurulum](#-kurulum) · [🧪 Testler](#-geliştirme-ve-testler) · [🗺️ Geliştirme Durumu](#-geliştirme-durumu-ve-teknik-yol-haritasi) · [🔬 Upstream Karşılaştırması](docs/UPSTREAM-COMPARISON-ROADMAP.md)
 
 **Ana dal:** `main` · **Sunucu:** Rust · **Oyun çalışma zamanı:** WebAssembly
@@ -615,60 +617,70 @@ CI ayrıca Rust sunucusunu derler, sentetik Online protokol yük/kötüye kullan
 
 ## 🗺️ Geliştirme durumu ve teknik yol haritası
 
-> **Güncel upstream entegrasyon kaydı — 7 Kasım 2026:** TRPOLARIS ile `th0mk/nfsu2-web` karşılaştırması ve PR #21'deki değişiklikler ayrı bir raporda toplanmıştır. [Upstream karşılaştırması ve entegrasyon yol haritası](docs/UPSTREAM-COMPARISON-ROADMAP.md) dosyası; ana entegrasyon PR'ını, ayrı World Map/Minimap dallarını, CI durumlarını ve sıradaki işleri açıklar. PR #21 hâlâ taslaktır; `main` ve üretim dağıtımı değiştirilmemiştir.
+> **Güncelleme: 8 Kasım 2026.** Bu bölüm, `integration/upstream-2026-11-06` dalındaki seçici upstream entegrasyonunu ve PR #21 doğrulama sürecini özetler. Bu dal `main` ile aynı değildir. PR birleştirilmeden ve gerekli kontroller tamamlanmadan bu değişiklikler ana sürümde veya üretim sunucusunda var kabul edilmemelidir.
 
+### 📍 Aktif geliştirme aşaması
 
-> **Durum kaydı: 3 Kasım 2026.** Bu bölüm aktif React geçiş dalını, son commit'i, CI durumunu, eski DOM servis sınırlarını ve sıradaki geliştirme sırasını açıklar. Buradaki bütün geliştirmeler `main` dalına alınmış veya canlı sunucuya dağıtılmış değildir.
+**Aktif aşama: upstream değişikliklerini TRPOLARIS mimarisine seçici biçimde uyarlama, Rust/TypeScript CI kontrollerini tamamlama ve gerçek oyun doğrulamasına hazırlanma.**
 
-### 📍 Şu anda hangi aşamadayız?
+Amaç upstream kodunu topluca kopyalamak değil; mevcut React arayüzünü, oyun runtime'ını, save formatını, Rust servislerini ve TRPOLARIS kullanıcı deneyimini koruyarak uyumlu değişiklikleri taşımaktır.
 
-**Aktif aşama: ana web deneyimini React'e taşıma ve eski DOM servis sınırlarını ayrıştırma.**
-
-React; ana web deneyiminin sayfa, navigasyon ve UI katmanının sahibi oluyor. Oyun runtime'ı React'e taşınmıyor. WASM, WebGPU, Web Audio, worker'lar, input sistemi, OPFS, Rust backend ve WebSocket çok oyunculu servisleri kendi sorumluluklarında kalıyor.
-
-| Alan | Bugünkü durum | Açıklama |
+| Alan | Entegrasyon durumu | Kalan doğrulama / sınır |
 |---|---|---|
-| Tarayıcı oyun runtime'ı | **Mevcut altyapı korunuyor** | WASM, WebGPU, Web Audio, worker ve input servisleri React dışındadır. |
-| Rust backend / multiplayer | **Mevcut altyapı korunuyor** | HTTP/TLS, WebSocket, LAN, Free Roam, Online, chat, Cloud ve Hub API servisleri Rust tarafındadır. |
-| Ana web navigasyonu | **React'e taşındı** | React sayfa durumunu, URL hash'ini ve geri/ileri gezinmeyi yönetir. |
-| Home / Play | **React arayüzü mevcut** | Oyun başlatma ve runtime durumu servis köprüsünden alınır. |
-| Online | **React arayüzü mevcut** | Oyuncu/oda görünümü ve isim sahipliği mevcut servis köprülerini kullanır. |
-| Mod Library | **React arayüzü mevcut** | Kartlar, arama/filtreler ve form React'tedir; platform depolama/manifest yardımcılarının DOM bağımlılıkları temizlenecektir. |
-| Saves / Cloud | **React arayüzü mevcut** | Kayıt, ekran görüntüsü ve Vault kullanıcı arayüzleri React'tedir; OPFS, şifreleme ve senkronizasyon servisleri korunur. |
-| Controls | **React sayfası ayrıştırıldı** | Eski `#controls` / `#keys` sayfa ağacı kaldırıldı; F9 yardım içeriği template üzerinden açılır. |
-| Settings | **React arayüzü mevcut** | Profil, önayar, ayar grupları ve ham `settings.ini` düzenleyicisi React ekranlarındadır; SettingsPanel servisinin DOM bağımlılıkları sıradaki temizlik konusudur. |
-| Accessibility | **React'e taşındı** | Eski gizli checkbox kökü kaldırıldı; tarayıcı tercih deposu ve document-level özellikler korunur. |
-| System | **React arayüzü mevcut** | Güncelleme, çeviri kontrolü, tanılama ve oyun verisi işlemleri mevcut servislerden çağrılır. |
-| Player Hub | **Ayrı React uygulaması mevcut** | `/hub/` altında çalışır; ana web sayfasının oyun runtime'ından ayrıdır. |
-| Legacy DOM temizliği | **Devam ediyor** | Görünür sayfaların çoğu React'tir; gizli `#app-pages` servis kökü ve bazı DOM tabanlı servisler hâlâ bulunmaktadır. |
+| **React web deneyimi** | Ana sayfalar, navigasyon ve görünür UI React tabanlıdır. | Bazı eski DOM servis kökleri ve UI dışı servis bağları hâlâ korunur; tüm servislerin DOM'dan ayrıldığı anlamına gelmez. |
+| **Oyun runtime'ı** | C tabanlı runtime, WebAssembly, WebGPU, Web Audio ve worker mimarisi korunur. | Tam native Windows ve WASM oyun derlemesi, kullanıcının orijinal oyun dosyalarıyla ayrıca doğrulanmalıdır. |
+| **Free Roam / Friends & Crews** | Arkadaş listesi sayfalama, doğrudan mesaj moderasyonu, crew davetleri, oda değişiklikleri ve FriendPrompt akışları koda entegre edilmiştir. | İki veya daha fazla gerçek oyun istemcisiyle davet, kabul, oda değişimi ve yeniden bağlanma testleri gereklidir. |
+| **GPS Distance HUD** | GPS hedef mesafesi göstergesi, ayarı ve runtime köprüsü eklenmiştir. | Şu an Player 1 kapsamındadır. Gerçek oyun içi görünüm ve birim/rota akışı test edilmelidir. |
+| **World Map / MAPD** | Legacy snapshot uyumluluğu ve slot tabanlı MAPD delta protokolü port edilmiştir. | Gerçek oyun oda değişimi, parçalı snapshot, harita marker'ları ve kayıp paket davranışı doğrulanmalıdır. |
+| **Minimap / NEARD** | Yakın oyuncu snapshot/delta akışı, spatial-grid tabanlı hub yolu ve Player tipi minimap göstergeleri eklenmiştir. | Native/WASM oyun testi, marker yönü/konumu, HUD yenilemesi ve iki istemcili oturum gereklidir. |
+| **Car Meet** | Park hâlindeki oyuncu kümeleri, harita etiketi/işareti, legend seçimi ve GPS hedefi kodlanmıştır; tanılama komutları ve test senaryosu vardır. | Gerçek oyunda görünürlük, seçim ve GPS varış akışı henüz manuel doğrulama gerektirir. |
+| **Art Factory 28–34** | Yedi tasarım için native parça desteği, VPAK overlay okuması, paket üretim aracı ve manifest bağlantısı eklenmiştir. | Kaynak texture dosyaları depoya eklenmez. Kullanıcı uyumlu mod kaynağından paket üretmeli ve mağaza akışını gerçek oyunda test etmelidir. |
+| **MODPACKS** | Parser ve builder kodu mevcuttur. | Güvenli entegrasyon kararıyla oyuncu tarafındaki mod aktivasyonu ve eski rim shop ayarları kapalıdır; kullanılabilir mağaza özelliği olarak sunulmaz. |
+| **Player Hub** | `/hub/` altında aynı-origin Rust API kullanan React uygulamasıdır. | Profil anonim tarayıcı oturumuna bağlıdır; kariyer istatistikleri gerçek oyun telemetrisi bağlanana kadar yer tutucudur. |
+| **Rust backend / CI** | Ortak sohbet moderasyonu ve token bucket kullanımı, browser API türleri ve Rust workspace format/lint kontrolleri seçici biçimde uyarlanmıştır. | Son PR HEAD'i için bütün CI adımları, browser regresyonları ve gerçek çok oyunculu testler tamamlanmalıdır. |
+| **Control Center** | Windows WPF yönetim aracı ana web uygulamasından ayrı tutulur. | Control Center'ın kendi Windows Release build ve temiz kurulum doğrulaması ayrı bir iş akışıdır. |
 
-**Önemli ayrım:** “Sayfa React oldu” demek, o sayfanın tüm iş kurallarının eski DOM'dan ayrıldığı anlamına gelmez. Hedef; eski sayfa HTML'ine ihtiyaç duymayan servis arayüzleri oluşturarak gizli uyumluluk kökünü güvenle kaldırmaktır.
+### 🌿 Aktif dal ve Pull Request
 
-### 🌿 Aktif GitHub dalı ve son durum
-
-| Öğe | Güncel kayıt |
+| Öğe | Durum |
 |---|---|
 | Repository | [trpolaris/NFSU2-Web](https://github.com/trpolaris/NFSU2-Web) |
-| Varsayılan dal | `main` |
-| `main` HEAD | [`f1452ce`](https://github.com/trpolaris/NFSU2-Web/commit/f1452ce76f4f344f560ddc10b60e51ba862d531c) |
-| React çalışma dalı | [`feature/react-web-experience`](https://github.com/trpolaris/NFSU2-Web/tree/feature/react-web-experience) |
-| Son React uygulama kodu commit'i | [`70952b9`](https://github.com/trpolaris/NFSU2-Web/commit/70952b99d04142fc2f6823b8e7e2633c9a8e49a4) |
-| İlgili Pull Request | [PR #15 — Main experience React migration](https://github.com/trpolaris/NFSU2-Web/pull/15) |
-| PR durumu | Açık, taslak; hedef dal `main` |
+| Varsayılan / yayın dalı | `main` |
+| Upstream entegrasyon dalı | [`integration/upstream-2026-11-06`](https://github.com/trpolaris/NFSU2-Web/tree/integration/upstream-2026-11-06) |
+| İlgili Pull Request | [PR #21 — Upstream integration](https://github.com/trpolaris/NFSU2-Web/pull/21) |
+| PR hedefi | `main` |
+| PR durumu | Açık ve Draft |
+| `main` / üretim | Bu entegrasyon çalışmasında değiştirilmedi; production deploy yapılmadı. |
 
-PR #15 henüz birleştirilmemiştir. React geçiş dalındaki kodu `main` veya canlı sunucu koduyla aynı kabul etmeyin.
+**CI rozetleri:** README üstündeki rozetler `main` dalını gösterir. PR #21 için rozetlerden ziyade ilgili PR'ın ve en son commit'in GitHub Actions sonuçlarına bakılmalıdır:
 
-**Son commit için GitHub Actions kaydı:**
+- [Multiplayer and Regression CI](https://github.com/trpolaris/NFSU2-Web/actions/workflows/multiplayer-ci.yml)
+- [Container image CI](https://github.com/trpolaris/NFSU2-Web/actions/workflows/image-rs.yml)
+- [Tüm GitHub Actions çalışmaları](https://github.com/trpolaris/NFSU2-Web/actions)
 
-| İş akışı | 3 Kasım 2026 tarihli son görünen durum | Bağlantı |
-|---|---|---|
-| `image-rs` — React kod commit'i | **Başarılı** | [Container image run](https://github.com/trpolaris/NFSU2-Web/actions/runs/41596182691) |
-| Multiplayer and Regression CI — PR / React kod commit'i | **Başarılı** | [PR CI run](https://github.com/trpolaris/NFSU2-Web/actions/runs/41596182724) |
-| Multiplayer and Regression CI — push / React kod commit'i | **Başarılı** | [Push CI run](https://github.com/trpolaris/NFSU2-Web/actions/runs/41596174778) |
+CI sonuçları commit'e özeldir. Önceki bir commit'te geçen test, daha sonraki commit'in de geçtiğini kanıtlamaz. PR #21, son HEAD'in zorunlu kontrolleri tamamlanmadan ve gerçek oyun doğrulaması gerektiren adımlar planlanmadan merge edilmemelidir.
 
-Yukarıdaki başarılı sonuçlar son React uygulama kodu commit'i `70952b9` içindir. Bu README yol haritası daha sonra dokümantasyon-only commit'iyle güncellenmiştir; dokümantasyon commit'i uygulama kodunu veya canlı sunucuyu değiştirmez. Yeni dal/PR durumunu [GitHub Actions](https://github.com/trpolaris/NFSU2-Web/actions) üzerinden izleyin.
+### ✅ 8 Kasım upstream değişikliklerinden seçici olarak uyarlananlar
 
-### ✅ React geçişinde yapılanlar
+- **Sohbet moderasyonu:** Free Roam sohbeti ve arkadaş mesajları ortak moderasyon/mute penceresini kullanır; mesajların açık olan bütün oyun sayfalarına gönderilmesi korunur.
+- **Token bucket:** Online servislerindeki ortak hız sınırı altyapısı paylaşılır.
+- **Tarayıcı API türleri:** Worker ve dosya API'lerinin tip tanımları, mevcut web katmanına uyarlanmıştır.
+- **Rust kalite kontrolleri:** Workspace genelinde `cargo fmt` ve Clippy kontrolleri CI akışına eklenmiştir; test kodu workspace'in Rust 1.85 tabanıyla uyumlu tutulur.
+- **Paket açma sınırları:** JDLZ, RAWW ve HUFF bloklarının bildirilen çıktı boyutları ve paket header alanları, streamer'ın ayırdığı bellek aralığına göre kontrol edilir. Eksik veya sınır dışı paket çıktısı kabul edilmez.
+
+### ⏸️ Bilerek ertelenen upstream değişiklikleri
+
+Bazı değişiklikler yalnızca bir dosyanın kopyalanmasıyla güvenli biçimde taşınamaz:
+
+- **License plate moderasyonu:** Upstream'in plaka özel filtrelemesi C runtime, Rust isim servisi, web ayar doğrulaması ve testlerin birlikte güncellenmesini gerektirir. Fork'ta aynı plaka API/altyapısı bulunmadığından yarım port edilmemiştir.
+- **MODPARTS save-recovery:** Yeni `MODPARTS.NEW` staging, profil başına write counter ve araç fingerprint formatı mevcut fork'un save akışıyla birebir aynı değildir. Save verisi kaybetme riski nedeniyle ayrı entegrasyon olarak bırakılmıştır.
+- **Ortak atomic-file katmanı:** Birden fazla Rust state deposunun dosya yazma, hata raporlama ve sync davranışını değiştirir. Her servis için ayrı uyumluluk testleri olmadan topluca alınmamıştır.
+- **Runtime adres/hook refaktörleri:** Upstream'in adres ve hook düzeni mevcut TRPOLARIS runtime'ına topluca taşınmamıştır.
+- **Co-op / Split Screen:** 2–4 oyuncu desteği render, bellek, input, kamera, kariyer ve yarış sistemlerini birlikte gerektirir; dosya düzeyinde kopyalanamaz.
+
+### 🧩 React arayüz mimarisi (mevcut temel)
+
+
 
 #### React kabuğu, navigasyon ve header
 
@@ -740,88 +752,53 @@ Bu geçişte görünür UI taşınırken servis davranışı korunmuştur; büt�
 
 **React'e taşınmayacak altyapı:** WASM oyun host'u, WebGPU, Web Audio/AudioWorklet, worker'lar, SharedArrayBuffer/Atomics, klavye/gamepad/dokunmatik input, OPFS, Service Worker, Rust HTTP/TLS, WebSocket, LAN switch, Free Roam ve Online servisleri. Bunlar eski UI değildir; runtime/servis katmanlarıdır.
 
-### 🧭 Nereden devam edilmeli?
+### 🧭 Sıradaki geliştirme ve doğrulama işleri
 
-#### P0 — React dalını doğrula ve sabitle
+#### P0 — PR #21 exact-HEAD CI doğrulaması
 
-1. PR #15'in Multiplayer and Regression CI sonucunu bekleyip kaydet.
-2. `npm run check`, `npm run build`, web test paketi ve ilgili Rust testlerini son commit'te doğrula.
-3. Controls değişikliklerinin F9 yardım penceresini, input ayarlarını, gamepad bağlantısını ve hash navigasyonunu bozmadığını kontrol et.
-4. Zorunlu kontroller yeşil olduğunda PR taslak durumunu kaldır; sonra merge kararı ver.
-5. Canlı WSL sunucusuna dağıtmadan önce branch/commit SHA ile Docker image kimliğini kaydet.
+1. Son entegrasyon commit'inde native runtime/MODPACKS kontrolleri, x86 lifter regresyonları, TypeScript, web build, Cargo.lock, Rust workspace testleri, Rust formatı ve Clippy adımlarının tamamını doğrula.
+2. GPS Distance, Photo Mode, Free Roam mailbox, MAPD/NEARD protokolü ve geriye dönük uyumluluk testlerini çalıştır.
+3. Rust server binary'lerini üret; synthetic Online yük/abuse smoke testini ve Chromium tabanlı web regresyonlarını tamamla.
+4. Docker image build sonucunu aynı commit SHA ile eşleştir.
+5. Zorunlu kontroller ve review tamamlanmadan PR taslak durumunu kaldırma veya merge etme.
 
-#### P1 — Settings servisinin DOM'dan ayrılması
+#### P1 — World Map, Minimap ve Car Meet gerçek oyun testi
 
-**Önerilen bir sonraki geliştirme budur.**
+- Native ve WASM oyun build'lerini kullanıcının orijinal PC oyun dosyalarıyla üret.
+- World Map snapshot/delta birleşimini, oda geçişini ve parçalı MAPD paketlerini iki istemciyle doğrula.
+- NEARD marker görünürlüğü, yönü, pozisyon kestirimi, duplicate suppression ve HUD/icon-list yenilemesini kontrol et.
+- 24 oyunculu Car Meet senaryosunu çalıştır; marker/label/item, legend hide/show, GPS hedef seçimi ve varışta rota temizliğini gerçek oyunda test et.
 
-1. `SettingsPanel` içinden UI DOM sorgularını ayrıştır.
-2. Ayar okuma, doğrulama, yazma, profil uygulama ve varsayılana dönme işlemlerini snapshot + command API olarak sun.
-3. React bileşenlerine yalnızca typed snapshot ve komut köprüsü bırak.
-4. Ham `settings.ini` editörünün yorumları, desteklenmeyen satırlar, sıfırlama ve profil koruma davranışlarını test et.
-5. Servislerin artık kullanmadığı doğrulanınca gizli Settings HTML kökünü kaldır.
+#### P1 — Friends & Crews canlı oturum doğrulaması
 
-#### P1 — Saves / Cloud / Vault servis ayrıştırması
+- İki veya daha fazla gerçek istemciyle arkadaş listesi, doğrudan mesaj, crew daveti, Join/Decline ve oda değişimini test et.
+- FriendPrompt için bumper teması, isim claim durumu, gelen/giden istek ve F kısayolunun güvenli davranışını kontrol et.
+- Bağlantı kesilmesi, tekrar bağlanma, açık birden fazla oyun sayfası ve davet kuyruğu sınırlarını doğrula.
 
-1. React ekranını değiştirmeden `SavesPanel` ve `VaultPanel` işlemlerini UI DOM'undan ayır.
-2. OPFS kayıtları, ekran görüntüleri, dosya indirme/yükleme, isimlendirme ve geri yükleme akışlarını koru.
-3. AES-GCM / PBKDF2, keyphrase, eski `/vault` uyumluluğu ve `/cloud/v1/saves` protokolünü değiştirmeden taşı.
-4. ETag, iki tarayıcı eşitlemesi, conflict (mine/theirs), önceki sürüme dönüş ve 30 günlük geri alma davranışlarını test et.
-5. Eski HTML köküne ihtiyaç kalmadığında Saves/Vault markup'ını kaldır.
+#### P1 — MODPACKS ve save uyumluluğu
 
-#### P1 — Mod Library ve System servis temizliği
+- Mod parser/builder testlerini sürdür; mağaza aktivasyonunu mevcut güvenli varsayılan olan kapalı durumda tut.
+- Oyuncu tarafında yeniden etkinleştirmeden önce save/restore, araç anahtarları, bilinmeyen araç tipleri, profil değişimi ve geri alma senaryolarını ayrı bir tasarım ve test planıyla tamamla.
+- MODPARTS save-recovery veya yeni paket formatı, mevcut formatla geriye dönük uyumluluk kanıtlanmadan devreye alınmamalıdır.
 
-1. Mod listesi, favoriler, filtreler ve import/export iş kurallarını bağımsız modüle taşı.
-2. `localStorage` veri formatını, mevcut kayıtları ve manifest kontrolünü koru.
-3. Güncelleme, çeviri kontrolü, ilk kurulum, diagnostics ve game-data işlemlerini state/command arayüzlerine ayır.
-4. Servisler bağımsız API'ye geçtikten sonra kullanılmayan gizli form/status elemanlarını kaldır.
+#### P2 — Kapasite, performans ve kalan upstream alanları
 
-#### P1 — Player Hub bütünleştirmesi ve gerçek veri
+- LAN switch'in `/17` adres alanı ve 24.000 sanal peer sınırı, Free Roam hub'ın ayrı 6.144 oyuncu sınırıyla karıştırılmamalıdır. Bu değerler kod yapılandırma sınırlarıdır; 24.000 aktif Free Roam oyuncusu için performans garantisi değildir.
+- Claim store için 5.000.000 kayıt hard cap ve 180 günlük hold tanımlanmıştır; bu büyüklükte bellek, disk ve yazma yükü henüz gerçek deployment testinden geçmiş sayılmaz.
+- Aşamalı yük testleriyle CPU, RAM, file descriptor, WebSocket kuyruğu, UDP kaybı, reverse proxy ve degrade davranışı ölçülmelidir.
+- Daha sonraki ayrı çalışmalar: Vehicle Show-Off, çoklu lobby/Quick Chat, Co-op/Split Screen, gizli Special vinyls, araç filtreleri/unique unlock, Visual Reputation Remover, hava durumu senkronizasyonu, pause-menu save, save recovery, Last.fm/EA Trax, ülke RTT ve kalan çarpışma/efekt düzeltmeleri.
 
-1. `/hub/` uygulamasını ana web deneyimiyle dil, tasarım, erişilebilirlik ve hata durumları açısından tutarlı hâle getir.
-2. `/api/v1/session`, `/api/v1/live/players`, `/api/v1/me` ve `/api/v1/garage` uçlarını gerçek sunucuda doğrula.
-3. Profil ve garajın anonim tarayıcı oturumuna bağlı olduğunu açıkça göster.
-4. Kariyer istatistiklerini ancak doğrulanmış oyun telemetrisi geldikten sonra gerçek veriyle doldur.
+### 🧪 Test ve doğrulama kayıtlarını doğru okuma
 
-#### P1 — Test client / WebSocket trafik incelemesi
+**GitHub Actions:** Güncel durum her commit için ayrı değerlendirilir. Son commit'in Multiplayer/Regression CI ve image-rs sonuçları [GitHub Actions](https://github.com/trpolaris/NFSU2-Web/actions) üzerinden izlenmelidir. Bu README sabit bir CI başarı iddiası taşımaz; eski commit sonuçları yeni HEAD'in yerine geçmez.
 
-Bağımsız test client'ın sunucuya bağlanması sırasında oyun FPS'inde belirgin düşüş gözlendi; sunucu yeniden başlatılınca FPS normale döndü. Test client bağlantısı önemli bir tetikleyicidir, ancak kök neden henüz kod/ölçüm ile kanıtlanmamıştır.
+**Gerçek oyun doğrulaması:** Syntax kontrolü, unit test, synthetic load veya Docker image build; gerçek native Windows oyun build'i, WASM oyun build'i, orijinal oyun varlıklarıyla oynama, fiziksel kontrolcü/telefon testi veya iki gerçek oyun istemcisiyle multiplayer testinin yerine geçmez.
 
-İncelenecek noktalar:
+#### Tarihsel yerel deployment kaydı — 3 Kasım 2026
 
-- Test client'ın WebSocket paket türleri ve gönderim sıklığı.
-- Oyuncu konumu, presence ve snapshot güncellemelerinin gereksiz tekrarı.
-- LAN paketlerinin yanlış hedeflere tekrar broadcast edilmesi veya echo döngüleri.
-- Bir oyuncu mesajının diğer oyunculara çoğalırken ortaya çıkan iş yükü.
-- Yavaş client nedeniyle yazma kuyruğu/backpressure birikmesi.
-- Bağlantı kapanması, reconnect, timeout ve oyuncu oturumu temizliği.
+Aşağıdaki sonuçlar o tarihteki WSL yerel snapshot'ına aittir; 8 Kasım entegrasyon HEAD'inin doğrulaması değildir:
 
-**Kısıt:** FPS benchmark, FPS stres testi veya grafik/render kodu değişikliği yapılmayacaktır. Önce test client kaynak kodu ve Rust backend akışı incelenecek; sohbet, filtre, Free Roam ve Player Hub korunacaktır.
-
-#### P2 — Tam sistem doğrulaması
-
-- İki ayrı gerçek tarayıcıyla LAN/Free Roam bağlantısı.
-- Room/Crew chat, Quick Chat ve yazılı mesaj filtreleme.
-- Oyuncu adı claim, reconnect ve bağlantı kapatma.
-- Cloud kayıt yükleme/eşitleme/çakışma/geri yükleme.
-- Player Hub canlı oyuncu listesi ve profil/garaj CRUD.
-- Chrome/Firefox/Safari destek kapsamı ve 320 px mobil regresyonu.
-- WebSocket upgrade, TLS, erişim politikası, rate limit ve yedekleme/rollback.
-
-#### P2 — Dağıtım ve Control Center
-
-1. React dalı doğrulanmadan çalışan sunucuya aktarılmamalıdır.
-2. Deployment kaydında Git branch, commit SHA, Docker image tag/digest, Compose servis ve health sonucu bulunmalıdır.
-3. `game-data`, `module-data`, `certs` ve `state` volume'ları için yedek/geri yükleme doğrulanmalıdır.
-4. Genel internet/WAN adresi, DNS ve public tünel mevcut kayıtlarda doğrulanmadı.
-5. Windows Control Center ayrı bir bileşendir. 1.5.6 kaynak ve yapısal kontrolleri raporlanmış olsa da tam Windows Release build, PowerShell parse ve sıfırdan temiz kurulum ayrıca doğrulanmalıdır.
-
-### 🧪 Test ve dağıtım kayıtlarının doğru okunması
-
-#### React geçişinden önceki son doğrulanmış yerel deployment
-
-3 Kasım 2026 tarihli WSL terminal çıktısında:
-
-| Kontrol | Sonuç |
+| Kontrol | Tarihsel sonuç |
 |---|---|
 | Rust `nfsu2-roam` testleri (offline) | 98 geçti, 0 başarısız |
 | Rust `nfsu2-roam` testleri (locked) | 98 geçti, 0 başarısız |
@@ -831,13 +808,13 @@ Bağımsız test client'ın sunucuya bağlanması sırasında oyun FPS'inde beli
 | Compose `server` container | `healthy` |
 | `https://127.0.0.1:8444/game.json` | HTTP 200 |
 
-Bu doğrulama daha sonra gönderilen React commitlerini kapsayan yeni bir WSL build/deploy değildir. Son çalışan yerel sunucunun `70952b9` commit'ini içerdiği varsayılmamalıdır.
-
 Rust filtre testleri; 28 locale dosyası, Türkçe/İngilizce kelimeler, çok kelimeli ifadeler, noktalama, kelime sınırı, obfuscation ve CJK metinlerini kapsar. Filtre Rust Free Roam yazılı chat iletilirken uygulanır; sabit Quick Chat cümleleri ayrı akıştır.
 
-#### Önceki web regresyon sonucu
+#### Tarihsel web regresyon kaydı — 2 Kasım 2026
 
-2 Kasım 2026 tarihli test snapshot'ında 381 testten 342'si başarılı, 0'ı başarısız ve 39'u atlanmıştı. 320 px responsive testte 16 dil için 192 ölçümde yatay taşma raporlanmamıştı. Bu sonuç önceki snapshot'a aittir; son React commitlerinin sonucu olarak kullanılmamalıdır.
+Önceki test snapshot'ında 381 testten 342'si başarılı, 0'ı başarısız ve 39'u atlanmıştı. 320 px responsive testte 16 dil için 192 ölçümde yatay taşma raporlanmamıştı. Bu sonuç önceki snapshot'a aittir ve güncel entegrasyon dalının test sonucu olarak gösterilmemelidir.
+
+
 
 ### 🖥️ Yerel sunucu ve dağıtım altyapısı
 
@@ -881,9 +858,11 @@ Bu işlem `/state` ve diğer kalıcı volume'ları silmemelidir. Yedek ve açık
 #### GitHub ve geliştirme
 
 - [Repository](https://github.com/trpolaris/NFSU2-Web)
-- [Main](https://github.com/trpolaris/NFSU2-Web/tree/main)
-- [React çalışma dalı](https://github.com/trpolaris/NFSU2-Web/tree/feature/react-web-experience)
-- [PR #15 — React web experience](https://github.com/trpolaris/NFSU2-Web/pull/15)
+- [Main / yayın dalı](https://github.com/trpolaris/NFSU2-Web/tree/main)
+- [Upstream entegrasyon dalı](https://github.com/trpolaris/NFSU2-Web/tree/integration/upstream-2026-11-06)
+- [PR #21 — Selective upstream integration](https://github.com/trpolaris/NFSU2-Web/pull/21)
+- [Upstream karşılaştırması ve yol haritası](docs/UPSTREAM-COMPARISON-ROADMAP.md)
+- [Upstream port notları](docs/UPSTREAM-INTEGRATION-2026-11-06.md)
 - [GitHub Actions](https://github.com/trpolaris/NFSU2-Web/actions)
 - [Container image package](https://github.com/trpolaris/NFSU2-Web/pkgs/container/need-for-speed-underground-2-web-rs)
 - [Releases](https://github.com/trpolaris/NFSU2-Web/releases)
