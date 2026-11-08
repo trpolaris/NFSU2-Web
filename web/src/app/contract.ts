@@ -123,6 +123,10 @@ export interface InputSubsystem extends Subsystem {
   sms?(id: number): boolean;
   /** photo mode (runtime/photo.c, photo.ts): what (its PH_* number) and its values; false: it cannot reach the game */
   photo?(what: number, a?: number, b?: number): boolean;
+  /** career Free Roam Tracks menu: 0 the city, 1..9 a race-track map */
+  travel?(where: number): boolean;
+  /** career Free Roam Friends menu: join a named friend, at its track spot (0: the city) */
+  travelFriend?(nameHash: number, spot: number): boolean;
   /** every key and button the game holds goes up (photo mode takes the keys) */
   releaseAll?(): void;
   /** performance.now() of the player's last key, mouse or controller input; null: the page cannot tell

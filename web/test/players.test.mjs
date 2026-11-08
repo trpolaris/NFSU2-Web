@@ -130,7 +130,7 @@ test('/players with --max-peers 1: full while one plays, the next game of before
 
 test('the page\'s line', async () => {
   const out = await esbuild.build({ entryPoints: [path.join(HERE, '../src/app/players.ts')], bundle: true, write: false, format: 'esm', platform: 'neutral' });
-  const { playersText, queueText, roomHash } = await import('data:text/javascript;base64,' + Buffer.from(out.outputFiles[0].text).toString('base64'));
+  const { playersText, queueText, roomHash, spotCounts, askSpots } = await import('data:text/javascript;base64,' + Buffer.from(out.outputFiles[0].text).toString('base64'));
   // the room's hash as roam_core.c makes it (tests/roam_unit.c checks the same value): capitals and spaces do not count
   assert.equal(roomHash('blueroom'), 0x160fba32);
   assert.equal(roomHash(' Blue Room\t'), 0x160fba32);
@@ -167,6 +167,13 @@ test('the page\'s line', async () => {
   assert.equal(queueText({ pos: 23, of: 40, eta: 2 * 3600 }), 'The server is full. In line for a place: 23rd of 40 (about 2 h).');
   assert.equal(queueText({ pos: 101, of: 140 }), 'The server is full. In line for a place: 101st of 140.');
   assert.equal(queueText({ pos: 112, of: 140 }), 'The server is full. In line for a place: 112th of 140.');
+  assert.deepEqual([...spotCounts({ players: 1, online: 0, spots: [2, 0] }, [4711, 4701])], [[4711, 2], [4701, 0]]);
+  assert.deepEqual([...spotCounts({ players: 1, online: 0 }, [4711])], [], 'older server: no exact spot counts');
+  const oldFetch = globalThis.fetch;
+  try {
+    globalThis.fetch = async () => new Response(JSON.stringify({ players: 0, online: 0, spots: [3, 1] }), { status: 200 });
+    assert.deepEqual([...await askSpots([4711, 4701], 1000)], [[4711, 3], [4701, 1]]);
+  } finally { globalThis.fetch = oldFetch; }
   assert.equal(playersText({ players: -1, online: 0 }), '');
   assert.equal(playersText({}), '');
 });

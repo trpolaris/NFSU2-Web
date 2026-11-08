@@ -1,7 +1,10 @@
+import { atName, friendSpot } from './tracks';
+
 export interface FriendRow {
   name: string;
   where: 'roam' | 'online' | '';
   room?: string;
+  at?: number;
   contact?: string;
 }
 export interface FriendLists {
@@ -40,6 +43,7 @@ export class FriendsApi {
         name: f.name as string,
         where: f.where === 'roam' ? 'roam' : f.where === 'online' ? 'online' : '',
         ...(typeof f.room === 'string' ? { room: f.room } : {}),
+        ...(typeof f.at === 'number' && Number.isInteger(f.at) && f.at >= 0 && f.at <= 0xffffffff ? { at: f.at } : {}),
         ...(typeof f.contact === 'string' ? { contact: f.contact } : {}),
       }];
     }) : [];
@@ -97,7 +101,7 @@ export class FriendsPanel {
   private filter = '';
   private page = 0;
 
-  constructor(private root: HTMLElement, private api: FriendsApi, private log: (line: string) => void, private room: () => string = () => '') {
+  constructor(private root: HTMLElement, private api: FriendsApi, private log: (line: string) => void, private room: () => string = () => '', private join?: (friend: FriendRow) => void) {
     root.classList.add('menu-friends-panel');
     root.innerHTML = `
       <div class="friends-panel-head">
@@ -169,6 +173,12 @@ export class FriendsPanel {
       if (button.matches('[data-friends-mail-clear]')) {
         this.received = [];
         this.renderMail();
+      }
+      const joinName = button.dataset.friendJoin;
+      if (joinName && this.join) {
+        const friend = this.lists?.friends.find(f => f.name === joinName);
+        if (friend) this.join(friend);
+        return;
       }
       const op = button.dataset.friendOp as 'accept' | 'decline' | 'remove' | 'block' | undefined;
       const name = button.dataset.friendName;
@@ -382,13 +392,15 @@ export class FriendsPanel {
     this.page = Math.min(this.page, pageCount - 1);
     const start = this.page * FRIEND_PAGE_LINES;
     for (const f of friends.slice(start, start + FRIEND_PAGE_LINES)) {
+      const spot = f.where === 'roam' ? atName(friendSpot(f.room, f.at)) : '';
       const state = f.where === 'roam'
-        ? (f.room ? `Free Roam · ${f.room}` : 'Free Roam')
+        ? [f.room ? `Free Roam · ${f.room}` : 'Free Roam', spot].filter(Boolean).join(' · ')
         : f.where === 'online' ? 'Online lobisi' : 'Çevrimdışı';
-      list.append(this.item(f.name, state, [
-        this.action('remove', f.name, 'Kaldır'),
-        this.action('block', f.name, 'Engelle'),
-      ]));
+      const actions = [this.action('remove', f.name, 'Kaldır'), this.action('block', f.name, 'Engelle')];
+      if (this.join && f.where === 'roam' && typeof f.at === 'number') {
+        const join = el('button', 'friends-row-action', 'Katıl'); join.type = 'button'; join.dataset.friendJoin = f.name; actions.unshift(join);
+      }
+      list.append(this.item(f.name, state, actions));
     }
     if (!list.childElementCount) list.append(el('li', 'friends-empty', this.filter ? 'Eşleşen arkadaş yok.' : 'Henüz arkadaş eklenmemiş.'));
 
