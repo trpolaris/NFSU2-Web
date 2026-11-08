@@ -1527,7 +1527,8 @@ mod tests {
         assert_eq!(slot(vip_at(ADDRS - 1)), Some(ADDRS - 1), "last /24 and last host in the pool");
         assert_eq!(slot(BASE | 0x1F00 | 2), Some(31), "10.77.31.2 is inside the 96-subnet pool");
         assert_eq!(slot(BASE | 0x2000 | 2), Some(32), "10.77.32.2 is inside the 96-subnet pool");
-        for v in [BASE, BASE | 1, BASE | 252, BASE | 255, BASE | ((NETS as u32) << 8) | 2, BASE | 0x7F00 | 2, 0, BROADCAST, BASE | 0x1700 | 0xFD]
+        for v in
+            [BASE, BASE | 1, BASE | 252, BASE | 255, BASE | ((NETS as u32) << 8) | 2, BASE | 0x7F00 | 2, 0, BROADCAST, BASE | 0x1700 | 0xFD]
         {
             assert_eq!(slot(v), None, "{v:x}");
         }

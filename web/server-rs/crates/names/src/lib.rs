@@ -438,16 +438,19 @@ fn lookalike(ch: char) -> char {
     }
 }
 
-/// `\p{M}`: a mark (Mn, Mc, Me)
+/// `\p{M}`: a mark (Mn, Mc, Me), including the Unicode 17 marks missing from our Unicode 16 category table.
 fn is_mark(ch: char) -> bool {
     matches!(get_general_category(ch), GeneralCategory::NonspacingMark | GeneralCategory::SpacingMark | GeneralCategory::EnclosingMark)
+        || matches!(ch as u32, 0x10EFA..=0x10EFB | 0x1E6E3 | 0x1E6E6 | 0x1E6EE..=0x1E6EF | 0x1E6F5)
 }
 
-/// A character the mark table's Unicode has not assigned yet.  unicode-normalization's tables can be newer than
-/// that (and than Node's ICU, which is the same Unicode, 16.0 as this is written): ICU leaves a character it does
-/// not know as it is, with no decomposition and combining class 0, so it also ends a run of marks to reorder.
+/// A character still unassigned by Node 24's Unicode 17 ICU data. Our general-category crate is Unicode 16,
+/// so the assigned Unicode 17 blocks used by this corpus are exempted from its older Unassigned result. Newer
+/// unassigned characters stay intact, with combining class 0, just as ICU leaves them.
 fn unknown(ch: char) -> bool {
-    !ch.is_ascii() && get_general_category(ch) == GeneralCategory::Unassigned
+    let cp = ch as u32;
+    let assigned_in_17 = matches!(cp, 0x10EFA..=0x10EFB | 0x1E6C0..=0x1E6FF);
+    !ch.is_ascii() && get_general_category(ch) == GeneralCategory::Unassigned && !assigned_in_17
 }
 
 /// The name's characters as names.mjs reads them, `[...name.normalize('NFKD').replace(/\p{M}/gu, '')]` with the

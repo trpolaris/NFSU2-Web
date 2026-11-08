@@ -32,8 +32,8 @@ fn chars(ranges: &[(u32, u32)]) -> Vec<char> {
     ranges.iter().flat_map(|&(a, b)| a..=b).filter_map(char::from_u32).collect()
 }
 
-/// Marks: accents of every script, variation selectors, the keycap, and some that Unicode added after 16.0 (marks
-/// with a combining class in unicode-normalization's tables, nothing yet for Node's ICU).
+/// Marks: accents of every script, variation selectors, the keycap, and Unicode 17 marks in the Tai Yo and Arabic
+/// Extended-C blocks (Node 24's ICU uses Unicode 17; the Rust general-category crate is still Unicode 16).
 fn marks() -> Vec<char> {
     chars(&[
         (0x300, 0x36f),

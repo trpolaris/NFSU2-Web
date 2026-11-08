@@ -432,6 +432,13 @@ fn read_as_nfkd_without_marks_and_lookalikes() {
     assert_eq!(text("\u{f1}i\u{332}"), "ni");
     assert_eq!(text("\u{ff4e}\u{1d41a}\u{24d0}"), "naa");
     assert_eq!(text("\u{39d}\u{430}\u{20ac}"), "Nae");
+    // Unicode 17 marks are stripped like Node 24's ICU, although the Rust category table is Unicode 16.
+    assert_eq!(text("a\u{10efb}b"), "ab");
+    assert_eq!(text("a\u{1e6e3}b"), "ab");
+    assert_eq!(text("a\u{1e6e6}b"), "ab");
+    assert!(blocked_name("Vaå\u{2061}nDyk\u{1e6e3}e8⁷81"));
+    assert!(!blocked_name("kiⓘ𝜘ϵ\u{10efb}𝟨6ŗaⓒc𝑜0ṅ#"));
+    assert!(!blocked_name("D\u{e003f}𝔸nᵑ𝗂9₉9GsV\u{1e6e6}an  D\u{1ace}yk€"));
     // a keycap: the digit stays, the variation selector and the enclosing keycap are marks
     assert_eq!(text("1\u{fe0f}\u{20e3}"), "1");
     // the ligature and the fraction come apart, the emoji and the zero-width joiner stay
