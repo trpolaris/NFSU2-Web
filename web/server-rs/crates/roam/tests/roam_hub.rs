@@ -776,9 +776,14 @@ fn wait_for(what: &str, mut f: impl FnMut() -> bool) {
 
 #[test]
 fn on_its_thread_frames_reach_the_hub_its_lists_go_out_through_the_switch_a_departure_is_forgotten() {
+    // Outside a runtime, RoamHub uses process CPU time; parallel tests can make an idle hub look busy.
+    // Give it its own idle workers so this test measures only its runtime's utilization.
+    let rt = tokio::runtime::Builder::new_multi_thread().worker_threads(2).enable_all().build().expect("a runtime");
     let lines = Arc::new(Mutex::new(Vec::<String>::new()));
     let l2 = lines.clone();
-    let hub = RoamHub::spawn(RoamOptions { tick_ms: 50, ..RoamOptions::default() }, Arc::new(move |s: &str| l2.lock().push(s.into())));
+    let hub = rt.block_on(async {
+        RoamHub::spawn(RoamOptions { tick_ms: 50, ..RoamOptions::default() }, Arc::new(move |s: &str| l2.lock().push(s.into())))
+    });
     assert_eq!(hub.vip(), ROAM_HUB_VIP);
     assert_eq!(hub.name(), "free-roam hub");
     assert!(!hub.listed(), "the hub is on nobody's peer list");
