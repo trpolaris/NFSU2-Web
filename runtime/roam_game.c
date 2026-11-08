@@ -5344,13 +5344,34 @@ static void js_race(MpJs *j, uint32_t r){
 static void js_players(MpJs *j, const MpLobby *l){
     js_key(j, "names"); js_raw(j, "[");
     int me = -1, trip = l == &g_mp.l && g_mp.st == MP_TRIP;
+    uint32_t counts = 0, friends = 0, crew = 0;
+    int mine_counts = trip ? g_mp.trip_counts : mp_counts(l->race);
     for (int i = 0; i < l->n && i < RC_LOBBY_MAX; i++){
         if (i) js_raw(j, ",");
         js_val(j, trip ? g_mp.names[i] : mp_name(l->ids[i]));
-        if (l->ids[i] == g_s.conf.self_id) me = i;
+        if (l->ids[i] == g_s.conf.self_id){
+            me = i;
+            if (mine_counts) counts |= 1u << i;
+        } else {
+            if (l->counts >> i & 1u) counts |= 1u << i;
+            if (trip ? ((g_mp.friend_mask >> i) & 1u) : mp_friend(l->ids[i])) friends |= 1u << i;
+            else if (trip ? ((g_mp.crew_mask >> i) & 1u) : mp_crewmate(l->ids[i])) crew |= 1u << i;
+        }
     }
     js_raw(j, "]");
     js_int(j, "me", me); js_int(j, "max", l->max);
+    if (mine_counts) js_int(j, "counts", 1);
+    const char *keys[3] = { "c", "fr", "cr" };
+    const uint32_t masks[3] = { counts, friends, crew };
+    for (int pass = 0; pass < 3; pass++){
+        if (!masks[pass]) continue;
+        js_key(j, keys[pass]); js_raw(j, "[");
+        for (int i = 0; i < l->n && i < RC_LOBBY_MAX; i++){
+            if (i) js_raw(j, ",");
+            js_raw(j, masks[pass] & (1u << i) ? "1" : "0");
+        }
+        js_raw(j, "]");
+    }
     /* Include car names and the fastest other car's rating relative to ours,
      * after applying the same partial engine balancing as the actual race. */
     if (!trip){
