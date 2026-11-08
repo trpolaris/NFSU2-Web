@@ -2568,6 +2568,25 @@ mod tests {
     use super::*;
 
     #[test]
+    fn slur_lines_share_a_window_and_reset_after_mute() {
+        let mut limits = Limits::default();
+        limits.slur_window_ms = 1000.0;
+        limits.slur_mute_ms = 5000.0;
+        let mut times = Vec::new();
+        let mut until = 0.0;
+
+        assert!(!limits.slur_said(&mut times, &mut until, 100.0));
+        assert!(!limits.slur_said(&mut times, &mut until, 500.0));
+        assert!(limits.slur_said(&mut times, &mut until, 900.0));
+        assert_eq!(until, 5900.0);
+        assert!(times.is_empty(), "a mute starts a fresh counting window");
+
+        assert!(!limits.slur_said(&mut times, &mut until, 950.0));
+        assert!(!limits.slur_said(&mut times, &mut until, 2000.0));
+        assert_eq!(times, [2000.0], "an entry older than the window expires");
+    }
+
+    #[test]
     fn fit_and_times() {
         assert_eq!(fmt_time(186.82000732421875), "3:06.82");
         assert_eq!(fmt_time(11.199999809265137), "0:11.20");

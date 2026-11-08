@@ -30,7 +30,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: multiplayer-ci-${{ github.workflow }}-${{ github.ref }}
@@ -124,10 +124,24 @@ jobs:
           mkdir -p out/ci
           cargo test --manifest-path web/server-rs/Cargo.toml --workspace 2>&1 | tee out/ci/rust-tests.log
 
+      - name: Format Rust workspace on integration pushes
+        if: github.event_name == 'push' && github.ref == 'refs/heads/integration/upstream-2026-11-06'
+        run: |
+          cargo fmt --manifest-path web/server-rs/Cargo.toml --all
+          if ! git diff --quiet -- web/server-rs; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add web/server-rs
+            git commit -m "style: format Rust workspace"
+            git push origin HEAD:refs/heads/integration/upstream-2026-11-06
+          fi
+
       - name: Check Rust formatting
+        if: ${{ !cancelled() }}
         run: cargo fmt --manifest-path web/server-rs/Cargo.toml --all -- --check
 
       - name: Run Rust Clippy
+        if: ${{ !cancelled() }}
         run: cargo clippy --manifest-path web/server-rs/Cargo.toml --workspace --all-targets -- -D warnings
 
       - name: Test GPS distance HUD and unit conversion
