@@ -1846,13 +1846,14 @@ impl Hub {
                 s.marks.extend(links.iter().map(|l| match slots.get(l.slot as usize) {
                     Some(Some(q)) => {
                         let crews = mine.iter().enumerate().fold(0u8, |m, (c, h)| m | (q.crews.contains(h) as u8) << c);
-                        let friend = befriended && match (&p.owner, &q.owner) {
-                            (Some(a), Some(b)) if a != b => {
-                                let id = friend_id(a, b);
-                                p.friend_ids.binary_search(&id).is_ok() && q.friend_ids.binary_search(&id).is_ok()
-                            }
-                            _ => false,
-                        };
+                        let friend = befriended
+                            && match (&p.owner, &q.owner) {
+                                (Some(a), Some(b)) if a != b => {
+                                    let id = friend_id(a, b);
+                                    p.friend_ids.binary_search(&id).is_ok() && q.friend_ids.binary_search(&id).is_ok()
+                                }
+                                _ => false,
+                            };
                         crews | if friend { wire::MARK_FRIEND } else { 0 }
                     }
                     _ => 0,
