@@ -364,7 +364,7 @@ static int path_under(const char *path, const char *dir){
 #ifdef GF_CACHE
 #define GF_N    1024                    /* names (a power of two); 3/4 full: all forgotten */
 #define GF_FDS  256                     /* closed handles' descriptors kept open */
-static struct { char *win, *real; int64_t size; char *real2; int64_t cut, head, bsize; } g_gf[GF_N];
+static struct { char *win, *real; int64_t size; char *real2; int64_t cut, head, bsize; const char *pk; } g_gf[GF_N];
 static int g_gf_n; static unsigned g_gf_gen = 1;
 static struct { int fd, fd2, name; uint32_t used; } g_gfd[GF_FDS];
 static int g_gfd_n; static uint32_t g_gfd_tick;
@@ -439,7 +439,7 @@ typedef struct { int fd; int empty; int used; char path[512]; DIR *dir; char pat
                  DIR *dir2; char path1[512];        /* dir2: game root (while the save overlay is active) */
                  int wr;                            /* wr: opened for writing (g_open_wr) */
                  int gf; unsigned gf_gen; int64_t pos, size;   /* gf: a game folder file's name + 1 (GF_CACHE) */
-                 int fd2; int64_t sp_cut, sp_head, sp_bsize; } FH;
+                 int fd2; int64_t sp_cut, sp_head, sp_bsize; const char *pk; } FH;
 static FH g_fh[FH_MAX];
 static int g_fh_peak = 0; static uint64_t g_fh_full = 0;   /* v12na: leak check */
 static uint32_t fh_new(void){
@@ -456,6 +456,69 @@ static FH *fh_get(uint32_t h){
 }
 int fileio_is_handle(uint32_t h){ return fh_get(h)!=0; }
 int fileio_open_handles(void){ int n = 0; for (int k = 1; k < FH_MAX; k++) n += g_fh[k].used; return n; }
+
+/* Track the origin of pack-backed reads so malformed compressed blocks never
+ * fall through to the game's unbounded unpacker.  VPAK splice reads record
+ * only their head and tail; the middle bytes still belong to the original
+ * game file. */
+#define PR_N 256
+static struct { uint32_t at, len; int64_t off; const char *pk; } g_pr[PR_N];
+static unsigned g_pr_n;
+static const char *pk_name(const char *p){
+    static char *names[512]; static int n;
+    for (int i = 0; i < n; i++) if (!strcmp(names[i], p)) return names[i];
+    if (n == 512 || !(names[n] = strdup(p))) return 0;
+    return names[n++];
+}
+static void pr_add(uint32_t at, int64_t len, int64_t off, const char *pk){
+    if (len <= 0) return;
+    unsigned k = g_pr_n++ % PR_N;
+    g_pr[k].at = at;
+    g_pr[k].len = len > 0xffffffffLL ? 0xffffffffu : (uint32_t)len;
+    g_pr[k].off = off;
+    g_pr[k].pk = pk;
+}
+static void pr_note(const FH *f, uint32_t buf, int64_t got, int64_t at){
+    if (!f->pk || got <= 0 || at < 0) return;
+    if (f->fd2 < 0){ pr_add(buf, got, at, f->pk); return; }
+    int64_t mid = f->sp_head + (f->sp_bsize - f->sp_cut), end = at + got;
+    if (at < f->sp_head)
+        pr_add(buf, (end < f->sp_head ? end : f->sp_head) - at, VP_HDR + at, f->pk);
+    if (end > mid){
+        int64_t a = at > mid ? at : mid;
+        pr_add(buf + (uint32_t)(a - at), end - a,
+               VP_HDR + f->sp_head + (a - mid), f->pk);
+    }
+}
+#ifdef __wasm__
+void guest_wait_begin(void); void guest_wait_end(void);
+#endif
+/* 1: bytes still match a pack file; -1: their pack file cannot be reread;
+ * 0: not pack-backed (or the guest buffer has since changed). */
+int fileio_pack_bytes(uint32_t a, uint32_t n, const char **pk, int64_t *off){
+    if (!pk || !off) return 0;
+    for (unsigned i = 0; i < PR_N && i < g_pr_n; i++){
+        unsigned k = (g_pr_n - 1u - i) % PR_N;
+        if (a < g_pr[k].at || a - g_pr[k].at >= g_pr[k].len) continue;
+        const char *path = g_pr[k].pk;
+        int64_t o = g_pr[k].off + (a - g_pr[k].at);
+        uint8_t b[32];
+        ssize_t got = -1;
+        if (n > sizeof b) n = sizeof b;
+#ifdef __wasm__
+        guest_wait_begin();
+#endif
+        int fd = open(path, O_RDONLY);
+        if (fd >= 0){ got = pread(fd, b, n, (off_t)o); close(fd); }
+#ifdef __wasm__
+        guest_wait_end();
+#endif
+        *pk = path; *off = o;
+        if (got != (ssize_t)n) return -1;
+        return memcmp(b, g_mem + a, n) ? 0 : 1;
+    }
+    return 0;
+}
 /* Resolve a VPAK overlay for an existing game file (vinyl pack first, then mod pack). */
 static int vp_path(const char *win,char *p,size_t psz,const char **dir){
     vpack_walk(); mpack_walk();
@@ -475,13 +538,13 @@ static int vp_open(FH *f,const char *win,const char *real,int fd){
     int fits=pread(fd2,h,VP_HDR,0)==(ssize_t)VP_HDR&&fstat(fd,&st)==0&&fstat(fd2,&pst)==0;
     if(fits){memcpy(v,h,sizeof v);fits=!memcmp(h,"VPAK",4)&&v[1]==1u&&
       (uint64_t)v[2]==(uint64_t)st.st_size&&v[3]<=v[2]&&
-      (uint64_t)VP_HDR+(uint64_t)v[4]+(uint64_t)v[5]<=(uint64_t)pst.st_size;}
+      (uint64_t)VP_HDR+(uint64_t)v[4]+(uint64_t)v[5]==(uint64_t)pst.st_size;}
     if(fits&&dir[0]=='M'&&v[6]==MP_NEEDS_MEMFILE&&!g_mp_memfile){
       static int waited;if(waited++<4)fprintf(stderr,"  [file] %s: MODPACKS pack waits for GlobalMemoryFile\\n",win);
       close(fd2);return 0;
     }
     if(!fits){static int bad;if(bad++<4)fprintf(stderr,"  [file] %s/%s does not fit %s (%lld bytes)\\n",dir,p,win,(long long)st.st_size);close(fd2);return 0;}
-    f->fd2=fd2;f->sp_bsize=v[2];f->sp_cut=v[3];f->sp_head=v[4];
+    f->pk=pk_name(p);f->fd2=fd2;f->sp_bsize=v[2];f->sp_cut=v[3];f->sp_head=v[4];
     f->size=(int64_t)v[4]+((int64_t)v[2]-v[3])+v[5];f->pos=0;
     const char *rel=p+strlen(dir[0]=='V'?g_vroot:g_mroot)+1;
     if(dir[0]=='M'&&!strcasecmp(rel,MP_MEMFILE))g_mp_memfile=1;
@@ -601,6 +664,7 @@ int fileio_call(CPU *c, const char *n, uint32_t *out){
                     FH *f = fh_get(h);
                     f->fd = fd; f->gf = i + 1; f->gf_gen = g_gf_gen; f->size = g_gf[i].size;
                     if (g_gf[i].real2){ f->fd2 = fd2; f->sp_cut = g_gf[i].cut; f->sp_head = g_gf[i].head; f->sp_bsize = g_gf[i].bsize; }
+                    f->pk = g_gf[i].pk;
                     snprintf(f->path, sizeof f->path, "%s", g_gf[i].real);
                     g_file_open++; g_gf_hits++;
                     *out = h; return 1;
@@ -693,7 +757,14 @@ int fileio_call(CPU *c, const char *n, uint32_t *out){
             else { FH*f=fh_get(h); f->fd=fd; f->empty = g_empty_next; g_empty_next = 0;
                    snprintf(f->path,sizeof f->path,"%s",real);
                    if (flags != O_RDONLY){ f->wr = 1; g_open_wr++; }
-                   else if (ok && !f->empty) vp_open(f, GS(pn), real, fd);
+                   else if (ok && !f->empty){
+                       vp_open(f, GS(pn), real, fd);
+                       /* LANGPACKS and MODPACKS files read in their own right
+                        * are pack sources too, not only VPAK splices. */
+                       if (f->fd2 < 0 && ((g_lroot[0] && path_under(real, g_lroot)) ||
+                                          (g_mroot[0] && path_under(real, g_mroot))))
+                           f->pk = pk_name(real);
+                   }
 #ifdef GF_CACHE
                    /* a file of the game folder or the language pack, not a movie (NOMOVIES may empty those) */
                    const char *ext = strrchr(real, '.');
@@ -710,7 +781,7 @@ int fileio_call(CPU *c, const char *n, uint32_t *out){
                        int i = (f->fd2 < 0 || p2[0]) ? gf_add(GS(pn), real, size) : -1;
                        if (i >= 0 && f->fd2 >= 0 && !g_gf[i].real2 && (g_gf[i].real2 = strdup(p2))){
                            g_gf[i].cut = f->sp_cut; g_gf[i].head = f->sp_head; g_gf[i].bsize = f->sp_bsize; }
-                       if (i >= 0 && (f->fd2 < 0) == !g_gf[i].real2){ f->gf = i + 1; f->gf_gen = g_gf_gen; f->size = size; }
+                       if (i >= 0 && (f->fd2 < 0) == !g_gf[i].real2){ f->gf = i + 1; f->gf_gen = g_gf_gen; f->size = size; g_gf[i].pk = f->pk; }
                    }
 #endif
                    g_file_open++; r=h; }
@@ -747,6 +818,7 @@ int fileio_call(CPU *c, const char *n, uint32_t *out){
                    if (f->fd2 >= 0) READ_UNLOCKED(got = vp_pread(f, g_mem+buf, len, (int64_t)off));
                    else { int fd = f->fd; READ_UNLOCKED(got = pread(fd, g_mem+buf, len, (off_t)off)); }
                    if(got<0) got=0;
+                   pr_note(f, buf, got, (int64_t)off);
                    MR32(ov+0) = 0;                      /* Internal = STATUS_SUCCESS */
                    MR32(ov+4) = (uint32_t)got;          /* InternalHigh = bytes read */
                    uint32_t hev = MR32(ov+16);
@@ -764,14 +836,18 @@ int fileio_call(CPU *c, const char *n, uint32_t *out){
                } else if (f->fd2 >= 0){
                    READ_UNLOCKED(got = vp_pread(f, g_mem+buf, len, f->pos));
                    if(got<0) got=0;
+                   pr_note(f, buf, got, f->pos);
                    f->pos += got;
                } else if (f->gf){                 /* a kept descriptor: the position is the handle's */
                    { int fd = f->fd; off_t at = (off_t)f->pos; READ_UNLOCKED(got = pread(fd, g_mem+buf, len, at)); }
                    if(got<0) got=0;
+                   pr_note(f, buf, got, f->pos);
                    f->pos += got;
                } else {
                    { int fd = f->fd; READ_UNLOCKED(got = read(fd, g_mem+buf, len)); }
                    if(got<0) got=0;
+                   if (f->pk && got > 0)
+                       pr_note(f, buf, got, (int64_t)lseek(f->fd, 0, SEEK_CUR) - got);
                }
                /* MUTEFILE=<part>: fill the reads of the matching file with
                 * ZEROS.  To measure objectively whether sound effects remain
