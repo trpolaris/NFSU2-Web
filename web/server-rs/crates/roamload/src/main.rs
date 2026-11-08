@@ -445,7 +445,10 @@ impl Bot {
                 }
                 // its state, byte for byte, as its sender made it
                 self.snaps_seen = self.snaps_seen.wrapping_add(1);
-                if u16::from_le_bytes([m[14], m[15]]) & HF_STATEX != 0 && m.len() >= 22 + STATE && self.snaps_seen.checked_rem(self.check_every) == Some(0) {
+                if u16::from_le_bytes([m[14], m[15]]) & HF_STATEX != 0
+                    && m.len() >= 22 + STATE
+                    && self.snaps_seen.checked_rem(self.check_every) == Some(0)
+                {
                     sh.checked.inc();
                     let n = u16::from_le_bytes([m[18], m[19]]) as usize;
                     let mut want = state(n, t, self.spread);
