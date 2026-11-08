@@ -4,8 +4,8 @@
 
 use std::cell::{Cell, RefCell};
 use std::collections::{HashMap, HashSet};
-use std::rc::Rc;
 use std::path::{Path, PathBuf};
+use std::rc::Rc;
 
 use sha2::{Digest, Sha256};
 use std::sync::Arc;
