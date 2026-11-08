@@ -109,7 +109,7 @@ static uint32_t gcall_main(CPU *c, uint32_t fn, uint32_t ecx, unsigned n, const 
     c->esp = (c->esp - 512u) & ~15u;
     for (int i = (int)n - 1; i >= 0; i--) PUSH32(args[i]);
     c->ecx = ecx;
-    PUSH32(c, MAINLOOP_RET);
+    PUSH32(MAINLOOP_RET);
     dispatch_indirect(c, fn);
     uint32_t result = c->eax;
     *c = save;
