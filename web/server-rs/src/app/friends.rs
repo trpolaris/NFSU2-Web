@@ -1,6 +1,7 @@
 //! The start page's friend-list API. It uses EA Messenger's existing per-persona lists;
 //! no duplicate friend database is introduced here. Friend crew invites are validated against the
-//! mutual EA Messenger list and live RoamHub whereabouts, then delivered over the recipient's LAN pages.
+//! mutual EA Messenger list and live RoamHub whereabouts, then delivered over the recipient's LAN pages.  Only a
+//! mutual friend with a live free-roam whereabouts gets an `at` room hash (world or race-track spot) for Join.
 
 use std::sync::Arc;
 
@@ -107,12 +108,18 @@ impl FriendsRoute {
                     }
                     .into(),
                 );
-                if let Some(place) = where_ {
-                    if place.room == 0 {
+                match &where_ {
+                    Some(place) if place.room == 0 => {
                         row.insert("room".into(), "".into());
-                    } else if let Some(name) = place.room_name {
-                        row.insert("room".into(), name.into());
                     }
+                    Some(nfsu2_roam::Whereabouts { room_name: Some(name), .. }) => {
+                        row.insert("room".into(), name.clone().into());
+                    }
+                    _ => {}
+                }
+                // A mutual friend's current room hash (world or track spot) is all the page needs to Join.
+                if let Some(place) = &where_ {
+                    row.insert("at".into(), place.room.into());
                 }
                 if f.mutual
                     && let Some(contact) = f.contact
@@ -430,6 +437,7 @@ mod tests {
         let alex_list = kit.request("GET", "/friends", &[A], b"").await;
         assert_eq!(j(&alex_list.body)["friends"][0]["name"], "Bianca");
         assert_eq!(j(&alex_list.body)["friends"][0]["contact"], "speedy.player");
+        assert!(j(&alex_list.body)["friends"][0]["at"].is_null(), "an offline friend has no live room hash");
 
         // With both players mutually listed, an offline recipient's message is kept in the shared Buddy store.
         let message = post(&kit, A, json!({ "op": "msg", "name": "Bianca", "body": "Meet at the garage." })).await;
