@@ -170,6 +170,8 @@ pub(crate) struct RaceRep<'a> {
     pub car_type: u8,
     /// 0 fastest .. 3; -1 not rated
     pub class: i8,
+    /// 0 no career credit, 1 own career win, 2 friend or crew-mate win
+    pub credit: u8,
     pub rating: f64,
     /// the average rating of the race's cars
     pub field: f64,
@@ -196,6 +198,7 @@ fn racerep(d: &[u8], o: usize) -> Option<RaceRep<'_>> {
         || place > players
         || !(-1..=3).contains(&class)
         || flags & !3 != 0
+        || d[o + 17] > 2
     {
         return None;
     }
@@ -220,6 +223,7 @@ fn racerep(d: &[u8], o: usize) -> Option<RaceRep<'_>> {
         quit: flags & 2 != 0,
         car_type: d[o + 15],
         class,
+        credit: if d[o + 17] <= 2 { d[o + 17] } else { 0 },
         rating: nums[0],
         field: nums[1],
         factor: nums[2],
@@ -497,7 +501,7 @@ pub(crate) fn write_peers(b: &mut [u8], sender: u32, seq: u16, list: impl ExactS
         b[o + 4..o + 6].copy_from_slice(&e.port.to_le_bytes());
         b[o + 6..o + 10].copy_from_slice(&e.id.to_le_bytes());
     }
-    if !mine.is_empty() {
+    if with {
         let mut o = 17 + 10 * n;
         b[o] = mine.len() as u8;
         o += 1;
@@ -516,9 +520,10 @@ pub fn encode_peers(sender: u32, seq: u16, list: &[PeerEntry]) -> Vec<u8> {
     encode_peers_crews(sender, seq, list, &[], &[])
 }
 
-/// A PEERS datagram with crew marks (`write_peers`; none with `mine` empty)
+/// A PEERS datagram with crew marks (`write_peers`; none with `mine` and `marks` empty)
 pub fn encode_peers_crews(sender: u32, seq: u16, list: &[PeerEntry], mine: &[u32], marks: &[u8]) -> Vec<u8> {
-    let mut b = vec![0u8; if mine.is_empty() { peers_len(list.len()) } else { peers_crew_len(list.len(), mine.len()) }];
+    let with = !mine.is_empty() || !marks.is_empty();
+    let mut b = vec![0u8; if with { peers_crew_len(list.len(), mine.len()) } else { peers_len(list.len()) }];
     write_peers(&mut b, sender, seq, list.iter().copied(), mine, marks);
     b
 }
