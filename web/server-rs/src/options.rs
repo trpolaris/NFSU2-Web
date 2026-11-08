@@ -539,9 +539,11 @@ mod tests {
         assert_eq!(s.err(&["--online", "maybe"], &[]), "--online: on or off");
         assert_eq!(s.err(&["--roam-hub", "no"], &[]), "--roam-hub: on or off");
         assert_eq!(s.err(&["--online-trace", "t.log"], &[]), "--online-trace is a test aid: it needs --dev");
-        for v in ["0", "6001", "1.5", "x", "Infinity"] {
+        for v in ["0", "24001", "1.5", "x", "Infinity"] {
             assert_eq!(s.err(&["--max-peers", v], &[]), "--max-peers: 1 to 24000", "{v}");
         }
+        assert_eq!(s.parse(&["--max-peers", "6001"], &[]).unwrap().max_peers, 6001);
+        assert_eq!(s.parse(&["--max-peers", "24000"], &[]).unwrap().max_peers, 24000);
         for v in ["-1", "100001", "x", "Infinity"] {
             assert_eq!(s.err(&["--vault-gb", v], &[]), "--vault-gb: the gigabytes keyphrase saves may take, 0 (none) to 100000", "{v}");
         }
