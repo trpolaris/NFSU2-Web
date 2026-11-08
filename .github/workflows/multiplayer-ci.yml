@@ -71,7 +71,7 @@ jobs:
 
       - name: Check MODPACKS builder and native runtime syntax
         run: |
-          python3 -m py_compile tools/modpacks.py tools/vinylpacks.py
+          python3 -m py_compile tools/modpacks.py tools/vinylpacks.py tools/packcheck.py tools/test_packcheck.py
           python3 -m py_compile tools/open_tunnel.py tests/tunnel_patch.py
           python3 tests/tunnel_patch.py
           python3 tools/modpacks.py --help > /dev/null

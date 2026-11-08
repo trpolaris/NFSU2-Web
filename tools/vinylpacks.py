@@ -39,6 +39,7 @@ from collections import Counter
 from multiprocessing import Pool
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import packcheck  # noqa: E402
 from texpacks import bstring_hash, chunks, find, jdlz  # noqa: E402
 
 VINYLS = [f'ART_F_{k}' for k in range(28, 35)]       # the Sha_Do vinyls, as the part database names them
@@ -331,12 +332,14 @@ def one_car(job):
     for h, (blob, usize) in new.items():
         v = vents[h]
         if virt[v[1]:v[1] + v[2]] != blob or v[3] != usize: return car, None, 'a new texture is not where its entry says'
-    dst = os.path.join(out, 'VINYLPACKS', 'CARS', os.path.basename(os.path.dirname(gp)), os.path.basename(gp))
+    rel = f'CARS/{os.path.basename(os.path.dirname(gp))}/{os.path.basename(gp)}'
+    pack = struct.pack('<4s7I', MAGIC, VERSION, len(base), cut, len(head), len(tail), 0, 0) + head + tail
+    bad = packcheck.check(game, {f'VINYLPACKS/{rel}': pack})
+    if bad: return car, None, 'PACKCHECK ' + '; '.join(why for _, why in bad)
+    dst = os.path.join(out, 'VINYLPACKS', *rel.split('/'))
     os.makedirs(os.path.dirname(dst), exist_ok=True)
     tmp = dst + '.new'
-    with open(tmp, 'wb') as f:
-        f.write(struct.pack('<4s7I', MAGIC, VERSION, len(base), cut, len(head), len(tail), 0, 0))
-        f.write(head); f.write(tail)
+    with open(tmp, 'wb') as f: f.write(pack)
     os.replace(tmp, dst)
     return car, (len(base), len(head), len(tail), os.path.getsize(dst)), '; '.join(notes)
 
@@ -361,15 +364,21 @@ def main():
     if a.cars: cars = [c for c in cars if c.upper() in a.cars.upper().split(',')]
     cars = [c for c in cars if find(a.game, f'CARS/{c}/VINYLS.BIN')]
     out = a.out or a.game
-    made = 0
+    made, refused = 0, []
     with Pool(a.jobs) as p:
         for car, r, note in p.imap_unordered(one_car, [(a.game, mod, out, c, tpl) for c in cars]):
             if r is None:
-                if note not in ('no Art Factory vinyls',): print(f'  {car}: skipped, {note}')
+                if note.startswith('PACKCHECK '):
+                    refused.append(car)
+                    print(f'  {car}: not written, tools/packcheck.py: {note[10:]}')
+                elif note not in ('no Art Factory vinyls',):
+                    print(f'  {car}: skipped, {note}')
                 continue
             made += 1
             print(f'  {car}: {r[2] / 1e6:.2f} MB of new textures (pack {r[3] / 1e6:.2f} MB){"; " + note if note else ""}')
     print(f'{made} cars: {os.path.join(out, "VINYLPACKS")}')
+    if refused:
+        sys.exit(f"{len(refused)} cars' packs fail tools/packcheck.py: {', '.join(sorted(refused))}")
 
 
 if __name__ == '__main__':
