@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use nfsu2_claims::{Claims, owner_of_token};
 
-use super::world::{C, Opts, World};
+use super::world::{C, Opts, World, shelf_file};
 
 /// a keyphrase's token (43 characters of base64url)
 fn token(c: char) -> String {
@@ -115,8 +115,8 @@ fn messenger_lists_follow_the_claim() {
     assert_eq!(roster(&mut w, mc), ["Alpha"]);
     assert!(w.core.buddies.list("Charlie").unwrap().temp);
     w.core.buddy_save();
-    let text = std::fs::read_to_string(dir.join("buddies.json")).unwrap();
-    assert!(!text.contains("{\"name\":\"Charlie\""), "{text}");
+    let text = std::fs::read_to_string(shelf_file(&dir, "Alpha")).unwrap();
+    assert!(!shelf_file(&dir, "Charlie").exists(), "an unclaimed session list is not persisted");
     assert!(text.contains(&format!("\"owner\":\"{a}\"")), "{text}");
     w.send(mc, "DISC", vec![]);
     assert!(w.core.buddies.list("Charlie").is_none(), "gone with its session");
@@ -159,8 +159,10 @@ fn lists_of_before_go_to_the_first_claim() {
     assert!(roster(&mut w, n).is_empty(), "NAME's shared list went");
     w.send(m, "DISC", vec![]);
     w.core.buddy_save();
-    let text = std::fs::read_to_string(dir.join("buddies.json")).unwrap();
-    assert!(text.contains("\"Delta\"") && !text.contains("\"NAME\"") && !text.contains("\"Player\""), "{text}");
+    let text = std::fs::read_to_string(shelf_file(&dir, "Delta")).unwrap();
+    assert!(text.contains("\"Delta\""), "{text}");
+    assert!(!shelf_file(&dir, "NAME").exists() && !shelf_file(&dir, "Player").exists());
+    assert!(dir.join("buddies.json.moved").exists(), "the legacy file is archived after migration");
     // its first keyphrase gets it, with its blocked list
     claims.claim("Delta", &owner_of_token(&token('D')).unwrap(), now(&w)).unwrap();
     let (_, m) = player(&mut w, "10.77.0.4", "Delta", Some('D'));
