@@ -1524,12 +1524,13 @@ mod tests {
         for i in 0..ADDRS {
             assert_eq!(slot(vip_at(i)), Some(i));
         }
+        assert_eq!(slot(vip_at(ADDRS - 1)), Some(ADDRS - 1), "last /24 and last host in the pool");
         for v in [
             BASE,
             BASE | 1,
             BASE | 252,
             BASE | 255,
-            BASE | 0x1800 | 2,
+            BASE | ((NETS as u32) << 8) | 2,
             BASE | 0x1F00 | 2,
             BASE | 0x2000 | 2,
             0,
