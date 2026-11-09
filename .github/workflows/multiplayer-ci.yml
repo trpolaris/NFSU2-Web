@@ -69,6 +69,43 @@ jobs:
           sudo apt-get update
           sudo apt-get install --yes build-essential clang cmake pkg-config
 
+      - name: Check WASI runtime sources with production SDK and target flags
+        run: |
+          set -euo pipefail
+          sdk_dir="$RUNNER_TEMP/wasi-sdk-34.0-x86_64-linux"
+          archive="$RUNNER_TEMP/wasi-sdk-34.0-x86_64-linux.tar.gz"
+          if [[ ! -x "$sdk_dir/bin/clang" ]]; then
+            curl -fsSL --retry 3 --retry-all-errors \
+              https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-34/wasi-sdk-34.0-x86_64-linux.tar.gz \
+              -o "$archive"
+            tar -xzf "$archive" -C "$RUNNER_TEMP"
+          fi
+          WASI="$sdk_dir"
+          CC="$WASI/bin/clang"
+          "$CC" --version
+          # Keep this in lockstep with web/build.sh: real wasm32-wasip1-threads
+          # target, runtime compatibility headers, WASI emulation defines and
+          # production feature flags. The full game-module link still needs the
+          # user's own SPEED2.EXE to generate gen/all and gen/server.
+          WASI="$WASI" web/tools/aliasguard.sh
+          flags=(
+            --target=wasm32-wasip1-threads -pthread -O3
+            -msimd128 -mbulk-memory -mnontrapping-fptoint -mtail-call
+            -mexception-handling -mllvm -wasm-enable-sjlj
+            -mllvm -wasm-use-legacy-eh=false
+            -D_WASI_EMULATED_MMAN -D_WASI_EMULATED_SIGNAL
+            -D_WASI_EMULATED_PROCESS_CLOCKS -fno-delete-null-pointer-checks
+            -include runtime/web/compat/wasm_plat.h
+            -Iruntime/web/compat -Iruntime -Igen/all
+            -Wno-unused-label -Wno-parentheses-equality
+            -DNFS_ENHANCED=0
+          )
+          for source in runtime/com.c runtime/mpcredit.c runtime/mpcredit_store.c; do
+            object="$RUNNER_TEMP/$(basename "${source%.c}").wasm.o"
+            echo "Compile $source -> $object"
+            "$CC" "${flags[@]}" -c "$source" -o "$object"
+          done
+
       - name: Check MODPACKS builder and native runtime syntax
         run: |
           python3 -m py_compile tools/modpacks.py tools/vinylpacks.py tools/packcheck.py tools/test_packcheck.py
@@ -88,7 +125,9 @@ jobs:
           tools/genstamp.sh hooks | grep -q '0x004aa283'
           grep -Eq '^CSRC=.*[[:space:]]hiddenraces[[:space:]].*[[:space:]]mpcredit_store[[:space:]]mpcredit[[:space:]]' link.sh
           bash -n tests/run_suite.sh tests/checks/mpcreditpending.sh tests/checks/mpcreditrestore.sh
-          cc -std=gnu11 -D_POSIX_C_SOURCE=200809L -Iruntime -fsyntax-only runtime/com.c runtime/photo.c runtime/catchup.c runtime/hiddenraces.c
+          cc -std=gnu11 -D_POSIX_C_SOURCE=200809L -Iruntime -fsyntax-only runtime/com.c runtime/photo.c runtime/catchup.c runtime/hiddenraces.c runtime/mpcredit.c
+          # Compile the browser-only branches too: setting access and guest-memory helpers are WASM-specific.
+          cc -std=gnu11 -D__wasm__ -D_POSIX_C_SOURCE=200809L -Iruntime -Iruntime/web/compat -fsyntax-only runtime/com.c runtime/mpcredit.c runtime/mpcredit_store.c
           cc -std=c11 -D_POSIX_C_SOURCE=200809L -Wall -Wextra -Werror -Iruntime tests/hiddenraces_unit.c -o /tmp/hiddenraces_unit
           /tmp/hiddenraces_unit
           cc -std=c11 -D_POSIX_C_SOURCE=200809L -Wall -Wextra -Werror -Iruntime tests/mpcredit_store_unit.c runtime/mpcredit_store.c -o /tmp/mpcredit_store_unit
@@ -122,6 +161,9 @@ jobs:
       - name: Install web dependencies
         working-directory: web
         run: npm ci
+
+      - name: Check WebSocket handshake cancellation regression
+        run: node --test web/test/net-trouble.test.mjs
 
       - name: Check TypeScript
         working-directory: web

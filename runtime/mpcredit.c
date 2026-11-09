@@ -97,11 +97,8 @@
  * RaceWon there could move the career to the next stage under the running
  * world. */
 #include "cpu.h"
-#include "guest.h"
-#include "game.h"
 #include "mpcredit.h"
 #include "mpcredit_store.h"
-#include "featurelist.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -109,6 +106,17 @@
 
 long autotest_frame(void);
 int career_fe_active(const char *name);
+
+#define G_GAMEMODE      0x00850078u   /* 1 career, 0x200 LAN */
+#define G_CAREER        0x0085ad40u
+#define G_RACES         0x008383e0u
+#define G_NRACES        0x008383e4u
+#define G_FEMGR         0x008637b4u   /* active FE screens list */
+#define G_FENG          0x008384c4u   /* front-end package manager */
+#define G_DLG           0x00838974u   /* active front-end dialog */
+#define G_PROFILE_NAME  0x0083a9e0u   /* FEDatabase player profile name (16 bytes) */
+#define FN_NEW          0x00575620u   /* cdecl (size): operator new */
+#define MAINLOOP_RET    0x00581475u   /* return to the game loop hook */
 
 #define G_STRPOOL       0x00838428u   /* the career tables' strings: a race's name at +[race +0] (u16) */
 #define G_SNAPSHOT      0x00851148u   /* the crib's snapshot of the profile (0: none) */
@@ -156,9 +164,34 @@ int career_fe_active(const char *name);
 #define MSG_SIGN        0x4d504301u   /* our answers (not the game's messages: its screens ignore them) */
 #define MSG_NEXT        0x4d504302u
 
-/* a guest function with ecx and stack arguments from the main-loop hook, 512 bytes below its stack (guest.h) */
+/* The runtime uses committed guest pages directly; keep every host-side
+ * guest read bounded and avoid dependencies on headers used by the native app. */
+static int guest_ok(uint32_t address, uint32_t bytes){
+    if (!address || !bytes) return 0;
+    uint64_t last = (uint64_t)address + (uint64_t)bytes - 1u;
+    if (last > UINT32_MAX) return 0;
+    uint32_t first_page = address >> 14;
+    uint32_t last_page = (uint32_t)last >> 14;
+    for (uint32_t page = first_page; page <= last_page; page++)
+        if (!mem_is_committed(page << 14)) return 0;
+    return 1;
+}
+static uint32_t guest_rd32(uint32_t address){
+    return guest_ok(address, sizeof(uint32_t)) ? MR32(address) : 0u;
+}
+
+/* Invoke a lifted game function from the main-loop hook, preserving the
+ * caller's complete CPU state just as the other runtime subsystems do. */
 static uint32_t call(CPU *c, uint32_t fn, uint32_t ecx, int n, const uint32_t *arg){
-    return guest_call_ex(c, fn, ecx, c->edx, n, arg, GUEST_RET_MAINLOOP, 512u);
+    CPU saved = *c;
+    c->esp = (c->esp - 512u) & ~15u;
+    for (int i = n - 1; i >= 0; i--) PUSH32(arg[i]);
+    c->ecx = ecx;
+    PUSH32(MAINLOOP_RET);
+    dispatch_indirect(c, fn);
+    uint32_t result = c->eax;
+    *c = saved;
+    return result;
 }
 static uint32_t fbits(float f){ uint32_t u; memcpy(&u, &f, 4); return u; }
 static const char *race_name(uint32_t r){
@@ -303,6 +336,7 @@ static const struct { const char *lang, *offer, *sign, *next; } SP_TX[] = {
 };
 const char *language_name(void);
 void language_game_letters(const char *utf8, char *out, size_t n);
+void language_texts_frame(CPU *c);
 static int sp_tx(void){
     const char *l = language_name();
     for (int i = 1; l && i < (int)(sizeof SP_TX / sizeof SP_TX[0]); i++) if (!strcmp(l, SP_TX[i].lang)) return i;
@@ -490,7 +524,7 @@ static struct {
 /* the profile in play (player 1's name in the FEDatabase; "" none) */
 static void live_profile(char out[33]){
     unsigned i = 0;
-    for (; i < 32u; i++){ uint8_t ch = MR8(G_PROFILE_NAME + i); if (ch < 0x20u || ch == 0x7fu) break; out[i] = (char)ch; }
+    for (; i < 16u; i++){ uint8_t ch = MR8(G_PROFILE_NAME + i); if (ch < 0x20u || ch == 0x7fu) break; out[i] = (char)ch; }
     out[i] = 0;
 }
 static uint32_t race_by_hash(uint32_t h){
