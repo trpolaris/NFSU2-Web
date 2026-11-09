@@ -78,7 +78,7 @@ test('the save owner creates a missing template and upgrades an older settings f
   const upgraded = new SettingsFile(() => 'save', line => logs.push(line), oldDisk.io);
 
   const result = await upgraded.load(true);
-  assert.notEqual(result, oldText, 'the owner's load adds the missing settings');
+  assert.notEqual(result, oldText, "the owner's load adds the missing settings");
   assert.ok(result.startsWith(oldText));
   assert.equal(oldDisk.disk, result);
   assert.equal(upgraded.forGame, result);
