@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
+import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import * as esbuild from 'esbuild';
 
@@ -49,4 +50,36 @@ test('travel status is parsed safely and explains why a track change is unavaila
   assert.equal(T.whyText(5), 'Drive off the marker first.');
   assert.equal(T.atName(0), '');
   assert.equal(T.atName(1), 'URL: Airport Circuit');
+});
+
+const readSource = file => fs.readFileSync(path.join(ROOT, file), 'utf8');
+
+test('Tracks UI events stay wired through the C mailbox, game frame and status publisher', () => {
+  const tsProto = readSource('web/src/input/proto.ts');
+  const tsInput = readSource('web/src/input/index.ts');
+  const cProto = readSource('runtime/web/input_proto.h');
+  const cInput = readSource('runtime/web/input_web.c');
+  const roam = readSource('runtime/roam.c');
+  const travel = readSource('runtime/travel.c');
+  const build = readSource('web/build.sh');
+  const status = readSource('runtime/web/status_web.c');
+  const main = readSource('runtime/web/main_web.c');
+
+  assert.match(tsProto, /export const IEV_TRAVEL = 17;/);
+  assert.match(tsProto, /export const IEV_TRAVEL_FRIEND = 18;/);
+  assert.match(cProto, /IEV_TRAVEL = 17,/);
+  assert.match(cProto, /IEV_TRAVEL_FRIEND = 18,/);
+  assert.match(tsInput, /travel\\(where\\)[\\s\\S]*?push\\(IEV_TRAVEL, 0, 0, 0, \\[\\], where, 0\\);/);
+  assert.match(tsInput, /travelFriend\\(nameHash, spot\\)[\\s\\S]*?push\\(IEV_TRAVEL_FRIEND, 0, 0, 0, \\[\\], nameHash \\| 0, spot\\);/);
+  assert.match(cInput, /case IEV_TRAVEL: travel_ask\\(e->a\\);/);
+  assert.match(cInput, /case IEV_TRAVEL_FRIEND: travel_ask_friend\\(\\(uint32_t\\)e->a, e->b\\);/);
+  assert.match(roam, /case HOOK_SITE\\(0x00581475\\):[\\s\\S]{0,700}travel_frame\\(c\\);/);
+  assert.match(travel, /void sub_0041ace0_orig\\(CPU \\*c\\);/);
+  assert.match(travel, /void sub_00540780_orig\\(CPU \\*c\\);/);
+  assert.match(travel, /void sub_00581820_orig\\(CPU \\*c\\);/);
+  assert.match(build, /^RT=.*\\btravel\\b/m);
+  assert.match(build, /WEB="\\$\\(cd runtime\\/web && ls \\*\\.c/);
+  assert.match(status, /int host_status_slot\\(const char \\*name\\)/);
+  assert.match(status, /void status_web_start\\(void\\)/);
+  assert.match(main, /status_web_start\\(\\);/);
 });
