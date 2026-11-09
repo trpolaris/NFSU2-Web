@@ -336,6 +336,7 @@ static const struct { const char *lang, *offer, *sign, *next; } SP_TX[] = {
 };
 const char *language_name(void);
 void language_game_letters(const char *utf8, char *out, size_t n);
+void language_texts_frame(CPU *c);
 static int sp_tx(void){
     const char *l = language_name();
     for (int i = 1; l && i < (int)(sizeof SP_TX / sizeof SP_TX[0]); i++) if (!strcmp(l, SP_TX[i].lang)) return i;
