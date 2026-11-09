@@ -125,12 +125,12 @@ test('F9 Friends inbox keeps live LAN mail once across a real page reload', { ti
 
   try {
     const page = await browser.newPage();
-    await page.route('http://friends-live-inbox.test/**', route => route.fulfill({
+    await page.route('http://127.0.0.1:8631/**', route => route.fulfill({
       status: 200,
       contentType: 'text/html',
       body: '<main id="friends"></main>',
     }));
-    await page.goto('http://friends-live-inbox.test/');
+    await page.goto('http://127.0.0.1:8631/');
 
     const lists = {
       me: 'LocalDriver',
@@ -156,12 +156,16 @@ test('F9 Friends inbox keeps live LAN mail once across a real page reload', { ti
           unread: row.dataset.unread ?? '',
         })),
       });
-      return inspect();
+      return {
+        ...inspect(),
+        persisted: localStorage.getItem('nfsu2.friends.inbox.localdriver'),
+      };
     }, BUNDLE_URL, lists);
 
     assert.deepEqual(first, {
       unread: '1',
       rows: [{ sender: 'Bo', body: 'live LAN message', unread: 'true' }],
+      persisted: JSON.stringify([{ from: 'Bo', body: 'live LAN message', t: 3000, read: false }]),
     });
 
     await page.reload();
@@ -177,6 +181,7 @@ test('F9 Friends inbox keeps live LAN mail once across a real page reload', { ti
           body: row.querySelector('p')?.textContent ?? '',
           unread: row.dataset.unread ?? '',
         })),
+        persisted: localStorage.getItem('nfsu2.friends.inbox.localdriver'),
       };
     }, BUNDLE_URL, lists);
 
