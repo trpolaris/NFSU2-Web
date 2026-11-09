@@ -302,6 +302,21 @@ const BUSY_TEXT = N('Too many players are connected from your network: playing w
 const BLOCKED_TEXT = N('Your antivirus or network is probably blocking the connection to other players. Allow this site in it, or try another network or a VPN.');
 const QUIET_TEXT = N('Your connection to other players keeps dropping. Your network may be limiting it: try another network or a VPN.');
 
+/** Close a socket safely in browsers and in the ws-based regression harness.
+ *  The ws package throws when close() is called before the handshake opens; its
+ *  terminate() method is the correct equivalent of aborting a browser handshake. */
+function closeWebSocket(ws: WebSocket, code: number, reason: string): void {
+  ws.onopen = null; ws.onmessage = null; ws.onerror = null; ws.onclose = null;
+  if (ws.readyState === WebSocket.CONNECTING) {
+    const terminate = (ws as WebSocket & { terminate?: () => void }).terminate;
+    if (typeof terminate === 'function') {
+      terminate.call(ws);
+      return;
+    }
+  }
+  if (ws.readyState === WebSocket.CONNECTING || ws.readyState === WebSocket.OPEN) ws.close(code, reason);
+}
+
 class Link implements NetLink {
   state: NetState = 'waiting';
   vip: string | null = null;
@@ -492,7 +507,7 @@ class Link implements NetLink {
     if (this.pingTimer) { clearInterval(this.pingTimer); this.pingTimer = null; }
     if (this.reconnectTimer) { clearTimeout(this.reconnectTimer); this.reconnectTimer = null; }
     const ws = this.ws; this.ws = null;
-    if (ws) { ws.onopen = null; ws.onmessage = null; ws.onerror = null; ws.onclose = null; ws.close(1000, 'idle'); }
+    if (ws) closeWebSocket(ws, 1000, 'idle');
     this.pings.clear();
     this.state = to; this.token = ''; this.full = false; this.backoff = 250; this.failed = 0;
     this.unopened = 0; this.checked = false; this.suspect = false; this.quiet = 0;
@@ -1069,7 +1084,7 @@ class Link implements NetLink {
     // every handler goes: a closing socket lives on until the server answers the
     // close, and a handler would keep this link and the game's memory with it
     const ws = this.ws; this.ws = null;
-    if (ws) { ws.onopen = null; ws.onmessage = null; ws.onerror = null; ws.onclose = null; ws.close(1000, 'closed'); }
+    if (ws) closeWebSocket(ws, 1000, 'closed');
     for (const ep of this.eps()) {
       Atomics.store(ep.i32, P.W_PAGE_STATE, P.NET_PAGE_NONE);
       Atomics.add(ep.i32, P.W_TX_BELL, 1); Atomics.notify(ep.i32, P.W_TX_BELL);   // ends txLoop's wait
