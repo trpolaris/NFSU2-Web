@@ -280,6 +280,9 @@ static void camera_off(CPU *c, int live){
     } else MR32(va) = back;
 }
 
+/* Export the drift-owned camera view so the general camera extension can preserve it across race setup. */
+uint32_t drift_camera_view(void){ return D.cam ? view_addr() : 0u; }
+
 /* the status, every frame it changes (a drift's points: every frame of it), all in one consistent section */
 static void publish(void){
     static const char *const k[8] = { "drift", "drift_key", "drift_x", "drift_gain", "drift_total", "drift_best", "drift_st", "drift_pend" };

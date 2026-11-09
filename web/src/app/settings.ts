@@ -158,6 +158,8 @@ export const KEYS: readonly KeyDef[] = [
   { key: 'language', env: 'NFSU2_LANGUAGE', kind: 'enum', vals: LANGUAGES.join('|'), scope: 'web' },
   // Show the career races normally hidden on the map (runtime/hiddenraces.c).
   { key: 'show_hidden_races', env: 'NFSU2_SHOW_HIDDEN_RACES', kind: 'bool', scope: 'web' },
+  // Opt-in removal of the career DVD cover event's visual-rating requirement.
+  { key: 'visual_rep_remover', env: 'NFSU2_VISUAL_REP_REMOVER', kind: 'bool', scope: 'web' },
   // GPS distance beneath the native direction arrow (runtime/gpsdistance.c).
   { key: 'gps_distance', env: 'NFSU2_GPS_DISTANCE', kind: 'bool', scope: 'web' },
   // Career rubberbanding: original, noboost (no boost beyond an AI's own pace) or off.
@@ -244,6 +246,10 @@ export const TEMPLATE = `# NFSU2 settings, read at every launch.
 # route, and is hidden when GPS has no active destination. [NFSU2_GPS_DISTANCE]
 # Show all career races the game normally hides. Does not alter profile progress. [NFSU2_SHOW_HIDDEN_RACES]
 #show_hidden_races = off
+
+# Remove the car's visual-rating requirement for career DVD cover events.
+# Off by default. [NFSU2_VISUAL_REP_REMOVER]
+#visual_rep_remover = off
 
 #gps_distance = off
 

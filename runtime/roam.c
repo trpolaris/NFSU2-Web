@@ -810,6 +810,10 @@ void reads_frame(CPU *c);                     /* overrides.c: the streamer's rea
 void roam_game_hud(CPU *c);                 /* its names over friends' cars */
 void gpsdistance_hud(CPU *c);
 void hiddenraces_frame(void);
+void visualrep_frame(void);
+void walls_frame(void);
+void cameras_frame(CPU *c);
+void visualrep_meter(CPU *c);
 int roam_game_cmd(CPU *c, const char *args, long *wait_start);
 /* the "virtual Windows friend" (roam_asipeer.c, only in out/nfsu2_asipeer):
  * the Windows plugin under Unicorn instead of roam_game.c */
@@ -818,9 +822,15 @@ __attribute__((weak)) int roam_asipeer_cmd(CPU *c, const char *args, long *wait_
     (void)c; (void)args; (void)wait_start;
     fprintf(stderr, "[roam] asi: not in this build (ASIPEER=1 ./link.sh orig makes out/nfsu2_asipeer)\n"); return 1; }
 int roam_hook(CPU *c, uint32_t ip){
+    int trafficcars_hook(CPU *, uint32_t);
+    int vinylcat_hook(CPU *, uint32_t);
+    if (trafficcars_hook(c, ip)) return 1;
+    if (vinylcat_hook(c, ip)) return 1;
     if (travel_hook(c, ip)) return 1;
     switch (ip){
-    case HOOK_SITE(0x00581475): hiddenraces_frame(); reads_frame(c); language_texts_frame(c); sms_frame(c); carspot_frame(); mprace_frame(c); mpcredit_frame(c); if (!roam_asipeer_frame(c)) roam_game_frame(c); travel_frame(c); racehorn_frame(c); racenet_frame(c); optslider_frame(c); drift_frame(c); photo_frame(c); engage_frame(c); roam_frame(c); return 1;
+    case HOOK_SITE(0x00581475): visualrep_frame(); walls_frame(); cameras_frame(c); hiddenraces_frame(); reads_frame(c); language_texts_frame(c); sms_frame(c); carspot_frame(); mprace_frame(c); mpcredit_frame(c); if (!roam_asipeer_frame(c)) roam_game_frame(c); travel_frame(c); racehorn_frame(c); racenet_frame(c); optslider_frame(c); drift_frame(c); photo_frame(c); engage_frame(c); roam_frame(c); return 1;
+    /* Remove the Visual Rating meter from career shops when explicitly enabled. */
+    case HOOK_SITE(0x00557ed0): visualrep_meter(c); return 1;
     /* Player::Update's HUD step (0x600590), behind its call of the HUD
      * update (0x4EC5A0), where the game places its own LAN race labels */
     case HOOK_SITE(0x006005e0): gpsdistance_hud(c); roam_game_hud(c); return 1;
