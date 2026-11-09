@@ -10,7 +10,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const js = (await esbuild.build({ entryPoints: [path.join(ROOT, 'web/src/app/devicelog.ts')], bundle: true, format: 'esm', write: false })).outputFiles[0].text;
 const { browserBrief, deviceBrief } = await import('data:text/javascript;base64,' + Buffer.from(js).toString('base64'));
 const djs = (await esbuild.build({ entryPoints: [path.join(ROOT, 'web/src/app/device.ts')], bundle: true, format: 'esm', write: false })).outputFiles[0].text;
-const { phoneScreen, deviceDefaults, noteGraphics, fullScreenFails } = await import('data:text/javascript;base64,' + Buffer.from(djs).toString('base64'));
+const { phoneScreen, deviceDefaults, noteGraphics, fullScreenFails, fsaaFails } = await import('data:text/javascript;base64,' + Buffer.from(djs).toString('base64'));
 
 test('iPhone and iPad are named as such, not macOS (their user agents say "like Mac OS X" or Macintosh)', () => {
   assert.equal(browserBrief('Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Mobile/15E148 Safari/604.1', 5), 'Safari 26 on iOS');
@@ -100,6 +100,37 @@ test('PowerVR B-Series phones default to windowed mode; other adapters keep full
     assert.equal(deviceDefaults().fullscreen, 'on', 'another PowerVR family');
     noteGraphics('qualcomm adreno-7xx');
     assert.equal(deviceDefaults().fullscreen, 'on', 'Adreno phone');
+  } finally {
+    noteGraphics(undefined);
+  }
+});
+
+
+test("FSAA stays off by default on AMD GCN-5 and Qualcomm graphics, and on tablets", () => {
+  const setDevice = (ua, touchPoints, w, h, coarse) => {
+    Object.defineProperty(globalThis, 'navigator', { value: { userAgent: ua, maxTouchPoints: touchPoints }, configurable: true, writable: true });
+    globalThis.screen = { width: w, height: h };
+    globalThis.matchMedia = () => ({ matches: coarse });
+  };
+  const desktop = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Safari/605.1.15';
+  try {
+    setDevice(desktop, 0, 1512, 982, false);
+    noteGraphics(undefined);
+    assert.equal(deviceDefaults().fsaa, undefined, 'unknown adapter keeps the existing PC default');
+    noteGraphics('amd gcn-5');
+    assert.equal(fsaaFails(), true);
+    assert.equal(deviceDefaults().fsaa, 'off', 'AMD Vega GCN-5');
+    noteGraphics('qualcomm adreno-7xx');
+    assert.equal(fsaaFails(), true);
+    assert.equal(deviceDefaults().fsaa, 'off', 'Qualcomm Adreno');
+    for (const adapter of ['amd rdna-2', 'amd gcn-4', 'nvidia lovelace', 'intel gen-12lp', 'apple metal-3']) {
+      noteGraphics(adapter);
+      assert.equal(fsaaFails(), false, adapter);
+      assert.equal(deviceDefaults().fsaa, undefined, adapter);
+    }
+    setDevice(desktop, 5, 820, 1180, true);
+    noteGraphics('nvidia lovelace');
+    assert.equal(deviceDefaults().fsaa, 'off', 'tablet');
   } finally {
     noteGraphics(undefined);
   }
