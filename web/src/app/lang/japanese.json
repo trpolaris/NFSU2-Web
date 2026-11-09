@@ -1516,7 +1516,6 @@
   "Download original": "オリジナルをダウンロード",
   "No screenshots yet.": "スクリーンショットはまだありません。",
   "Take a screenshot while driving. Your pictures stay in this browser and are included in local backups.": "運転中にスクリーンショットを撮影できます。画像はこのブラウザーに保存され、ローカルバックアップにも含まれます。",
-  "LOCAL CAPTURE / {String(current + 1).padStart(2,'02')}": "ローカル撮影 / {String(current + 1).padStart(2,'02')}",
   "Resolve cloud conflict": "クラウドの競合を解決",
   "Choose which save set should remain linked to this passphrase.": "このパスフレーズに関連付けたままにするセーブデータを選択してください。",
   "GARAGE DATA / BACKUP": "ガレージデータ / バックアップ",
@@ -1596,5 +1595,6 @@
   "Travel to a race track's own free-roam map. Each spot has its own player room.": "各レースコース専用の Free Roam マップに移動します。各スポットには専用のプレイヤールームがあります。",
   "06 / DRIVER CONTROLS": "06 / ドライバーコントロール",
   "CONTROLS": "コントロール",
-  "Keyboard, controller and site controls.": "キーボード、コントローラー、サイトの操作。"
+  "Keyboard, controller and site controls.": "キーボード、コントローラー、サイトの操作。",
+  "LOCAL CAPTURE / {String(current + 1).padStart(2,'0')}": "ローカル撮影 / {String(current + 1).padStart(2,'0')}"
 }

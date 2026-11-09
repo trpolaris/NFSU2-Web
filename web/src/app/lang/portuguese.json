@@ -1608,7 +1608,6 @@
   "Download original": "Baixar original",
   "No screenshots yet.": "Ainda não há capturas de tela.",
   "Take a screenshot while driving. Your pictures stay in this browser and are included in local backups.": "Faça uma captura de tela enquanto dirige. Suas imagens ficam neste navegador e são incluídas nos backups locais.",
-  "LOCAL CAPTURE / {String(current + 1).padStart(2,'02')}": "CAPTURA LOCAL / {String(current + 1).padStart(2,'02')}",
   "Resolve cloud conflict": "Resolver conflito na nuvem",
   "Choose which save set should remain linked to this passphrase.": "Escolha qual conjunto de salvamentos deve continuar vinculado a esta frase secreta.",
   "GARAGE DATA / BACKUP": "DADOS DA GARAGEM / BACKUP",
@@ -1688,5 +1687,6 @@
   "Travel to a race track's own free-roam map. Each spot has its own player room.": "Viaje para o mapa de Free Roam próprio de uma pista. Cada local tem sua própria sala de jogadores.",
   "06 / DRIVER CONTROLS": "06 / CONTROLES DO MOTORISTA",
   "CONTROLS": "CONTROLES",
-  "Keyboard, controller and site controls.": "Controles de teclado, controle e site."
+  "Keyboard, controller and site controls.": "Controles de teclado, controle e site.",
+  "LOCAL CAPTURE / {String(current + 1).padStart(2,'0')}": "CAPTURA LOCAL / {String(current + 1).padStart(2,'0')}"
 }

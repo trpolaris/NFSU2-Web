@@ -1516,7 +1516,6 @@
   "Download original": "下載原始檔",
   "No screenshots yet.": "目前沒有螢幕截圖。",
   "Take a screenshot while driving. Your pictures stay in this browser and are included in local backups.": "駕駛時拍攝螢幕截圖。圖片會保留在此瀏覽器中，並包含在本機備份內。",
-  "LOCAL CAPTURE / {String(current + 1).padStart(2,'02')}": "本機擷取 / {String(current + 1).padStart(2,'02')}",
   "Resolve cloud conflict": "解決雲端衝突",
   "Choose which save set should remain linked to this passphrase.": "選擇要繼續與此密語連結的存檔組合。",
   "GARAGE DATA / BACKUP": "車庫資料 / 備份",
@@ -1596,5 +1595,6 @@
   "Travel to a race track's own free-roam map. Each spot has its own player room.": "前往賽道專屬的 Free Roam 地圖。每個地點都有自己的玩家房間。",
   "06 / DRIVER CONTROLS": "06 / 駕駛控制",
   "CONTROLS": "控制",
-  "Keyboard, controller and site controls.": "鍵盤、控制器與網站控制。"
+  "Keyboard, controller and site controls.": "鍵盤、控制器與網站控制。",
+  "LOCAL CAPTURE / {String(current + 1).padStart(2,'0')}": "本機擷取 / {String(current + 1).padStart(2,'0')}"
 }

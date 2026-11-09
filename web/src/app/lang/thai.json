@@ -1516,7 +1516,6 @@
   "Download original": "ดาวน์โหลดต้นฉบับ",
   "No screenshots yet.": "ยังไม่มีภาพหน้าจอ",
   "Take a screenshot while driving. Your pictures stay in this browser and are included in local backups.": "ถ่ายภาพหน้าจอขณะขับรถ รูปภาพจะเก็บไว้ในเบราว์เซอร์นี้และรวมอยู่ในข้อมูลสำรองในเครื่อง",
-  "LOCAL CAPTURE / {String(current + 1).padStart(2,'02')}": "บันทึกภาพในเครื่อง / {String(current + 1).padStart(2,'02')}",
   "Resolve cloud conflict": "แก้ไขข้อขัดแย้งของ Cloud",
   "Choose which save set should remain linked to this passphrase.": "เลือกชุดเซฟที่ต้องการเชื่อมโยงกับรหัสผ่านนี้ต่อไป",
   "GARAGE DATA / BACKUP": "ข้อมูลโรงรถ / ข้อมูลสำรอง",
@@ -1596,5 +1595,6 @@
   "Travel to a race track's own free-roam map. Each spot has its own player room.": "เดินทางไปยังแผนที่ Free Roam เฉพาะของสนามแข่ง แต่ละจุดมีห้องผู้เล่นของตัวเอง",
   "06 / DRIVER CONTROLS": "06 / การควบคุมผู้ขับ",
   "CONTROLS": "การควบคุม",
-  "Keyboard, controller and site controls.": "การควบคุมด้วยแป้นพิมพ์ คอนโทรลเลอร์ และเว็บไซต์"
+  "Keyboard, controller and site controls.": "การควบคุมด้วยแป้นพิมพ์ คอนโทรลเลอร์ และเว็บไซต์",
+  "LOCAL CAPTURE / {String(current + 1).padStart(2,'0')}": "บันทึกภาพในเครื่อง / {String(current + 1).padStart(2,'0')}"
 }

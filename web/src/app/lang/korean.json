@@ -1516,7 +1516,6 @@
   "Download original": "원본 다운로드",
   "No screenshots yet.": "아직 스크린샷이 없습니다.",
   "Take a screenshot while driving. Your pictures stay in this browser and are included in local backups.": "주행 중 스크린샷을 촬영하세요. 이미지는 이 브라우저에 저장되며 로컬 백업에 포함됩니다.",
-  "LOCAL CAPTURE / {String(current + 1).padStart(2,'02')}": "로컬 캡처 / {String(current + 1).padStart(2,'02')}",
   "Resolve cloud conflict": "클라우드 충돌 해결",
   "Choose which save set should remain linked to this passphrase.": "이 암호 문구에 계속 연결할 저장 데이터 세트를 선택하세요.",
   "GARAGE DATA / BACKUP": "차고 데이터 / 백업",
@@ -1596,5 +1595,6 @@
   "Travel to a race track's own free-roam map. Each spot has its own player room.": "각 레이스 트랙 전용 Free Roam 지도로 이동합니다. 각 장소에는 고유한 플레이어 방이 있습니다.",
   "06 / DRIVER CONTROLS": "06 / 드라이버 컨트롤",
   "CONTROLS": "컨트롤",
-  "Keyboard, controller and site controls.": "키보드, 컨트롤러 및 사이트 컨트롤."
+  "Keyboard, controller and site controls.": "키보드, 컨트롤러 및 사이트 컨트롤.",
+  "LOCAL CAPTURE / {String(current + 1).padStart(2,'0')}": "로컬 캡처 / {String(current + 1).padStart(2,'0')}"
 }
