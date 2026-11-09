@@ -88,16 +88,23 @@ jobs:
           # production feature flags. The full game-module link still needs the
           # user's own SPEED2.EXE to generate gen/all and gen/server.
           WASI="$WASI" web/tools/aliasguard.sh
-          "$CC" --target=wasm32-wasip1-threads -pthread -O3 \
-            -msimd128 -mbulk-memory -mnontrapping-fptoint -mtail-call \
-            -mexception-handling -mllvm -wasm-enable-sjlj \
-            -mllvm -wasm-use-legacy-eh=false \
-            -D_WASI_EMULATED_MMAN -D_WASI_EMULATED_SIGNAL \
-            -D_WASI_EMULATED_PROCESS_CLOCKS -fno-delete-null-pointer-checks \
-            -include runtime/web/compat/wasm_plat.h \
-            -Iruntime/web/compat -Iruntime -Igen/all \
-            -Wno-unused-label -Wno-parentheses-equality \
-            -fsyntax-only runtime/com.c runtime/mpcredit.c runtime/mpcredit_store.c
+          flags=(
+            --target=wasm32-wasip1-threads -pthread -O3
+            -msimd128 -mbulk-memory -mnontrapping-fptoint -mtail-call
+            -mexception-handling -mllvm -wasm-enable-sjlj
+            -mllvm -wasm-use-legacy-eh=false
+            -D_WASI_EMULATED_MMAN -D_WASI_EMULATED_SIGNAL
+            -D_WASI_EMULATED_PROCESS_CLOCKS -fno-delete-null-pointer-checks
+            -include runtime/web/compat/wasm_plat.h
+            -Iruntime/web/compat -Iruntime -Igen/all
+            -Wno-unused-label -Wno-parentheses-equality
+            -DNFS_ENHANCED=0
+          )
+          for source in runtime/com.c runtime/mpcredit.c runtime/mpcredit_store.c; do
+            object="$RUNNER_TEMP/$(basename "${source%.c}").wasm.o"
+            echo "Compile $source -> $object"
+            "$CC" "${flags[@]}" -c "$source" -o "$object"
+          done
 
       - name: Check MODPACKS builder and native runtime syntax
         run: |
