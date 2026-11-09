@@ -1692,5 +1692,7 @@
   "SESSION STATUS": "STATUS DA SESSÃO",
   "GAME RUNNING": "JOGO EM EXECUÇÃO",
   "The game continues running behind this menu.": "O jogo continua em execução por trás deste menu.",
-  "RETURN TO GAME": "VOLTAR AO JOGO"
+  "RETURN TO GAME": "VOLTAR AO JOGO",
+  "Enable mod rim brands": "Ativar marcas de rodas modificadas",
+  "Adds compatible mod rim brands to Body Shop. Requires a compatible MODPACKS pack in the game folder. Off by default. Changes apply the next time you press Play.": "Adiciona marcas de rodas compatíveis com mods ao Body Shop. Requer um pacote MODPACKS compatível na pasta do jogo. Desativado por padrão. As alterações entram em vigor na próxima vez que iniciar o jogo."
 }

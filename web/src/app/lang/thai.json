@@ -1600,5 +1600,7 @@
   "SESSION STATUS": "สถานะเซสชัน",
   "GAME RUNNING": "เกมกำลังทำงาน",
   "The game continues running behind this menu.": "เกมจะทำงานต่ออยู่เบื้องหลังเมนูนี้",
-  "RETURN TO GAME": "กลับเข้าสู่เกม"
+  "RETURN TO GAME": "กลับเข้าสู่เกม",
+  "Enable mod rim brands": "เปิดใช้แบรนด์ล้อจากม็อด",
+  "Adds compatible mod rim brands to Body Shop. Requires a compatible MODPACKS pack in the game folder. Off by default. Changes apply the next time you press Play.": "เพิ่มแบรนด์ล้อจากม็อดที่เข้ากันได้ใน Body Shop ต้องมีแพ็ก MODPACKS ที่เข้ากันได้ในโฟลเดอร์เกม ค่าเริ่มต้นปิดอยู่ การเปลี่ยนแปลงจะมีผลเมื่อเปิดเกมครั้งถัดไป"
 }

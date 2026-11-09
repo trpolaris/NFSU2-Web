@@ -1669,5 +1669,7 @@
   "SESSION STATUS": "SESSIONSSTATUS",
   "GAME RUNNING": "SPELET AKTIVT",
   "The game continues running behind this menu.": "Spelet fortsätter att köras bakom den här menyn.",
-  "RETURN TO GAME": "TILLBAKA TILL SPELET"
+  "RETURN TO GAME": "TILLBAKA TILL SPELET",
+  "Enable mod rim brands": "Aktivera modifierade fälgmärken",
+  "Adds compatible mod rim brands to Body Shop. Requires a compatible MODPACKS pack in the game folder. Off by default. Changes apply the next time you press Play.": "Lägger till kompatibla moddfälgmärken i Body Shop. Kräver ett kompatibelt MODPACKS-paket i spelmappen. Avstängt som standard. Ändringarna börjar gälla nästa gång spelet startas."
 }

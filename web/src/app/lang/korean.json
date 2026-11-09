@@ -1600,5 +1600,7 @@
   "SESSION STATUS": "세션 상태",
   "GAME RUNNING": "게임 실행 중",
   "The game continues running behind this menu.": "이 메뉴 뒤에서 게임이 계속 실행됩니다.",
-  "RETURN TO GAME": "게임으로 돌아가기"
+  "RETURN TO GAME": "게임으로 돌아가기",
+  "Enable mod rim brands": "모드 휠 브랜드 사용",
+  "Adds compatible mod rim brands to Body Shop. Requires a compatible MODPACKS pack in the game folder. Off by default. Changes apply the next time you press Play.": "호환되는 모드 휠 브랜드를 Body Shop에 추가합니다. 게임 폴더에 호환되는 MODPACKS 팩이 필요합니다. 기본값은 꺼짐입니다. 변경 사항은 다음 게임 실행부터 적용됩니다."
 }

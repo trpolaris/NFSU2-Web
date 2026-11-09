@@ -1,10 +1,8 @@
 # Community Mod Packs
 
-The repository contains an experimental `MODPACKS/` parser and a builder for community-added rim parts. The current
-runtime deliberately disables mod rim shop activation: `g.on[]` is forced off, and the corresponding settings rows
-were removed from the page. As a result, a successfully generated pack is **not currently a usable Body Shop feature**.
-Do not treat the old `ug2net_parts` / `others_mod_parts` settings or the old rim regression scripts as supported
-player-facing controls.
+The repository contains an experimental `MODPACKS/` parser and a builder for community-added rim parts. Rim brands are
+now available as an **explicit opt-in** feature. They remain off by default, and a pack is only used when the game has
+a compatible `MODPACKS/PARTS.BIN` and the player's `mod_rims` setting is enabled.
 
 ## Builder (experimental)
 
@@ -23,16 +21,30 @@ The builder currently focuses on the mod's new rim brands and their required ass
 replacements of original game parts. Original game files and third-party mod assets are not committed to this
 repository; obtain compatible source assets separately and respect their licence.
 
+## Enable in the game
+
+1. Build or install a compatible pack in the game's data folder so that `MODPACKS/PARTS.BIN` is present.
+2. Open the start page's **Settings → Mods → More mod settings** and turn on **Enable mod rim brands** (or set
+   `mod_rims = on` in `settings.ini`).
+3. Press **Play** again. The setting is passed as `NFSU2_MOD_RIMS=1`; each pack's declared environment key controls
+   whether its brands appear in the rim shop.
+4. Turn the setting off to hide mod brands from the shop. Parts already stored on a car are preserved; the setting
+   does not delete a saved mod part.
+
+The toggle is deliberately off by default. Enabling it without a valid pack does not add shop entries. Back up the
+profile before buying or saving mod parts. The feature remains experimental until it has been tested in the original
+game with the exact mod assets and save files being used.
+
 ## Runtime status
 
 - `runtime/modpacks.c` parses and validates `MODPACKS/PARTS.BIN`.
-- Rim shop entries are intentionally disabled at present, regardless of pack contents or `NFSU2_MOD_RIMS` in
-  `settings.ini`; the current web settings page does not expose a mod-rim toggle.
-- The former `ug2net_parts` and `others_mod_parts` controls are not present in the current settings registry.
-- Do not rely on the old `MODPARTS.DAT` workflow as a supported end-user feature until the runtime and UI path are
-  re-enabled and retested together.
+- Each pack is gated by its own environment key; the browser setting writes `1` or `0` for `NFSU2_MOD_RIMS`.
+- The old `ug2net_parts` and `others_mod_parts` settings are not supported and are not restored.
+- `MODPARTS.DAT` keeps mod-specific parts separate from original profile data. Keep backups when experimenting;
+  saves that contain mod parts still require the matching pack for those parts to render as intended.
 
 ## Verification
 
-`tests/scripts/modpacks_*.txt` are historical integration scenarios, not proof that rim shopping is enabled on
-this HEAD. A successful builder run or compile does not replace validation with a compatible game installation.
+`tests/scripts/modpacks_*.txt` describe manual integration scenarios for the original game. CI checks the opt-in
+configuration and setting path, but a successful compile or builder run does not replace Body Shop, purchase, save,
+reload and two-client validation with a compatible game installation.

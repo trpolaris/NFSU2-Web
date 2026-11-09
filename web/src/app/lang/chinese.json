@@ -1600,5 +1600,7 @@
   "SESSION STATUS": "工作階段狀態",
   "GAME RUNNING": "遊戲執行中",
   "The game continues running behind this menu.": "遊戲會在此選單後方繼續執行。",
-  "RETURN TO GAME": "返回遊戲"
+  "RETURN TO GAME": "返回遊戲",
+  "Enable mod rim brands": "啟用模組輪圈品牌",
+  "Adds compatible mod rim brands to Body Shop. Requires a compatible MODPACKS pack in the game folder. Off by default. Changes apply the next time you press Play.": "將相容的模組輪圈品牌加入 Body Shop。遊戲資料夾中必須有相容的 MODPACKS 套件。預設為關閉。變更會在下次啟動遊戲時生效。"
 }
