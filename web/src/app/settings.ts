@@ -166,6 +166,8 @@ export const KEYS: readonly KeyDef[] = [
   { key: 'open_tunnel', env: 'NFSU2_OPEN_TUNNEL', kind: 'bool', scope: 'web' },
   // Community rim packs: explicit opt-in, off by default (runtime/modpacks.c).
   { key: 'mod_rims', env: 'NFSU2_MOD_RIMS', kind: 'bool', scope: 'web' },
+  // Allow the outruns' unique visual rewards in every career car's shops after Caleb (runtime/uniques.c).
+  { key: 'uniques', env: 'NFSU2_UNIQUES', kind: 'bool', scope: 'web' },
   // the movies' subtitles (runtime/language.c).  Not in bundle.m's table either
   { key: 'subtitles', env: 'NFSU2_SUBTITLES', kind: 'bool', scope: 'web' },
   // the player's horn, which the others hear too (runtime/horn.c).  Not in bundle.m's table either: NFSU2_HORN there
@@ -259,6 +261,11 @@ export const TEMPLATE = `# NFSU2 settings, read at every launch.
 # Optional community rim brands from MODPACKS/ (e.g. Blitz). Requires a compatible pack built from separately
 # obtained mod and game assets. Off by default. [NFSU2_MOD_RIMS]
 #mod_rims = off
+
+# After Caleb, allow unique visual outrun rewards (wide body kits, hoods, spoilers, rims and vinyls)
+# to be sold for every career car. Off keeps the original per-car reward rule. Parts already bought stay
+# on their cars if this is turned off later. [NFSU2_UNIQUES]
+#uniques = off
 
 # Sound output.  [NOSOUND, inverted]
 #sound = on
