@@ -1669,5 +1669,7 @@
   "SESSION STATUS": "SITZUNGSSTATUS",
   "GAME RUNNING": "SPIEL LÄUFT",
   "The game continues running behind this menu.": "Das Spiel läuft hinter diesem Menü weiter.",
-  "RETURN TO GAME": "ZURÜCK ZUM SPIEL"
+  "RETURN TO GAME": "ZURÜCK ZUM SPIEL",
+  "Enable mod rim brands": "Mod-Felgenmarken aktivieren",
+  "Adds compatible mod rim brands to Body Shop. Requires a compatible MODPACKS pack in the game folder. Off by default. Changes apply the next time you press Play.": "Fügt kompatible Mod-Felgenmarken zum Body Shop hinzu. Ein kompatibles MODPACKS-Paket im Spielordner ist erforderlich. Standardmäßig deaktiviert. Änderungen gelten beim nächsten Spielstart."
 }
