@@ -1600,5 +1600,7 @@
   "SESSION STATUS": "セッション状態",
   "GAME RUNNING": "ゲーム実行中",
   "The game continues running behind this menu.": "このメニューの背後でゲームは実行され続けます。",
-  "RETURN TO GAME": "ゲームに戻る"
+  "RETURN TO GAME": "ゲームに戻る",
+  "Enable mod rim brands": "Modのホイールブランドを有効にする",
+  "Adds compatible mod rim brands to Body Shop. Requires a compatible MODPACKS pack in the game folder. Off by default. Changes apply the next time you press Play.": "互換性のあるModホイールブランドをBody Shopに追加します。ゲームフォルダーに互換性のあるMODPACKSパックが必要です。初期設定はオフです。変更は次回のゲーム起動時に適用されます。"
 }
