@@ -141,6 +141,11 @@ pub fn track_room(base: u32, key: u32) -> u32 {
     }
 }
 
+/// Whether a room belongs to the main world: the city or one of its race-track spots.
+pub fn main_world(room: u32) -> bool {
+    room == 0 || TRACK_KEYS.iter().any(|&key| track_room(0, key) == room)
+}
+
 /// Count players in a world and its track rooms from the hub's last tick.
 pub fn world_count(counts: &HashMap<u32, usize>, room: u32) -> usize {
     let n = |key: u32| counts.get(&key).copied().unwrap_or(0);
@@ -540,6 +545,11 @@ mod tests {
         assert_eq!(world_count(&counts, 0), 8);
         assert_eq!(world_count(&counts, world), 7);
         assert_eq!(world_count(&counts, 0xBEEF_0003), 0);
+        assert!(main_world(0));
+        assert!(main_world(track_room(0, 4711)));
+        assert!(main_world(track_room(0, 4605)));
+        assert!(!main_world(world));
+        assert!(!main_world(track_room(world, 4311)));
     }
 
     // a hub whose thread is stuck holds MAX_PENDING frames and leaves out the rest; each may keep
