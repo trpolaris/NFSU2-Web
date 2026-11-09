@@ -199,7 +199,7 @@ async function look(browser, kind, touch) {
   }
 }
 
-test(`the start page at ${WIDTH} px: no sideways scroll in any language`, { skip: SKIP, timeout: 600_000 }, async t => {
+test(`the React app shell at ${WIDTH} px: no sideways scroll in any language`, { skip: SKIP, timeout: 600_000 }, async t => {
   const stale = newerSource();
   assert.equal(stale, '', `web/dist is older than ${stale}: build the page (node web/build.mjs), then run this again`);
   const srv = await server();
