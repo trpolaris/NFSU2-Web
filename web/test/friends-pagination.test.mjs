@@ -125,12 +125,12 @@ test('F9 Friends inbox keeps live LAN mail once across a real page reload', { ti
 
   try {
     const page = await browser.newPage();
-    await page.route('http://127.0.0.1:8631/**', route => route.fulfill({
+    await page.route('http://friends-live-inbox.test/**', route => route.fulfill({
       status: 200,
       contentType: 'text/html',
       body: '<main id="friends"></main>',
     }));
-    await page.goto('http://127.0.0.1:8631/');
+    await page.goto('http://friends-live-inbox.test/');
 
     const lists = {
       me: 'LocalDriver',
@@ -145,12 +145,16 @@ test('F9 Friends inbox keeps live LAN mail once across a real page reload', { ti
       const root = document.querySelector('#friends');
       const panel = new FriendsPanel(root, { room: async () => snapshot }, () => {});
       const message = { op: 'mail', from: 'Bo', body: 'live LAN message', at: 3000 };
-      // The live event may arrive before the initial /friends snapshot claims its owner.
+      // A live message can arrive before the initial Friends snapshot claims this browser's player name.
       panel.server(message);
       panel.server(message);
     }, BUNDLE_URL, lists);
 
-    await page.waitForFunction(() => document.querySelector('[data-friends-note]')?.textContent?.includes('LocalDriver hesabı'));
+    await page.waitForFunction(
+      () => localStorage.getItem('nfsu2.friends.inbox.localdriver') !== null,
+      null,
+      { timeout: 10_000 },
+    );
     const first = await page.evaluate(() => {
       const root = document.querySelector('#friends');
       return {
@@ -176,7 +180,7 @@ test('F9 Friends inbox keeps live LAN mail once across a real page reload', { ti
       const root = document.querySelector('#friends');
       new FriendsPanel(root, { room: async () => snapshot }, () => {});
     }, BUNDLE_URL, lists);
-    await page.waitForFunction(() => document.querySelector('[data-friends-note]')?.textContent?.includes('LocalDriver hesabı'));
+    await page.waitForFunction(() => document.querySelector('.friends-mail-row') !== null, null, { timeout: 10_000 });
     const afterReload = await page.evaluate(() => {
       const root = document.querySelector('#friends');
       return {
