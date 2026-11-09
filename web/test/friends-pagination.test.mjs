@@ -233,10 +233,17 @@ test('F9 Friends inbox persists unread state per claimed name and keeps read his
           unread: row.dataset.unread ?? '',
         })),
       });
+      const waitForOwner = async (root, name) => {
+        const deadline = performance.now() + 10_000;
+        while (!root.querySelector('[data-friends-note]')?.textContent?.includes(`${name} hesabı`)) {
+          if (performance.now() >= deadline) throw new Error(`Friends snapshot did not establish ${name}`);
+          await new Promise(resolve => setTimeout(resolve, 10));
+        }
+      };
 
       const firstRoot = document.querySelector('#friends');
       new FriendsPanel(firstRoot, { room: async () => lists }, () => {});
-      await new Promise(resolve => setTimeout(resolve, 0));
+      await waitForOwner(firstRoot, 'LocalDriver');
       const initial = snapshot(firstRoot);
       firstRoot.querySelector('.friends-mail-row.is-unread [data-friends-mail-read]')?.click();
       const afterOneRead = snapshot(firstRoot);
@@ -244,7 +251,7 @@ test('F9 Friends inbox persists unread state per claimed name and keeps read his
       const secondRoot = document.createElement('main');
       document.body.append(secondRoot);
       new FriendsPanel(secondRoot, { room: async () => ({ ...lists, mail: [] }) }, () => {});
-      await new Promise(resolve => setTimeout(resolve, 0));
+      await waitForOwner(secondRoot, 'LocalDriver');
       const afterReload = snapshot(secondRoot);
       secondRoot.querySelector('[data-friends-mail-clear]')?.click();
       const afterMarkAll = snapshot(secondRoot);
@@ -252,7 +259,7 @@ test('F9 Friends inbox persists unread state per claimed name and keeps read his
       const otherRoot = document.createElement('main');
       document.body.append(otherRoot);
       new FriendsPanel(otherRoot, { room: async () => ({ ...lists, me: 'OtherDriver', mail: [] }) }, () => {});
-      await new Promise(resolve => setTimeout(resolve, 0));
+      await waitForOwner(otherRoot, 'OtherDriver');
       const otherPlayer = snapshot(otherRoot);
       return { initial, afterOneRead, afterReload, afterMarkAll, otherPlayer };
     }, BUNDLE_URL);
