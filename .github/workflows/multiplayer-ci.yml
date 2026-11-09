@@ -141,6 +141,8 @@ jobs:
           /tmp/opentunnel_unit incomplete
           /tmp/opentunnel_unit empty
           /tmp/opentunnel_unit on
+          cc -std=c11 -D_POSIX_C_SOURCE=200809L -Wall -Wextra -Werror -Iruntime tests/modpacks_switch_unit.c -o /tmp/modpacks_switch_unit
+          /tmp/modpacks_switch_unit
           cc -std=c11 -D_POSIX_C_SOURCE=200809L -Wall -Wextra -Wno-unused-function -Iruntime tests/catchup_unit.c -o /tmp/catchup_unit
           stdbuf -oL -eL /tmp/catchup_unit
 
