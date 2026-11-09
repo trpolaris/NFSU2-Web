@@ -125,7 +125,12 @@ test('F9 Friends inbox persists unread state per claimed name and keeps read his
 
   try {
     const page = await browser.newPage();
-    await page.setContent('<main id="friends"></main>');
+    await page.route('http://friends-inbox.test/**', route => route.fulfill({
+      status: 200,
+      contentType: 'text/html',
+      body: '<main id="friends"></main>',
+    }));
+    await page.goto('http://friends-inbox.test/');
     const result = await page.evaluate(async bundleUrl => {
       const { FriendsPanel } = await import(bundleUrl);
       localStorage.clear();
