@@ -217,8 +217,8 @@ test('Free Roam and Online toggles are React-controlled through the DOM-free Set
   assert.match(settingsUi, /current\(key: string\): string/);
   assert.match(settingsUi, /set\(key: string, value: string \| null\)/);
   assert.match(shellCss, /\.trp-online-react-controls/);
-  assert.match(shellCss, /data-key="roam"/);
-  assert.match(shellCss, /data-key="online"/);
+  assert.match(app, /data-key="roam"/);
+  assert.match(app, /data-key="online"/);
 });
 
 
