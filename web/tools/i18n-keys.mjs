@@ -68,7 +68,7 @@ const norm = s => s.replace(/\s+/g, ' ').trim();
 /** index.html as a tree: { tag, attrs, kids } and text strings */
 function parseHtml(html) {
   const root = { tag: '#root', attrs: {}, kids: [] }, stack = [root];
-  const re = /<!--[\s\S]*?-->|<!doctype[^>]*>|<\/([a-z0-9-]+)\s*>|<([a-z0-9-]+)((?:\s+[^\s=>/]+(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+))?)*)\s*\/?>|([^<]+)/gi;
+  const re = /<!--[\s\S]*?-->|<!doctype[^>]*>|<\/([a-zA-Z0-9.-]+)\s*>|<([a-zA-Z][a-zA-Z0-9.-]*)((?:\s+[^\s=>/]+(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+))?)*)\s*\/?>|([^<]+)/gi;
   for (let m; (m = re.exec(html));) {
     const top = stack[stack.length - 1];
     if (m[4] !== undefined) { top.kids.push(decode(m[4])); continue; }
@@ -92,11 +92,11 @@ function htmlKey(el) {
 }
 
 /** the texts index.html marks: [{ key, where }] */
-export function htmlKeys(html) {
+export function htmlKeys(html, source = 'index.html') {
   const out = [];
   const visit = n => {
     if (typeof n === 'string') return;
-    const where = `index.html ${n.tag}${n.attrs.id ? '#' + n.attrs.id : ''}`;
+    const where = `${source} ${n.tag}${n.attrs.id ? '#' + n.attrs.id : ''}`;
     if ('data-i18n' in n.attrs) out.push({ key: norm(textOf(n)), where });
     if ('data-i18n-html' in n.attrs) out.push({ key: htmlKey(n), where, html: true });
     if ('data-i18n-attr' in n.attrs) for (const a of n.attrs['data-i18n-attr'].split(/\s+/).filter(Boolean)) out.push({ key: n.attrs[a] ?? '', where: `${where} [${a}]` });
@@ -112,7 +112,8 @@ function sources(dir) {
   return fs.readdirSync(dir, { withFileTypes: true }).flatMap(e => {
     const p = path.join(dir, e.name);
     // the test pages are not the player's; i18n.ts itself only defines the functions
-    return e.isDirectory() ? (e.name === 'test' ? [] : sources(p)) : e.name.endsWith('.ts') && e.name !== 'i18n.ts' ? [p] : [];
+    return e.isDirectory() ? (e.name === 'test' ? [] : sources(p))
+      : (e.name.endsWith('.ts') || e.name.endsWith('.jsx')) && e.name !== 'i18n.ts' ? [p] : [];
   });
 }
 
@@ -128,9 +129,15 @@ export function catalog() {
   };
   for (const f of sources(path.join(WEB, 'src'))) {
     const rel = path.relative(path.join(WEB, 'src'), f).split(path.sep).join('/');
-    const r = sourceKeys(fs.readFileSync(f, 'utf8'));
+    const src = fs.readFileSync(f, 'utf8');
+    const r = sourceKeys(src);
     for (const k of r.keys) add(k.key, rel, k);
-    bad.push(...r.bad.map(b => `${rel}: ${b}`));
+    if (f.endsWith('.ts')) bad.push(...r.bad.map(b => `${rel}: ${b}`));
+    if (f.endsWith('.jsx')) {
+      for (const k of htmlKeys(src, rel)) {
+        if (!/^\{[^{}]+\}$/.test(k.key)) add(k.key, k.where, k);
+      }
+    }
   }
   for (const k of htmlKeys(fs.readFileSync(path.join(WEB, 'index.html'), 'utf8'))) add(k.key, k.where, k);
   return { keys: all, bad };

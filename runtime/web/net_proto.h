@@ -67,7 +67,9 @@
                                    the game, its state as a JSON object ("{}": none), sent when it changes
                                    (roam_game.c mp_panel) */
 #define NET_KIND_SAY      18u   /* TX ring only, never on the switch: quick chat, a phrase said (by a friend near,
-                                   one in our race lobby, or the player), as a JSON object (roam_game.c say_*) */
+                                   one in our race lobby, or the player), as JSON; in a multiplayer race
+                                   racehorn.c qc_page supplies the same local page notification */
+#define NET_KIND_FRIEND   19u   /* TX ring only: front bumper contact for 3 s or parted, JSON {id,name,on} */
 #define NET_BROADCAST      0xFFFFFFFFu
 #define NET_ROAM_HUB       0x0A4D00FDu  /* 10.77.0.253: the server's free-roam hub (web/server-rs/crates/roam),
                                    an address the switch never hands out */
@@ -122,9 +124,9 @@ typedef struct {
                                                                   1 off, 2 on; roam_plat_solid) */
     double   switch_rtt_ms;                                    /* 112: last ping to the switch */
     double   tx_wait_ms_sum, tx_wait_ms_max;                   /* 120: C queued -> page sent */
-    uint32_t tx_wait_n, say;                                   /* 136: say: quick chat, the phrase the player
-                                                                  picked (bits 0-7) and a count (bits 8-31) that
-                                                                  changes with each pick (roam_plat_say_pick) */
+    uint32_t tx_wait_n, say;                                   /* 136: say: quick chat phrase (bits 0-7) and a
+                                                                  count (bits 8-31) that changes with each pick;
+                                                                  free roam: roam_plat_say_pick, race: vlan_rt_say_pick */
     uint32_t peer_bits[NET_PEER_BITS / 32];                    /* 144: page: bit h set = the host h of our
                                                                   network (vip & ~netmask) is on the switch (us too) */
     uint32_t crews_gen, crews[4], crews_rgb[4];                /* 400: page: free roam's crews as the page's menu
@@ -133,7 +135,9 @@ typedef struct {
                                                                   (0x00RRGGBB, 0: the default for the place);
                                                                   crews_gen +1 a change (0: not changed), written
                                                                   after the crews and colours (roam_plat_crews) */
-    uint32_t pad[19];                                          /* 436 .. 511 */
+    uint32_t room_gen, room_name[16];                          /* 436: page: Free Roam room, UTF-8 words;
+                                                                  generation is written after the name */
+    uint32_t pad[2];                                           /* 504 .. 511 */
 } net_mailbox;
 
 typedef struct {
@@ -157,6 +161,8 @@ _Static_assert(offsetof(net_mailbox, tx_wait_n) == 136, "tx_wait_n");
 _Static_assert(offsetof(net_mailbox, peer_bits) == 144, "peer_bits");
 _Static_assert(offsetof(net_mailbox, crews_gen) == 400, "crews_gen");
 _Static_assert(offsetof(net_mailbox, crews_rgb) == 420, "crews_rgb");
+_Static_assert(offsetof(net_mailbox, room_gen) == 436, "room_gen");
+_Static_assert(offsetof(net_mailbox, room_name) == 440, "room_name");
 _Static_assert(offsetof(net_slot, src_port) == 16, "src_port");
 _Static_assert(offsetof(net_slot, t_ms) == 24, "t_ms");
 _Static_assert(offsetof(net_slot, data) == NET_SLOT_HDR, "data");

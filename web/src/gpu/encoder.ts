@@ -22,8 +22,9 @@
 // drew them on the screen).
 import * as P from './proto';
 import { D, F, Kind, Op } from './proto';
-import { COPY, FF_FS, TONE, TVERT_VS } from './wgsl';
+import { COPY, FF_FS, MS_RESOLVE, TONE, TVERT_VS } from './wgsl';
 import { createShaderAbi, alphaFunc, PSCUBE, VSPAR_SIZE, KWIN_SIZE, PSPAR_SIZE, HLPAR_SIZE } from './shader-abi';
+import type { GameMemory } from '../host/memory';
 import { unpackDxt } from './dxt';
 import { dxt1HasPunch, dxt1ToAstc } from './astc';
 
@@ -31,6 +32,12 @@ export interface EncodeStats {
   draws: number; passes: number; skipped: number; encodeMs: number;
   /** the frame was drawn straight into the texture given to encodeFrame (no back buffer, no composite) */
   direct: boolean;
+}
+
+/** Use the game's anisotropy request on linear, mipmapped game textures, never on render targets. */
+export function anisotropicSamplerKey(k: number, renderTarget: boolean): number {
+  const mn = k & 3, mg = (k >> 2) & 3, mp = (k >> 4) & 3, al = (k >> 12) & 7;
+  return !renderTarget && mn === 2 && mg === 2 && mp !== 0 && al !== 0 ? (k & ~3) | 3 : k;
 }
 
 interface Tex {
@@ -43,7 +50,10 @@ interface Tex {
   filled: boolean;                 // a level has gone up (an ASTC texture's choice is made at its first upload)
   bytes: number;                   // its size on the GPU, every level and face
   face0?: GPUTextureView;          // a cube's face 0, level 0 as a 2D view (StretchRect from it), made at its first use
+  ms?: MsTwin;                     // the 4-sample render twin for an FSAA target
 }
+
+interface MsTwin { tex: GPUTexture; view: GPUTextureView; stale: boolean }
 
 const enum Src { TVert = 0, Raw = 1, Pool = 2 }
 const PSLOT = 768;                 // PSPar (560 bytes) at 256-aligned slots
@@ -65,7 +75,7 @@ const ADDR: GPUAddressMode[] = ['repeat', 'repeat', 'mirror-repeat', 'clamp-to-e
 export class Encoder {
   readonly device: GPUDevice;
   private queue: GPUQueue;
-  private memory: WebAssembly.Memory;
+  private memory: GameMemory;
   private sab!: SharedArrayBuffer;
   private u8!: Uint8Array; private u32!: Uint32Array; private i32!: Int32Array; private f32!: Float32Array;
   private ctlW: number;              // word index of GwCtl
@@ -84,6 +94,8 @@ export class Encoder {
   private vsMods = new Map<number, GPUShaderModule>();
   private psMods = new Map<number, GPUShaderModule>();
   private samplers = new Map<number, GPUSampler>();
+  /** Anisotropic filtering where the game's sampler asks for it (web setting, off on touch devices). */
+  aniso = false;
   private pipes = new Map<number, GPURenderPipeline | null>();
   private bg1 = new Map<string, GPUBindGroup>();
   private destroyLater: { destroy(): void }[] = [];
@@ -114,6 +126,16 @@ export class Encoder {
   // draws its screen into: the back buffer, or the canvas texture when sizes match
   bb: GPUTexture | null = null; private bbView: GPUTextureView | null = null;
   screen: GPUTexture | null = null; screenView: GPUTextureView | null = null;
+  /** the game's Full Scene Anti-Aliasing: 4-sample twins resolved into the screen and marked render targets */
+  private bbSamples = 1;
+  // msResolve's shader, layout, pipelines by format and bind groups by twin, made at its first use
+  private msRes: { mod: GPUShaderModule; bgl: GPUBindGroupLayout; layout: GPUPipelineLayout; pipes: Map<string, GPURenderPipeline>;
+    bgs: WeakMap<GPUTexture, GPUBindGroup> } | null = null;
+  private msScreen: MsTwin | null = null;
+  private msZ = new Map<string, { tex: GPUTexture; view: GPUTextureView }>();
+  private msZpend = new Uint8Array(64); private msZpendV = new Float32Array(64);
+  private pipesMs = new Map<number, GPURenderPipeline | null>();
+  msPasses = 0; msRefreshes = 0;
   /** frames that copied from the screen before drawing to it (they keep the back buffer) */
   screenReadFirst = 0;
 
@@ -134,7 +156,7 @@ export class Encoder {
   calls = { pipe: 0, bg0: 0, bg1: 0, bg1New: 0, blend: 0, ix: 0, draw: 0, pass: 0, copy: 0 };
   private seenFmt = new Set<string>();
 
-  constructor(device: GPUDevice, memory: WebAssembly.Memory, ctlPtr: number, log: (s: string) => void) {
+  constructor(device: GPUDevice, memory: GameMemory, ctlPtr: number, log: (s: string) => void) {
     this.device = device; this.queue = device.queue; this.memory = memory; this.ctlW = ctlPtr >> 2; this.log = log;
     const f = device.features;
     this.feat = { bc: f.has('texture-compression-bc'), astc: f.has('texture-compression-astc'), swizzle: f.has('texture-component-swizzle'),
@@ -192,6 +214,8 @@ export class Encoder {
     const c = this.ctlW, u32 = this.u32;
     const cap = u32[c + P.C.rqCap], base = u32[c + P.C.rqPtr];
     let tail = u32[c + P.C.rqTail];
+    // The queue may describe bytes beyond this page's current shared-memory buffer after a grow.
+    if (!(base + cap <= this.u8.length)) return tail;
     let n = 0;
     while (((limit - tail) | 0) > 0) {
       const p = base + (tail & (cap - 1)), w = p >> 2;
@@ -221,7 +245,11 @@ export class Encoder {
           this.warmUp();
           break;
         }
-        case Op.ZForget: if (a0 < 64 && this.zTex[a0]) { this.zTex[a0]!.destroy(); this.zTex[a0] = undefined; this.zView[a0] = undefined; } break;
+        case Op.ZForget:
+          if (a0 < 64 && this.zTex[a0]) { this.zTex[a0]!.destroy(); this.zTex[a0] = undefined; this.zView[a0] = undefined; }
+          for (const [k, z] of this.msZ) if (k.startsWith(`${a0}:`)) { this.destroyLater.push(z.tex); this.msZ.delete(k); }
+          break;
+        case Op.BbSamples: this.setBbSamples(a0); break;
         default: this.log(`[gpu] unknown resource op ${op}`);
       }
       tail = (tail + len) >>> 0;
@@ -279,14 +307,21 @@ export class Encoder {
     }
     bytes *= cube ? 6 : 1;
     this.texBytes += bytes; if (gf.unpack) this.unpackBytes += bytes; if (gf.astc) this.astcBytes += bytes;
+    let ms: MsTwin | undefined;
+    if ((flags & P.TF_MS) && rt && !cube && levels === 1) {
+      const mt = this.device.createTexture({ label: `t${id} x4`, size: [w, h], format: gf.f, sampleCount: 4,
+        usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING });
+      ms = { tex: mt, view: mt.createView(), stale: true };
+      bytes += w * h * 16; this.texBytes += w * h * 16;
+    }
     this.tex[id] = { serial: this.serial++, tex, fmt, w, h, levels, cube, rt, view: tex.createView(vd), rtViews, expandA8: gf.a8, bc: gf.bc,
-      unpack: !!gf.unpack, astc: !!gf.astc, filled: false, bytes };
+      unpack: !!gf.unpack, astc: !!gf.astc, filled: false, bytes, ms };
   }
 
   private texFree(id: number): void {
     const t = this.tex[id];
     if (!t) return;
-    t.tex.destroy();
+    t.tex.destroy(); t.ms?.tex.destroy();
     this.texBytes -= t.bytes; if (t.unpack) this.unpackBytes -= t.bytes; if (t.astc) this.astcBytes -= t.bytes;
     this.tex[id] = undefined;
     if (this.bg1.size > 8192) this.bg1.clear();       // keys carry serials: stale entries are never hit again
@@ -378,14 +413,14 @@ export class Encoder {
     return s;
   }
 
-  private copyPipe(format: GPUTextureFormat, opaque: boolean): GPURenderPipeline {
-    const key = format + (opaque ? '/o' : '');
+  private copyPipe(format: GPUTextureFormat, opaque: boolean, ms = false): GPURenderPipeline {
+    const key = format + (opaque ? '/o' : '') + (ms ? '/x4' : '');
     let p = this.copyPipes.get(key);
     if (!p) {
       p = this.device.createRenderPipeline({ label: `copy ${key}`, layout: this.device.createPipelineLayout({ bindGroupLayouts: [this.copyBgl] }),
         vertex: { module: this.copyMod, entryPoint: 'vs_full' },
         fragment: { module: this.copyMod, entryPoint: opaque ? 'fs_opaque' : 'fs_copy', targets: [{ format }] },
-        primitive: { topology: 'triangle-list' } });
+        primitive: { topology: 'triangle-list' }, ...(ms ? { multisample: { count: 4 } } : {}) });
       this.copyPipes.set(key, p);
     }
     return p;
@@ -401,6 +436,74 @@ export class Encoder {
     let g = m.get(smp);
     if (!g) m.set(smp, g = this.device.createBindGroup({ layout: this.copyBgl, entries: [{ binding: 0, resource: src }, { binding: 1, resource: smp }] }));
     return g;
+  }
+
+  /** the back buffer's sample count from the next frame on (resource op BbSamples). */
+  private setBbSamples(n: number): void {
+    n = n === 4 ? 4 : 1;
+    if (n === this.bbSamples) return;
+    this.bbSamples = n;
+    this.log(`[gpu] back buffer: ${n} sample${n === 1 ? '' : 's'} (FSAA ${n === 4 ? 'on' : 'off'})`);
+    if (n === 1) {
+      if (this.msScreen) { this.destroyLater.push(this.msScreen.tex); this.msScreen = null; }
+      for (const z of this.msZ.values()) this.destroyLater.push(z.tex);
+      this.msZ.clear();
+    }
+  }
+
+  private screenTwin(w: number, h: number): MsTwin {
+    const s = this.msScreen;
+    if (s && s.tex.width === w && s.tex.height === h) return s;
+    if (s) this.destroyLater.push(s.tex);
+    for (const [k, z] of this.msZ) if (!k.endsWith(`:${w}x${h}`)) { this.destroyLater.push(z.tex); this.msZ.delete(k); }
+    const tex = this.device.createTexture({ label: `backbuffer x4 ${w}x${h}`, size: [w, h], format: 'bgra8unorm', sampleCount: 4,
+      usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING });
+    return this.msScreen = { tex, view: tex.createView(), stale: true };
+  }
+
+  /** a twin's picture into its target (dst: the target's view, of the twin's size), each pixel the average of its 4
+   *  samples, in a pass of its own after the twin's (see the multisampling fields: not the GPU's own resolve) */
+  private msResolve(enc: GPUCommandEncoder, twin: MsTwin, dst: GPUTextureView): void {
+    const d = this.device;
+    const r = this.msRes ??= (() => {
+      const bgl = d.createBindGroupLayout({ entries: [
+        { binding: 0, visibility: GPUShaderStage.FRAGMENT, texture: { sampleType: 'unfilterable-float', multisampled: true } }] });
+      return { mod: this.module('ms-resolve', MS_RESOLVE), bgl, layout: d.createPipelineLayout({ bindGroupLayouts: [bgl] }),
+        pipes: new Map<string, GPURenderPipeline>(), bgs: new WeakMap<GPUTexture, GPUBindGroup>() };
+    })();
+    const fmt = twin.tex.format;
+    let p = r.pipes.get(fmt);
+    if (!p) r.pipes.set(fmt, p = d.createRenderPipeline({ label: `ms-resolve ${fmt}`, layout: r.layout,
+      vertex: { module: r.mod, entryPoint: 'vs_full' }, fragment: { module: r.mod, entryPoint: 'fs_resolve', targets: [{ format: fmt }] },
+      primitive: { topology: 'triangle-list' } }));
+    let g = r.bgs.get(twin.tex);
+    if (!g) r.bgs.set(twin.tex, g = d.createBindGroup({ layout: r.bgl, entries: [{ binding: 0, resource: twin.view }] }));
+    // every pixel is written: nothing of the target's to load
+    const pass = enc.beginRenderPass({ colorAttachments: [{ view: dst, loadOp: 'clear', clearValue: [0, 0, 0, 1], storeOp: 'store' }] });
+    pass.setPipeline(p);
+    pass.setBindGroup(0, g);
+    pass.draw(3);
+    pass.end();
+  }
+
+  private msZView(zid: number, w: number, h: number): { view: GPUTextureView; fresh: boolean } {
+    const k = `${zid}:${w}x${h}`;
+    let z = this.msZ.get(k), fresh = false;
+    if (!z) {
+      const tex = this.device.createTexture({ label: `z${zid} x4 ${w}x${h}`, size: [w, h], format: 'depth32float', sampleCount: 4,
+        usage: GPUTextureUsage.RENDER_ATTACHMENT });
+      this.msZ.set(k, z = { tex, view: tex.createView() }); fresh = true;
+    }
+    return { view: z.view, fresh };
+  }
+
+  private msRefresh(enc: GPUCommandEncoder, twin: MsTwin, src: GPUTextureView): void {
+    const pass = enc.beginRenderPass({ colorAttachments: [{ view: twin.view, loadOp: 'clear', clearValue: [0, 0, 0, 1], storeOp: 'store' }] });
+    pass.setPipeline(this.copyPipe(twin.tex.format, false, true));
+    pass.setBindGroup(0, this.copyBg(src, this.nearest));
+    pass.draw(3);
+    pass.end();
+    twin.stale = false; this.msRefreshes++;
   }
 
   /** draw `src` over the whole of `dst` (StretchRect between sizes, composite) */
@@ -445,7 +548,7 @@ export class Encoder {
     pass.end();
   }
 
-  private pipeDesc(key: number, blend: number, ps: number, vs: number, cull: number, dm: number, nd: boolean): GPURenderPipelineDescriptor | null {
+  private pipeDesc(key: number, blend: number, ps: number, vs: number, cull: number, dm: number, nd: boolean, ms = false): GPURenderPipelineDescriptor | null {
     // the translator's modules (vs_0 / ps_0 / ps_256 included once registered), else the built-in fallbacks
     const cube = ps >= PSCUBE;
     const vq = this.vsMods.get(vs), pq = this.psMods.get(ps);
@@ -469,25 +572,27 @@ export class Encoder {
         constants: { ALPHA_FUNC: alphaFunc(nd ? 0 : 1) } },
       primitive: { topology: 'triangle-list', frontFace: 'cw', cullMode: cull === 1 ? 'none' : cull === 2 ? 'front' : 'back' },
       depthStencil: { format: 'depth32float', depthWriteEnabled: (dm & 2) !== 0, depthCompare: (dm & 1) ? CMP[(dm >> 2) & 7] : 'always' },
+      ...(ms ? { multisample: { count: 4 } } : {}),
     };
   }
 
   /** a pipeline needed now: created synchronously (a first use may hitch; warmUp() avoids most) */
-  private pipeline(key: number, blend: number, ps: number, vs: number, cull: number, dm: number, nd: boolean): GPURenderPipeline | null {
-    const desc = this.pipeDesc(key, blend, ps, vs, cull, dm, nd);
-    if (!desc) { this.pipes.set(key, null); return null; }
+  private pipeline(key: number, blend: number, ps: number, vs: number, cull: number, dm: number, nd: boolean, ms = false): GPURenderPipeline | null {
+    const pipes = ms ? this.pipesMs : this.pipes;
+    const desc = this.pipeDesc(key, blend, ps, vs, cull, dm, nd, ms);
+    if (!desc) { pipes.set(key, null); return null; }
     this.device.pushErrorScope('validation');
     const tp = performance.now();
     const p = this.device.createRenderPipeline(desc);
     const dt = performance.now() - tp;
     this.pipeMs += dt; if (dt > this.pipeMsMax) this.pipeMsMax = dt;
-    this.device.popErrorScope().then(e => { if (e) { this.log(`[gpu] pipeline ps=${ps} vs=${vs} blend=${blend.toString(16)}: ${e.message}`); this.pipes.set(key, null); } });
-    this.pipes.set(key, p);
+    this.device.popErrorScope().then(e => { if (e) { this.log(`[gpu] pipeline ps=${ps} vs=${vs} blend=${blend.toString(16)}${ms ? ' x4' : ''}: ${e.message}`); pipes.set(key, null); } });
+    pipes.set(key, p);
     this.pipelinesMade++; this.pipelinesSync++;
-    // remember it for the next session, by the modules' text hashes
+    // remember it for the next session; bit 35 marks four-sample pipelines
     const vh = this.vsHash.get(vs), ph = this.psHash.get(ps);
     if (vh !== undefined && ph !== undefined) {
-      const st = blend + cull * 262144 + dm * 1048576 + (nd ? 67108864 : 0), k = `${vh}:${ph}:${st}`;
+      const st = blend + cull * 262144 + dm * 1048576 + (nd ? 67108864 : 0) + (ms ? 34359738368 : 0), k = `${vh}:${ph}:${st}`;
       if (!this.warmSeen.has(k)) { this.warmSeen.add(k); this.warmList.push({ v: vh, p: ph, s: st }); this.warmDirty = true; }
     }
     return p;
@@ -520,13 +625,15 @@ export class Encoder {
     this.warmTodo = this.warmTodo.filter(e => {
       const vs = this.vsByHash.get(e.v), ps = this.psByHash.get(e.p);
       if (vs === undefined || ps === undefined) return true;
-      const blend = e.s % 262144, cull = Math.floor(e.s / 262144) % 4, dm = Math.floor(e.s / 1048576) % 64, nd = e.s >= 67108864;
+      const blend = e.s % 262144, cull = Math.floor(e.s / 262144) % 4, dm = Math.floor(e.s / 1048576) % 64;
+      const nd = Math.floor(e.s / 67108864) % 2 === 1, ms = Math.floor(e.s / 34359738368) % 2 === 1;
+      const pipes = ms ? this.pipesMs : this.pipes;
       const key = blend + ps * 262144 + vs * 268435456 + cull * 137438953472 + dm * 549755813888 + (nd ? 35184372088832 : 0);
-      if (this.pipes.has(key)) return false;
-      const desc = this.pipeDesc(key, blend, ps, vs, cull, dm, nd);
+      if (pipes.has(key)) return false;
+      const desc = this.pipeDesc(key, blend, ps, vs, cull, dm, nd, ms);
       if (!desc) return false;
       this.device.createRenderPipelineAsync(desc).then(p => {
-        if (!this.pipes.has(key)) { this.pipes.set(key, p); this.pipelinesMade++; this.pipelinesAsync++; }
+        if (!pipes.has(key)) { pipes.set(key, p); this.pipelinesMade++; this.pipelinesAsync++; }
       }).catch(x => this.log(`[gpu] warm-up pipeline ps=${ps} vs=${vs}: ${x}`));
       return false;
     });
@@ -548,11 +655,12 @@ export class Encoder {
     return g;
   }
 
-  private depthView(zid: number, w: number, h: number): GPUTextureView {
-    const k = `${w}x${h}`;
+  private depthView(zid: number, w: number, h: number, ms = false): GPUTextureView {
+    const k = `${w}x${h}${ms ? 'x4' : ''}`;
     let v = this.scratchZ.get(k);
     if (!v) {
-      v = this.device.createTexture({ label: `scratch-z ${k}`, size: [w, h], format: 'depth32float', usage: GPUTextureUsage.RENDER_ATTACHMENT }).createView();
+      v = this.device.createTexture({ label: `scratch-z ${k}`, size: [w, h], format: 'depth32float', sampleCount: ms ? 4 : 1,
+        usage: GPUTextureUsage.RENDER_ATTACHMENT }).createView();
       this.scratchZ.set(k, v);
     }
     void zid;
@@ -635,25 +743,62 @@ export class Encoder {
     // the pass's size, and the scissor in effect in it (a GwDraw.clip value; 0 = the whole target)
     let passW = 0, passH = 0, cClip = 0;
     // the previous draw's pipeline (pipelines outlive passes, so this survives a pass change)
-    let lastKey = -1, lastPipe: GPURenderPipeline | null | undefined;
+    let lastKey = -1, lastMs = false, lastPipe: GPURenderPipeline | null | undefined;
+    let passMs = false;
     const b1 = this.b1, dyn = this.dyn;
     b1[0] = -1;
     let draws = 0, passes = 0, skipped = 0;
-    const endPass = () => { if (pass) { pass.end(); pass = null; } };
+    // the twin of the pass that is open and its target's view: resolved (msResolve) as the pass ends
+    let msOut: { twin: MsTwin; dst: GPUTextureView } | null = null;
+    const endPass = () => {
+      if (!pass) return;
+      pass.end(); pass = null;
+      if (msOut) { this.msResolve(enc, msOut.twin, msOut.dst); msOut = null; passes++; }
+    };
 
     const openPass = (target: number, zid: number): GPURenderPassEncoder | null => {
       let view: GPUTextureView, w: number, h: number, key: number;
-      if (!target) { view = this.screenView!; w = bbW; h = bbH; key = -1; passCube = -1; }
-      else {
+      let twin: MsTwin | null = null, twinSrc: GPUTextureView | null = null;
+      if (!target) {
+        view = this.screenView!; w = bbW; h = bbH; key = -1; passCube = -1;
+        if (this.bbSamples === 4) { twin = this.screenTwin(w, h); twinSrc = view; }
+      } else {
         const t = this.tex[target & 0xFFFF], face = (target >>> 16) & 7;
         if (!t || !t.rt) { this.missingTarget++; return null; }
         view = t.cube ? t.rtViews[face ? Math.min(face - 1, 5) : 0] : t.rtViews[0];
         w = t.w; h = t.h; key = (target & 0xFFFF) * 8 + face; passCube = target & 0xFFFF;
+        if (t.ms) { twin = t.ms; twinSrc = t.view; }
       }
       passW = w; passH = h;
       passKey = target ? (target & 0xFFFF) : -1;
       const first = key === -1 ? !screenTouched : !touched.has(key);
       let zv: GPUTextureView | undefined, zclear = false, zval = 1;
+      passMs = !!twin;
+      if (twin) {
+        if (!first && twin.stale) { this.msRefresh(enc, twin, twinSrc!); passes++; }
+        if (zid && zid < 64) {
+          const z = this.msZView(zid, w, h);
+          zv = z.view; if (z.fresh) zclear = true;
+          if (this.msZpend[zid]) { zclear = true; zval = this.msZpendV[zid]; this.msZpend[zid] = 0; }
+        }
+        realZ = !!zv;
+        const c = clearArgb;
+        const ts = this.firstPassTs; this.firstPassTs = undefined;
+        const p = enc.beginRenderPass({
+          timestampWrites: ts,
+          colorAttachments: [{ view: twin.view, loadOp: first ? 'clear' : 'load', storeOp: 'store',
+            clearValue: { r: ((c >>> 16) & 255) / 255, g: ((c >>> 8) & 255) / 255, b: (c & 255) / 255, a: 1 } }],
+          depthStencilAttachment: zv
+            ? { view: zv, depthLoadOp: zclear ? 'clear' : 'load', depthClearValue: zval, depthStoreOp: 'store' }
+            : { view: this.depthView(0, w, h, true), depthLoadOp: 'clear', depthClearValue: 1, depthStoreOp: 'discard' },
+        });
+        twin.stale = false; msOut = { twin, dst: view };
+        if (key === -1) screenTouched = true; else touched.add(key);
+        passes++; this.calls.pass++; this.msPasses++;
+        if (tr) tr.push(`  pass ${passes}: ${target ? `tex ${target & 0xFFFF}` : 'SCREEN'} x4 ${w}x${h} color ${first ? `clear ${c.toString(16)}` : 'load'}, z ${zv ? `zid ${zid} ${zclear ? `clear ${zval}` : 'load'}` : `none (zid ${zid})`}`);
+        cPipe = null; cSrc = -1; cK = -1; cP = -1; b1[0] = -1; cBcol = -1; cIx = ''; cClip = 0;
+        return p;
+      }
       if (zid && zid < 64) {
         let z = this.zTex[zid];
         if (!z || z.width !== w || z.height !== h) {
@@ -703,7 +848,8 @@ export class Encoder {
           this.copyQuad(enc, sv, dv, 'bgra8unorm', this.linear);
           passes++;
         }
-        if (tgt) touched.add((tgt & 0xFFFF) * 8 + ((tgt >>> 16) & 7)); else screenTouched = true;
+        if (tgt) { touched.add((tgt & 0xFFFF) * 8 + ((tgt >>> 16) & 7)); if (dt!.ms) dt!.ms.stale = true; }
+        else { screenTouched = true; if (this.msScreen) this.msScreen.stale = true; }
         continue;
       }
       const depth = u32[w + D.depth], zid = depth >>> 8, target = u32[w + D.target];
@@ -714,6 +860,7 @@ export class Encoder {
         if ((fl & 2) && zid && zid < 64) {
           const z = f32[w + D.clrZ];
           this.zpend[zid] = 1; this.zpendV[zid] = z < 0 ? 0 : z > 1 ? 1 : z;
+          this.msZpend[zid] = 1; this.msZpendV[zid] = this.zpendV[zid];
           if (pass && curZ === zid) { endPass(); curT = -1; }
         }
       }
@@ -739,9 +886,10 @@ export class Encoder {
       if (psEff === 0 && t0 && this.tex[t0]?.cube) psEff = PSCUBE;
       const nd = !(aref > 0);
       const key = blend + psEff * 262144 + vsid * 268435456 + cull * 137438953472 + dm * 549755813888 + (nd ? 35184372088832 : 0);
-      let pipe = key === lastKey ? lastPipe : this.pipes.get(key);
-      if (pipe === undefined) pipe = this.pipeline(key, blend, psEff, vsid, cull, dm, nd);
-      lastKey = key; lastPipe = pipe;
+      const pipes = passMs ? this.pipesMs : this.pipes;
+      let pipe = key === lastKey && passMs === lastMs ? lastPipe : pipes.get(key);
+      if (pipe === undefined) pipe = this.pipeline(key, blend, psEff, vsid, cull, dm, nd, passMs);
+      lastKey = key; lastMs = passMs; lastPipe = pipe;
       if (!pipe) { skipped++; if (tr) tr.push(`  #${i} draw skipped: no pipeline (ps ${psEff} vs ${vsid})`); continue; }
       if (pipe !== cPipe) { p.setPipeline(pipe); cPipe = pipe; this.calls.pipe++; }
       // the 2D UI on a screen narrower than 4:3 stays in its 4:3 band (gpu_proto.h GwDraw.clip), on the
@@ -784,8 +932,12 @@ export class Encoder {
       // group 1: textures and samplers (a texture bound as this pass's target samples white)
       const cube = psEff >= PSCUBE;
       const t1 = u32[w + D.tex1], t2 = u32[w + D.tex2], t3 = u32[w + D.tex3];
-      const s0 = u32[w + D.smp], s1 = u32[w + D.smp + 1], s2 = u32[w + D.smp + 2], s3 = u32[w + D.smp + 3];
+      let s0 = u32[w + D.smp], s1 = u32[w + D.smp + 1], s2 = u32[w + D.smp + 2], s3 = u32[w + D.smp + 3];
       const v0 = this.texFor(t0, cube, passCube), v1 = this.texFor(t1, false, passCube), v2 = this.texFor(t2, false, passCube), v3 = this.texFor(t3, false, passCube);
+      if (this.aniso) {
+        s0 = anisotropicSamplerKey(s0, v0.rt); s1 = anisotropicSamplerKey(s1, v1.rt);
+        s2 = anisotropicSamplerKey(s2, v2.rt); s3 = anisotropicSamplerKey(s3, v3.rt);
+      }
       // the same textures and samplers as the previous draw (the common case): nothing to do
       if (b1[0] !== (cube ? 1 : 0) || b1[1] !== v0.serial || b1[2] !== v1.serial || b1[3] !== v2.serial || b1[4] !== v3.serial
           || b1[5] !== s0 || b1[6] !== s1 || b1[7] !== s2 || b1[8] !== s3) {
@@ -862,7 +1014,7 @@ export class Encoder {
       const c = clearArgb;
       enc.beginRenderPass({ colorAttachments: [{ view: this.screenView!, loadOp: 'clear', storeOp: 'store',
         clearValue: { r: ((c >>> 16) & 255) / 255, g: ((c >>> 8) & 255) / 255, b: (c & 255) / 255, a: 1 } }] }).end();
-      passes++;
+      passes++; if (this.msScreen) this.msScreen.stale = true;
     }
     if (pslots) this.queue.writeBuffer(this.pBuf, 0, ps, 0, pslots * (PSLOT / 4));
     this.totalDraws += draws; this.totalPasses += passes;

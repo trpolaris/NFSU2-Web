@@ -188,11 +188,6 @@ fn special_query_set(c: char) -> bool {
 fn path_set(c: char) -> bool {
     query_set(c) || matches!(c, '?' | '^' | '`' | '{' | '}')
 }
-/// Node's parser (Ada) encodes a path only when it holds a character of the path set as it was before "^" joined it
-/// (its quick check of the path predates that): "/^" stays "/^", "/^{" is "/%5E%7B"
-fn path_set_before_caret(c: char) -> bool {
-    c != '^' && path_set(c)
-}
 fn no_set(_: char) -> bool {
     false
 }
@@ -230,7 +225,7 @@ fn path_and_query(rest: &str, special: bool) -> (String, Option<String>) {
         path.strip_prefix('/').unwrap_or(path)
     };
     let sep = |c: char| c == '/' || (special && c == '\\');
-    let set: fn(char) -> bool = if body.chars().any(path_set_before_caret) { path_set } else { no_set };
+    let set: fn(char) -> bool = if body.chars().any(path_set) { path_set } else { no_set };
     let mut segs: Vec<String> = Vec::new();
     let mut buf = String::new();
     let mut chars = body.chars();
@@ -782,10 +777,15 @@ mod tests {
         (paths, abs)
     }
 
-    // the Node server's reading of a target (new URL, its pathname, searchParams, decodeURIComponent) against node's
-    // own.  A node whose Ada predates "^" in the path set (v23.9.0 does: it leaves "/^{" as "/^%7B", where the Node
-    // server's gave "/%5E%7B", see path_set_before_caret) reads every path with a "^" otherwise: with such a node the
-    // targets that hold one are left out (and counted), the others still compared
+    // the Node 24 reading of a target (new URL, its pathname, searchParams, decodeURIComponent) against node's
+    // own. Node 24 percent-encodes "^" in the path set, including a path made of that character alone.
+    #[test]
+    fn the_path_percent_encodes_caret_as_node_24_does() {
+        assert_eq!(parse_path("/^").pathname, "/%5E");
+        assert_eq!(parse_path("/a^b").pathname, "/a%5Eb");
+        assert_eq!(parse_path("/a^b/").pathname, "/a%5Eb/");
+    }
+
     #[test]
     fn the_same_reading_as_node() {
         let (paths, abs) = corpus();
@@ -819,26 +819,17 @@ let input = ''; process.stdin.on('data', d => { input += d; }); process.stdin.on
         assert!(out.status.success());
         let answer: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
         let node = answer["reads"].as_array().unwrap();
-        let old_caret = answer["caret"] == "/^%7B";
         let ours: Vec<serde_json::Value> = paths.iter().map(|t| reading(t, false)).chain(abs.iter().map(|t| reading(t, true))).collect();
         let targets: Vec<&String> = paths.iter().chain(abs.iter()).collect();
-        let (mut differ, mut left_out) = (Vec::new(), 0);
-        for ((t, n), o) in targets.iter().zip(node).zip(&ours) {
-            if old_caret && t.contains('^') {
-                left_out += 1;
-                continue;
-            }
-            if n != o {
-                differ.push(format!("{t:?}: node {n} ours {o}"));
-            }
-        }
-        if left_out > 0 {
-            eprintln!("node's Ada predates \"^\" in the path set: {left_out} of {} targets (with a \"^\") left out", targets.len());
-        }
-        assert!(left_out < targets.len() / 2, "most targets compared ({left_out} of {} left out)", targets.len());
+        let differ: Vec<String> = targets
+            .iter()
+            .zip(node)
+            .zip(&ours)
+            .filter(|((_, n), o)| n != o)
+            .map(|((t, n), o)| format!("{t:?}: node {n} ours {o}"))
+            .collect();
         // (a Unicode host is refused here where node writes it as punycode: none in the corpus)
-        let compared = targets.len() - left_out;
-        assert!(differ.is_empty(), "{} of {compared} differ:\n{}", differ.len(), differ[..differ.len().min(30)].join("\n"));
+        assert!(differ.is_empty(), "{} of {} differ:\\n{}", differ.len(), targets.len(), differ[..differ.len().min(30)].join("\\n"));
     }
 
     #[test]

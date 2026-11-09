@@ -84,8 +84,14 @@ export interface NetOptions {
   onLobby?: (json: string) => void;
   /** quick chat from the game (NET_KIND_SAY): a phrase said, by a friend or the player, as JSON */
   onSay?: (json: string) => void;
+  /** front bumpers with a Free Roam friend touched for 3 s or parted (NET_KIND_FRIEND) */
+  onBump?: (json: string) => void;
   /** typed FreeRoam room or Crew chat, relayed by the hub as JSON */
   onChat?: (json: string) => void;
+  /** server-side friend message/request/invite notification */
+  onFriend?: (message: Record<string, unknown>) => void;
+  /** the page has just received a LAN address and can sync its page-side friends with the hub */
+  onWelcome?: () => void;
   /** the switch welcomed this page again after the link was lost (a server restart, as for a deploy) */
   onBack?: () => void;
   /** the server is full and this page waits in line for a place: where it is, as the switch last said; null: not
@@ -146,12 +152,14 @@ export interface NetLink {
   /** free roam's solid cars, switched while the game runs (the page menu; runtime/roam_game.c solid_follow) */
   setSolid(on: boolean): void;
   /** quick chat: the player says phrase p (runtime/roam_game.c say_frame sends it); false: no free roam */
-  say(p: number): boolean;
+  say(p: number, race?: boolean): boolean;
   /** typed chat: All is the room; Crew is restricted to the matching Crew hash */
   chat(text: string, scope: 'room' | 'crew', crewId?: number): boolean;
   /** free roam's crews, changed while the game runs (the page menu): their hashes (players.ts roomHash), in the
    *  player's order, at most 4, and their colours (0x00rrggbb; 0 or none: the place's default) */
   setCrews(hashes: readonly number[], rgbs?: readonly number[]): void;
+  /** Change the live Free Roam room; false if no compatible mailbox is attached. */
+  setRoom(name: string): boolean;
   close(): void;
 }
 
@@ -286,6 +294,14 @@ class Endpoint {
   }
 }
 
+/** The switch's connection failed this many times before opening: ask the server why. */
+const CHECK_AFTER = 3;
+/** Consecutive links that sent pings but received no pong before dropping. */
+const QUIET_PINGS = 2, QUIET_LINKS = 3;
+const BUSY_TEXT = N('Too many players are connected from your network: playing with others waits for a free place, or use another network.');
+const BLOCKED_TEXT = N('Your antivirus or network is probably blocking the connection to other players. Allow this site in it, or try another network or a VPN.');
+const QUIET_TEXT = N('Your connection to other players keeps dropping. Your network may be limiting it: try another network or a VPN.');
+
 class Link implements NetLink {
   state: NetState = 'waiting';
   vip: string | null = null;
@@ -313,6 +329,8 @@ class Link implements NetLink {
   private idleTimer: ReturnType<typeof setTimeout> | null = null;
   /** whether LAN play is open, as the switch last heard it (hello or {"t":"lan"}) */
   private lanSent = false;
+  /** LAN/Online screen state observed independently of what the switch last heard. */
+  private lanWas = false;
   /** the switch takes bundles (its welcome said so) */
   private bundles = false;
   /** the last body of each source's free-roam datagrams of each type in this connection's compact bundles (the
@@ -325,6 +343,19 @@ class Link implements NetLink {
   private pings = new Map<number, number>();
   private pingSeq = 0;
   private failed = 0;
+  /** connections that failed before opening and whether a server check has been made for this run. */
+  private unopened = 0;
+  private checked = false;
+  /** the server said it would accept a connection, but the next WebSocket still failed. */
+  private suspect = false;
+  /** pings sent and whether any received a valid pong during this WebSocket. */
+  private pinged = 0;
+  private ponged = false;
+  /** consecutive opened links that went quiet. */
+  private quiet = 0;
+  /** latest known cause, repeated when LAN/Online is opened while offline. */
+  private problem: string | null = null;
+  private told = new Set<string>();
   /** the link went without the page letting it go (onclose): the next welcome is onBack */
   private lost = false;
   private lastDownLog = -Infinity;
@@ -347,6 +378,9 @@ class Link implements NetLink {
   private crews: number[] = [];
   private crewsRgb: number[] = [];
   private crewsGen = 0;
+  /** UTF-8 room bytes and generation published to the Free Roam mailbox */
+  private room = new Uint8Array(0);
+  private roomGen = 0;
   /** the switch's peer list (the online host on it too), as its last whole list and the changes since made it */
   private peerMap = new Map<number, { name: string; server: boolean }>();
   private peerVips = new Set<number>();
@@ -384,7 +418,7 @@ class Link implements NetLink {
     const ep = new Endpoint(name, ver, buf, r.ptr, r.size);
     if (name === 'roam') this.roam = ep; else this.lan = ep;
     if (name === 'roam' && this.solid) Atomics.store(ep.i32, P.W_SOLID, this.solid);
-    if (name === 'roam') this.publishCrews(ep);
+    if (name === 'roam') { this.publishCrews(ep); this.publishRoom(ep); }
     if (name === 'lan') this.log('LAN play attached (the game opened its LAN screens)');
     this.publishPeers(ep);
     if (this.state === 'online') this.publishOnline(ep);
@@ -434,6 +468,8 @@ class Link implements NetLink {
       ws.send(JSON.stringify({ t: 'lan', on: lan ? 1 : 0 }));
       this.lanSent = lan;
     }
+    if (lan && !this.lanWas && this.problem && this.state !== 'online') this.o.onNotice?.(this.problem);
+    this.lanWas = lan;
   }
   /** nothing wanted the switch for idleMs: its place goes back (the switch frees the address at once) */
   private goIdle() {
@@ -459,6 +495,7 @@ class Link implements NetLink {
     if (ws) { ws.onopen = null; ws.onmessage = null; ws.onerror = null; ws.onclose = null; ws.close(1000, 'idle'); }
     this.pings.clear();
     this.state = to; this.token = ''; this.full = false; this.backoff = 250; this.failed = 0;
+    this.unopened = 0; this.checked = false; this.suspect = false; this.quiet = 0;
     // (a page in line leaves it: its close is 1000 "idle")
     if (this.ticket || this.queuedAt) { this.ticket = ''; this.queuedAt = 0; this.o.onQueue?.(null); }
     this.setPage(P.NET_PAGE_IDLE);
@@ -488,11 +525,12 @@ class Link implements NetLink {
     if (this.roam) Atomics.store(this.roam.i32, P.W_SOLID, this.solid);
     this.log(`solid cars ${on ? 'on' : 'off'} (the page menu)`);
   }
-  /** quick chat: the player says phrase p (the game sends it while they drive in free roam); false: no free roam */
-  say(p: number): boolean {
-    if (!this.roam) return false;
+  /** quick chat: free roam uses its own mailbox; multiplayer races use the LAN mailbox. */
+  say(p: number, race = false): boolean {
+    const mailbox = race ? this.lan : this.roam;
+    if (!mailbox) return false;
     this.picks = (this.picks + 1) & 0xffffff;
-    Atomics.store(this.roam.i32, P.W_SAY, (this.picks << 8 | (p & 0xff)) | 0);
+    Atomics.store(mailbox.i32, P.W_SAY, (this.picks << 8 | (p & 0xff)) | 0);
     return true;
   }
   /** A typed line goes to the hub, which validates room or Crew membership before relaying it. */
@@ -546,6 +584,30 @@ class Link implements NetLink {
     for (let i = 0; i < P.CREW_WORDS; i++) Atomics.store(ep.i32, P.W_CREWS_RGB + i, this.crewsRgb[i] ?? 0);
     Atomics.store(ep.i32, P.W_CREWS_GEN, this.crewsGen | 0);
   }
+  setRoom(name: string): boolean {
+    let bytes = new TextEncoder().encode(name);
+    if (bytes.length > P.ROOM_BYTES) {
+      let end = P.ROOM_BYTES;
+      while (end > 0 && (bytes[end] & 0xc0) === 0x80) end--;
+      bytes = bytes.slice(0, end);
+    }
+    this.room = bytes;
+    this.roomGen = (this.roomGen + 1) >>> 0 || 1;
+    const compatible = !!this.roam && this.roam.i32.length >= P.W_ROOM_NAME + P.ROOM_WORDS;
+    if (compatible) this.publishRoom(this.roam!);
+    this.log(`room: ${bytes.length ? 'changed' : 'none'} (the page)`);
+    return compatible;
+  }
+  /** Name words first, generation last: the game ignores a partial concurrent write. */
+  private publishRoom(ep: Endpoint) {
+    if (!this.roomGen || ep.i32.length < P.W_ROOM_NAME + P.ROOM_WORDS) return;
+    for (let i = 0; i < P.ROOM_WORDS; i++) {
+      let word = 0;
+      for (let k = 0; k < 4; k++) word |= (this.room[4 * i + k] ?? 0) << (8 * k);
+      Atomics.store(ep.i32, P.W_ROOM_NAME + i, word | 0);
+    }
+    Atomics.store(ep.i32, P.W_ROOM_GEN, this.roomGen | 0);
+  }
   private connect() {
     if (this.closed) return;
     const def = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/lan`;
@@ -562,7 +624,9 @@ class Link implements NetLink {
     const ws = new WebSocket(u.href);
     ws.binaryType = 'arraybuffer';
     this.ws = ws;
+    let opened = false;
     ws.onopen = () => {
+      opened = true; this.pinged = 0; this.ponged = false;
       // deltas: the switch sends what changed on the peer list, not the whole list each time (nfsu2-lan); lan: LAN
       // play is open, so it takes LAN broadcasts; bundle: this page takes bundles; compact: and compact ones (a
       // switch of before ignores it and sends bundles as they were); delta: and in those a free-roam datagram as
@@ -607,8 +671,27 @@ class Link implements NetLink {
       if (was === 'online' || was === 'queued' || t - this.lastDownLog > 30000) {
         this.log(was === 'online' ? `lost the switch (${e.code}${e.reason ? ' ' + e.reason : ''}); reconnecting`
           : was === 'queued' ? `lost the switch while in line (${e.code}); reconnecting to the same place in line (kept a minute)`
-          : `still no switch (${this.failed} attempts); reconnecting every ${this.backoff / 1000} s`);
+          : `still no switch (${this.failed} attempts, the last ${opened ? `closed with ${e.code} once open` : 'never open'}); reconnecting every ${this.backoff / 1000} s`);
         this.lastDownLog = t;
+      }
+      // Browser WebSocket errors do not reveal whether the server rejected the upgrade or the network blocked it.
+      if (!opened) {
+        if (this.suspect) {
+          this.suspect = false;
+          this.log('the next connection to the switch never opened either, though the server would take it: something on the way ' +
+            'stops them (the network, an antivirus or a browser add-on)');
+          this.trouble('blocked', BLOCKED_TEXT);
+        }
+        if (++this.unopened >= CHECK_AFTER && !this.checked) { this.checked = true; void this.check(); }
+      } else {
+        this.unopened = 0;
+        this.suspect = false;
+      }
+      if (was === 'online' && this.ponged) this.quiet = 0;
+      else if (was === 'online' && this.pinged >= QUIET_PINGS && ++this.quiet === QUIET_LINKS) {
+        this.log(`the last ${QUIET_LINKS} links to the switch went quiet: each was up and sent its pings, and no answer to any came ` +
+          'before it went (the network stopped carrying them)');
+        this.trouble('quiet', QUIET_TEXT);
       }
       this.failed++;
       this.reconnectTimer = setTimeout(() => { this.reconnectTimer = null; this.st.reconnects++; this.connect(); }, this.backoff);
@@ -624,6 +707,7 @@ class Link implements NetLink {
       this.token = typeof m.token === 'string' ? m.token : '';
       this.bundles = m.bundle === 1;
       this.state = 'online'; this.backoff = 250; this.failed = 0; this.st.connections++;
+      this.unopened = 0; this.checked = false; this.suspect = false; this.problem = null;
       for (const ep of this.eps()) { this.publishPeers(ep); this.publishOnline(ep); }
       this.log(`on the virtual LAN as ${this.vip}${this.st.connections > 1 ? (again ? ' (the same address again)' : ' (a new address)') : ''}`);
       if (this.queuedAt) {
@@ -634,6 +718,7 @@ class Link implements NetLink {
       if (this.full) { this.full = false; this.o.onNotice?.(N('A place on the server freed up: you can play with others now')); }
       if (this.lost) { this.lost = false; this.o.onBack?.(); }
       this.resolveOnline(this.vip);
+      this.o.onWelcome?.();
     } else if (m.t === 'queue' && Number.isInteger(m.pos) && Number.isInteger(m.of)) {
       // the server is full: in line for a place (its welcome comes when it is our turn)
       if (typeof m.ticket === 'string') this.ticket = m.ticket;
@@ -659,7 +744,10 @@ class Link implements NetLink {
       for (const g of m.gone) if (this.peerMap.delete(g >>> 0)) this.peerLeft(g >>> 0);
       for (const p of m.peers) this.peerMap.set(p.vip >>> 0, { name: String(p.name ?? ''), server: !!p.server });
       this.peersUpdated();
+    } else if (m.t === 'friend') {
+      this.o.onFriend?.(m as Record<string, unknown>);
     } else if (m.t === 'pong' && typeof m.id === 'number') {
+      this.ponged = true;
       const t0 = this.pings.get(m.id);
       if (t0 === undefined) return;
       this.pings.delete(m.id);
@@ -692,6 +780,45 @@ class Link implements NetLink {
     this.pings.set(id, now());
     if (this.pings.size > 16) this.pings.delete(this.pings.keys().next().value!);
     this.ws.send(JSON.stringify({ t: 'ping', id }));
+    this.pinged++;
+  }
+
+  /** Ask the ordinary HTTP endpoint why a sequence of WebSocket handshakes never opened. */
+  private async check() {
+    const u = new URL(this.o.url ?? '/lan', location.href);
+    u.protocol = u.protocol === 'wss:' ? 'https:' : u.protocol === 'ws:' ? 'http:' : u.protocol;
+    u.search = '?check';
+    const n = `${this.unopened} connections to the switch in a row never opened`;
+    let r: Response;
+    try {
+      r = await fetch(u.href, { cache: 'no-store', signal: AbortSignal.timeout(10_000) });
+    } catch {
+      this.log(`${n}, and a plain request to the server got no answer either`);
+      return;
+    }
+    let v = '';
+    try { v = String(((await r.json()) as { lan?: unknown }).lan ?? ''); } catch { /* not the server's answer */ }
+    if (this.closed || this.state === 'online') return;
+    const via = protocolOf(u.href), cf = r.headers.get('cf-mitigated');
+    if (v === 'busy') {
+      this.log(`${n}: the server turns them away, too many from this network's address already (a phone network's, a school's, a VPN's); trying again until one goes`);
+      this.trouble('busy', BUSY_TEXT);
+    } else if (v === 'ok') {
+      this.log(`${n}, but the server would take one now${via ? ` (the check went over ${via})` : ''}`);
+      this.suspect = true;
+    } else if (v === 'fast') {
+      this.log(`${n}: the server turns them away for a while, they came too fast`);
+    } else {
+      this.log(`${n}; the server's check: ${v ? `"${v}"` : `${r.status}${cf ? ` (Cloudflare: ${cf})` : ''}`}`);
+    }
+  }
+
+  /** Retain one cause for this game and repeat it when a player opens LAN/Online while disconnected. */
+  private trouble(kind: 'busy' | 'blocked' | 'quiet', message: string) {
+    this.problem = message;
+    if (this.told.has(kind)) return;
+    this.told.add(kind);
+    this.o.onNotice?.(message);
   }
 
   // ---- C -> switch ----
@@ -703,7 +830,7 @@ class Link implements NetLink {
       const hold = this.txHold(ep);
       if (!hold) this.drainTx(ep);
       const w = !hold && Atomics.load(ep.i32, P.W_TX_HEAD) !== Atomics.load(ep.i32, P.W_TX_TAIL) ? null
-        : waitAsync(ep.i32, P.W_TX_BELL, bell, hold || 1000);
+        : Atomics.waitAsync(ep.i32, P.W_TX_BELL, bell, hold || 1000);
       if (w && w.async) { sync = 0; await w.value; }
       else if (++sync >= 32) { sync = 0; await new Promise(r => setTimeout(r, 0)); }
     }
@@ -760,6 +887,8 @@ class Link implements NetLink {
       } else if (dv.getUint32(s + P.S_KIND, true) === P.NET_KIND_SAY) {
         // quick chat: the same
         if (len <= P.NET_MAX_PAYLOAD) this.o.onSay?.(new TextDecoder().decode(ep.u8.slice(s + P.S_DATA, s + P.S_DATA + len)));
+      } else if (dv.getUint32(s + P.S_KIND, true) === P.NET_KIND_FRIEND) {
+        if (len <= P.NET_MAX_PAYLOAD) this.o.onBump?.(new TextDecoder().decode(ep.u8.slice(s + P.S_DATA, s + P.S_DATA + len)));
       } else if (open && len <= P.NET_MAX_PAYLOAD) {
         const f = new Uint8Array(P.F_DATA + len), fv = new DataView(f.buffer), dst = dv.getUint32(s + P.S_DST_IP, true);
         f[P.F_KIND] = dv.getUint32(s + P.S_KIND, true);
@@ -949,10 +1078,13 @@ class Link implements NetLink {
 }
 
 const now = () => performance.timeOrigin + performance.now();   // the runtime's monotonic clock
-// Atomics.waitAsync (ES2024; the project's TypeScript lib is ES2023)
-const waitAsync = (Atomics as unknown as { waitAsync(a: Int32Array, i: number, v: number, t?: number):
-  { async: false; value: 'not-equal' | 'timed-out' } | { async: true; value: Promise<'ok' | 'timed-out'> } }).waitAsync;
-
+/** Protocol used by the ordinary HTTP request (the WebSocket itself is carried over TCP). */
+function protocolOf(url: string): string {
+  try {
+    const entry = performance.getEntriesByName(url).at(-1) as PerformanceResourceTiming | undefined;
+    return entry?.nextHopProtocol ?? '';
+  } catch { return ''; }
+}
 /** Attach the virtual LAN to a running game process.  Returns at once; the
  *  socket opens when the runtime registers its first net mailbox (free roam
  *  or LAN play). */

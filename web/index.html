@@ -249,14 +249,6 @@
   <div class="row end"><a class="btn" href="#diagnostics" id="first-run-diagnostics" data-i18n>System diagnostics</a><a class="btn" href="#settings" id="first-run-settings" data-i18n>Settings</a><button type="button" class="btn selected" id="first-run-continue" data-i18n>Continue</button></div>
 </dialog>
 
-<dialog class="dlg help" id="help" aria-labelledby="help-title">
-  <form method="dialog" class="dlg-head">
-    <h2 id="help-title" data-i18n>Controls</h2>
-    <button class="btn" value="close" data-i18n>Close</button>
-  </form>
-  <div id="help-body"></div>
-</dialog>
-
 <dialog class="dlg menu" id="menu" aria-labelledby="menu-title" data-active-tab="chat">
   <div class="menu-shell">
     <aside class="menu-sidebar">
@@ -267,9 +259,9 @@
       </div>
 
       <div class="menu-session">
-        <span class="menu-section-label" data-i18n>OTURUM DURUMU</span>
-        <strong><i aria-hidden="true"></i> <span data-i18n>OYUN AKTİF</span></strong>
-        <p class="hint" data-i18n>Oyun bu menünün arkasında çalışmaya devam ediyor.</p>
+        <span class="menu-section-label" data-i18n>SESSION STATUS</span>
+        <strong><i aria-hidden="true"></i> <span data-i18n>GAME RUNNING</span></strong>
+        <p class="hint" data-i18n>The game continues running behind this menu.</p>
       </div>
 
       <nav class="menu-tabs" aria-label="Driver control tabs">
@@ -285,9 +277,21 @@
           <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M3 20c.4-3.4 2.4-5 6-5s5.6 1.6 6 5M15 15c3.7-.1 5.7 1.5 6 4"/></svg>
           <span class="menu-tab-copy"><b>Sürücü ağı</b><small>Sürücü ve ekip</small></span><small class="menu-tab-number">›</small>
         </button>
+        <button type="button" class="menu-tab hover-glow-cyan" data-menu-tab="worlds" aria-pressed="false" hidden>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.5 3.8 5.5 3.8 9S14.5 18.5 12 21M12 3C9.5 5.5 8.2 8.5 8.2 12s1.3 6.5 3.8 9"/></svg>
+          <span class="menu-tab-copy"><b data-i18n>World</b><small data-i18n>Choose your Free Roam world</small></span><small class="menu-tab-number">›</small>
+        </button>
+        <button type="button" class="menu-tab hover-glow-cyan" data-menu-tab="tracks" aria-pressed="false" hidden>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 16.5 7 6h10l3 10.5M7 6l5 12 5-12M3 17h18"/></svg>
+          <span class="menu-tab-copy"><b data-i18n>Tracks</b><small data-i18n>Race tracks and player counts</small></span><small class="menu-tab-number">›</small>
+        </button>
         <button type="button" class="menu-tab hover-glow-amber" data-menu-tab="radio" aria-pressed="false">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16v13H4zM4 7l13-4M8 11h8M8 15h3"/><circle cx="17" cy="15" r="1.5"/></svg>
           <span class="menu-tab-copy"><b>Müzik sistemi</b><small>Radyo ve oynatma</small></span><small class="menu-tab-number">›</small>
+        </button>
+        <button type="button" class="menu-tab hover-glow-green" data-menu-tab="controls" aria-pressed="false">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M7 10h4M9 8v4M15 10h.01M18 13h.01"/></svg>
+          <span class="menu-tab-copy"><b data-i18n>Controls</b><small data-i18n>Keyboard, controller and site</small></span><small class="menu-tab-number">›</small>
         </button>
       </nav>
 
@@ -295,7 +299,7 @@
         <span class="menu-section-label" data-i18n>CAREER DATA</span>
         <p class="hint" id="menu-save"></p>
       </div>
-      <button type="button" class="btn selected menu-resume" data-act="resume" data-i18n>OYUNA DÖN</button>
+      <button type="button" class="btn selected menu-resume" data-act="resume" data-i18n>RETURN TO GAME</button>
       <span class="menu-build-mark">NFSU2 WEB <b>·</b> TRPOLARIS</span>
     </aside>
 
@@ -306,6 +310,7 @@
           <h3>İletişim</h3>
         </div>
         <div class="menu-header-actions">
+          <a class="hub-entry" href="/hub/" aria-label="Open TRPOLARIS Player Hub">PLAYER HUB</a>
           <a class="menu-admin-link" href="/hub/#/admin" target="_blank" rel="noopener noreferrer" aria-label="Open TRPOLARIS administration panel">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 19 6v5c0 4.3-2.8 7.8-7 10-4.2-2.2-7-5.7-7-10V6z"/><path d="m9 12 2 2 4-4"/></svg>
             <span>ADMIN</span>
@@ -413,6 +418,35 @@
               <button type="button" class="btn menu-action" data-act="log" data-i18n>Download log</button>
             </div>
           </div>
+          <section id="friends-panel" class="menu-friends-panel" aria-label="Friends"></section>
+        </section>
+
+        <section class="menu-page" data-menu-page="worlds" hidden>
+          <div class="menu-page-title">
+            <span class="menu-section-label" data-i18n>05 / FREE ROAM</span>
+            <h4 data-i18n>Choose your world</h4>
+            <p class="hint" data-i18n>Switch worlds without leaving your current game. Counts update from the server.</p>
+          </div>
+          <div class="menu-controls-grid" id="menu-worlds-box" aria-live="polite"></div>
+          <div class="menu-control-card menu-world-own">
+            <h5 data-i18n>Own world name</h5>
+            <p class="hint" data-i18n>Enter a name to create or join a world of your own.</p>
+            <div class="menu-radio-actions">
+              <input type="text" class="menu-field" id="menu-own-world" maxlength="63" autocomplete="off" spellcheck="false" placeholder="World name" aria-label="World name">
+              <button type="button" class="btn menu-action" data-act="world-own-save" data-i18n>Join world</button>
+            </div>
+          </div>
+          <p class="menu-inline-note" id="menu-world-status" role="status" aria-live="polite" data-i18n>World changes apply to the running game and are saved for the next Play.</p>
+        </section>
+
+        <section class="menu-page" data-menu-page="tracks" hidden>
+          <div class="menu-page-title">
+            <span class="menu-section-label" data-i18n>06 / FREE ROAM</span>
+            <h4 data-i18n>Race tracks</h4>
+            <p class="hint" data-i18n>Travel to a race track's own free-roam map. Each spot has its own player room.</p>
+          </div>
+          <div class="menu-controls-grid" id="menu-tracks-box" aria-live="polite"></div>
+          <p class="menu-inline-note" id="menu-tracks-note" role="status" aria-live="polite" hidden></p>
         </section>
 
         <section class="menu-page" data-menu-page="radio" hidden>
@@ -435,6 +469,16 @@
             </div>
           </div>
           <div class="menu-inline-note"><i aria-hidden="true"></i><span data-i18n>LOCAL FILES ONLY · NOTHING IS SENT TO THE SERVER</span></div>
+        </section>
+
+        <section class="menu-page" data-menu-page="controls" hidden>
+          <div class="menu-page-title">
+            <span class="menu-section-label" data-i18n>06 / DRIVER CONTROLS</span>
+            <h4 data-i18n>CONTROLS</h4>
+            <p class="hint" data-i18n>Keyboard, controller and site controls.</p>
+          </div>
+          <div id="help-body" class="menu-controls-sheet"></div>
+        </section>
         </section>
       </div>
     </section>

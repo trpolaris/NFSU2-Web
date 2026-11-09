@@ -9,6 +9,7 @@ const read = file => fs.readFileSync(path.join(ROOT, file), 'utf8');
 const html = read('index.html');
 const shell = read('src/app/shell.ts');
 const service = read('src/app/settings-service.ts');
+const settingsStore = read('src/app/settings-store.ts');
 const saves = read('src/app/saves-ui.ts');
 const shots = read('src/app/shots.ts');
 const vault = read('src/app/vault-ui.ts');
@@ -40,7 +41,10 @@ test('Settings persistence and validation live in a DOM-free SettingsService', (
   }
   assert.doesNotMatch(service, /document\.|window\.|HTMLElement|querySelector|createElement|innerHTML|this\.root|this\.online|render\(/);
   assert.match(service, /readOnly\(\)/);
-  assert.match(service, /writeFile\(this\.deps\.saveDir, 'settings\.ini', next\)/);
+  assert.match(service, /import \{ SettingsFile \} from '\.\/settings-store'/);
+  assert.match(service, /await this\.deps\.file\.write\(next\)/);
+  assert.match(settingsStore, /await this\.io\.writeFile\(this\.dir\(\), FILE, text\)/);
+  assert.match(settingsStore, /this\.shown = this\.played = text/);
   assert.match(service, /export const PROFILE_SETTING_KEYS/);
 });
 
@@ -85,7 +89,8 @@ test('settings profiles and presets no longer depend on legacy profile HTML', ()
   assert.match(platform, /import: async \(file: File\)/);
   assert.match(platform, /preset: async \(id: string\)/);
   assert.doesNotMatch(platform, /#config-profile-|renderProfilePicker|selectedProfile\(/);
-  assert.match(platform, /trp-settings-profiles-changed/);
+  assert.match(platform, /trp-settings-profiles-ready/);
+  assert.match(react, /addEventListener\('trp-settings-profiles-ready'/);
   assert.match(react, /addEventListener\('trp-settings-profiles-changed'/);
   assert.match(react, /function SettingsProfilesReactControls\(\)/);
   assert.match(react, /function SettingsPresetsReactControls\(\)/);
@@ -146,6 +151,19 @@ test('Mod Library, updates and diagnostics are React-owned over DOM-free service
   assert.match(react, /function ModLibraryDashboard\(\)/);
   assert.match(react, /function UpdatesReactPanel\(\)/);
   assert.match(react, /function DiagnosticsReactPanel\(\)/);
+});
+
+test('unsupported experimental rim settings stay out of the panel and portable profiles', () => {
+  assert.match(service, /key: 'catchup'/);
+  const profileKeys = service.slice(service.indexOf('export const PROFILE_SETTING_KEYS'), service.indexOf('const PROFILE_SETTING_SET'));
+  assert.ok(profileKeys.includes("'catchup'"));
+  assert.match(service, /key: 'open_tunnel'/);
+  assert.doesNotMatch(service, /ug2net_parts|others_mod_parts/);
+  assert.ok(profileKeys.includes("'open_tunnel'"));
+  assert.doesNotMatch(service, /PROFILE_SETTING_KEYS = \[[^]]*(?:ug2net_parts|others_mod_parts)/);
+  const settings = read('src/app/settings.ts');
+  assert.match(settings, /key: 'open_tunnel'/);
+  assert.doesNotMatch(settings, /^#?\s*(?:ug2net_parts|others_mod_parts)\s*=/m);
 });
 
 test('Mod and profile export services return JSON payloads while React owns browser downloads', () => {

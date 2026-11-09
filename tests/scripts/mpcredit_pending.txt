@@ -1,0 +1,10 @@
+# Multiplayer Career Credits: queue one test win while in career free roam.
+# Run with NFSU2_SAVE_SEED=<saved career tree> and MP_RACE=<available, unwon race>.
+# Optional: MP_MARGIN=<float>; omitted uses the minimum eligible margin.
+0     bot on
++0    waitroam 18000
++0    bot off
++0    careerlist
++0    mpcredit ${MP_RACE} ${MP_MARGIN}
++0    log MP_CREDIT_QUEUE_DONE
++60   quit

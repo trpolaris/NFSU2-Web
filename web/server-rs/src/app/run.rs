@@ -8,13 +8,14 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use tokio::signal::unix::{SignalKind, signal};
+use tokio::sync::mpsc;
 use tokio::time::{Instant, interval_at};
 
 use nfsu2_http::tls::TlsState;
 use nfsu2_http::{Limits, bind, serve};
 use nfsu2_lan::{LanOptions, LanSwitch};
 use nfsu2_online::{LobbyTrace, OnlineHost, OnlineOptions};
-use nfsu2_roam::{RoamHub, RoamOptions};
+use nfsu2_roam::{CarBan, CarBans, RoamHub, RoamOptions};
 use nfsu2_util::cpu::{QuotaBusy, WorkersBusy, process_cpu_seconds};
 use nfsu2_util::{Host, log};
 use nfsu2_vault::{Sweep, Vault, VaultOptions};
@@ -59,6 +60,12 @@ fn env_num(name: &str, def: u64) -> u64 {
     std::env::var(name).ok().and_then(|v| v.trim().parse().ok()).unwrap_or(def)
 }
 
+/// the World Map MAPD ceiling: 512 by default; 2048 maximum, or 1664 for height-bearing requests.
+/// Zero and invalid values keep the conservative default; legacy MAP is capped separately in the hub.
+fn map_max_from_env(value: Option<&str>, default: usize) -> usize {
+    value.and_then(|v| v.trim().parse::<u64>().ok()).filter(|&v| v > 0).unwrap_or(default as u64).min(2048) as usize
+}
+
 /// the state folder: made private to this server's user (the files inside are 0600 too)
 fn state_folder(o: &Options) -> String {
     if let Err(e) = std::fs::DirBuilder::new().recursive(true).mode(0o700).create(&o.state) {
@@ -95,6 +102,54 @@ async fn reload_cert(app: &Arc<App>, tls: &Arc<TlsState>) {
     }
 }
 
+/// Optional automatic race-ban policy: NFSU2_CAR_BANS=kw=<kW>,rating=<rating>.
+/// No policy is active unless the operator explicitly configures at least one positive threshold.
+fn car_bans_from_env() -> Option<(CarBans, mpsc::UnboundedReceiver<CarBan>)> {
+    let raw = std::env::var("NFSU2_CAR_BANS").unwrap_or_default();
+    if raw.trim().is_empty() {
+        return None;
+    }
+    let (mut kw, mut rating) = (None, None);
+    for part in raw.split([',', ' ']).filter(|p| !p.trim().is_empty()) {
+        let Some((key, value)) = part.split_once('=') else {
+            log::error(&format!("NFSU2_CAR_BANS: invalid item {part:?}; automatic race bans disabled"));
+            return None;
+        };
+        let Ok(value) = value.trim().parse::<f64>() else {
+            log::error(&format!("NFSU2_CAR_BANS: invalid number in {part:?}; automatic race bans disabled"));
+            return None;
+        };
+        if !value.is_finite() || value <= 0.0 {
+            log::error(&format!("NFSU2_CAR_BANS: threshold must be positive in {part:?}; automatic race bans disabled"));
+            return None;
+        }
+        match key.trim() {
+            "kw" => kw = Some(value),
+            "rating" => rating = Some(value),
+            _ => {
+                log::error(&format!("NFSU2_CAR_BANS: expected kw or rating in {part:?}; automatic race bans disabled"));
+                return None;
+            }
+        }
+    }
+    if kw.is_none() && rating.is_none() {
+        return None;
+    }
+    let (tx, rx) = mpsc::unbounded_channel();
+    let call = Arc::new(move |c: CarBan| {
+        let _ = tx.send(c);
+    });
+    let mut thresholds = Vec::new();
+    if let Some(v) = kw {
+        thresholds.push(format!("{v:.0} kW or more"));
+    }
+    if let Some(v) = rating {
+        thresholds.push(format!("rating {v:.0} or more"));
+    }
+    log::line(&format!("[ban] automatic race bans enabled: {}", thresholds.join(" or ")));
+    Some((CarBans { kw, rating, call }, rx))
+}
+
 pub async fn run(o: Options, cores: usize) {
     let real_state = state_folder(&o);
     if !o.artifacts.is_empty()
@@ -128,7 +183,12 @@ pub async fn run(o: Options, cores: usize) {
         })
     });
     // (its lines: the cap on the players' links going down while the server is busy and back up, at most one every 5 s)
-    let roam = o.roam_hub.then(|| RoamHub::spawn_with(RoamOptions::default(), Arc::new(|line: &str| log::line(line)), claims.clone()));
+    // World Map MAPD can be raised to 2048 records explicitly; the default remains 512 to bound per-player traffic.
+    let roam_defaults = RoamOptions::default();
+    let map_max = map_max_from_env(std::env::var("NFSU2_ROAM_MAP_MAX").ok().as_deref(), roam_defaults.map_max);
+    let car_bans = car_bans_from_env();
+    let roam_options = RoamOptions { map_max, car_bans: car_bans.as_ref().map(|(c, _)| c.clone()), ..roam_defaults };
+    let roam = o.roam_hub.then(|| RoamHub::spawn_with(roam_options, Arc::new(|line: &str| log::line(line)), claims.clone()));
     // keyphrase saves: a folder in the state folder (none with --vault-gb 0)
     let vault = (o.vault_gb > 0.0).then(|| {
         let dir = paths::join(&o.state, "vault");
@@ -194,6 +254,14 @@ pub async fn run(o: Options, cores: usize) {
     ));
     let o = &app.o;
     let control = super::control::listen(app.clone());
+    if let Some((_, mut races)) = car_bans {
+        let app = app.clone();
+        tokio::spawn(async move {
+            while let Some(race) = races.recv().await {
+                app.auto_race_ban(race).await;
+            }
+        });
+    }
 
     // the switch's players, every 5 minutes while any are on
     {
@@ -291,6 +359,9 @@ pub async fn run(o: Options, cores: usize) {
             loop {
                 every.tick().await;
                 app.lan_opens.prune();
+                if let Some(f) = &app.friends {
+                    f.prune();
+                }
                 if let Some(v) = &app.vault {
                     v.prune();
                 }
@@ -554,4 +625,21 @@ pub async fn run(o: Options, cores: usize) {
     }
 
     std::future::pending::<()>().await;
+}
+
+#[cfg(test)]
+mod map_max_env_tests {
+    use super::map_max_from_env;
+
+    #[test]
+    fn map_max_env_keeps_a_conservative_default_and_clamps_the_wire_limit() {
+        assert_eq!(map_max_from_env(None, 512), 512);
+        assert_eq!(map_max_from_env(Some(""), 512), 512);
+        assert_eq!(map_max_from_env(Some("not-a-number"), 512), 512);
+        assert_eq!(map_max_from_env(Some("0"), 512), 512);
+        assert_eq!(map_max_from_env(Some(" 1024 "), 512), 1024);
+        assert_eq!(map_max_from_env(Some("2048"), 512), 2048);
+        assert_eq!(map_max_from_env(Some("4096"), 512), 2048);
+        assert_eq!(map_max_from_env(Some("18446744073709551616"), 512), 512);
+    }
 }

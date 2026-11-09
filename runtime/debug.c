@@ -94,6 +94,7 @@ static uint32_t g_rec_n = 0, g_rec_esp0 = 0;
 void guest_hook(CPU *c, uint32_t ip){
     g_hook_hits++;
     { int ws_hook(CPU *, uint32_t); if (ws_hook(c, ip)) return; }
+    { int quickrace_hook(CPU *, uint32_t); if (quickrace_hook(c, ip)) return; }
     { int roam_hook(CPU *, uint32_t); if (roam_hook(c, ip)) return; }
     { int language_hook(CPU *, uint32_t); if (language_hook(c, ip)) return; }
     { int hornmenu_hook(CPU *, uint32_t); if (hornmenu_hook(c, ip)) return; }

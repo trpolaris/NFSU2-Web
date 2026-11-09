@@ -1,0 +1,57 @@
+# Multiplayer race joiner after visiting a non-Lobby Online icon (Options/Car Select).
+# Pair with mprace_lobby_a.txt. The game remembers the last UI_OLMAIN icon; the
+# automatic trip must back out of that detour and still enter the host's lobby.
+#   node web/tools/roam-pair.mjs --page play --seed <career save> \
+#     --a Ann:mprace_lobby_a.txt --b Bob:mprace_lobby_b_detour.txt \
+#     --env MP_RACE=S2_SPON_DRIFT_2 --env MP_PLAYERS=2 --env NFSU2_ROAM_ROOM=<room>
+0     bot on
++0    waitfng GarageMain.fng 3000
++0    bot off
++300  tap RIGHT
++60   tap RIGHT
++120  tap RETURN                      # Online
++0    waitfng UI_OLMAIN.fng 1800
++600  tap RIGHT
++60   tap RIGHT
++60   tap RETURN                      # select a different Online icon
++400  dump detour_screen
++0    tap ESCAPE
++300  tap ESCAPE
++200  tap LEFT
++60   tap RETURN                      # leave Online: Yes
++0    waitfe UI_Main.fng 3000
++120  tap LEFT
++60   tap LEFT
++60   tap LEFT                        # back on Career
++120  log DETOUR DONE
++0    bot on
++0    waitroam 6000
++0    bot off
++0    roam smsauto on
++0    roam mp waitpeers 1 12000
++0    roam mp waitlobby 0 9000
++0    roam mp lobby
++0    careergo ${MP_RACE}
++300  roam mp lobby
++0    dump join_line
++0    log LOBBY join
++0    tap RETURN
++60   roam mp lobby
++0    roam mp waitlobby 2 3000
++0    log LOBBY keys while the trip drives
++120  nstap ESCAPE
++60   nstap RETURN
++60   nstap LEFT
++120  nstap ESCAPE
++120  nstap RETURN
++0    log LOBBY trip
++0    waitexpr i:0x850078 == 512 6000
++0    waitmem 0x008654a4 6 20000
++0    log LOBBY race
++0    autopilot on 6000
++600  nstap X
++0    roam mp waittrip 40000
++0    careerlist
++0    roam mp lobby
++0    log LOBBY DONE
++60   quit

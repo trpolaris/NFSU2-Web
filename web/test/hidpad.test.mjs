@@ -32,6 +32,14 @@ test('8BitDo\'s controllers by vendor, in Chrome\'s and Firefox\'s ids, and how 
   assert.equal(D.eightBitDoFace('8BitDo Ultimate 2C (STANDARD GAMEPAD Vendor: 2dc8 Product: 310a)'), 'xbox');
   assert.equal(D.eightBitDoFace('Xbox 360 Controller (XInput STANDARD GAMEPAD)'), null);      // its X-input mode
   assert.equal(D.eightBitDoFace('Pro Controller (STANDARD GAMEPAD Vendor: 057e Product: 2009)'), null);   // Switch mode
+  const ZIKWAY = 'Zikway HID gamepad (Vendor: 3537 Product: 1041)';             // another maker's, 8BitDo's report
+  assert.equal(D.eightBitDoFace(ZIKWAY), null);
+  assert.deepEqual(D.knownPad(ZIKWAY), { face: 'xbox', maker: 'Zikway', ltFirst: false });
+  assert.equal(D.knownPad('3537-1041-Zikway HID gamepad')?.maker, 'Zikway');      // Firefox's id
+  assert.equal(D.knownPad('3537-1042-Some other pad'), null);                     // that maker's others: not known
+  assert.equal(G.familyOf(ZIKWAY).family, P.PADF_XBOX);
+  assert.match(new D.HidPadReader('xbox', Array(10).fill(0), false, 'Zikway').describe(), /^a Zikway controller/);
+  assert.ok(G.mayDrive({ id: ZIKWAY, mapping: '' }));
   assert.equal(G.familyOf(PRO2).family, P.PADF_NINTENDO);
   assert.equal(G.familyOf(ULTIMATE).family, P.PADF_XBOX);
   assert.equal(G.familyOf(PRO2).name, '8BitDo Pro 2');
@@ -93,7 +101,7 @@ test('an 8BitDo pad through the poller: its own layout, the Nintendo family, and
   Object.assign(globalThis, { addEventListener: et.addEventListener.bind(et), removeEventListener: et.removeEventListener.bind(et),
     dispatchEvent: et.dispatchEvent.bind(et) });
   try {
-    const buf = new SharedArrayBuffer(4096), h = new Int32Array(buf), f = new Float32Array(buf), logs = [];
+    const buf = new SharedArrayBuffer(P.IM_BYTES), h = new Int32Array(buf), f = new Float32Array(buf), logs = [];
     const pad = (id, index, mapping, axes, n) => ({ id, index, mapping, connected: true, axes: [...axes],
       buttons: Array.from({ length: n }, () => ({ pressed: false, value: 0 })) });
     const xbox = pad('Xbox Wireless Controller (STANDARD GAMEPAD Vendor: 045e Product: 0b13)', 0, 'standard', [0, 0, 0, 0], 17);
@@ -137,7 +145,7 @@ async function ultimate2On(ua, touch) {
   const G2 = await load('web/src/input/gamepad.ts');
   const out = { logs: [] };
   await onBrowser(ua, touch, async (pads) => {
-    const buf = new SharedArrayBuffer(4096), h = new Int32Array(buf), f = new Float32Array(buf);
+    const buf = new SharedArrayBuffer(P.IM_BYTES), h = new Int32Array(buf), f = new Float32Array(buf);
     const g = { id: ULTIMATE2_ANDROID, index: 0, mapping: '', connected: true, axes: [0, 0, 0, 0],
       buttons: Array.from({ length: 17 }, () => ({ pressed: false, value: 0 })) };
     pads.push(g);
@@ -170,4 +178,137 @@ test('an 8BitDo pad under Chrome on Android: Android\'s places as they come, not
   const linux = await ultimate2On(DESKTOP_SITE_UA, 0);
   assert.ok(linux.logs.some(s => /read as an 8BitDo controller \(xbox buttons\)/.test(s)));
   assert.equal(linux.face[2], 0);                                  // its index 2 is a gap there
+});
+
+test('Xbox\'s Bluetooth controllers in Firefox on a Mac: their own layout, LT before RT (a Mac player\'s: the triggers did nothing)', () => {
+  const MAC = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:153.0) Gecko/20100101 Firefox/153.0';
+  const WIN = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:153.0) Gecko/20100101 Firefox/153.0';
+  const ONE_S = '45e-b20-Xbox Wireless Controller';                  // Firefox's id on macOS (no leading zeros)
+  assert.deepEqual(D.knownPad(ONE_S, MAC), { face: 'xbox', maker: 'Xbox', ltFirst: true });
+  assert.equal(D.knownPad('45e-b22-Xbox Elite Wireless Controller Series 2', MAC)?.maker, 'Xbox');
+  assert.equal(D.knownPad(ONE_S, WIN), null);                        // Windows: no triggers in such a pad, read as before
+  assert.equal(D.knownPad(ONE_S, 'Mozilla/5.0 (X11; Linux x86_64; rv:153.0) Gecko/20100101 Firefox/153.0'), null);
+  assert.equal(D.knownPad('45e-2e0-Xbox Wireless Controller', MAC), null);   // the older firmware: Firefox maps it
+  assert.equal(D.knownPad(ULTIMATE, WIN)?.maker, '8BitDo');
+  // the report's order: the sticks X Y and Z Rz, the Brake (LT) and the Accelerator (RT) let go at -1, the hat switch
+  const ff = [c, c, c, c, -1, -1, H], k = D.knownPad(ONE_S, MAC);
+  const r = new D.HidPadReader(k.face, ff, k.ltFirst, k.maker);
+  assert.deepEqual(r.read(ff, press(15)), { buttons: 0, axes: [c, c, c, c, 0, 0] });
+  assert.deepEqual(r.read([c, c, c, c, -1, 1, H], press(15)).axes.slice(4), [0, 1]);   // RT all the way: throttle
+  assert.deepEqual(r.read([c, c, c, c, 0, -1, H], press(15)).axes.slice(4), [0.5, 0]); // LT half way: brake
+  assert.equal(r.read(ff, press(15, 0)).buttons, bit(P.PAD_A));
+  assert.equal(r.read(ff, press(15, 3)).buttons, bit(P.PAD_X));
+  assert.equal(r.read(ff, press(15, 4)).buttons, bit(P.PAD_Y));
+  assert.equal(r.read(ff, press(15, 6, 7, 10, 11, 13, 14)).buttons, bit(P.PAD_LB, P.PAD_RB, P.PAD_BACK, P.PAD_START, P.PAD_LS, P.PAD_RS));
+  assert.match(r.describe(), /^an Xbox controller \(xbox buttons\), sticks on axes 0 1 and 2 3, triggers L2 4 R2 5/);
+  // where Chrome places them by usage (no mapping of its own): LT on 3, RT on 4, as Chromium's MapperXboxBluetooth
+  assert.deepEqual(D.placeHidAxes([c, c, c, -1, -1, c, 0, 0, 0, H], true), { lx: 0, ly: 1, rx: 2, ry: 5, lt: 3, rt: 4, hat: 9 });
+});
+
+
+const ONE_S_2016_ANDROID = 'Xbox Wireless Controller (STANDARD GAMEPAD Vendor: 045e Product: 02e0)';
+function oneSButtons(values = {}) {
+  return Array.from({ length: 16 }, (_, i) => {
+    const value = values[i] ?? 0;
+    return { pressed: value > 0.5, value };
+  });
+}
+
+test('Xbox One S 2016 under Chrome Android is detected only for its exact standard 16-button mapping', () => {
+  const g = (id = ONE_S_2016_ANDROID, mapping = 'standard', n = 16) => ({
+    id, mapping, buttons: Array.from({ length: n }, () => ({ pressed: false, value: 0 })),
+  });
+  assert.ok(D.oneS2016Android(g(), ANDROID_UA, 5));
+  assert.ok(D.oneS2016Android(g(), DESKTOP_SITE_UA, 5)); // Android tablets using desktop-site mode
+  assert.ok(!D.oneS2016Android(g(), DESKTOP_SITE_UA, 0)); // ordinary Linux desktop
+  assert.ok(!D.oneS2016Android(g(), 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/141', 0));
+  assert.ok(!D.oneS2016Android(g(ONE_S_2016_ANDROID, '', 16), ANDROID_UA, 5));
+  assert.ok(!D.oneS2016Android(g(ONE_S_2016_ANDROID, 'standard', 17), ANDROID_UA, 5));
+  assert.ok(!D.oneS2016Android(g('45e-2e0-Xbox Wireless Controller'), ANDROID_UA, 5));
+  assert.ok(!D.oneS2016Android(g('Xbox Wireless Controller (STANDARD GAMEPAD Vendor: 045e Product: 0b20)'), ANDROID_UA, 5));
+});
+
+test('Xbox One S 2016 reader restores face, shoulder and D-pad buttons and reads the right stick from Chrome trigger slots', () => {
+  const r = new D.OneS2016Reader();
+  const b = oneSButtons({ 0: 1, 1: 1, 3: 1, 4: 1, 8: 1, 9: 1, 12: 1, 14: 1 });
+  const result = r.read([0.25, -0.5, 0, 0], b);
+  assert.equal(result.buttons, bit(P.PAD_A, P.PAD_B, P.PAD_X, P.PAD_Y, P.PAD_LB, P.PAD_RB, P.PAD_DUP, P.PAD_DLEFT));
+  assert.deepEqual(result.axes, [0.25, -0.5, 0, 0, 0, 0]); // unobserved trigger slots are not a live stick yet
+
+  const moved = oneSButtons({ 6: 0.75, 7: 1 });
+  assert.deepEqual(r.read([0, 0, 0, 0], moved).axes, [0, 0, 0.5, 1, 0, 0]);
+  assert.deepEqual(r.read([0, 0, 0, 0], oneSButtons({ 6: 0.5, 7: 0.5 })).axes, [0, 0, 0, 0, 0, 0]);
+});
+
+test('Xbox One S 2016 mapping is used by the gamepad poller on Android', async () => {
+  await onBrowser(ANDROID_UA, 5, async (pads) => {
+    const buf = new SharedArrayBuffer(P.IM_BYTES), h = new Int32Array(buf), u8 = new Uint8Array(buf);
+    const values = { 0: 1, 1: 1, 3: 1, 4: 1, 8: 1, 9: 1, 12: 1, 15: 1, 6: 0.75, 7: 0.25 };
+    const g = {
+      id: ONE_S_2016_ANDROID, index: 0, mapping: 'standard', connected: true,
+      axes: [0.25, -0.5, 0, 0], buttons: oneSButtons(values),
+    };
+    pads.push(g);
+    const logs = [];
+    const poller = new G.PadPoller(h, u8, 0, () => {}, s => logs.push(s));
+    try {
+      poller.poll();
+      assert.equal(h[P.IM_PAD_CONNECTED], 1);
+      assert.equal(h[P.IM_PAD_BUTTONS], bit(P.PAD_A, P.PAD_B, P.PAD_X, P.PAD_Y, P.PAD_LB, P.PAD_RB, P.PAD_DUP, P.PAD_DRIGHT));
+      const axes = new Float32Array(buf);
+      assert.deepEqual(Array.from({ length: 6 }, (_, i) => +axes[P.IM_PAD_AXIS + i].toFixed(2)),
+        [0.25, -0.5, 0.5, -0.5, 0, 0]);
+      assert.ok(logs.some(s => /read as Xbox's One S with its 2016 firmware under Chrome on Android/.test(s)));
+    } finally {
+      poller.dispose();
+    }
+  });
+});
+
+test('a phone controller with a touch pad for its right stick under Chrome on Android: a still stick off centre reads as let go', async () => {
+  const G2 = await load('web/src/input/gamepad.ts');
+  const realNow = performance.now;
+  let t = 1000;
+  performance.now = () => t;
+  try {
+    await onBrowser(ANDROID_UA, 5, async (pads) => {
+      const buf = new SharedArrayBuffer(P.IM_BYTES), h = new Int32Array(buf), f = new Float32Array(buf), logs = [];
+      // After a tap, this controller keeps its last touch at -0.97 on axes 2 and 3.
+      const g = { id: 'GT NX Controller-T (Vendor: 4131 Product: 0009)', index: 0, mapping: '', connected: true,
+        axes: [0, 0, 0, 0, 0, 0, 0, 0, -1], buttons: Array.from({ length: 17 }, () => ({ pressed: false, value: 0 })) };
+      pads.push(g);
+      const p = new G2.PadPoller(h, new Uint8Array(buf), 0, () => {}, s => logs.push(s));
+      const rs = () => [+f[P.IM_PAD_AXIS + P.PAD_AXIS_RX].toFixed(2), +f[P.IM_PAD_AXIS + P.PAD_AXIS_RY].toFixed(2)];
+      const at = (ms, x, y) => { t += ms; if (x !== undefined) { g.axes[2] = x; g.axes[3] = y; } p.poll(); return rs(); };
+      at(0);
+      assert.deepEqual(at(16, -0.4, 0.2), [-0.4, 0.2]);             // finger on the pad
+      assert.deepEqual(at(16, -0.9671, -0.9685), [-0.97, -0.97]);  // last touch position, finger lifted
+      assert.deepEqual(at(1900), [-0.97, -0.97]);                  // less than two seconds: still reads
+      assert.deepEqual(at(200), [0, 0]);                           // then reads as let go
+      assert.ok(logs.some(s => /right stick stayed at \[-0\.97 -0\.97\] for 2 s/.test(s)));
+      assert.deepEqual(at(16, -0.9671, -0.9684), [-0.97, -0.97]);  // movement restores the axis
+      assert.deepEqual(at(16, 0, 0), [0, 0]);
+      assert.deepEqual(at(5000), [0, 0]);                          // centred axes need no intervention
+      p.dispose();
+    });
+  } finally { performance.now = realNow; }
+});
+
+test('a standard-mapping controller still reads a right stick held off centre', async () => {
+  const G2 = await load('web/src/input/gamepad.ts');
+  const realNow = performance.now;
+  let t = 1000;
+  performance.now = () => t;
+  try {
+    await onBrowser(ANDROID_UA, 5, async (pads) => {
+      const buf = new SharedArrayBuffer(P.IM_BYTES), h = new Int32Array(buf), f = new Float32Array(buf);
+      const g = { id: 'Xbox Wireless Controller (STANDARD GAMEPAD Vendor: 045e Product: 0b13)', index: 0, mapping: 'standard',
+        connected: true, axes: [0, 0, 0, 1], buttons: Array.from({ length: 17 }, () => ({ pressed: false, value: 0 })) };
+      pads.push(g);
+      const p = new G2.PadPoller(h, new Uint8Array(buf), 0, () => {}, () => {});
+      p.poll(); t += 5000; p.poll();
+      assert.equal(f[P.IM_PAD_AXIS + P.PAD_AXIS_RY], 1);  // standard mapping is never suppressed
+      p.dispose();
+    });
+  } finally { performance.now = realNow; }
 });

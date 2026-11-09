@@ -10,7 +10,7 @@ use bytes::Bytes;
 use nfsu2_util::{Charge, FrameCtx, Host, SendResult};
 use parking_lot::Mutex;
 
-use super::world::ip;
+use super::world::{ip, shelf_file};
 use crate::aries::{FrameReader, encode_frame};
 use crate::vhost::{DATA, RST, SYN, SYNACK, lan_frame};
 use crate::{OnlineHost, OnlineOptions, PORT_LOBBY, VHOST_VIP};
@@ -132,11 +132,7 @@ fn stop_writes_what_is_kept() {
     let _ = host.info().blocking_recv().unwrap();
     host.stop();
     let month = crate::jsx::month_of(nfsu2_util::now_ms() as f64);
-    let b = std::fs::read_to_string(dir.join("buddies.json")).unwrap();
-    assert_eq!(
-        b,
-        format!(
-            r#"{{"v":3,"note":"NFSU2 online Messenger lists (persona names; friend requests and messages waiting for their persona)","personas":[{{"name":"Alpha","seen":"{month}","B":["Bravo"]}}]}}"#
-        )
-    );
+    let b = std::fs::read_to_string(shelf_file(&dir, "Alpha")).unwrap();
+    assert_eq!(b, format!(r#"{{"v":4,"name":"Alpha","seen":"{month}","B":["Bravo"]}}"#));
+    assert!(dir.join("buddies.json.moved").exists(), "the legacy file is archived after migration");
 }

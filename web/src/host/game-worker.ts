@@ -8,7 +8,7 @@ import {
   POOL_IDLE, POOL_NONE, POOL_RUN_MAIN, RPC_DONE, RPC_IDLE, RPC_POSTED, RPC_SLOT, type BootConfig, type ToPage,
 } from './proto';
 
-interface Init { mod: WebAssembly.Module; memory: WebAssembly.Memory; ctl: SharedArrayBuffer; rpc: SharedArrayBuffer;
+interface Init { mod: WebAssembly.Module; memory?: WebAssembly.Memory; memPort?: MessagePort; ctl: SharedArrayBuffer; rpc: SharedArrayBuffer;
   slot: number; pool: number; cfg: BootConfig; extraImports?: string[] }
 
 class ProcExit { constructor(public code: number) {} }
@@ -20,10 +20,27 @@ let tid = 0;
 // in ms: the runtime subtracts it from the time it held the guest lock to get
 // the guest thread's busy time (runtime/win32_ext.c, [status] gcpu)
 let blockedMs = 0;
-const post = (m: ToPage) => (self as unknown as Worker).postMessage(m);
+/** this worker's global (the libraries type self as a window's) */
+const me = self as unknown as DedicatedWorkerGlobalScope;
+const post = (m: ToPage) => me.postMessage(m);
 
-const u8 = () => new Uint8Array(memory.buffer);
-const dv = () => new DataView(memory.buffer);
+// The I/O worker sends the shared Memory on a port. If the browser cannot clone it,
+// request it through the page as a compatibility fallback.
+const MEMORY_PORT_MS = 5000;
+const memoryFrom = (p: MessagePort, slot: number) => new Promise<WebAssembly.Memory>(res => {
+  let done = false, asked = false;
+  const take = (m: WebAssembly.Memory) => { if (done) return; done = true; clearTimeout(late); p.close(); res(m); };
+  const viaPage = (why: string) => { if (done || asked) return; asked = true; post({ t: 'memory-please', slot, why }); };
+  const pageMessage = (e: MessageEvent) => { if (e.data?.t === 'memory' && e.data.memory instanceof WebAssembly.Memory) { self.removeEventListener('message', pageMessage); take(e.data.memory); } };
+  self.addEventListener('message', pageMessage);
+  p.onmessage = e => { if (e.data instanceof WebAssembly.Memory) { self.removeEventListener('message', pageMessage); take(e.data); } else viaPage('something else came on its port'); };
+  p.onmessageerror = () => viaPage('it could not come on its port');
+  const late = setTimeout(() => viaPage(`nothing came on its port in ${MEMORY_PORT_MS / 1000} s`), MEMORY_PORT_MS);
+});
+
+let u8v: Uint8Array | null = null, dvv: DataView | null = null;
+const u8 = () => (u8v && u8v.buffer === memory.buffer ? u8v : (u8v = new Uint8Array(memory.buffer)));
+const dv = () => (dvv && dvv.buffer === memory.buffer ? dvv : (dvv = new DataView(memory.buffer)));
 const te = new TextEncoder(), td = new TextDecoder();
 
 // ---- logging: stdout/stderr lines go to the page ----
@@ -52,7 +69,6 @@ function io(op: Op, ...args: (number | bigint)[]): number {
   return r;
 }
 
-const monoNs = () => BigInt(Math.round(performance.now() * 1e3)) * 1000n + BigInt(Math.round(performance.timeOrigin * 1e3)) * 1000n;
 // clock_time_get is the guest's most frequent host import (QueryPerformanceCounter, timeGetTime: ~100 calls
 // in a race frame).  It writes the same values as BigInt µs × 1000 would, but from integer microseconds held in doubles
 // (exact below 2^53) as two u32 halves: no BigInt and no DataView per call.
@@ -70,8 +86,7 @@ function writeUsAsNs(p: number, us: number) {
 // NFSU2_TEST_TIMER_MS=15.625 (tests): every sleep ends on that grid of the clock, as a wait does in Chrome on
 // Windows while the OS timer ticks every 15.6 ms (runtime/win32_ext.c, the frame pacer's sleep)
 let timerGrid = -1;
-function sleepNs(ns: bigint) {
-  let ms = Number(ns) / 1e6;
+function sleepMs(ms: number) {
   if (timerGrid < 0) timerGrid = Number(cfg.env.NFSU2_TEST_TIMER_MS) || 0;
   if (ms > 0 && timerGrid > 0) { const now = T0MS + performance.now(); ms = Math.ceil((now + ms) / timerGrid) * timerGrid - now; }
   if (ms > 0) { const t0 = performance.now(); Atomics.wait(ctl, CTL_SLEEP, 0, ms); blockedMs += performance.now() - t0; }
@@ -105,19 +120,23 @@ function wasi(): Record<string, (...a: any[]) => any> {
     proc_raise: () => E.NOSYS,
     poll_oneoff: (inp: number, outp: number, n: number, pn: number) => {
       // clock subscriptions only (nanosleep, usleep): sleep until the earliest one
-      const d = dv(); let wait = -1n; const now = monoNs();
+      const d = dv(); let wait = -1, now = -1;
       for (let i = 0; i < n; i++) {
         const s = inp + 48 * i;
         if (d.getUint8(s + 8) !== 0) continue;
-        let t = d.getBigUint64(s + 24, true);
-        if (d.getUint16(s + 40, true) & 1) t = t > now ? t - now : 0n;       // abstime
-        if (wait < 0n || t < wait) wait = t;
+        let t = d.getUint32(s + 24, true) + d.getUint32(s + 28, true) * 4294967296;
+        if (d.getUint16(s + 40, true) & 1) {
+          if (now < 0) now = Math.round(performance.now() * 1e3) * 1000 + T0US * 1000;
+          t = t > now ? t - now : 0;
+        }
+        if (wait < 0 || t < wait) wait = t;
       }
-      if (wait > 0n) sleepNs(wait);
+      if (wait > 0) sleepMs(wait / 1e6);
       let k = 0;
       for (let i = 0; i < n; i++) {
         const s = inp + 48 * i, o = outp + 32 * k++;
-        d.setBigUint64(o, d.getBigUint64(s, true), true); d.setUint16(o + 8, 0, true); d.setUint8(o + 10, d.getUint8(s + 8));
+        d.setUint32(o, d.getUint32(s, true), true); d.setUint32(o + 4, d.getUint32(s + 4, true), true);
+        d.setUint16(o + 8, 0, true); d.setUint8(o + 10, d.getUint8(s + 8));
       }
       d.setUint32(pn, k, true); return 0;
     },
@@ -216,7 +235,7 @@ function stackFrames(): number {
 function hostImports(): Record<string, (...a: any[]) => any> {
   return {
     // nfsu2_host_register(kind, ptr, size): tells the page where a shared structure lives
-    register: (kind: number, ptr: number, size: number) => { (self as unknown as Worker).postMessage({ t: 'register', kind, ptr, size }); return 0; },
+    register: (kind: number, ptr: number, size: number) => { me.postMessage({ t: 'register', kind, ptr, size }); return 0; },
     // milliseconds since the page's time origin (same clock in every worker)
     now_ms: () => T0MS + performance.now(),
     // ms this thread has spent blocked in host waits (I/O, sleeps) so far
@@ -230,9 +249,10 @@ function hostImports(): Record<string, (...a: any[]) => any> {
   };
 }
 
-onmessage = async (e: MessageEvent<Init>) => {
+onmessage = async (e: MessageEvent<Init | { t: 'memory'; memory: WebAssembly.Memory }>) => {
+  if ('t' in e.data) { if (e.data.t === 'memory' && e.data.memory instanceof WebAssembly.Memory) { /* memoryFrom takes it */ } return; }
   const m = e.data;
-  memory = m.memory; ctl = new Int32Array(m.ctl); slot = m.slot; POOL = m.pool; cfg = m.cfg;
+  memory = m.memory ?? await memoryFrom(m.memPort!, m.slot); ctl = new Int32Array(m.ctl); slot = m.slot; POOL = m.pool; cfg = m.cfg;
   rpcI32 = new Int32Array(m.rpc); rpcI64 = new BigInt64Array(m.rpc);
   const imports: WebAssembly.Imports = {
     env: { memory },

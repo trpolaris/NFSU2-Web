@@ -88,6 +88,10 @@ export const KEYS: readonly KeyDef[] = [
   { key: 'mirror', env: 'NFSU2_MIRROR', kind: 'enum', vals: 'original|high|#', scope: 'mac' },
   { key: 'texture_filtering', env: 'NFSU2_TEXTURE_FILTERING', kind: 'enum', vals: 'game|anisotropic', scope: 'mac' },
   { key: 'fps_counter', env: 'NFSU2_FPS_COUNTER', kind: 'enum', vals: 'off|on|detailed', scope: 'web', device: true },   // the page draws it
+  // the game's Full Scene Anti-Aliasing at four WebGPU samples; phones turn it off by default
+  { key: 'fsaa', env: 'NFSU2_FSAA', kind: 'bool', scope: 'web', device: true },
+  // anisotropic filtering where the game's texture samplers ask for it (phones and tablets off: device.ts)
+  { key: 'anisotropic', env: 'NFSU2_ANISOTROPIC', kind: 'bool', scope: 'web', device: true },
   { key: 'metal_hud', env: 'MTL_HUD_ENABLED', kind: 'bool', scope: 'mac' },
   // frame rate
   { key: 'fps', env: 'NFSU2_FPS', kind: 'enum', vals: 'auto|30|60|120|240|uncapped|off|native|vanilla|game|max', scope: 'web', device: true },
@@ -152,6 +156,14 @@ export const KEYS: readonly KeyDef[] = [
   // the game's language (runtime/language.c; the page fetches ahead only its language pack: datacache.ts).  Not in
   // bundle.m's table: there a lower-case key, so it reaches the runtime as NFSU2_LANGUAGE all the same
   { key: 'language', env: 'NFSU2_LANGUAGE', kind: 'enum', vals: LANGUAGES.join('|'), scope: 'web' },
+  // Show the career races normally hidden on the map (runtime/hiddenraces.c).
+  { key: 'show_hidden_races', env: 'NFSU2_SHOW_HIDDEN_RACES', kind: 'bool', scope: 'web' },
+  // GPS distance beneath the native direction arrow (runtime/gpsdistance.c).
+  { key: 'gps_distance', env: 'NFSU2_GPS_DISTANCE', kind: 'bool', scope: 'web' },
+  // Career rubberbanding: original, noboost (no boost beyond an AI's own pace) or off.
+  { key: 'catchup', env: 'NFSU2_CATCHUP', kind: 'enum', vals: 'original|noboost|off', scope: 'web' },
+  // Optional Construction Tunnel map overlay; generated from the player's original game assets.
+  { key: 'open_tunnel', env: 'NFSU2_OPEN_TUNNEL', kind: 'bool', scope: 'web' },
   // the movies' subtitles (runtime/language.c).  Not in bundle.m's table either
   { key: 'subtitles', env: 'NFSU2_SUBTITLES', kind: 'bool', scope: 'web' },
   // the player's horn, which the others hear too (runtime/horn.c).  Not in bundle.m's table either: NFSU2_HORN there
@@ -200,12 +212,22 @@ export const TEMPLATE = `# NFSU2 settings, read at every launch.
 # are not played.  [NFSU2_INTRO]
 #intro = skippable
 
+# The game's Full Scene Anti-Aliasing (Options > Display > Customize Display Settings).
+# Four WebGPU samples; computers start with it on except AMD GCN-5/Vega and Qualcomm. Phones and tablets: off. [NFSU2_FSAA]
+#fsaa = on
+
+# Sharper road lines and building fronts at an angle: anisotropic filtering
+# wherever the game asks for it. Computers: on; phones and tablets: off.
+# [NFSU2_ANISOTROPIC]
+#anisotropic = on
+
 # The game's language: english, french, german, italian, spanish, dutch,
 # swedish, danish, korean, chinese, japanese, russian, thai, portuguese
 # (Brazil's), polish or turkish.  French, German, Italian, Spanish, Japanese
 # and Russian come with their dubbed voices and movies where the server has
 # the language packs; Russian, Portuguese, Polish and Turkish take their text
-# from them too.  [NFSU2_LANGUAGE]
+# from them too. If unset, the browser's language is used when supported, else English.
+# [NFSU2_LANGUAGE]
 #language = turkish
 
 # The movies' subtitles: the PSA, the tutorials and the story, in every
@@ -214,6 +236,25 @@ export const TEMPLATE = `# NFSU2 settings, read at every launch.
 # with who says each line, where the server has its language pack.
 # [NFSU2_SUBTITLES]
 #subtitles = on
+
+# Distance to the GPS destination under the direction arrow, in the units
+# selected by Speedometer Units. This is a straight-line distance, not a road
+# route, and is hidden when GPS has no active destination. [NFSU2_GPS_DISTANCE]
+# Show all career races the game normally hides. Does not alter profile progress. [NFSU2_SHOW_HIDDEN_RACES]
+#show_hidden_races = off
+
+#gps_distance = off
+
+# Career rubberbanding: original preserves the game's behaviour; noboost keeps the waiting
+# but never lets a trailing opponent exceed its own pace; off removes both effects.
+# Quick Race keeps its own Catch Up option. This changes career races only. [NFSU2_CATCHUP]
+#catchup = original
+
+# Open the Construction Tunnel. Requires the optional MODPACKS/open-tunnel pack built from your original game assets.
+# Disabled by default. The three-file overlay is used only when the complete pack is installed. [NFSU2_OPEN_TUNNEL]
+#open_tunnel = off
+
+# Experimental rim-pack settings are not supported on this build. See docs/web/MODPACKS.md.
 
 # Sound output.  [NOSOUND, inverted]
 #sound = on
@@ -414,10 +455,10 @@ export const TEMPLATE = `# NFSU2 settings, read at every launch.
 # off = Ghost mode: you drive through them, and they through yours.
 # [NFSU2_ROAM_COLLIDE]
 #roam_collide = on
-# Quick chat: say one of your sixteen set phrases to the players near you
-# (1 to 4, then 1 to 4; a controller's right stick twice; the chat button on
-# a touch screen), and see theirs over their cars.  off = neither, and the
-# others send you none.  [NFSU2_ROAM_SAY]
+# Quick chat: say one of your sixteen set phrases to nearby players in free roam,
+# or to everyone in a multiplayer race and on its results (1 to 4, then 1 to 4;
+# controller: right stick twice; touch: the chat button).  off = neither.
+# [NFSU2_ROAM_SAY]
 #quick_chat = on
 # Your sixteen: the phrases' numbers (web/src/app/phrases.ts), four for each
 # of 1 to 4, and the four groups' names (hi, reply, thanks, nice, drive,

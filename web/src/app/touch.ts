@@ -13,7 +13,7 @@
 //   gears     with a manual gearbox, gear down and up above the left thumb: the controller's X and A, as on a pad
 //             (Ctrl and Shift on the keyboard would be modifiers too)
 //   small     pause, camera, look back, reset; in free roam also the map, messages, horn, quick chat (quickchat.ts) and
-//             start an event
+//             start an event; quick chat also appears during multiplayer races and on their results
 //   horizon   while tilt steers, the game's 3D view turns against the phone's tilt from straight ahead, so the road's
 //             horizon stays level with the real one (the HUD stays on the phone; runtime/overrides.c sub_005c7ec0).
 //             Not in a cutscene (a race's start); faded in and out.  A switch in the Controls sheet's touch tab.
@@ -38,24 +38,24 @@ import { PAD_A, PAD_LB, PAD_RB, PAD_X } from '../input/proto';
 import type { GameSession } from './game';
 import { touchFirst } from './device';
 import { N, percent, t } from './i18n';
+import { MENU_SIZE, TOUCH_LEVEL, TOUCH_SIZE, TOUCH_STEERING, localStore } from './prefs';
 
 export type Steering = 'buttons' | 'stick' | 'tilt';
 export const STEERING: readonly Steering[] = ['buttons', 'stick', 'tilt'];
 const NAMES: Record<Steering, string> = { buttons: N('buttons'), stick: N('thumb stick'), tilt: N('tilt') };
 const LIST_NAMES: Record<Steering, string> = { buttons: N('Buttons'), stick: N('Thumb stick'), tilt: N('Tilt') };
-const STORE = 'nfsu2-touch-steering';
 const HOLD_MS = 150;
 
-const STEER_EVENT = 'nfsu2-touch-steering';
+const STEER_EVENT = TOUCH_STEERING;
 let steeringNow: Steering = (() => {
-  try { const s = localStorage.getItem(STORE) as Steering; return STEERING.includes(s) ? s : 'buttons'; } catch { return 'buttons'; }
+  try { const s = localStore.get(TOUCH_STEERING) as Steering; return STEERING.includes(s) ? s : 'buttons'; } catch { return 'buttons'; }
 })();
 /** how the touch controls steer: the mode button's choice and the Controls sheet's, kept in this browser */
 export function steering(): Steering { return steeringNow; }
 export function setSteering(to: Steering) {
   if (to === steeringNow || !STEERING.includes(to)) return;
   steeringNow = to;
-  try { localStorage.setItem(STORE, to); } catch { /* not kept: a private window */ }
+  try { localStore.set(TOUCH_STEERING, to); } catch { /* not kept: a private window */ }
   dispatchEvent(new Event(STEER_EVENT));
 }
 /** fn runs when the steering changes */
@@ -74,13 +74,13 @@ const STICK_PX = 64, TILT_DEG = 30;
 /** the level horizon: the most it turns the view (degrees), how long it takes to come and go (ms) */
 const LEVEL_MAX_DEG = 60, LEVEL_FADE_MS = 400;
 
-const LEVEL_STORE = 'nfsu2-touch-level', LEVEL_EVENT = 'nfsu2-touch-level';
-let levelOn = (() => { try { return localStorage.getItem(LEVEL_STORE) !== 'off'; } catch { return true; } })();
+const LEVEL_EVENT = TOUCH_LEVEL;
+let levelOn = (() => { try { return localStore.get(TOUCH_LEVEL) !== 'off'; } catch { return true; } })();
 /** the level horizon's switch (the Controls sheet): on unless turned off in this browser */
 export function levelHorizon(): boolean { return levelOn; }
 export function setLevelHorizon(on: boolean) {
   levelOn = on;
-  try { localStorage.setItem(LEVEL_STORE, on ? 'on' : 'off'); } catch { /* not kept: a private window */ }
+  try { localStore.set(TOUCH_LEVEL, on ? 'on' : 'off'); } catch { /* not kept: a private window */ }
   dispatchEvent(new Event(LEVEL_EVENT));
 }
 /** fn runs when the switch changes */
@@ -104,7 +104,7 @@ export interface SizeSetting {
 }
 function sizeSetting(store: string, sizes: readonly Size[], auto: () => number): SizeSetting {
   let now: Size = (() => {
-    try { const n = Number(localStorage.getItem(store)); return sizes.includes(n) ? n : 'auto'; } catch { return 'auto'; }
+    try { const n = Number(localStore.get(store)); return sizes.includes(n) ? n : 'auto'; } catch { return 'auto'; }
   })();
   let autoNow = 0;
   const changed = () => dispatchEvent(new Event(store));
@@ -114,7 +114,7 @@ function sizeSetting(store: string, sizes: readonly Size[], auto: () => number):
     set(to) {
       if (to === now || !sizes.includes(to)) return;
       now = to;
-      try { if (to === 'auto') localStorage.removeItem(store); else localStorage.setItem(store, String(to)); } catch { /* not kept: a private window */ }
+      try { if (to === 'auto') localStore.remove(store); else localStore.set(store, String(to)); } catch { /* not kept: a private window */ }
       changed();
     },
     scale: () => now === 'auto' ? auto() : now,
@@ -146,7 +146,7 @@ function autoTouchSize(): number {
   return Math.max(0.8, Math.floor(Math.min(want, fit) * 20 + 1e-9) / 20);
 }
 /** the touch controls' size (style.css --ts) */
-export const touchSize = sizeSetting('nfsu2-touch-size', ['auto', 0.8, 0.9, 1, 1.1, 1.25, 1.5], autoTouchSize);
+export const touchSize = sizeSetting(TOUCH_SIZE, ['auto', 0.8, 0.9, 1, 1.1, 1.25, 1.5], autoTouchSize);
 
 /** the game's menus' help bar buttons and scroller arrows, their height in the menus' 640 x 480 units: the bar's
  *  frames, 24 (the arrows are 26) */
@@ -162,7 +162,7 @@ function autoMenuSize(): number {
   return Math.min(2, Math.max(1, Math.floor(MENU_BUTTON_PX / (MENU_BUTTON_UNITS * unit) * 4 + 1e-9) / 4));
 }
 /** the game's menus' small buttons: the help bar's and the scrollers' arrows (runtime/menusize.c) */
-export const menuSize = sizeSetting('nfsu2-menu-size', ['auto', 1, 1.25, 1.5, 1.75, 2], autoMenuSize);
+export const menuSize = sizeSetting(MENU_SIZE, ['auto', 1, 1.25, 1.5, 1.75, 2], autoMenuSize);
 
 /** label: what a screen reader says (English, translated where drawn); text: the words on it, if any; keys: the keys
  *  it holds (two controls may hold the same one: it is down while either is) */
@@ -218,6 +218,8 @@ export interface TouchDeps {
   log(s: string): void;
   /** the chat button: quick chat's phrases (quickchat.ts) */
   chat?(): void;
+  /** whether race Quick Chat is enabled; Free Roam's text chat remains available when it is off */
+  raceChatOn?(): boolean;
 }
 
 export class TouchControls {
@@ -235,7 +237,10 @@ export class TouchControls {
   private ticks = true;
   private drive = 0;
   private frames = 0;
+  private netrace = 0;
   private statusAt = 0;
+  /** the car goes fast (the game's "fast" status); undefined on older/no-status games keeps Reset visible */
+  private fast: number | undefined;
   /** a finger touched the game; a keyboard or controller was used after the last touch */
   private seen = touchFirst();
   private away = false;
@@ -354,6 +359,7 @@ export class TouchControls {
     this.session = s;
     this.ticks = ticks;
     this.drive = 0;
+    this.netrace = 0;
     this.menuTo = null;
     const tick = () => { this.frame(); this.raf = requestAnimationFrame(tick); };
     this.raf = requestAnimationFrame(tick);
@@ -362,7 +368,9 @@ export class TouchControls {
   /** for tests and logs: what the controls do now (shown: the driving ones, menu: the menu's) */
   state() {
     return { shown: this.mode === 'drive', menu: this.mode === 'menu', drive: this.drive, steering: this.steering, lx: this.lx,
-      buttons: this.padButtons, keys: [...this.keys.keys()], roll: this.sentRoll, menuScale: this.menuScale, menuSent: !!this.menuTo };
+      buttons: this.padButtons, keys: [...this.keys.keys()], roll: this.sentRoll, menuScale: this.menuScale, menuSent: !!this.menuTo,
+      fast: this.fast, netrace: this.netrace,
+      stowed: [...this.ctls.values()].filter(c => c.el.classList.contains('stowed')).map(c => c.id) };
   }
 
   /** the game ended: everything let go, nothing of it kept */
@@ -373,7 +381,9 @@ export class TouchControls {
     this.center = this.lastRoll = null;
     if (this.sentRoll) { this.sentRoll = 0; this.session?.input?.viewRoll?.(0); }
     this.session = null;
-    this.drive = this.frames = 0;
+    // Do not retain the previous game's input closure (and its 1 GB WebAssembly memory) after Play ends.
+    this.menuTo = null;
+    this.drive = this.frames = this.netrace = 0;
   }
 
   private frame() {
@@ -383,7 +393,11 @@ export class TouchControls {
     if (now - this.statusAt > 100) {
       this.statusAt = now;
       const st = s.status?.read();                // null while the game writes it: the last state stands
-      if (st) { this.drive = st.get('drive') ?? 0; this.frames = st.get('frames') ?? 0; }
+      if (st) {
+        this.drive = st.get('drive') ?? 0; this.frames = st.get('frames') ?? 0;
+        this.netrace = st.get('netrace') ?? 0;
+        this.fast = st.has('fast') ? st.get('fast') : undefined;
+      }
     }
     if (!this.away && (s.input?.padPressed?.() ?? 0) > this.touchedAt) this.away = true;
     if (s.input && s.input !== this.menuTo) { this.menuTo = s.input; this.applyMenuSize(true); }
@@ -408,8 +422,22 @@ export class TouchControls {
     const on = !!this.session && this.seen && !this.away;
     const mode: Mode = !on ? '' : (this.drive & 3) > 0 ? 'drive' : this.frames > 0 ? 'menu' : '';
     this.root.toggleAttribute('data-roam', (this.drive & 3) === 2);
+    this.root.toggleAttribute('data-netrace', this.netrace > 0);
+    this.root.toggleAttribute('data-no-race-chat', this.deps.raceChatOn?.() === false);
     this.root.toggleAttribute('data-gears', (this.drive & 4) !== 0);
+    this.stow('reset', mode === 'drive' && this.fast === 1);
     this.setMode(mode);
+  }
+
+  /** Hide a control in its original place; a held finger/key is released immediately when it goes away. */
+  private stow(id: string, away: boolean) {
+    const c = this.ctls.get(id);
+    if (!c || c.el.classList.contains('stowed') === away) return;
+    c.el.classList.toggle('stowed', away);
+    if (!away) return;
+    for (const [finger, held] of this.byFinger) if (held === c) this.byFinger.delete(finger);
+    c.fingers.clear();
+    this.up(c, true);
   }
 
   /** the driving controls, the menu's or none: every control let go on a change, the stick and tilt at rest */
@@ -435,7 +463,8 @@ export class TouchControls {
   // ---- fingers on the controls --------------------------------------------------------------
   private ctlAt(x: number, y: number): Ctl | undefined {
     const el = document.elementFromPoint(x, y)?.closest<HTMLElement>('[data-ctl]');
-    return el ? this.ctls.get(el.dataset.ctl!) : undefined;
+    const c = el ? this.ctls.get(el.dataset.ctl!) : undefined;
+    return c && !c.el.classList.contains('stowed') ? c : undefined;
   }
   private onDown = (e: PointerEvent) => {
     e.preventDefault();                       // the game's canvas keeps the focus, no mouse events follow
@@ -443,6 +472,7 @@ export class TouchControls {
     if (e.pointerType === 'touch' && e.isPrimary) this.dropFingers();
     const el = (e.target as HTMLElement).closest<HTMLElement>('[data-ctl]');
     const c = el ? this.ctls.get(el.dataset.ctl!) : undefined;
+    if (c?.el.classList.contains('stowed')) return;
     if (c) { this.byFinger.set(e.pointerId, c); this.press(c, e.pointerId); return; }
     if ((e.target as HTMLElement).closest('.stick')) this.stickDown(e);
   };

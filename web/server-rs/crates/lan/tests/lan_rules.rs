@@ -1,5 +1,5 @@
 //! The switch's own tests, the second half (tests/lan.rs has the first): the audit's F2 (what one client can make the
-//! switch send, and whom it can get cut), the store, the 6000 addresses, LAN play's broadcasts, a page that lets go,
+//! switch send, and whom it can get cut), the store, the 24000 addresses, LAN play's broadcasts, a page that lets go,
 //! the breakdown, bundles, a player behind on its path (lag.rs).
 
 mod harness;
@@ -350,9 +350,7 @@ async fn a_broadcast_costs_its_size_for_every_player_it_reaches() {
     blast(&other);
     other.flush().await;
     // Wait for the independent group to deliver enough frames instead of sampling too early.
-    dst.until_ms(2000, |g| {
-        (g.frames[before2..].iter().filter(|f| src(&f.0) == other.vip).count() >= 100).then_some(())
-    }).await;
+    dst.until_ms(2000, |g| (g.frames[before2..].iter().filter(|f| src(&f.0) == other.vip).count() >= 100).then_some(())).await;
     let from_other = dst.got().frames[before2..].iter().filter(|f| src(&f.0) == other.vip).count();
     println!(
         "one address with two connections got {from_group} frames through, another address alone {from_other} (the budget of one address: {} KB burst)",
@@ -485,14 +483,14 @@ async fn with_a_store_an_address_nobody_came_back_for_is_gone_for_the_hosts() {
     sw.close().await;
 }
 
-// addresses: 6000 on 10.77.0.0/19, handed out round twenty-four of its /24s; never .0, .1 or .252 and up; full past them
+// addresses: 24000 on 10.77.0.0/17, handed out round ninety-six of its /24s; never .0, .1 or .252 and up; full past them
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-async fn addresses_6000_round_the_twenty_four_24s_full_past_them() {
+async fn addresses_24000_round_the_ninety_six_24s_full_past_them() {
     let _s = serial().await;
-    let lan = LanSwitch::new(LanOptions { max_peers: 6000, ..LanOptions::default() }, "", None, None, None, None);
+    let lan = LanSwitch::new(LanOptions { max_peers: 24000, ..LanOptions::default() }, "", None, None, None, None);
     let mut got = Vec::new();
     let now = nfsu2_util::now_ms();
-    for i in 0..6000 {
+    for i in 0..24000 {
         let v = lan.allocate();
         assert!(v != 0, "address {i}");
         got.push(v);
@@ -502,9 +500,11 @@ async fn addresses_6000_round_the_twenty_four_24s_full_past_them() {
     let mut want: Vec<String> = (0..16).map(|b| format!("10.77.{b}.2")).collect();
     want.extend(["10.77.16.2".to_string(), "10.77.17.2".to_string()]);
     assert_eq!(first, want);
-    assert_eq!(ip_str(got[24]), "10.77.0.3");
-    assert_eq!(ip_str(got[5999]), "10.77.23.251");
-    assert_eq!(got.iter().collect::<HashSet<_>>().len(), 6000, "all distinct");
+    assert_eq!(ip_str(got[24]), "10.77.24.2");
+    assert_eq!(ip_str(got[95]), "10.77.95.2", "last /24 before the host byte advances");
+    assert_eq!(ip_str(got[96]), "10.77.0.3", "first /24 after the host byte advances");
+    assert_eq!(ip_str(got[5999]), "10.77.47.64");
+    assert_eq!(got.iter().collect::<HashSet<_>>().len(), 24000, "all distinct");
     let mut sorted = got.clone();
     sorted.sort();
     let mut all = all_vips();
@@ -604,7 +604,8 @@ async fn breakdown_online_lan_screens_free_roam_older_page_leaving_or_starting()
     let _s = serial().await;
     let in_online = Arc::new(Mutex::new(HashSet::new()));
     let in_roam = Arc::new(Mutex::new(HashSet::new()));
-    let online = Arc::new(FakeHost { vip: 0x0A4D_0001, name: "online".into(), listed: true, vips: in_online.clone(), gone: Default::default() });
+    let online =
+        Arc::new(FakeHost { vip: 0x0A4D_0001, name: "online".into(), listed: true, vips: in_online.clone(), gone: Default::default() });
     let roam = Arc::new(FakeHost { vip: 0x0A4D_00FD, name: String::new(), listed: false, vips: in_roam.clone(), gone: Default::default() });
     let sw = start_full(opts(), "", Some(online), Some(roam), None).await;
     let mut all = Vec::new();
@@ -796,13 +797,16 @@ async fn bundles_each_frame_pays_the_budgets_a_broken_entry_ends_it() {
     sw2.close().await;
 }
 
+type DuePongQueue = VecDeque<(Instant, Vec<u8>)>;
+type SharedDuePongQueue = Arc<Mutex<DuePongQueue>>;
+
 /// A player on a plain socket that answers the switch's pings `delay` ms late (its path's queues), and counts the
 /// datagrams it gets by their free-roam message type (byte 21 of the frame: 1 HELLO, 3 SNAP).
 struct Laggy {
     vip: u32,
     delay: Arc<AtomicU64>,
     /// the pongs waiting for their time: when, and the ping's payload
-    due: Arc<Mutex<VecDeque<(Instant, Vec<u8>)>>>,
+    due: SharedDuePongQueue,
     counts: Arc<Mutex<[usize; 16]>>,
     tasks: Vec<JoinHandle<()>>,
 }
@@ -825,7 +829,7 @@ impl Laggy {
     async fn start(port: u16, name: &str, delay_ms: u64) -> Laggy {
         let (mut r, mut w) = raw_peer(port, name, "").await.into_split();
         let delay = Arc::new(AtomicU64::new(delay_ms));
-        let due: Arc<Mutex<VecDeque<(Instant, Vec<u8>)>>> = Arc::default();
+        let due: SharedDuePongQueue = Arc::default();
         let counts: Arc<Mutex<[usize; 16]>> = Arc::default();
         let (vtx, vrx) = tokio::sync::oneshot::channel();
         let (d, q, c) = (delay.clone(), due.clone(), counts.clone());
@@ -843,10 +847,9 @@ impl Laggy {
                     match op {
                         0x1 => {
                             let m: Value = serde_json::from_slice(&payload).unwrap();
-                            if m["t"] == "welcome" {
-                                if let Some(t) = vtx.take() {
-                                    let _ = t.send(vip_of(&m));
-                                }
+                            let welcome_tx = if m["t"] == "welcome" { vtx.take() } else { None };
+                            if let Some(t) = welcome_tx {
+                                let _ = t.send(vip_of(&m));
                             }
                         }
                         0x2 if payload.len() > 21 => c.lock().unwrap()[payload[21] as usize & 15] += 1,
@@ -1024,7 +1027,9 @@ async fn compact_bundles_carry_the_same_frames_in_fewer_bytes() {
     let (bf, bs) = (bytes(&full), bytes(&small));
     assert!(bs * 100 < bf * 85, "fewer bytes: {bs} against {bf}");
     // a client's compact bundle, alone or in a bundle, reaches nobody
-    let before = (small.got().frames.len(), sw.info().await["limited"].as_u64().unwrap());
+    let small_frame_count = small.got().frames.len();
+    let limited_before = sw.info().await["limited"].as_u64().unwrap();
+    let before = (small_frame_count, limited_before);
     let mut fake = vec![33u8, 0, 0, 0, 0x01, 0x01, 0x02, 0x00, 0x04];
     fake.extend_from_slice(b"evil");
     s.binary(frame_of(small.vip, &fake, 33, 47210, 47210));

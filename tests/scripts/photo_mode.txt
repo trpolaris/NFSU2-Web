@@ -15,6 +15,13 @@
 7000wms autopilot on
 12000wms photo on
 +30   expect i:0x890084 == 1                       # the world stands
++0    photo spin 30                              # continuous orbit, 30 degrees a second
++120  dump photo_auto_turn
++0    photo spin 0                               # stops without leaving photo mode
++30   dump photo_auto_turn_stopped
++0    photo spin -30                              # the other direction works too
++60   photo reset                                # Reset also turns automatic rotation off
++30   dump photo_auto_turn_reset
 +0    expect i:[[0x8900ac]+0x238]+0xc == 2         # the developers' free camera
 +0    mark t0 i:0x86518c                            # the race clock
 +0    photo drag 0.3 0.05
@@ -22,8 +29,12 @@
 +60   expect i:0x86518c == @t0                     # still
 +0    dump photo_orbit
 +0    photo free
++0    photo speed 2                            # twice the default camera translation speed
++0    photo level 1                            # forward now stays level even while looking up/down
 +0    photo move 0 1
 +30   photo move 0 0
++0    photo level 0                            # restore pitch-aligned movement
++0    photo speed 1                            # restore the default
 +10   dump photo_free
 +0    photo off
 +30   expect i:0x890084 == 0

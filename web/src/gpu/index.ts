@@ -14,6 +14,8 @@
 // finished GPU frame.  The main thread never blocks.
 import type { GameProcess } from '../host/process';
 import { HostKind } from '../host/abi';
+import { GPU_PIPELINES, localStore } from '../app/prefs';
+import { MemoryBuffer } from '../host/memory';
 import * as P from './proto';
 import { C, F } from './proto';
 import { Encoder } from './encoder';
@@ -35,6 +37,10 @@ export interface RendererOptions {
   logShaders?: boolean;
   /** measure GPU time per frame with timestamp queries (first pass begin to composite end) */
   gpuTiming?: boolean;
+  /** enable anisotropic filtering wherever the game's own texture samplers request it */
+  aniso?: boolean;
+  /** tests: an autotest dump labelled <name>_af also writes the same frame with anisotropic filtering toggled, <name>_af1 */
+  anisoDump?: boolean;
   /** keep canvas.width/height at the element's size in device pixels (the game resets its device to follow) */
   autoSize?: boolean;
   /** false: at a render scale below 1 the canvas stays at the view's size and the picture is composited over it (the
@@ -79,6 +85,8 @@ export interface RendererStats {
   /** draws dropped or changed: target texture missing, sampled texture = current target (drawn white),
    *  Z surface size differs from the target (Z off), vertex shader module missing */
   missingTarget: number; conflicts: number; zMismatch: number; noVs: number;
+  /** FSAA passes resolved from 4-sample render targets and stale-target refreshes. */
+  msPasses?: number; msRefreshes?: number;
   /** frames drawn straight into the canvas texture (no composite), and frames that kept the
    *  back buffer because they copied from the screen before drawing to it */
   direct: number; screenReadFirst: number;
@@ -227,12 +235,14 @@ export async function attachRenderer(proc: GameProcess, canvas: HTMLCanvasElemen
   }
   let enc: Encoder;
   try { enc = new Encoder(device, mem, reg.ptr, log); } catch (e) { giveUp(e); }
+  enc.aniso = !!opts.aniso;
+  if (enc.aniso) log('[gpu] anisotropic filtering where the game asks for it');
   enc.logShaders = !!opts.logShaders;
   for (const id of opts.watchTex ?? []) enc.watchTex.add(id);
   if (opts.trace === 'dumps') enc.traceDumps = true; else for (const f of opts.trace ?? []) enc.traceSeq.add(f);
   // pipelines of earlier sessions, created asynchronously as their shaders arrive
-  const WARM_KEY = 'nfsu2.gpu.pipelines.v1';
-  try { const j = localStorage.getItem(WARM_KEY); if (j) enc.loadWarm(JSON.parse(j)); } catch { /* storage off: no warm-up */ }
+  const warm = localStore.getJSON(GPU_PIPELINES) as Parameters<Encoder['loadWarm']>[0] | null;
+  if (warm) try { enc.loadWarm(warm); } catch { /* not a list of pipelines: no warm-up */ }
   const vw = vreg.ptr >> 2, vf = vreg.ptr >> 3;
 
   // page -> game: view size, pixel ratio, features.  The view is the canvas element's box in device pixels (what
@@ -253,7 +263,7 @@ export async function attachRenderer(proc: GameProcess, canvas: HTMLCanvasElemen
   Atomics.notify(i32(), cw + C.attached);
   const warmTimer = setInterval(() => {
     if (!enc.warmDirty) return;
-    try { localStorage.setItem(WARM_KEY, JSON.stringify(enc.warmEntries().slice(-4000))); } catch { /* full or off */ }
+    try { localStore.setJSON(GPU_PIPELINES, enc.warmEntries().slice(-4000)); } catch { /* full or off */ }
   }, 5000);
   const maxInFlight = opts.maxInFlight ?? 2;
   let imgRect: { x: number; y: number; w: number; h: number } | null = null;
@@ -267,8 +277,6 @@ export async function attachRenderer(proc: GameProcess, canvas: HTMLCanvasElemen
   let done: number[] = [];
   const dumpWaiters: { name: string; resolve: (b: Blob) => void }[] = [];
   const pending = new Set<Promise<unknown>>();
-  const waitAsync = (Atomics as unknown as { waitAsync(a: Int32Array, i: number, v: number, t?: number):
-    { async: boolean; value: Promise<string> | string } }).waitAsync;
 
   // A frame waiting for a slot.  Firefox runs onSubmittedWorkDone callbacks only when its GPU
   // process polls the device: in every queue submit, and otherwise on a 100 ms timer
@@ -292,7 +300,7 @@ export async function attachRenderer(proc: GameProcess, canvas: HTMLCanvasElemen
     try {
       while (alive && waitingSince) {
         device.queue.submit([]); pokes++;
-        const w = waitAsync(pokeCell, 0, 0, 1);
+        const w = Atomics.waitAsync(pokeCell, 0, 0, 1);
         if (w.async) await w.value;
       }
     } finally { poking = false; }
@@ -492,6 +500,15 @@ export async function attachRenderer(proc: GameProcess, canvas: HTMLCanvasElemen
     const rbRead = rbTex ? copyOut(ce, rbTex) : null;
     device.queue.submit([ce.finish()]);
     enc.afterSubmit();
+    if (opts.anisoDump && dumpName?.endsWith('_af')) {
+      enc.aniso = !enc.aniso;
+      const ce2 = device.createCommandEncoder();
+      enc.encodeFrame(b, ce2, undefined);
+      reads.push({ name: dumpName + '1', rb: copyOut(ce2, enc.screen!) });
+      device.queue.submit([ce2.finish()]);
+      enc.afterSubmit();
+      enc.aniso = !enc.aniso;
+    }
     if (rbId) readForGame(rbId, rbRead, U[fw + F.rbDst], U[fw + F.rbPitch], U[fw + F.rbRows]);
     // quick chat's places over the cars in this very frame (GwMarks in its constants, from a module that writes them)
     if (opts.onMarks) {
@@ -555,6 +572,8 @@ export async function attachRenderer(proc: GameProcess, canvas: HTMLCanvasElemen
     const answer = (px: ArrayBuffer | null) => {
       const I = i32();
       if (Atomics.compareExchange(I, cw + C.rbWant, id, id | P.RB_FLAG) !== id) return;
+      // (a memory that grew under a page holding its buffer only: the new buffer came first, or the read fails)
+      if (px && rb && dst + pitch * Math.min(rows, rb.h) > mem.buffer.byteLength) px = null;
       if (px && rb) {
         const m = new Uint8Array(mem.buffer), n = Math.min(pitch, rb.w * 4);
         for (let y = 0; y < Math.min(rows, rb.h); y++) m.set(new Uint8Array(px, y * rb.bpr, n), dst + y * pitch);
@@ -563,7 +582,8 @@ export async function attachRenderer(proc: GameProcess, canvas: HTMLCanvasElemen
       Atomics.notify(I, cw + C.rbDone);
     };
     if (!rb) { log(`[gpu] texture read back for the game: not there`); answer(null); return; }
-    const job = rb.buf.mapAsync(GPUMapMode.READ).then(() => { answer(rb.buf.getMappedRange()); rb.buf.unmap(); },
+    const grown = mem instanceof MemoryBuffer ? mem.until(dst + pitch * Math.min(rows, rb.h)) : null;
+    const job = rb.buf.mapAsync(GPUMapMode.READ).then(() => grown).then(() => { answer(rb.buf.getMappedRange()); rb.buf.unmap(); },
       x => { log(`[gpu] texture read back for the game failed: ${x}`); answer(null); }).finally(() => rb.buf.destroy());
     pending.add(job); job.finally(() => pending.delete(job));
   };
@@ -648,7 +668,7 @@ export async function attachRenderer(proc: GameProcess, canvas: HTMLCanvasElemen
     while (alive) {
       const I = i32(), b = Atomics.load(I, cw + C.bell);
       pump();
-      const w = waitAsync(I, cw + C.bell, b, 500);
+      const w = Atomics.waitAsync(I, cw + C.bell, b, 500);
       if (w.async) await w.value;
     }
   })();
@@ -674,6 +694,7 @@ export async function attachRenderer(proc: GameProcess, canvas: HTMLCanvasElemen
       pipelineMs: enc.pipeMs, pipelineMsMax: enc.pipeMsMax, gpuMsAvg: gpuMsN ? gpuMsTotal / gpuMsN : 0, gpuMsMax,
       encodeMsAvg: frames ? encMsTotal / frames : 0, encodeMsLast: encMsLast, drawsLast, passesLast, rafHz, inFlight,
       dumps: u32()[cw + C.dumpsDone], missingTarget: enc.missingTarget, conflicts: enc.conflicts, zMismatch: enc.zMismatch, noVs: enc.noVs,
+      ...(enc.msPasses ? { msPasses: enc.msPasses, msRefreshes: enc.msRefreshes } : {}),
       direct: directFrames, screenReadFirst: enc.screenReadFirst, slotWaits, slotWaitMsMax, pokes, unshown,
       texBytes: enc.texBytes, unpackBytes: enc.unpackBytes, astcBytes: enc.astcBytes }),
     window: (reset = false) => {
@@ -694,12 +715,12 @@ export async function attachRenderer(proc: GameProcess, canvas: HTMLCanvasElemen
     imageRect: () => imgRect ?? { x: 0, y: 0, w: canvas.width, h: canvas.height },
     flush: async () => {
       while (pending.size) await Promise.allSettled([...pending]);
-      if (enc.warmDirty) try { localStorage.setItem(WARM_KEY, JSON.stringify(enc.warmEntries().slice(-4000))); } catch { /* full or off */ }
+      if (enc.warmDirty) try { localStore.setJSON(GPU_PIPELINES, enc.warmEntries().slice(-4000)); } catch { /* full or off */ }
     },
     detach: () => {
       if (!alive) return;
       alive = false; cancelAnimationFrame(rafId); clearInterval(warmTimer); ro.disconnect();
-      if (enc.warmDirty) try { localStorage.setItem(WARM_KEY, JSON.stringify(enc.warmEntries().slice(-4000))); } catch { /* full or off */ }
+      if (enc.warmDirty) try { localStore.setJSON(GPU_PIPELINES, enc.warmEntries().slice(-4000)); } catch { /* full or off */ }
       // the game stops recording at its next present instead of waiting for a page
       // that is gone; a waiting present or a full resource queue wakes now
       const I = i32();

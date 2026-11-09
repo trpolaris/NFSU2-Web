@@ -42,9 +42,9 @@ pub fn ip_str(v: u32) -> String {
     nfsu2_util::vip_str(v)
 }
 
-/// every address the switch hands out: host bytes 2-251 in each of 10.77.0-23.x (10.77.0.0/19)
+/// every address the switch hands out: host bytes 2-251 in each of 10.77.0-95.x (10.77.0.0/17)
 pub fn all_vips() -> Vec<u32> {
-    (0..24u32).flat_map(|b| (0..250u32).map(move |i| (10 << 24) | (77 << 16) | (b << 8) | (i + 2))).collect()
+    (0..96u32).flat_map(|b| (0..250u32).map(move |i| (10 << 24) | (77 << 16) | (b << 8) | (i + 2))).collect()
 }
 
 /// the tests' options: WebSocket messages of up to 1 MiB taken (max_payload), so that the switch's own limits decide
@@ -120,7 +120,8 @@ async fn serve(lan: Arc<LanSwitch>, mut s: TcpStream) {
         let code: u16 = arg("code").parse().unwrap_or(4001);
         let m = json!({ "t": if code == 4001 { "kick" } else { "ban" }, "msg": arg("msg") });
         let done = lan.expel(arg("vip").parse().unwrap_or(0), Bytes::from(m.to_string()), code);
-        let answer = format!("HTTP/1.1 {}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n", if done { "200 OK" } else { "404 Not Found" });
+        let answer =
+            format!("HTTP/1.1 {}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n", if done { "200 OK" } else { "404 Not Found" });
         let _ = s.write_all(answer.as_bytes()).await;
         return;
     }
@@ -730,7 +731,8 @@ impl Host for FakeHost {
 
 /// a free-roam hub on the switch for the tests that keeps what it is told of blocks (`Host::blocks`): (vip, names), and
 /// (vip, none) for a browser that left (`Host::peer_gone`)
-pub struct BlockHub(pub Arc<Mutex<Vec<(u32, Vec<String>)>>>);
+pub type BlockMessages = Vec<(u32, Vec<String>)>;
+pub struct BlockHub(pub Arc<Mutex<BlockMessages>>);
 
 impl Host for BlockHub {
     fn vip(&self) -> u32 {

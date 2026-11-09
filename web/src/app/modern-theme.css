@@ -850,6 +850,7 @@ input, select, textarea { max-width: 100%; min-width: 0; }
 #menu .menu-tab.is-active,
 #menu .menu-tab.is-active[data-menu-tab="chat"],
 #menu .menu-tab.is-active[data-menu-tab="multiplayer"],
+#menu .menu-tab.is-active[data-menu-tab="worlds"],
 #menu .menu-tab.is-active[data-menu-tab="session"],
 #menu .menu-tab.is-active[data-menu-tab="radio"] {
   color:#c9efff; border-color:rgba(125,211,252,.25); border-left-color:#7dd3fc; background:rgba(56,189,248,.09); box-shadow:inset 2px 0 0 rgba(125,211,252,.75);

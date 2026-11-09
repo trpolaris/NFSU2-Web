@@ -41,6 +41,7 @@ int roam_plat_solid(void){ return -1; }                              /* no menu:
 int roam_plat_quickchat(void){ return 0; }                           /* no page: no picker and no lines */
 int roam_plat_say_pick(void){ return -1; }
 int roam_plat_said(const char *json){ (void)json; return 1; }
+int roam_plat_friend(const char *json){ (void)json; return 0; }
 void roam_plat_say_marks(const uint32_t *ids, const float *xys, int n){ (void)ids; (void)xys; (void)n; }
 uint32_t roam_plat_crews(uint32_t crews[RC_CREW_MAX], uint32_t rgb[RC_CREW_MAX]){ (void)crews; (void)rgb; return 0; }   /* the settings */
 const char *roam_ip_str(uint32_t ip, char *b){
@@ -71,7 +72,11 @@ int roam_plat_guard(int test_mode, uint32_t ip, int is_bcast){
 static void do_send(uint32_t ip, uint16_t port, const uint8_t *buf, int len, int is_bcast){
     if (!roam_plat_guard(g_cfg.test_mode, ip, is_bcast) || g_fd < 0) return;
     struct sockaddr_in sa; memset(&sa, 0, sizeof sa);
-    sa.sin_family = AF_INET; sa.sin_len = sizeof sa; sa.sin_port = htons(port); sa.sin_addr.s_addr = htonl(ip);
+    sa.sin_family = AF_INET;
+#if defined(__APPLE__)
+    sa.sin_len = sizeof sa;
+#endif
+    sa.sin_port = htons(port); sa.sin_addr.s_addr = htonl(ip);
     ssize_t n = sendto(g_fd, buf, (size_t)len, 0, (struct sockaddr *)&sa, sizeof sa);
     if (n == len){ g_st.sent++; g_st.sent_bytes += (uint64_t)len; return; }
     g_st.send_err++;
@@ -218,7 +223,11 @@ int roam_plat_start(const roam_plat_cfg *cfg, rc_session *s){
     fcntl(fd, F_SETFD, FD_CLOEXEC);
     if (g_cfg.discovery){ int one = 1; setsockopt(fd, SOL_SOCKET, SO_BROADCAST, &one, sizeof one); }
     struct sockaddr_in sa; memset(&sa, 0, sizeof sa);
-    sa.sin_family = AF_INET; sa.sin_len = sizeof sa; sa.sin_port = htons(g_cfg.port);
+    sa.sin_family = AF_INET;
+#if defined(__APPLE__)
+    sa.sin_len = sizeof sa;
+#endif
+    sa.sin_port = htons(g_cfg.port);
     sa.sin_addr.s_addr = htonl(g_cfg.test_mode ? INADDR_LOOPBACK : INADDR_ANY);
     if (bind(fd, (struct sockaddr *)&sa, sizeof sa) < 0){
         fprintf(stderr, "[roam] cannot use UDP port %u (%s): another program has it? Set the same other port "

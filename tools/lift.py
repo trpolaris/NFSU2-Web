@@ -544,7 +544,11 @@ class Lifter:
                         continue
                     if m in ('hlt','ud2'): break
                     va=i.address+i.size
-                    if len(ins)>maxins: break
+                    if len(ins)>maxins:
+                        # Continue a long straight-line block as a queued fall-through block.
+                        # Without this, lifted output returned before executing the remaining instructions.
+                        if va not in seen: seen.add(va); q.append(va)
+                        break
                 blocks[ins[0].address if ins else va]=ins
                 if jt and ins:
                     b = self._jt_bound(ins)
@@ -926,7 +930,7 @@ class Lifter:
             # (measured with Rosetta); ZF is the same either way round.
             return [f"{{ uint32_t _a={acc}, _d={E(0)}, _r=_d-_a;"
                     f" FLAGS_SUB_M(_d,_a,_r,{bits},{self._fm()});"
-                    f" if(c->zf){{ {W(0,E(1))} }} else {{ {wacc} }} }}"]
+                    f" if(_d==_a){{ {W(0,E(1))} }} else {{ {wacc} }} }}"]
         if m in ('bsf','bsr'):
             # if the source is 0, ZF=1 and the destination does NOT CHANGE
             fn = "_i=0; while(!((_v>>_i)&1u)) _i++;" if m=='bsf' else \

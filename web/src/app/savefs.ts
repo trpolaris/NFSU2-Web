@@ -66,7 +66,7 @@ export interface Entry { path: string; size: number; mtime: number }
 export async function listFiles(saveDir: string): Promise<Entry[]> {
   const out: Entry[] = [];
   async function walk(d: FileSystemDirectoryHandle, rel: string) {
-    for await (const [name, h] of (d as any).entries() as AsyncIterable<[string, FileSystemHandle]>) {
+    for await (const [name, h] of d.entries()) {
       const r = rel ? rel + '/' + name : name;
       if (h.kind === 'directory') await walk(h as FileSystemDirectoryHandle, r);
       else { const f = await (h as FileSystemFileHandle).getFile(); out.push({ path: r, size: f.size, mtime: f.lastModified }); }
@@ -107,7 +107,7 @@ export async function clearSaveDir(saveDir: string, keep: (name: string) => bool
   let d = await saveRoot(saveDir);
   if (under) try { d = await dirOf(d, parts(under), false); } catch { return; }   // not there: nothing in it
   const names: string[] = [];
-  for await (const [name] of (d as any).entries() as AsyncIterable<[string, FileSystemHandle]>) if (!keep(name)) names.push(name);
+  for await (const [name] of d.entries()) if (!keep(name)) names.push(name);
   for (const n of names) await d.removeEntry(n, { recursive: true });
 }
 
@@ -150,7 +150,7 @@ export async function cacheBytes(): Promise<{ bytes: number; files: number }> {
   let bytes = 0, files = 0;
   try {
     const d = await (await root()).getDirectoryHandle(CACHE_DIR);
-    for await (const [name, h] of (d as any).entries() as AsyncIterable<[string, FileSystemHandle]>) {
+    for await (const [name, h] of d.entries()) {
       if (h.kind !== 'file' || !name.endsWith('.have')) continue;
       const have = new Uint8Array(await (await (h as FileSystemFileHandle).getFile()).arrayBuffer());
       let n = 0; for (const b of have) n += b ? 1 : 0;

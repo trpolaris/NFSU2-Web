@@ -41,13 +41,15 @@ export interface VaultPanelDeps {
   log(s: string): void;
 }
 
+import { CLOUD_OFFER, KEYPHRASE, localStore } from './prefs';
+
 /** how long `token()` waits for the section to know whether this server keeps cloud saves (`start`) */
 const READY_WAIT_MS = 5000;
 
 /** where a save folder's link is kept (localStorage) */
-const linkKey = (saveDir: string) => `nfsu2-keyphrase:${saveDir}`;
+const linkKey = (saveDir: string) => KEYPHRASE + saveDir;
 /** where its games are counted until Play offers cloud saves, 'asked' after (localStorage) */
-const offerKey = (saveDir: string) => `nfsu2-cloud-offer:${saveDir}`;
+const offerKey = (saveDir: string) => CLOUD_OFFER + saveDir;
 /** the games played in a save folder before its next Play offers cloud saves */
 const OFFER_AFTER = 4;
 
@@ -60,7 +62,7 @@ interface Replaced { at: number; side: Side }
 
 /** A save folder emptied (a test page's &fresh): its link goes too, or the page would sync an empty folder. */
 export function forgetLink(saveDir: string) {
-  try { localStorage.removeItem(linkKey(saveDir)); localStorage.removeItem(offerKey(saveDir)); } catch { /* storage off */ }
+  localStore.remove(linkKey(saveDir)); localStore.remove(offerKey(saveDir));
   void removeSaveDir(replacedDir(saveDir));
 }
 
@@ -187,10 +189,10 @@ export class VaultPanel {
   private mask() { this.notifyReact(); }
 
   private load(): Link | null {
-    try { const t = localStorage.getItem(this.key); return t ? JSON.parse(t) as Link : null; } catch { return null; }
+    return localStore.getJSON(this.key) as Link | null;
   }
   private save(l: Link | null) {
-    try { if (l) localStorage.setItem(this.key, JSON.stringify(l)); else localStorage.removeItem(this.key); } catch { /* storage off: this page's link only */ }
+    if (l) localStore.setJSON(this.key, l); else localStore.remove(this.key);
   }
 
   /** a VaultSync on the link kept now (another tab may have changed it while this one only looked) */
@@ -347,8 +349,8 @@ export class VaultPanel {
   /** A game started here: counted until Play offers cloud saves; with a keyphrase here, they are never offered. */
   played() {
     try {
-      const k = offerKey(this.d.saveDir), v = localStorage.getItem(k);
-      if (v !== 'asked') localStorage.setItem(k, this.sync?.link ? 'asked' : String((Number(v) || 0) + 1));
+      const k = offerKey(this.d.saveDir), v = localStore.get(k);
+      if (v !== 'asked') localStore.set(k, this.sync?.link ? 'asked' : String((Number(v) || 0) + 1));
     } catch { /* storage off: no link is kept here either */ }
   }
   /** Play may offer cloud saves: this server keeps them, this tab owns the saves and has no keyphrase, OFFER_AFTER
@@ -356,10 +358,10 @@ export class VaultPanel {
   offerable(): boolean {
     const s = this.sync;
     if (!s || s.link || s.state.s === 'working' || !this.d.owner()) return false;
-    try { const v = localStorage.getItem(offerKey(this.d.saveDir)); return v !== 'asked' && (Number(v) || 0) >= OFFER_AFTER; } catch { return false; }
+    const v = localStore.get(offerKey(this.d.saveDir)); return v !== 'asked' && (Number(v) || 0) >= OFFER_AFTER;
   }
   /** Play offered them: not again in this browser. */
-  offered() { try { localStorage.setItem(offerKey(this.d.saveDir), 'asked'); } catch { /* storage off */ } }
+  offered() { localStore.set(offerKey(this.d.saveDir), 'asked'); }
   /** Cloud saves turned on from Play's question: the keyphrase made, or why not (the section says it too). */
   async enable(): Promise<{ phrase: string } | { why: string }> {
     const l = await this.make() ? this.sync?.link : null, st = this.sync?.state;

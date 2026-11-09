@@ -1,15 +1,15 @@
 // Settings configuration and persistence service. This module owns settings.ini semantics only; it has no DOM surface.
 import { checkSetting, DEFAULTS, keyDef, resolveEnv, settingsPut, TEMPLATE, type Resolved } from './settings';
-import { readText, writeFile } from './savefs';
+import { SettingsFile } from './settings-store';
 import { playHorn, stopHorn } from './horn-preview';
-import { CREW_MAX, crewsValue, rgbsValue, type Crew } from './crews';
+import { CREW_MAX, checkCrew, crewsOf, crewsValue, freeColour, rgbsValue, type Crew } from './crews';
 import { onlineName } from './claim';
 import { DEFAULT_GROUPS, DEFAULT_PHRASES, groupsOf, PHRASES, phrasesOf, SLOTS } from './phrases';
 import { LANGUAGES, N, NATIVE, t, tn, tvars, type Language, type Msg } from './i18n';
 
 
 /** Safe, allow-listed keys used by portable launcher profiles; never export unknown settings.ini lines. */
-export const PROFILE_SETTING_KEYS = ['render', 'fps', 'audio_latency', 'language', 'subtitles', 'sound', 'intro', 'gamepad', 'rumble', 'ui_textures'] as const;
+export const PROFILE_SETTING_KEYS = ['render', 'fps', 'audio_latency', 'language', 'subtitles', 'sound', 'intro', 'gamepad', 'rumble', 'ui_textures', 'open_tunnel', 'show_hidden_races', 'catchup'] as const;
 const PROFILE_SETTING_SET = new Set<string>(PROFILE_SETTING_KEYS);
 
 type Control =
@@ -63,11 +63,17 @@ const GROUPS: Group[] = [
     { key: 'movies', label: N('Movies'), help: N('Intro, story and FMV movies.'), c: { t: 'switch' } },
     { key: 'subtitles', label: N('Subtitles'), help: N('The movies\' lines as text. English\'s are VileStuff\'s English Subtitles Fixed, with who says each line.'), link: { text: N('English Subtitles Fixed'), href: 'https://nfsmods.xyz/mod/5286' }, c: { t: 'switch' } },
     { key: 'autosave', label: N('Autosave'), help: N('Sets each profile\'s Save option in the game to Autosave once, so races, purchases and changes are saved without asking. Prompt or Off chosen afterwards in the game\'s Options, Gameplay stays.'), c: { t: 'switch' } },
+    { key: 'gps_distance', label: N('GPS distance'), help: N('Shows a straight-line distance to your GPS destination beneath the arrow, using Speedometer Units. Hidden while GPS has no active route.'), c: { t: 'switch' }, more: true },
+    { key: 'show_hidden_races', label: N('Show hidden races'), help: N('Shows the career races the game normally hides on the map. Changes only in-memory tables; does not write to career save files.'), c: { t: 'switch' }, more: true },
+    { key: 'catchup', label: N('Rubberbanding'), help: N('Career opponents ahead of you wait for you, ones behind get more power and grip. No boost: they still wait, but never beat their own pace. Off: neither, as Quick Race with Catch Up off.'), c: { t: 'seg', opts: [['original', N('Original')], ['noboost', N('No boost')], ['off', N('Off')]] }, more: true },
     { key: 'intro', label: N('Startup movies'), help: N('The EA and THX logos, the PSA and the intro. Skippable: Enter, Esc, Space, a left click, or A, B or Start ends each one. Original: as in the game, where only the intro ends early.'), c: { t: 'seg', opts: [['skippable', N('Skippable')], ['original', N('Original')], ['off', N('Off')]] }, more: true },
     { key: 'sound', label: N('Sound'), help: N('All sound output.'), c: { t: 'switch' }, more: true },
     { key: 'background', label: N('When the tab is in the background'), help: N('Pause freezes the game and its sound, as alt-tab does on Windows. In LAN and Online play it keeps running, without sound.'), c: { t: 'seg', opts: [['pause', N('Pause')], ['run', N('Keep running')]] }, more: true },
     { key: 'audio_latency', label: N('Output latency'), help: N('Lowest reacts fastest; Robust survives a busy PC best.'), c: { t: 'seg', opts: [['interactive', N('Lowest')], ['balanced', N('Balanced')], ['playback', N('Robust')]] }, more: true },
     { key: 'seed_registry', label: N('Highest graphics for a new save'), help: N('The game\'s own graphics options at their highest, at this screen\'s resolution. Off lets the game run its own hardware check.'), c: { t: 'switch' }, more: true },
+  ] },
+  { title: N('Mods'), more: N('More mod settings'), items: [
+    { key: 'open_tunnel', label: N('Drive through the Construction Tunnel, including early in your career.'), help: N('Changes apply the next time you press Play.'), c: { t: 'switch' } },
   ] },
   { title: N('Display'), more: N('More display settings'), items: [
     { key: 'fullscreen', label: N('Full screen on Play'), help: N('Off plays in this browser window; the menu (F9) has full screen while you play. Hold Esc to leave it. On by default on phones.'), c: { t: 'switch' } },
@@ -172,10 +178,10 @@ export function resetLine(text: string, phys: number): string {
 }
 
 export interface SettingsDeps {
-  saveDir: string;
+  file: SettingsFile;
   environment: Record<string, string>;
   defaults?: Record<string, string>;
-  onSaved?(text: string): void;
+  onSaved?(text: string, previous: string | null): void;
   readOnly?(): boolean;
   say?(msg: string | Msg): void;
   onLoaded?(): void;
@@ -191,7 +197,7 @@ export class SettingsService {
   constructor(private deps: SettingsDeps) {}
 
   async load(): Promise<string | null> {
-    this.text = await readText(this.deps.saveDir, 'settings.ini');
+    this.text = await this.deps.file.read();
     this.resolve(this.text);
     return this.text;
   }
@@ -391,6 +397,33 @@ export class SettingsService {
     );
   }
 
+  /** Accept a live friend invite and save crew + room in one settings.ini write. */
+  async joinCrewInvite(name: string, room: string) {
+    if (this.ro()) throw new Error(t(READ_ONLY));
+    const current = crewsOf(this.current('roam_crew'), this.current('roam_crew_colours'));
+    const checkedCrew = checkCrew(name, current.map(crew => crew.name));
+    if (!checkedCrew.ok) throw new Error(checkedCrew.why ? t(checkedCrew.why, { name: checkedCrew.name ?? '' }) : t('Crew invite is not valid.'));
+    const next = [...current, { name: checkedCrew.name, rgb: freeColour(current) }];
+    const names = crewsValue(next.map(crew => crew.name));
+    const colours = rgbsValue(next);
+    const checkedNames = checkSetting('roam_crew', names);
+    const checkedColours = checkSetting('roam_crew_colours', colours);
+    const normalizedRoom = room.trim();
+    const checkedRoom = normalizedRoom ? checkSetting('roam_room', normalizedRoom) : null;
+    if (checkedNames && !checkedNames.ok) throw new Error(t('Not saved: {key} = {why}.', { key: 'roam_crew', why: tvars(checkedNames.why, checkedNames.v) }));
+    if (checkedColours && !checkedColours.ok) throw new Error(t('Not saved: {key} = {why}.', { key: 'roam_crew_colours', why: tvars(checkedColours.why, checkedColours.v) }));
+    if (checkedRoom && !checkedRoom.ok) throw new Error(t('Not saved: {key} = {why}.', { key: 'roam_room', why: tvars(checkedRoom.why, checkedRoom.v) }));
+    await this.put(
+      'roam_room',
+      normalizedRoom ? (checkedRoom && checkedRoom.ok ? checkedRoom.value : normalizedRoom) : null,
+      [
+        ['roam_crew', names ? (checkedNames && checkedNames.ok ? checkedNames.value : names) : null],
+        ['roam_crew_colours', colours ? (checkedColours && checkedColours.ok ? checkedColours.value : colours) : null],
+      ],
+    );
+    return next;
+  }
+
 
 
 
@@ -500,10 +533,10 @@ export class SettingsService {
   }
 
   private async write(next: string) {
-    await writeFile(this.deps.saveDir, 'settings.ini', next);
+    const previous = await this.deps.file.write(next);
     this.text = next;
     this.resolve(next);
-    this.deps.onSaved?.(next);
+    this.deps.onSaved?.(next, previous);
   }
 
   private moreLabel(g: Group): string {

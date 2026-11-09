@@ -14,6 +14,11 @@ pub(crate) const MSG_SNAP: u8 = 3;
 pub(crate) const MSG_BYE: u8 = 8;
 pub(crate) const MSG_MAPREQ: u8 = 10;
 pub(crate) const MSG_MAP: u8 = 11;
+/// Incremental world-map delta. Type 17 remains reserved for TRPOLARIS typed FreeRoam chat.
+pub(crate) const MSG_MAPD: u8 = 18;
+/// Minimap request and MAPD-shaped nearby-player answer.
+pub(crate) const MSG_NEARREQ: u8 = 19;
+pub(crate) const MSG_NEARD: u8 = 20;
 pub(crate) const MSG_LOBBY: u8 = 12;
 pub(crate) const MSG_LOBBIES: u8 = 13;
 /// a player's report of a multiplayer race (roam_core.h RC_MSG_RACEREP): only to the hub, which logs it
@@ -44,6 +49,8 @@ pub(crate) const CREWS: usize = 4;
 /// HELLO's flag: this player reads the crew marks of the hub's PEERS (roam_core.h RC_HF_HUBCREW, core 8): HF_CREW on a
 /// PEERS says the list ends in them (`write_peers`).  A core before it counts the longer list as bad, so it gets none.
 pub(crate) const HF_HUBCREW: u16 = 0x0400;
+/// mutual friend mark in a PEERS crew-mark byte, beyond the four crew bits
+pub(crate) const MARK_FRIEND: u8 = 0x80;
 /// the most ids a HELLO names (roam_core.h RC_MAX_PEERS: its decoder takes no more)
 const SEEN_MAX: usize = 32;
 /// a LOBBY's ops (roam_core.h RC_LOBBY_*) the hub keeps: the host's advert and its end, and a player's ask to join
@@ -59,6 +66,17 @@ pub(crate) const LOBBY_PLAYERS: usize = 6;
 /// a MAP entry: x, y (i16 LE, m), heading (u8, 256 a turn); at most MAP_PER of them a datagram (roam_core.h)
 pub(crate) const MAP_ENTRY: usize = 5;
 pub(crate) const MAP_PER: usize = 230;
+pub(crate) const MAP_MAX_V1: u16 = 512;
+pub(crate) const MAPD_GONE: u16 = 0x8000;
+/// A placed player's key carries this bit when its SNAPs have stayed within 25 m for one minute.
+pub(crate) const MAPD_PARKED: u16 = 0x4000;
+pub(crate) const MAPREQ_PARKED: u16 = 1;
+pub(crate) const MAPD_PLACE: usize = 9;
+/// A MAPD answer requested with MAPREQ_PARKED also carries z (i16 LE) after velocity.
+pub(crate) const MAPD_PLACE_Z: usize = 11;
+pub(crate) const HF_MAPZ: u16 = 0x0800;
+pub(crate) const MAPD_BYTES: usize = 1152;
+pub(crate) const MAPD_PARTS: usize = 16;
 pub(crate) const HDR: usize = 16;
 pub(crate) const CRC: usize = 4;
 
@@ -93,8 +111,19 @@ pub(crate) enum Msg<'a> {
         clock: u8,
     },
     /// the world map's question (roam_core.h RC_MSG_MAPREQ): req is echoed in the answer
+    /// World-map request: legacy requests omit max/base, while newer clients ask for deltas.
     MapReq {
         req: u16,
+        max: u16,
+        base: Option<u16>,
+        flags: u16,
+    },
+    /// Nearby-player minimap request (radius in metres).
+    NearReq {
+        req: u16,
+        max: u16,
+        base: u16,
+        radius: u16,
     },
     /// a race lobby (roam_core.h RC_MSG_LOBBY), checked as roam_core.c's lobby_ok: what the hub keeps of one sent to
     /// it (to 0)
@@ -116,7 +145,11 @@ pub(crate) enum Msg<'a> {
     /// the race's results as its game showed them (roam_core.h rc_raceres), checked as roam_core.c's raceres_ok
     RaceRes(RaceRes),
     /// a typed chat line: scope 0 is active players in the room; scope 1 is members of one Crew hash
-    Chat { scope: u8, channel: u32, text: &'a str },
+    Chat {
+        scope: u8,
+        channel: u32,
+        text: &'a str,
+    },
     Bye,
     Other,
 }
@@ -139,6 +172,8 @@ pub(crate) struct RaceRep<'a> {
     pub car_type: u8,
     /// 0 fastest .. 3; -1 not rated
     pub class: i8,
+    /// 0 no career credit, 1 own career win, 2 friend or crew-mate win
+    pub credit: u8,
     pub rating: f64,
     /// the average rating of the race's cars
     pub field: f64,
@@ -165,6 +200,7 @@ fn racerep(d: &[u8], o: usize) -> Option<RaceRep<'_>> {
         || place > players
         || !(-1..=3).contains(&class)
         || flags & !3 != 0
+        || d[o + 17] > 2
     {
         return None;
     }
@@ -189,6 +225,7 @@ fn racerep(d: &[u8], o: usize) -> Option<RaceRep<'_>> {
         quit: flags & 2 != 0,
         car_type: d[o + 15],
         class,
+        credit: if d[o + 17] <= 2 { d[o + 17] } else { 0 },
         rating: nums[0],
         field: nums[1],
         factor: nums[2],
@@ -349,7 +386,17 @@ pub(crate) fn decode(d: &[u8]) -> Option<(u8, u32, Msg<'_>)> {
             }
             Msg::Snap { sender, status, p, v: velocity(d, 38), heading: heading(d, 50), t_us: u32_le(d, 22), clock: d[21] }
         }
-        MSG_MAPREQ if end == HDR + 2 => Msg::MapReq { req: u16_le(d, 16) },
+        MSG_MAPREQ if end == HDR + 2 => Msg::MapReq { req: u16_le(d, 16), max: MAP_MAX_V1, base: None, flags: 0 },
+        MSG_MAPREQ if end == HDR + 4 => Msg::MapReq { req: u16_le(d, 16), max: u16_le(d, 18), base: None, flags: 0 },
+        MSG_MAPREQ if end == HDR + 6 => Msg::MapReq { req: u16_le(d, 16), max: u16_le(d, 18), base: Some(u16_le(d, 20)), flags: 0 },
+        MSG_MAPREQ if end == HDR + 8 => {
+            Msg::MapReq { req: u16_le(d, 16), max: u16_le(d, 18), base: Some(u16_le(d, 20)), flags: u16_le(d, 22) }
+        }
+        MSG_NEARREQ if end == HDR + 8 => {
+            Msg::NearReq { req: u16_le(d, 16), max: u16_le(d, 18), base: u16_le(d, 20), radius: u16_le(d, 22) }
+        }
+        // Unlike an unknown type, a known request with a malformed payload is rejected.
+        MSG_NEARREQ => return None,
         MSG_LOBBY => {
             // op arg state max, to, lobby, race, x y, t, n, a reserved byte, then n ids (roam_core.c rc_encode)
             if end < HDR + 24 {
@@ -379,8 +426,12 @@ pub(crate) fn decode(d: &[u8]) -> Option<(u8, u32, Msg<'_>)> {
             let scope = d[HDR];
             let channel = u32_le(d, HDR + 1);
             let n = u16_le(d, HDR + 5) as usize;
-            if scope > 1 || (scope == 0 && channel != 0) || (scope == 1 && channel == 0)
-                || n == 0 || n > CHAT_MAX_BYTES || end != HDR + 7 + n
+            if scope > 1
+                || (scope == 0 && channel != 0)
+                || (scope == 1 && channel == 0)
+                || n == 0
+                || n > CHAT_MAX_BYTES
+                || end != HDR + 7 + n
             {
                 return None;
             }
@@ -411,7 +462,13 @@ pub fn decode_roam(d: &[u8]) -> Option<RoamMsg> {
         },
         Msg::Snap { sender, status, p, .. } => RoamMsg::Snap { sender, status, p },
         Msg::Bye => RoamMsg::Bye { sender },
-        Msg::MapReq { .. } | Msg::Lobby { .. } | Msg::RaceRep(_) | Msg::RaceRes(_) | Msg::Chat { .. } | Msg::Other => RoamMsg::Other { kind, sender },
+        Msg::MapReq { .. }
+        | Msg::NearReq { .. }
+        | Msg::Lobby { .. }
+        | Msg::RaceRep(_)
+        | Msg::RaceRes(_)
+        | Msg::Chat { .. }
+        | Msg::Other => RoamMsg::Other { kind, sender },
     })
 }
 
@@ -428,25 +485,20 @@ pub(crate) fn peers_crew_len(n: usize, k: usize) -> usize {
 /// Writes a PEERS datagram into `b` (exactly `peers_len(n)` bytes long, or `peers_crew_len(n, mine.len())` with crews):
 /// list = [{ vip, port, id }] (at most 32: roam_core's RC_MAX_PEERS; 7 for a core of version 1).  With `mine` (the
 /// receiver's crews, at most CREWS, none 0) the list ends in its crew marks (HF_CREW on it): `mine`, then a byte per
-/// entry, `marks[i]` bit c: entry i is in crew `mine[c]` too.  So a player learns which of its peers are in its crews
-/// without anyone's crews but its own going out.
-pub(crate) fn write_peers(
-    b: &mut [u8],
-    sender: u32,
-    seq: u16,
-    list: impl ExactSizeIterator<Item = PeerEntry>,
-    mine: &[u32],
-    marks: &[u8],
-) {
+/// entry, `marks[i]` bit c: entry i is in crew `mine[c]` too; MARK_FRIEND means it is a mutual friend. The receiver
+/// learns its own crews and friends without any other player's crew hashes being disclosed.
+pub(crate) fn write_peers(b: &mut [u8], sender: u32, seq: u16, list: impl ExactSizeIterator<Item = PeerEntry>, mine: &[u32], marks: &[u8]) {
     let len = b.len();
     let n = list.len();
+    let with = len > peers_len(n);
+    debug_assert!(marks.len() == n || marks.is_empty());
     b[..4].copy_from_slice(b"N2FR");
     b[4] = 1;
     b[5] = MSG_PEERS;
     b[6..8].copy_from_slice(&(len as u16).to_le_bytes());
     b[8..12].copy_from_slice(&sender.to_le_bytes());
     b[12..14].copy_from_slice(&seq.to_le_bytes());
-    b[14..16].copy_from_slice(&if mine.is_empty() { 0 } else { HF_CREW }.to_le_bytes());
+    b[14..16].copy_from_slice(&if with { HF_CREW } else { 0 }.to_le_bytes());
     // the count's low byte: one byte holds every count roam_core reads (RC_MAX_PEERS at most, as above)
     b[16] = n as u8;
     for (i, e) in list.enumerate() {
@@ -455,7 +507,7 @@ pub(crate) fn write_peers(
         b[o + 4..o + 6].copy_from_slice(&e.port.to_le_bytes());
         b[o + 6..o + 10].copy_from_slice(&e.id.to_le_bytes());
     }
-    if !mine.is_empty() {
+    if with {
         let mut o = 17 + 10 * n;
         b[o] = mine.len() as u8;
         o += 1;
@@ -463,7 +515,11 @@ pub(crate) fn write_peers(
             b[o..o + 4].copy_from_slice(&c.to_le_bytes());
             o += 4;
         }
-        b[o..o + n].copy_from_slice(&marks[..n]);
+        if marks.len() == n {
+            b[o..o + n].copy_from_slice(marks);
+        } else {
+            b[o..o + n].fill(0);
+        }
     }
     let crc = crc32fast::hash(&b[..len - CRC]);
     b[len - CRC..].copy_from_slice(&crc.to_le_bytes());
@@ -474,9 +530,10 @@ pub fn encode_peers(sender: u32, seq: u16, list: &[PeerEntry]) -> Vec<u8> {
     encode_peers_crews(sender, seq, list, &[], &[])
 }
 
-/// A PEERS datagram with crew marks (`write_peers`; none with `mine` empty)
+/// A PEERS datagram with crew marks (`write_peers`; none with `mine` and `marks` empty)
 pub fn encode_peers_crews(sender: u32, seq: u16, list: &[PeerEntry], mine: &[u32], marks: &[u8]) -> Vec<u8> {
-    let mut b = vec![0u8; if mine.is_empty() { peers_len(list.len()) } else { peers_crew_len(list.len(), mine.len()) }];
+    let with = !mine.is_empty() || !marks.is_empty();
+    let mut b = vec![0u8; if with { peers_crew_len(list.len(), mine.len()) } else { peers_len(list.len()) }];
     write_peers(&mut b, sender, seq, list.iter().copied(), mine, marks);
     b
 }
@@ -519,15 +576,7 @@ pub(crate) fn map_len(n: usize) -> usize {
 
 /// A hub-to-client chat datagram. The request has no sender name; the hub adds the
 /// verified name from the live player table in this response.
-pub(crate) fn write_chat(
-    b: &mut [u8],
-    sender: u32,
-    seq: u16,
-    scope: u8,
-    channel: u32,
-    name: &[u8],
-    text: &[u8],
-) {
+pub(crate) fn write_chat(b: &mut [u8], sender: u32, seq: u16, scope: u8, channel: u32, name: &[u8], text: &[u8]) {
     let len = b.len();
     let name_len = name.len().min(32);
     let text_len = text.len().min(CHAT_MAX_BYTES);
@@ -544,6 +593,48 @@ pub(crate) fn write_chat(
     b[22..24].copy_from_slice(&(text_len as u16).to_le_bytes());
     b[24..24 + name_len].copy_from_slice(&name[..name_len]);
     b[24 + name_len..24 + name_len + text_len].copy_from_slice(&text[..text_len]);
+    let crc = crc32fast::hash(&b[..len - CRC]);
+    b[len - CRC..].copy_from_slice(&crc.to_le_bytes());
+}
+
+/// Length of a MAPD datagram carrying `bytes` bytes of variable-sized entries.
+pub(crate) fn mapd_len(bytes: usize) -> usize {
+    HDR + 9 + bytes + CRC
+}
+
+/// Writes a MAPD/NEARD datagram. `kind` must be MSG_MAPD or MSG_NEARD.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn write_mapd(
+    b: &mut [u8],
+    kind: u8,
+    sender: u32,
+    seq: u16,
+    req: u16,
+    base: u16,
+    part: u8,
+    nparts: u8,
+    total: u16,
+    n: u8,
+    flags: u16,
+    entries: &[u8],
+) {
+    debug_assert!(kind == MSG_MAPD || kind == MSG_NEARD);
+    debug_assert_eq!(b.len(), mapd_len(entries.len()));
+    let len = b.len();
+    b[..4].copy_from_slice(b"N2FR");
+    b[4] = 1;
+    b[5] = kind;
+    b[6..8].copy_from_slice(&(len as u16).to_le_bytes());
+    b[8..12].copy_from_slice(&sender.to_le_bytes());
+    b[12..14].copy_from_slice(&seq.to_le_bytes());
+    b[14..16].copy_from_slice(&flags.to_le_bytes());
+    b[16..18].copy_from_slice(&req.to_le_bytes());
+    b[18..20].copy_from_slice(&base.to_le_bytes());
+    b[20] = part;
+    b[21] = nparts;
+    b[22..24].copy_from_slice(&total.to_le_bytes());
+    b[24] = n;
+    b[25..25 + entries.len()].copy_from_slice(entries);
     let crc = crc32fast::hash(&b[..len - CRC]);
     b[len - CRC..].copy_from_slice(&crc.to_le_bytes());
 }
@@ -573,7 +664,6 @@ pub(crate) fn write_map(b: &mut [u8], sender: u32, seq: u16, req: u16, part: u8,
     let crc = crc32fast::hash(&b[..len - CRC]);
     b[len - CRC..].copy_from_slice(&crc.to_le_bytes());
 }
-
 
 #[cfg(test)]
 mod chat_tests {
@@ -632,5 +722,87 @@ mod chat_tests {
         assert_eq!(&b[24..24 + name.len()], name);
         assert_eq!(&b[24 + name.len()..len - CRC], text);
         assert_eq!(u32_le(&b, len - CRC), crc32fast::hash(&b[..len - CRC]));
+    }
+}
+
+#[cfg(test)]
+mod map_protocol_tests {
+    use super::*;
+
+    fn request(kind: u8, payload: &[u8]) -> Vec<u8> {
+        let len = HDR + payload.len() + CRC;
+        let mut b = vec![0u8; len];
+        b[..4].copy_from_slice(b"N2FR");
+        b[4] = 1;
+        b[5] = kind;
+        b[6..8].copy_from_slice(&(len as u16).to_le_bytes());
+        b[8..12].copy_from_slice(&7u32.to_le_bytes());
+        b[16..16 + payload.len()].copy_from_slice(payload);
+        let crc = crc32fast::hash(&b[..len - CRC]);
+        b[len - CRC..].copy_from_slice(&crc.to_le_bytes());
+        b
+    }
+
+    #[test]
+    fn mapreq_keeps_legacy_and_accepts_delta_forms() {
+        let legacy = request(MSG_MAPREQ, &9u16.to_le_bytes());
+        assert!(matches!(decode(&legacy).unwrap().2, Msg::MapReq { req: 9, max: MAP_MAX_V1, base: None, flags: 0 }));
+        let full = request(MSG_MAPREQ, &[9u16.to_le_bytes(), 300u16.to_le_bytes()].concat());
+        assert!(matches!(decode(&full).unwrap().2, Msg::MapReq { req: 9, max: 300, base: None, .. }));
+        let delta = request(MSG_MAPREQ, &[9u16.to_le_bytes(), 300u16.to_le_bytes(), 4u16.to_le_bytes()].concat());
+        assert!(matches!(decode(&delta).unwrap().2, Msg::MapReq { req: 9, max: 300, base: Some(4), flags: 0 }));
+        let parked =
+            request(MSG_MAPREQ, &[9u16.to_le_bytes(), 300u16.to_le_bytes(), 4u16.to_le_bytes(), MAPREQ_PARKED.to_le_bytes()].concat());
+        assert!(matches!(decode(&parked).unwrap().2, Msg::MapReq { req: 9, max: 300, base: Some(4), flags: MAPREQ_PARKED }));
+    }
+
+    #[test]
+    fn nearreq_uses_its_own_message_id_and_exact_payload_length() {
+        let payload = [9u16.to_le_bytes(), 64u16.to_le_bytes(), 2u16.to_le_bytes(), 350u16.to_le_bytes()].concat();
+        let valid = request(MSG_NEARREQ, &payload);
+        assert!(matches!(decode(&valid).unwrap().2, Msg::NearReq { req: 9, max: 64, base: 2, radius: 350 }));
+        assert_eq!(valid[5], 19);
+        let mut long = payload.clone();
+        long.push(0);
+        assert!(decode(&request(MSG_NEARREQ, &long)).is_none());
+        assert!(decode(&request(MSG_NEARREQ, &payload[..6])).is_none());
+    }
+
+    #[test]
+    fn mapd_writer_preserves_type_and_crc_for_both_delta_channels() {
+        for kind in [MSG_MAPD, MSG_NEARD] {
+            let flags = if kind == MSG_MAPD { HF_MAPZ } else { 0 };
+            let mut entries = Vec::new();
+            entries.extend_from_slice(&1u16.to_le_bytes());
+            entries.extend_from_slice(&10i16.to_le_bytes());
+            entries.extend_from_slice(&20i16.to_le_bytes());
+            entries.extend_from_slice(&[3u8, 4, 5]);
+            if flags & HF_MAPZ != 0 {
+                entries.extend_from_slice(&30i16.to_le_bytes());
+            }
+            let mut b = vec![0u8; mapd_len(entries.len())];
+            write_mapd(&mut b, kind, 7, 11, 2, 1, 0, 1, 1, 1, flags, &entries);
+            assert_eq!(b[5], kind);
+            assert_eq!(u16_le(&b, 16), 2);
+            assert_eq!(u16_le(&b, 18), 1);
+            assert_eq!(u16_le(&b, 14), flags);
+            assert_eq!(u32_le(&b, b.len() - CRC), crc32fast::hash(&b[..b.len() - CRC]));
+        }
+    }
+}
+
+#[cfg(test)]
+mod peer_mark_tests {
+    use super::*;
+
+    #[test]
+    fn peers_friend_marks_work_without_a_crew_list() {
+        let peer = PeerEntry { vip: u32::from_be_bytes([10, 77, 0, 5]), port: 47210, id: 42 };
+        let b = encode_peers_crews(7, 9, &[peer], &[], &[MARK_FRIEND]);
+        assert_ne!(u16_le(&b, 14) & HF_CREW, 0, "the optional marks extension is present");
+        let at = 17 + 10;
+        assert_eq!(b[at], 0, "no crew hashes are disclosed");
+        assert_eq!(b[at + 1], MARK_FRIEND, "the friend bit shares the marks byte");
+        assert_eq!(u32_le(&b, b.len() - CRC), crc32fast::hash(&b[..b.len() - CRC]), "CRC covers the extension");
     }
 }

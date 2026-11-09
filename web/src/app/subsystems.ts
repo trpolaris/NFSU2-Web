@@ -20,7 +20,8 @@ export type {
 } from './contract';
 
 export const attachRenderer: AttachRenderer = async (proc, canvas, o) => {
-  const r = await gpuAttach(proc, canvas, { log: o.log, artifacts: o.artifacts, dumpScale: o.dumpScale, onLost: o.onLost, onMarks: o.onMarks, gpuTiming: true });
+  const r = await gpuAttach(proc, canvas, { log: o.log, artifacts: o.artifacts, dumpScale: o.dumpScale, onLost: o.onLost, onMarks: o.onMarks,
+    aniso: o.env.NFSU2_ANISOTROPIC === '1', gpuTiming: true });
   return {
     detach: () => r.detach(),
     imageRect: () => r.imageRect(),
@@ -55,7 +56,7 @@ export const attachInput: AttachInput = (proc, element, o) =>
   inputAttach(proc, element, { log: o.log, viewRect: o.viewRect, toggleFullscreen: o.toggleFullscreen, padPage: o.padPage });
 
 export const attachNet: AttachNet = (proc, o) => {
-  const link = netAttach(proc, { name: o.name, id: o.id, claim: o.claim, block: o.block, log: o.log, onNotice: o.notice, onLobby: o.lobby, onSay: o.say, onChat: o.chat, onBack: o.back,
+  const link = netAttach(proc, { name: o.name, id: o.id, claim: o.claim, block: o.block, log: o.log, onNotice: o.notice, onLobby: o.lobby, onSay: o.say, onBump: o.bump, onChat: o.chat, onFriend: o.friend, onWelcome: o.networkReady, onBack: o.back,
     onQueue: o.queue, onRemoved: o.removed });
   const friends = () => link.peers.filter(p => !p.self);
   return {
@@ -66,9 +67,10 @@ export const attachNet: AttachNet = (proc, o) => {
     away: (on: boolean) => link.setAway(on),
     offline: () => link.goOffline(),
     solid: (on: boolean) => link.setSolid(on),
-    say: (p: number) => link.say(p),
+    say: (p: number, race?: boolean) => link.say(p, race),
     chat: (text: string, scope: 'room' | 'crew', crewId?: number) => link.chat(text, scope, crewId),
     crews: (hashes: readonly number[], rgbs: readonly number[]) => link.setCrews(hashes, rgbs),
+    room: (name: string) => link.setRoom(name),
     stats: () => {
       const s = link.stats();
       return {

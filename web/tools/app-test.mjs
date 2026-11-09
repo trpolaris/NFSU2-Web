@@ -1309,7 +1309,7 @@ try {
     await s.keyboard.press('F9');
     await s.waitForSelector('#menu[open]');
     await s.click('#menu [data-act="help"]');
-    await s.waitForSelector('#help[open]');
+    await s.waitForSelector('#menu[open] [data-menu-page="controls"]:not([hidden])');
     const helpKeys = await s.locator('#help-body .keys > div').count();
     const inert = await s.evaluate(() => document.querySelector('#app').inert);
     await shot(s, 'help-dialog.png');

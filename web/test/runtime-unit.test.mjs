@@ -41,3 +41,11 @@ test('watchdog_unit: no false stall from a stamp ahead of the watchdog\'s clock,
   assert.ok(pass.length >= 7, `every check ran (${pass.length})`);
   assert.match(out, /watchdog unit tests: all passed/);
 });
+ 
+test('catchup_unit: career rubberbanding follows the setting and leaves other race modes alone', { skip }, () => {
+  const { out, pass } = run('catchup_unit', ['-O1', '-g', '-Wall', '-Wextra', '-Wno-unused-function']);
+  for (const mode of ['original', 'noboost', 'off'])
+    for (const c of ['no-race', 'behind', 'ahead', 'no-car']) assert.ok(pass.includes(`${mode}-${c}`), `case ${mode}-${c} passed`);
+  for (const c of ['unset', 'bogus', 'case']) assert.ok(pass.includes(c), `case ${c} passed`);
+  assert.match(out, /catchup unit tests: all passed/);
+});

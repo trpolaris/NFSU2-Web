@@ -32,8 +32,8 @@ fn chars(ranges: &[(u32, u32)]) -> Vec<char> {
     ranges.iter().flat_map(|&(a, b)| a..=b).filter_map(char::from_u32).collect()
 }
 
-/// Marks: accents of every script, variation selectors, the keycap, and Unicode 17 marks used to cross-check
-/// Rust's property tables against the Node ICU version used by CI.
+/// Marks: accents of every script, variation selectors, the keycap, and Unicode 17 marks in the Tai Yo and Arabic
+/// Extended-C blocks (Node 24's ICU uses Unicode 17; the Rust general-category crate is still Unicode 16).
 fn marks() -> Vec<char> {
     chars(&[
         (0x300, 0x36f),
@@ -42,7 +42,9 @@ fn marks() -> Vec<char> {
         (0x64b, 0x65f),
         (0x900, 0x903),
         (0x93a, 0x94f),
-        (0x1ab0, 0x1ace),
+        (0x1ab0, 0x1add),
+        (0x1ae0, 0x1aeb),
+        (0x11b60, 0x11b67),
         (0x1dc0, 0x1dff),
         (0x20d0, 0x20f0),
         (0xfe00, 0xfe0f),
@@ -50,8 +52,11 @@ fn marks() -> Vec<char> {
         (0x1d165, 0x1d169),
         (0x1d16d, 0x1d172),
         (0xe0100, 0xe0110),
-        (0x10ef5, 0x10efb),
-        (0x1e6e3, 0x1e6ef),
+        (0x10ef5, 0x10eff),
+        (0x1e6e3, 0x1e6e3),
+        (0x1e6e6, 0x1e6e6),
+        (0x1e6ee, 0x1e6ef),
+        (0x1e6f5, 0x1e6f5),
     ])
 }
 
@@ -218,14 +223,28 @@ const NEAR: &[&str] = &[
 
 /// pieces of the made-up names: the lists' words, the near misses, the names this server sees most, digits
 fn pieces() -> Vec<&'static str> {
-    let mut p: Vec<&str> = ANYWHERE.iter().chain(WHOLE).copied().collect();
+    let mut p: Vec<&str> = ANYWHERE
+        .iter()
+        .chain(WHOLE)
+        .chain(EDGE)
+        .chain(EDGE_OK_START)
+        .chain(EDGE_OK_END)
+        .chain(WHOLE_OK)
+        .chain(PID_STEMS)
+        .copied()
+        .collect();
     p.extend(NEAR);
     p.extend([
         "mustafa", "gs", "raccoon", "spice", "spicy", "niger", "pakize", "pakistan", "xx", "gamer", "a", "g", "dani", "hakan", "van",
         "tycoon", "trigger", "ibrahim", "99", "1995", "69", "42",
     ]);
     // the neo-Nazi code and other numbers, names with the new words' letters in them
-    p.extend(["1488", "88", "spider", "shinigami", "zuniga", "adolf"]);
+    p.extend(["1488", "88", "14", "1_4", "8-8", "spider", "shinigami", "zuniga", "adolf"]);
+    // a lone n before digits, the "pid" words' surroundings, Nigeria
+    p.extend(["n", "1663", "pid", "topi", "drift", "nigeria"]);
+    // the hate phrases' words, and a word that starts as their group does
+    p.extend(HATE_VERBS.iter().chain(HATE_BETWEEN).chain(HATE_GROUPS));
+    p.push("jewel");
     p
 }
 
@@ -401,12 +420,12 @@ const SCRIPT: &str = r#"
 import fs from 'node:fs';
 import { pathToFileURL } from 'node:url';
 const [names, corpus] = process.argv.slice(2);
-const { SLURS, blockedName } = await import(pathToFileURL(names).href);
+const { SLURS, EDGE_OK, WHOLE_OK, PID_STEMS, HATE, blockedName } = await import(pathToFileURL(names).href);
 let blocked = '';
 for (const n of JSON.parse(fs.readFileSync(corpus, 'utf8'))) blocked += blockedName(n) ? '1' : '0';
 const m = /const LOOKALIKE = (\{[\s\S]*?\});/.exec(fs.readFileSync(names, 'utf8'));
 const lookalike = m && Object.entries(Function(`return (${m[1]})`)()).map(([k, v]) => [k.codePointAt(0), v.codePointAt(0)]);
-process.stdout.write(JSON.stringify({ blocked, slurs: SLURS, lookalike }));
+process.stdout.write(JSON.stringify({ blocked, slurs: SLURS, edgeOk: EDGE_OK, wholeOk: WHOLE_OK, stems: PID_STEMS, hate: HATE, lookalike }));
 "#;
 
 /// a folder of its own under the system's temp, gone with it
@@ -445,6 +464,14 @@ fn answers_as_names_mjs() {
 
     assert_eq!(strings(&js["slurs"]["anywhere"]), ANYWHERE, "the anywhere list");
     assert_eq!(strings(&js["slurs"]["whole"]), WHOLE, "the whole list");
+    assert_eq!(strings(&js["slurs"]["edge"]), EDGE, "the edge list");
+    assert_eq!(strings(&js["edgeOk"]["start"]), EDGE_OK_START, "the edge list's words a part may start with");
+    assert_eq!(strings(&js["edgeOk"]["end"]), EDGE_OK_END, "the edge list's words a part may end with");
+    assert_eq!(strings(&js["wholeOk"]), WHOLE_OK, "the names a part may be that read as a word of the whole list");
+    assert_eq!(strings(&js["stems"]), PID_STEMS, "the English words' starts before a pid word");
+    assert_eq!(strings(&js["hate"]["verbs"]), HATE_VERBS, "the hate phrases' verbs");
+    assert_eq!(strings(&js["hate"]["between"]), HATE_BETWEEN, "the words between in a hate phrase");
+    assert_eq!(strings(&js["hate"]["groups"]), HATE_GROUPS, "the hate phrases' groups");
 
     let pairs = js["lookalike"].as_array().expect("names.mjs's LOOKALIKE table, read from its source");
     let char_of = |v: &serde_json::Value| v.as_u64().and_then(|c| char::from_u32(c as u32)).expect("a code point");

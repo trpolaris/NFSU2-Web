@@ -121,7 +121,7 @@ use nfsu2_util::cpu::{Busy, QuotaBusy, WorkersBusy};
 use nfsu2_util::{FrameCtx, Host, SwitchSend};
 use tokio::sync::oneshot;
 
-pub use hub::Hub;
+pub use hub::{Hub, Whereabouts};
 pub use wire::{decode_roam, encode_peers, encode_peers_crews};
 
 /// 10.77.0.253, runtime/web/net_proto.h NET_ROAM_HUB
@@ -129,6 +129,28 @@ pub const ROAM_HUB_VIP: u32 = 0x0A4D_00FD;
 
 /// the most crews a player is in (roam_core.h RC_CREW_MAX), and so the most /players counts for one question
 pub const CREWS: usize = wire::CREWS;
+
+/// The race-track rooms a career free roam can visit (runtime/travel.c SPOTS), by spot key.
+pub const TRACK_KEYS: [u32; 9] = [4711, 4701, 4311, 4301, 4201, 4211, 4221, 4601, 4605];
+
+/// The room hash for a spot in the world with room hash base (runtime/roam_game.c room_at).
+pub fn track_room(base: u32, key: u32) -> u32 {
+    match base ^ key.wrapping_mul(0x9E37_79B1) {
+        0 => 1,
+        room => room,
+    }
+}
+
+/// Whether a room belongs to the main world: the city or one of its race-track spots.
+pub fn main_world(room: u32) -> bool {
+    room == 0 || TRACK_KEYS.iter().any(|&key| track_room(0, key) == room)
+}
+
+/// Count players in a world and its track rooms from the hub's last tick.
+pub fn world_count(counts: &HashMap<u32, usize>, room: u32) -> usize {
+    let n = |key: u32| counts.get(&key).copied().unwrap_or(0);
+    n(room) + TRACK_KEYS.iter().map(|&key| n(track_room(room, key))).sum::<usize>()
+}
 
 /// The hub's options.  exact_room: a room of at most this many players sorts every pair of them; a larger one takes
 /// the pairs in the same order but only as far as it needs them: each player's nearest one after another (a grid)
@@ -162,11 +184,46 @@ pub struct RoamOptions {
     /// a player's view point, this far ahead of where its car points (m): a car in front counts from there too, so it
     /// is linked from farther away than one beside or behind
     pub view_m: f64,
-    /// the world map (MAPREQ): at most this many players a answer, one answer a browser every map_gap_ms at most, of
-    /// the players in free roam (or paused there) with a position younger than map_fresh_ms
+    /// the server-side ceiling for World Map MAPD snapshots/deltas: 512 by default, up to 2048 (1664 when a
+    /// parked request carries height). Legacy MAP answers are separately capped at three 230-entry datagrams.
     pub map_max: usize,
     pub map_gap_ms: f64,
     pub map_fresh_ms: f64,
+    /// Minimum interval between nearby-player NEARD replies for one virtual client.
+    pub near_gap_ms: f64,
+    /// Optional server-side automatic race-ban policy. Disabled when None.
+    pub car_bans: Option<CarBans>,
+}
+
+/// A lobby race reported by a player whose car crossed the configured server-side ban threshold.
+#[derive(Clone, Debug, PartialEq)]
+pub struct CarBan {
+    pub vip: u32,
+    pub name: String,
+    pub car: String,
+    pub car_type: u8,
+    pub kw: f64,
+    pub kg: f64,
+    pub kmh: f64,
+    pub rating: f64,
+    pub kind: String,
+    pub laps: u8,
+    pub place: String,
+    pub lobby: u32,
+    pub race: u32,
+}
+
+/// Configurable server-side race-ban thresholds. The callback is invoked on the hub thread and must not block.
+#[derive(Clone)]
+pub struct CarBans {
+    pub kw: Option<f64>,
+    pub rating: Option<f64>,
+    pub call: Arc<dyn Fn(CarBan) + Send + Sync>,
+}
+impl std::fmt::Debug for CarBans {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("CarBans")
+    }
 }
 
 impl Default for RoamOptions {
@@ -194,6 +251,8 @@ impl Default for RoamOptions {
             map_max: 512,
             map_gap_ms: 1_000.0,
             map_fresh_ms: 5_000.0,
+            near_gap_ms: 150.0,
+            car_bans: None,
         }
     }
 }
@@ -231,6 +290,9 @@ enum Cmd {
     Info(oneshot::Sender<serde_json::Value>),
     Vips(oneshot::Sender<HashSet<u32>>),
     Blocks(u32, Vec<String>),
+    Friends(u32, Arc<str>, Vec<Arc<str>>),
+    RoomName(u32, String),
+    Where(Vec<Arc<str>>, oneshot::Sender<Vec<Option<Whereabouts>>>),
     Stop,
 }
 
@@ -305,10 +367,15 @@ impl RoamHub {
         self.in_roam.load(Ordering::Relaxed)
     }
 
-    /// the hub's `in_rooms()` of one room: how many browsers of the room (roam_core's rc_room_hash, not 0) drive in
-    /// free roam, or are paused there (as of the hub's last tick)
+    /// the hub's `in_rooms()` of one room (0: the main world): how many browsers drive in free roam, or are paused
+    /// there (as of the hub's last tick)
     pub fn in_room(&self, room: u32) -> usize {
         self.in_rooms.lock().map_or(0, |m| m.get(&room).copied().unwrap_or(0))
+    }
+
+    /// Players in this world and any of its nine race-track rooms.
+    pub fn in_world(&self, room: u32) -> usize {
+        self.in_rooms.lock().map_or(0, |counts| world_count(&counts, room))
     }
 
     /// the hub's `in_crews()`: how many browsers drive in free roam, or are paused there, in each of these crews
@@ -321,6 +388,23 @@ impl RoamHub {
     /// the switch's way to its browsers
     pub fn attach_switch(&self, send: SwitchSend) {
         let _ = self.tx.send(Cmd::Attach(send));
+    }
+
+    /// Browser `vip`'s page supplies its mutually accepted friends to the hub for link priority.
+    pub fn friends(&self, vip: u32, me: Arc<str>, owners: Vec<Arc<str>>) {
+        let _ = self.tx.send(Cmd::Friends(vip, me, owners));
+    }
+
+    /// The room name typed by browser `vip`, for friends' Join labels.
+    pub fn room_name(&self, vip: u32, name: String) {
+        let _ = self.tx.send(Cmd::RoomName(vip, name));
+    }
+
+    /// Where each keyphrase plays in Free Roam, if anywhere.
+    pub fn whereabouts(&self, owners: Vec<Arc<str>>) -> oneshot::Receiver<Vec<Option<Whereabouts>>> {
+        let (tx, rx) = oneshot::channel();
+        let _ = self.tx.send(Cmd::Where(owners, tx));
+        rx
     }
 }
 
@@ -389,6 +473,11 @@ fn run(
                 let _ = tx.send(hub.vips());
             }),
             Cmd::Blocks(vip, names) => guard(|| hub.blocks(vip, names)),
+            Cmd::Friends(vip, me, owners) => guard(|| hub.friends(vip, me, owners)),
+            Cmd::RoomName(vip, name) => guard(|| hub.room_name(vip, name)),
+            Cmd::Where(owners, tx) => guard(|| {
+                let _ = tx.send(hub.whereabouts(&owners));
+            }),
             Cmd::Stop => {
                 // no more ticks, so no more lists: the switch's send goes too (it holds the switch, which holds
                 // this hub)
@@ -444,6 +533,24 @@ impl Host for RoamHub {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_world_counts_only_its_own_track_rooms() {
+        assert_eq!(track_room(0, 4711), 2_397_071_415);
+        assert_eq!(track_room(0, 4605), 199_754_989);
+        assert_eq!(track_room(0x1234_5678, 4301), 942_920_901);
+        assert_eq!(track_room(0xFFFF_FFFF, 4201), 2_745_435_750);
+        let world = 0xBEEF_0002;
+        let counts = HashMap::from([(0, 5), (track_room(0, 4711), 2), (track_room(0, 4605), 1), (world, 3), (track_room(world, 4311), 4)]);
+        assert_eq!(world_count(&counts, 0), 8);
+        assert_eq!(world_count(&counts, world), 7);
+        assert_eq!(world_count(&counts, 0xBEEF_0003), 0);
+        assert!(main_world(0));
+        assert!(main_world(track_room(0, 4711)));
+        assert!(main_world(track_room(0, 4605)));
+        assert!(!main_world(world));
+        assert!(!main_world(track_room(world, 4311)));
+    }
 
     // a hub whose thread is stuck holds MAX_PENDING frames and leaves out the rest; each may keep
     // its reader's block of 16 KiB alive, 128 MiB at most

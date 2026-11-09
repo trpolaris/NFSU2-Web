@@ -29,6 +29,8 @@
  *                              only implementation: the heap track's soaks
  *                              and the LAN race scripts use it too
  *   racewin                    finish the player now (1st if nobody finished)
+ *   mpcredit NAME[,NAME...] [MARGIN]  queue a test career win for the next crib
+ *                              (test-only; MARGIN below 0 uses the minimum)
  *   careerlist                 log stage, bank and the available races
  *   fnglist [x]                log the active front-end packages (overlays too;
  *                              x: FNGInfo flags and control mask)
@@ -55,6 +57,7 @@
  * and "*" between two operands (multiply), e.g. "*(*0x890118+0xbd0)".
  */
 #include "cpu.h"
+#include "mpcredit.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -991,7 +994,7 @@ static void queue(const char *line){
 int career_is_cmd(const char *cmd){
     static const char *const k[] = { "call", "memdump", "waitx", "teleport", "autopilot", "racewin",
                                      "careerlist", "careergo", "shopgo", "peekx", "fnglist", "bot", "waitfe", "tapfe", "waitroam", "showgo", "cargo", "watchw",
-                                     "outrun", "outrunwin", "visual", 0 };
+                                     "outrun", "outrunwin", "visual", "mpcredit", 0 };
     for (int i = 0; k[i]; i++) if (!strcasecmp(cmd, k[i])) return 1;
     return 0;
 }
@@ -1004,6 +1007,24 @@ int career_cmd(CPU *c, const char *line, long *wait_start){
     const char *rest = line + used;
     sscanf(rest, "%63s %63s %199s", a1, a2, a3);
     long f = autotest_frame();
+    if (!strcasecmp(cmd, "mpcredit")){
+        if (!a1[0] || a3[0]){
+            fprintf(stderr, "[career] f=%ld mpcredit: usage NAME[,NAME...] [MARGIN] (a career race name; optional margin below 0 uses the minimum)\n", f);
+            return 1;
+        }
+        float margin = -1.f;
+        if (a2[0]){
+            char *end = 0;
+            margin = strtof(a2, &end);
+            if (end == a2 || *end || !isfinite(margin)){
+                fprintf(stderr, "[career] f=%ld mpcredit: invalid margin %s\n", f, a2);
+                return 1;
+            }
+        }
+        int count = mpcredit_test(a1, margin);
+        fprintf(stderr, "[career] f=%ld mpcredit: processed %d race(s), margin %.2f\n", f, count, (double)margin);
+        return 1;
+    }
     if (!strcasecmp(cmd, "autopilot") && !strncasecmp(a1, "on", 2) && a2[0]){
         /* "autopilot on TMO": wait (up to TMO frames) for a human driver in
          * player 1's car; the AI is handed the car in the main loop after */

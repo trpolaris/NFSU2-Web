@@ -4,6 +4,7 @@
 // requestAnimationFrame rate, and says so.
 
 import type { StatusReader } from './status';
+import type { GameMemory } from '../host/memory';
 import { linkStateLabel, networkQualityLabel } from './network-quality';
 import { overlayMetrics } from './overlay-metrics';
 import { FramePacing } from './frame-pacing';
@@ -78,7 +79,7 @@ export class FpsOverlay {
   private lastPaint = 0;
   reader: StatusReader | null = null;
   extra: () => Record<string, number> = () => ({});
-  memory: WebAssembly.Memory | null = null;
+  memory: GameMemory | null = null;
   /** latest game frame rate (for tests and the page) */
   gameFps = 0;
   pageFps = 0;

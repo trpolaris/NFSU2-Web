@@ -18,6 +18,8 @@
 //   direct=0|1  draw the frame straight into the canvas texture when the sizes match (default: not in Firefox)
 //   poke=0|1    while a frame waits for the GPU, poll it with empty submits (default: in Firefox)
 //   gpuburn     <iterations>: busy GPU work in every frame, a slower GPU (RendererOptions.gpuBurn)
+//   aniso=1: anisotropic filtering where the game asks for it
+//   aniso=dump: for a dump labelled *_af, also write the same frame with the filter toggled as *_af1
 //   detachat    <seconds>: detach the renderer then (the game drops to the null
 //               renderer at its next present), and try to attach a second one
 //   net         attach the virtual LAN under this player name (free roam, LAN play: web/src/net)
@@ -43,7 +45,7 @@ log(`compiled in ${(performance.now() - t0).toFixed(0)} ms`);
 const saveDir = q.get('save') ?? 'save-play';
 if (q.has('fresh')) {
   const root = await navigator.storage.getDirectory();
-  for await (const [name] of (root as any).entries()) if (name === saveDir) await root.removeEntry(name, { recursive: true });
+  for await (const [name] of root.entries()) if (name === saveDir) await root.removeEntry(name, { recursive: true });
 }
 async function preload(url: string, name: string) {
   const txt = await (await fetch(url, { cache: 'no-store' })).text();
@@ -79,7 +81,7 @@ try {
     dumpTex: q.get('dumptex') ? q.get('dumptex')!.split(',').map(Number) : undefined,
     watchTex: q.get('watchtex') ? q.get('watchtex')!.split(',').map(Number) : undefined, gpuTiming: q.has('gputime'),
     direct: q.has('direct') ? q.get('direct') !== '0' : undefined, cssScale: q.get('cssscale') !== '0', noBC: q.get('bc') === '0', noASTC: q.get('astc') === '0', poke: q.has('poke') ? q.get('poke') !== '0' : undefined,
-    gpuBurn: +(q.get('gpuburn') ?? 0) });
+    gpuBurn: +(q.get('gpuburn') ?? 0), aniso: q.get('aniso') === '1', anisoDump: q.get('aniso') === 'dump' });
 } catch (x) { log(`renderer: ${x}`); }
 const rz = /^(\d+(?:\.\d+)?):(\d+)x(\d+)$/.exec(q.get('resizeat') ?? '');
 if (rz) setTimeout(() => {

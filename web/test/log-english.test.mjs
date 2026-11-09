@@ -159,8 +159,8 @@ function lintFiles() {
   for (const d of ['runtime', 'runtime/web']) {
     for (const f of fs.readdirSync(path.join(ROOT, d))) {
       if (!/\.(c|m|h|inc)$/.test(f)) continue;
-      // sms.c holds intentional player-facing translations, not diagnostic log strings.
-      if (d === 'runtime' && f === 'sms.c') continue;
+      // These modules contain intentional localized player-facing copy, not diagnostic log strings.
+      if (d === 'runtime' && ['sms.c', 'roam_game.c', 'mpcredit.c'].includes(f)) continue;
       list.push(`${d}/${f}`);
     }
   }

@@ -4,11 +4,12 @@
 //! for the same key, so that a browser's copy stayed good across the switch to this server.
 
 use std::io::{self, Read};
-use std::os::unix::fs::{MetadataExt, OpenOptionsExt};
+use std::os::unix::fs::MetadataExt;
 
 use hmac::{Hmac, Mac};
 use sha2::Sha256;
 
+use nfsu2_util::atomic_file::Options;
 use nfsu2_util::js;
 
 /// The key in the state folder (etag.key): kept when it has 32 bytes or more, else made anew (0600)
@@ -21,8 +22,7 @@ pub fn load_key(state: &str) -> io::Result<Vec<u8>> {
         }
     }
     let k = nfsu2_util::rand::bytes(32);
-    let mut file = std::fs::OpenOptions::new().write(true).create(true).truncate(true).mode(0o600).open(&f)?;
-    io::Write::write_all(&mut file, &k)?;
+    Options::new().make_folder().write(std::path::Path::new(&f), &k).map_err(io::Error::from)?;
     Ok(k)
 }
 

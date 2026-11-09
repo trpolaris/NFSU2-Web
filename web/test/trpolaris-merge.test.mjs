@@ -20,7 +20,7 @@ const react = read('src/ui/main.jsx');
 test('all upstream HTML ids remain present after the redesigned layout was merged', () => {
   const baseline = JSON.parse(read('test/fixtures/upstream-index-ids.json'));
   const current = new Set([...html.matchAll(/\bid="([^"]+)"/g)].map(m => m[1]));
-  const retiredReactRoots = new Set(['about', 'about-title', 'changes', 'changes-title', 'controls', 'controls-title', 'keys', 'lang-pick', 'settings', 'settings-title', 'settings-note', 'settings-body', 'settings-raw', 'settings-reset-all', 'settings-text', 'settings-text-msg', 'settings-text-save', 'online', 'online-title', 'online-note', 'online-body', 'config-profile-name', 'config-profile-pick', 'config-profile-save', 'config-profile-apply', 'config-profile-export', 'config-profile-delete', 'config-profile-import', 'config-profile-status', 'saves', 'saves-title', 'saves-msg', 'export', 'import', 'profiles', 'save-hint', 'shots-info', 'shots', 'storage-note', 'game-data', 'game-data-title', 'cache-info', 'data-bar', 'fetch-all', 'clear-cache', 'data-msg', 'shot-view', 'shot-title', 'shot-when', 'shot-img', 'shot-meta', 'vault-service-host', 'vault', 'vault-host', 'vault-make', 'vault-when', 'vault-form', 'vault-box', 'vault-input', 'vault-mask', 'vault-file', 'vault-eye', 'vault-load', 'vault-claim', 'vault-sides', 'vault-about', 'vault-status', 'vault-conflict', 'vault-mine', 'vault-theirs', 'vault-on', 'vault-sync', 'vault-earlier', 'vault-stop', 'vault-delete', 'vault-replaced', 'vault-replaced-text', 'vault-putback', 'vault-msg', 'app-pages', 'mods', 'mods-title', 'pack-list', 'custom-mod-count', 'packs-check', 'custom-mod-filter', 'custom-mod-list', 'mod-link-form', 'custom-mod-name', 'custom-mod-url', 'custom-mod-category', 'custom-mod-path', 'custom-mod-add', 'custom-mod-export', 'custom-mod-import', 'custom-mod-status', 'garage-search', 'garage-favorites-only', 'garage-make-filter', 'garage-class-filter', 'garage-count', 'preferred-vehicle-status', 'garage-cars', 'garage-empty-state', 'updates', 'updates-title', 'build-current', 'build-server', 'updates-check', 'updates-reload', 'updates-status', 'first-run-open', 'i18n-check', 'i18n-check-status', 'clear-app-preferences', 'privacy-status', 'diagnostics', 'diagnostics-title', 'diagnostics-refresh', 'diagnostics-download', 'diagnostic-list', 'recommended-mods-title', 'saved-mods-title']);
+  const retiredReactRoots = new Set(['help', 'help-title', 'about', 'about-title', 'changes', 'changes-title', 'controls', 'controls-title', 'keys', 'lang-pick', 'settings', 'settings-title', 'settings-note', 'settings-body', 'settings-raw', 'settings-reset-all', 'settings-text', 'settings-text-msg', 'settings-text-save', 'online', 'online-title', 'online-note', 'online-body', 'config-profile-name', 'config-profile-pick', 'config-profile-save', 'config-profile-apply', 'config-profile-export', 'config-profile-delete', 'config-profile-import', 'config-profile-status', 'saves', 'saves-title', 'saves-msg', 'export', 'import', 'profiles', 'save-hint', 'shots-info', 'shots', 'storage-note', 'game-data', 'game-data-title', 'cache-info', 'data-bar', 'fetch-all', 'clear-cache', 'data-msg', 'shot-view', 'shot-title', 'shot-when', 'shot-img', 'shot-meta', 'vault-service-host', 'vault', 'vault-host', 'vault-make', 'vault-when', 'vault-form', 'vault-box', 'vault-input', 'vault-mask', 'vault-file', 'vault-eye', 'vault-load', 'vault-claim', 'vault-sides', 'vault-about', 'vault-status', 'vault-conflict', 'vault-mine', 'vault-theirs', 'vault-on', 'vault-sync', 'vault-earlier', 'vault-stop', 'vault-delete', 'vault-replaced', 'vault-replaced-text', 'vault-putback', 'vault-msg', 'app-pages', 'mods', 'mods-title', 'pack-list', 'custom-mod-count', 'packs-check', 'custom-mod-filter', 'custom-mod-list', 'mod-link-form', 'custom-mod-name', 'custom-mod-url', 'custom-mod-category', 'custom-mod-path', 'custom-mod-add', 'custom-mod-export', 'custom-mod-import', 'custom-mod-status', 'garage-search', 'garage-favorites-only', 'garage-make-filter', 'garage-class-filter', 'garage-count', 'preferred-vehicle-status', 'garage-cars', 'garage-empty-state', 'updates', 'updates-title', 'build-current', 'build-server', 'updates-check', 'updates-reload', 'updates-status', 'first-run-open', 'i18n-check', 'i18n-check-status', 'clear-app-preferences', 'privacy-status', 'diagnostics', 'diagnostics-title', 'diagnostics-refresh', 'diagnostics-download', 'diagnostic-list', 'recommended-mods-title', 'saved-mods-title']);
   const missing = baseline.filter(id => !current.has(id) && !retiredReactRoots.has(id));
   assert.deepEqual(missing, [], `upstream UI hooks removed: ${missing.join(', ')}`);
   for (const id of ['playlist', 'claim-check']) {
@@ -48,16 +48,12 @@ test('responsive navigation and controls have safe widths and touch targets', ()
   assert.match(theme, /\.app-grid:has\(\s*>\s*\.content\[hidden\]\s*\)/);
 });
 
-test('screenshot thumbnails are decoded only when approaching the viewport', () => {
-  assert.match(shots, /private thumbObserver:\s*IntersectionObserver\s*\|\s*null/);
-  assert.match(shots, /new IntersectionObserver/);
-  assert.match(shots, /rootMargin:\s*'280px 0px'/);
-  assert.match(shots, /this\.thumbObserver\.observe\(b\)/);
-  assert.match(shots, /private async loadTile/);
-  assert.match(shots, /loading:\s*'lazy'/);
-  assert.match(shots, /async function bitmap/);
+test('screenshot thumbnails use browser lazy-loading in the React gallery', () => {
+  assert.match(shots, /decodeTga/);
+  assert.match(shots, /deleteFromReact\(path: string\)/);
+  assert.doesNotMatch(shots, /document\.|querySelector|createElement|IntersectionObserver/);
+  assert.match(react, /loading="lazy" decoding="async"/);
 });
-
 test('PWA assets and cache are versioned together with trusted-origin guidance', () => {
   assert.match(html, /rel="manifest" href="\/manifest\.json"/);
   assert.match(html, /rel="icon" href="\/favicon\.ico"/);

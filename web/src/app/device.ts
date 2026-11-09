@@ -11,6 +11,9 @@
 //                laptop whose screen also takes touch.
 // The Controls sheet and the hints follow touch first (html[data-touch]).
 
+import { allPads } from '../input/steampad';
+import { DEVICE_RENDER, localStore } from './prefs';
+
 export function isPhone(): boolean {
   const uad = (navigator as unknown as { userAgentData?: { mobile?: boolean } }).userAgentData;
   return uad?.mobile === true || /Android.+Mobile|iPhone|iPod/.test(navigator.userAgent) || phoneScreen(navigator.maxTouchPoints);
@@ -23,30 +26,45 @@ export function phoneScreen(touchPoints: number, w = screen.width, h = screen.he
 
 export function touchFirst(): boolean { return matchMedia('(pointer: coarse)').matches; }
 
+/** Device class used for first-launch graphics defaults. */
+export function deviceKind(): 'phone' | 'tablet' | 'pc' {
+  return isPhone() ? 'phone' : touchFirst() ? 'tablet' : 'pc';
+}
+
 /** settings.ini keys whose default is another on this device: what applies when neither the file nor the page
  *  address sets them.  Phones: 75% resolution scale (a phone's screen has more pixels than its GPU fills at 60 fps),
  *  or 100% once the render check found room to spare on this one (rendercheck.ts), and full screen (no browser
  *  bars over the game).  Players' cars shown in free roam: 16 on phones, 24 on tablets, 32 elsewhere (an iPhone
  *  was stopped for memory as 22 friends' cars loaded at once at the new career's start, 2026-10-25). */
 export function deviceDefaults(): Record<string, string> {
-  if (isPhone()) return { render: rememberedRender() === 'backing' ? 'backing' : 'scale:0.75', fullscreen: 'on', roam_max_cars: '16' };
-  return touchFirst() ? { roam_max_cars: '24' } : {};
+  if (isPhone()) return { render: rememberedRender() === 'backing' ? 'backing' : 'scale:0.75', fullscreen: fullScreenFails() ? 'off' : 'on', roam_max_cars: '16', fsaa: 'off', anisotropic: 'off' };
+  if (touchFirst()) return { roam_max_cars: '24', anisotropic: 'off', fsaa: 'off' };
+  return { anisotropic: 'on', ...(fsaaFails() ? { fsaa: 'off' } : {}) };
 }
+
+/** Adapter name returned by the WebGPU check; held only in this tab. */
+let graphics = '';
+export function noteGraphics(info: string | undefined) { graphics = info ?? ''; }
+
+/** PowerVR B-Series adapters can run out of WebGPU memory when the game canvas fills a phone's screen. */
+export const fullScreenFails = (info = graphics): boolean => /^img-tec b-series/i.test(info);
+
+/** 4x MSAA breaks Chrome/Edge on AMD GCN-5 (Vega) and Qualcomm Adreno graphics; keep it off by default there. */
+export const fsaaFails = (info = graphics): boolean => /^(amd gcn-5|qualcomm)\b/i.test(info);
 
 /** the render check's verdict on this phone: in this browser only, like the other device defaults (settings.ini,
  *  and with it the cloud saves, never has it) */
-const RENDER_KEY = 'nfsu2.device.render';
 export function rememberedRender(): string | null {
-  try { return localStorage.getItem(RENDER_KEY); } catch { return null; }
+  try { return localStore.get(DEVICE_RENDER); } catch { return null; }
 }
 export function rememberRender(v: string | null) {
-  try { if (v) localStorage.setItem(RENDER_KEY, v); else localStorage.removeItem(RENDER_KEY); }
+  try { if (v) localStore.set(DEVICE_RENDER, v); else localStore.remove(DEVICE_RENDER); }
   catch { /* storage off: the check measures again next time */ }
 }
 
 /** whether the browser shows the page a controller (Chrome: only after a button press on the page) */
 export function padSeen(): boolean {
-  try { return typeof navigator.getGamepads === 'function' && navigator.getGamepads().some(g => !!g?.connected); }
+  try { return allPads().some(g => !!g?.connected); }
   catch { return false; }
 }
 

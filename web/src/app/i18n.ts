@@ -13,6 +13,8 @@
 // This module touches the DOM only when called with it, and imports nothing, so the pure modules (settings.ts) can
 // use it under node.
 
+import { localStore, PAGE_LANGUAGE } from './prefs';
+
 /** the game's languages (runtime/language.c), settings.ini language's values; english is the default */
 export const LANGUAGES = ['english', 'french', 'german', 'italian', 'spanish', 'dutch', 'swedish', 'danish', 'korean',
   'chinese', 'japanese', 'russian', 'thai', 'portuguese', 'polish', 'turkish'] as const;
@@ -32,6 +34,24 @@ export const NATIVE: Record<Language, string> = {
   swedish: 'Svenska', danish: 'Dansk', korean: '한국어', chinese: '繁體中文', japanese: '日本語', russian: 'Русский', thai: 'ไทย',
   portuguese: 'Português (Brasil)', polish: 'Polski', turkish: 'Türkçe',
 };
+
+/** Map a BCP 47 language subtag to the languages actually shipped by this branch. */
+const BY_SUBTAG = new Map<string, Language>(LANGUAGES.map(l => [LOCALE[l].split('-')[0].toLowerCase(), l]));
+
+/** First supported language in the browser's preference order; unsupported languages are never guessed. */
+export function browserLanguage(tags: readonly string[] = navigatorLanguages()): Language {
+  for (const tag of tags) {
+    const subtag = tag.trim().toLowerCase().split(/[-_]/)[0];
+    const language = BY_SUBTAG.get(subtag);
+    if (language) return language;
+  }
+  return 'english';
+}
+
+function navigatorLanguages(): readonly string[] {
+  if (typeof navigator === 'undefined') return [];
+  return navigator.languages?.length ? navigator.languages : navigator.language ? [navigator.language] : [];
+}
 
 let current: Language = 'english';
 let dict: Record<string, string | Forms> = {};
@@ -138,7 +158,7 @@ export async function setLanguage(l: string, log?: (s: string) => void): Promise
   }
   if (asked !== want) return false;            // a newer pick came first
   current = want; dict = next; plural = null;
-  try { localStorage.setItem(STORE, want); } catch { /* not kept: the next start shows English until settings.ini is read */ }
+  localStore.set(PAGE_LANGUAGE, want); // (not kept: the next start shows English until settings.ini is read)
   if (typeof document !== 'undefined') {
     document.documentElement.lang = LOCALE[want];
     translatePage(document);
@@ -150,9 +170,10 @@ export async function setLanguage(l: string, log?: (s: string) => void): Promise
 }
 
 /** the language this browser showed last (the page asks for its file at once, before settings.ini is read) */
-const STORE = 'nfsu2-page-language';
 export function lastLanguage(): Language {
-  try { const v = localStorage.getItem(STORE) ?? ''; return isLanguage(v) ? v : 'turkish'; } catch { return 'turkish'; }
+  let saved = '';
+  saved = localStore.get(PAGE_LANGUAGE) ?? '';
+  return isLanguage(saved) ? saved : browserLanguage();
 }
 
 // ------------------------------------------------------------------------------------------------ the markup --

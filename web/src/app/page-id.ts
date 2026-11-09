@@ -3,16 +3,14 @@
 // banned player is not back by changing networks.  It says nothing about the player, and the server keeps only a
 // keyed hash of it, in a ban.  Without storage (a private window, storage blocked) each load has a new one.
 
-const KEY = 'nfsu2.net.page-id';
+import { localStore, PAGE_ID } from './prefs';
 
 export function pageId(): string {
-  try {
-    const kept = localStorage.getItem(KEY);
-    if (kept && /^[A-Za-z0-9_-]{22}$/.test(kept)) return kept;
-    const id = make();
-    localStorage.setItem(KEY, id);
-    return id;
-  } catch { return make(); }
+  const kept = localStore.get(PAGE_ID);
+  if (kept && /^[A-Za-z0-9_-]{22}$/.test(kept)) return kept;
+  const id = make();
+  localStore.set(PAGE_ID, id);
+  return id;
 }
 
 /** 128 random bits, base64url (22 characters) */

@@ -79,7 +79,9 @@ fn onl1_messenger_rates() {
     let a = w.buddy(ga, &ka);
     let b = w.buddy(gb, &kb);
     assert_eq!(w.c(a).l("AUTH").code, "");
-    w.send(b, "RADD", fields![("USER", "Flooder"), ("LIST", "B"), ("ID", 1)]);
+    // Presence is shared only after both personas accept the friend request.
+    w.send(b, "RADM", fields![("USER", "Flooder"), ("PRES", "Y"), ("ID", 1)]);
+    w.send(a, "RRSP", fields![("USER", "Friend1"), ("ANSW", "Y"), ("ID", 2)]);
     let pgets = |w: &World| w.c(b).msgs.iter().filter(|m| m.kind == "PGET" && m.get("USER") == Some("Flooder")).count();
     // ten presences that change nothing, then ten that do, in one moment: the friend hears of the first and, a
     // second later, of the last
@@ -234,6 +236,10 @@ fn onl3_messenger_memory() {
             if w.c(cb).l("RADD").code.is_empty() {
                 ok += 1;
             }
+            // Lists belonging to active lobby personas are pinned; disconnect both sides so this
+            // audit measures the configured cache limit for evictable, inactive lists.
+            w.send(cb, "DISC", vec![]);
+            w.close(cl);
         }
         ok
     };
@@ -330,26 +336,32 @@ fn onl6_blocked_list_follows_the_name() {
     let la = w.login_as(ga, "AliceAcct", "Alice", "secret");
     let ka = w.lkey(la);
     let ab = w.buddy(ga, &ka);
-    for (l, u) in [("B", "BobFriend"), ("B", "Mallory"), ("I", "Mallory")] {
-        w.send(ab, "RADD", fields![("LIST", l), ("USER", u), ("ID", 1)]);
-    }
-    // while Alice is online the block works
+
+    // Mallory and Alice become mutual friends before Alice blocks Mallory.
     let gm = client(&mut w, "10.77.0.51");
-    let lm = login(&mut w, gm, "Mallory");
+    let lm = w.login(gm, "Mallory");
     let km = w.lkey(lm);
     let mb = w.buddy(gm, &km);
+    w.send(ab, "RADM", fields![("USER", "Mallory"), ("ID", 1), ("PRES", "Y")]);
+    w.send(mb, "RRSP", fields![("USER", "Alice"), ("ANSW", "Y"), ("ID", 2)]);
+    assert!(w.core.buddies.list("Alice").unwrap().b.contains_key("mallory"));
+    assert!(w.core.buddies.list("Mallory").unwrap().b.contains_key("alice"));
+    w.send(ab, "RADD", fields![("USER", "Mallory"), ("LIST", "I"), ("ID", 3)]);
+
+    // while Alice is online the block works
     w.send(mb, "SEND", fields![("USER", "Alice"), ("BODY", "hi")]);
     assert_eq!(w.c(ab).count("RECV"), 0, "a blocked sender's message does not arrive");
-    // and while she is away, though Mallory is on her friends list too
+    // and while she is away, though Mallory remains on her mutual-friends list
     w.close(ab);
     w.close(la);
     w.send(mb, "SEND", fields![("USER", "Alice"), ("BODY", "still there?")]);
-    w.send(mb, "RADM", fields![("USER", "Alice"), ("ID", 3)]);
+    w.send(mb, "RADM", fields![("USER", "Alice"), ("ID", 4)]);
     w.close(mb);
     w.core.buddy_save();
-    let stored = std::fs::read_to_string(dir.join("buddies.json")).unwrap();
+    let stored = std::fs::read_to_string(super::world::shelf_file(&dir, "Alice")).unwrap();
     assert!(stored.contains(r#""I":["Mallory"]"#), "the blocked list is kept: {stored}");
     assert!(!stored.contains("still there") && !stored.contains(r#""R""#), "nothing of Mallory's waits: {stored}");
+
     // over a restart: whoever plays as Alice has the list
     w.core.stop();
     let mut w = World::new(Opts { state_dir: Some(dir.clone()), ..Default::default() });
@@ -364,9 +376,8 @@ fn onl6_blocked_list_follows_the_name() {
     w.send(b2, "RDEL", fields![("LIST", "I"), ("USER", "Mallory")]);
     assert!(!w.core.buddies.blocked("mallory"));
     w.core.buddy_save();
-    assert!(!std::fs::read_to_string(dir.join("buddies.json")).unwrap().contains(r#""I""#));
+    assert!(!std::fs::read_to_string(super::world::shelf_file(&dir, "Alice")).unwrap().contains(r#""I""#));
 }
-
 fn board(w: &mut World, kind: u32) -> Vec<String> {
     let mut b: Vec<String> =
         w.core.stats.board(kind, false).iter().map(|r| format!("{}:{}:{}:{}", r.name, r.points, r.wins, r.losses)).collect();

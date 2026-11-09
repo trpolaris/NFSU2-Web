@@ -53,6 +53,7 @@
 //                    --seed's careers: tests/scripts/mprace_nocar_b.txt)
 //        [--seed-for Bob:<save tree>]  that page starts from its own save instead (two careers' cars in one
 //                    race: mprace_lobby_a.txt + mprace_card_b.txt at a race open in its career)
+//        [--drive-route <json>]  follow a JSON list of world-map [x, y] points from trace data using keyboard input
 //
 // Without --base it starts its own server (web/tools/server-cmd.mjs, --dev on the given
 // ports, the game folder from --data or NFSU2_DATA) and stops it at the end.
@@ -70,6 +71,7 @@
 // <out>/summary.json; then runs tools/roam_compare.py for the first (the driver)
 // against every other instance.
 import { chromium } from 'playwright';
+import { driveRoute } from './drive-route.mjs';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -90,6 +92,11 @@ const BASE = opt('base', HTTPS ? `https://localhost:${HTTPS_PORT}` : `http://loc
 const DATA = opt('data', process.env.NFSU2_DATA || path.join(os.homedir(), 'projects/nsfu2/Need for Speed - Underground 2'));
 const BOUNCE = argv.includes('--bounce') ? +opt('bounce', 0) * 1000 : 0;
 const OUT = path.resolve(opt('out', path.join(REPO, 'out/web/roam-pair')));
+const DRIVE_ROUTE_FILE = opt('drive-route', '');
+const DRIVE_ROUTE = DRIVE_ROUTE_FILE ? JSON.parse(fs.readFileSync(path.resolve(REPO, DRIVE_ROUTE_FILE), 'utf8')) : [];
+if (!Array.isArray(DRIVE_ROUTE) || DRIVE_ROUTE.some(p => !Array.isArray(p) || p.length !== 2 || !p.every(Number.isFinite)))
+  throw new Error('--drive-route must point to a JSON array of [x, y] points');
+if (DRIVE_ROUTE.length && opt('page', 'test') !== 'app') throw new Error('--drive-route requires --page app');
 const MODE = opt('mode', 'vlan');
 const TMO = +opt('timeout', 1200) * 1000;
 const STAGGER = +opt('stagger', 2) * 1000;
@@ -185,7 +192,9 @@ async function start(i, name, script, own) {
   const page = await ctx.newPage();
   const log = fs.createWriteStream(path.join(OUT, `${name}.log`));
   const w = (s) => log.write(`${((Date.now() - t0) / 1000).toFixed(3)} ${s}\n`);
+  const routeTrace = i === 0 && DRIVE_ROUTE.length ? driveRoute(page, DRIVE_ROUTE, w) : null;
   page.on('console', m => {
+    routeTrace?.(m.text());
     w(m.text());
     // the app page as the player sees it, at a script's `log SHOT <name>` (clean_*: without the lobby's panel)
     const k = APP && /LOG SHOT (\S+)/.exec(m.text());

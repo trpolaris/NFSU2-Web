@@ -104,12 +104,14 @@ pub(crate) fn line(v: &Verdict, who: &dyn Fn(u32) -> String) -> String {
         clock(v.time)
     );
     match (v.length, v.avg) {
-        (Some(l), Some(a)) => s += &format!(
-            ", {:.0} km/h on average over the race's {:.1} km (as the others drove it){}",
-            a * 3.6,
-            l / 1000.0,
-            if a >= RACE_MPS { ", which no car does" } else { "" }
-        ),
+        (Some(l), Some(a)) => {
+            s += &format!(
+                ", {:.0} km/h on average over the race's {:.1} km (as the others drove it){}",
+                a * 3.6,
+                l / 1000.0,
+                if a >= RACE_MPS { ", which no car does" } else { "" }
+            )
+        }
         _ => s += " (no other racer's game measured the race's length)",
     }
     if let Some(d) = v.drove {
@@ -154,7 +156,10 @@ impl Results {
         if !race.reports.iter().any(|(id, _)| *id == reporter) && race.reports.len() < LOBBY_PLAYERS {
             race.reports.push((reporter, r));
             for x in &r.rows[..r.n] {
-                if x.id != 0 && !race.names.contains_key(&x.id) && let Some(w) = who(x.id) {
+                if x.id != 0
+                    && !race.names.contains_key(&x.id)
+                    && let Some(w) = who(x.id)
+                {
                     race.names.insert(x.id, w);
                 }
             }

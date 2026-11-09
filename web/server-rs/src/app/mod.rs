@@ -10,22 +10,24 @@
 //! bare address.  The console is the operator's own: it may name paths, but it names players only by their virtual
 //! address and nickname, never by their real address (--access-log is the one opt-in that records client addresses).
 
+mod autoban;
 mod blocks;
 pub mod control;
 mod etag;
 mod files;
+mod friends;
 mod kept;
 mod lan;
 mod manifest;
 mod names;
-mod pool;
 mod player_hub;
+mod pool;
 #[cfg(test)]
 mod route_tests;
 mod run;
 #[cfg(test)]
 mod testkit;
-mod turnstile;
+pub(super) mod turnstile;
 mod url;
 mod vault;
 mod wasm;
@@ -153,7 +155,12 @@ const STATUS: [(u16, &str); 8] = [
     (503, "Service Unavailable"),
 ];
 
-pub const ROBOTS_TXT: &str = "User-agent: *\nAllow: /\nDisallow: /data/\nDisallow: /data-manifest\nDisallow: /game.wasm\nDisallow: /game.json\nDisallow: /players\nDisallow: /lan\nDisallow: /vault\nDisallow: /cloud/\nDisallow: /names";
+/// Maximum room/world hashes accepted by one public /players?rooms= query.
+const ROOMS_ASKED: usize = 8;
+/// Maximum race-track room hashes accepted by one public /players?spots= query.
+const SPOTS_ASKED: usize = 16;
+
+pub const ROBOTS_TXT: &str = "User-agent: *\nAllow: /\nDisallow: /data/\nDisallow: /data-manifest\nDisallow: /game.wasm\nDisallow: /game.json\nDisallow: /players\nDisallow: /lan\nDisallow: /vault\nDisallow: /cloud/\nDisallow: /names\nDisallow: /friends";
 
 /// what a client may ask a file to be sent as
 const TYPES: [(&str, &str); 11] = [
@@ -229,6 +236,8 @@ pub struct App {
     pub vault: Option<vault::VaultRoute>,
     /// claimed names (/names), none without keyphrase saves
     pub names: Option<names::NamesRoute>,
+    /// the start page's friends endpoint, backed by Online's EA Messenger lists
+    friends: Option<friends::FriendsRoute>,
     /// the operator's bans (the control socket: control.rs), checked at /lan
     pub bans: Arc<nfsu2_bans::Bans>,
     /// browser-private profiles and player-entered garage records, kept in the existing state volume
@@ -263,6 +272,12 @@ impl App {
         compress_threads: usize,
     ) -> App {
         let host_check = HostCheck::new(&o.hosts);
+        let friends = match (online.as_ref(), names.as_ref()) {
+            (Some(online), Some(names)) => {
+                Some(friends::FriendsRoute::new(online.clone(), names.claims.clone(), lan.clone(), roam.clone()))
+            }
+            _ => None,
+        };
         let real_roots: Arc<Mutex<HashMap<String, String>>> = Arc::default();
         let manifest: Arc<manifest::ManifestCell> = Arc::default();
         // the kept blocks: in the state folder, swept again for each new manifest
@@ -350,6 +365,7 @@ impl App {
             roam,
             vault: vault.map(vault::VaultRoute::new),
             names,
+            friends,
             bans,
             hub,
             lan_sndbuf,
@@ -553,6 +569,12 @@ impl App {
         if p == "/names" {
             return self.names(q, s, &u).await;
         }
+        if p == "/friends" {
+            return match &self.friends {
+                Some(friends) => friends.handle(self, q, s).await,
+                None => self.not_found(q, s).await,
+            };
+        }
         if q.method != "GET" && q.method != "HEAD" {
             return self
                 .plain(q, s, 405, "Method not allowed", &[("allow", "GET, HEAD"), ("connection", "close")], Cache::Store, true)
@@ -590,6 +612,9 @@ impl App {
         }
         if p == "/players" {
             return self.send_players(q, s, &u).await;
+        }
+        if p == "/lan" {
+            return self.send_lan_check(q, s).await;
         }
         if p == "/robots.txt" {
             return self.plain(q, s, 200, ROBOTS_TXT, &[], Cache::Revalidate, false).await;
@@ -665,11 +690,14 @@ impl App {
     /// there, as of the hub's last tick (nfsu2-roam), null with --roam-hub off; full: a game that connects now waits in
     /// line (a page of before: gets "LAN full"); queue: the pages waiting in line (nfsu2-lan queue.rs); roamBusy: the
     /// hub gives fewer than askCap links a player, so the page does not ask the free-roam question now (false with
-    /// --roam-hub off).  ?room=<hash> (roam_core's rc_room_hash of a Room setting, decimal,
-    /// not 0) adds room: how many of roam are in that room (with --roam-hub on).  ?crews=<hash>,<hash>,... (the
-    /// rc_room_hash of each of the Crews setting's words, decimal; the first 4 that are numbers and not 0, the rest
-    /// left out) adds crews: how many of roam are in each of those crews, in any room, in that order (with --roam-hub
-    /// on, and one of them at least); both as of the hub's last tick, from its counts (nothing waits for its thread)
+    /// --roam-hub off).  ?room=<hash> (roam_core's rc_room_hash of a Room setting, decimal, not 0) adds room: how many
+    /// of roam are in that world, including its nine race-track rooms.  ?rooms=<hash>,<hash>,... (decimal world hashes,
+    /// including 0 for the main world; the first 8 valid numbers, in order) adds rooms: the count for each requested
+    /// world, including its race-track rooms.  ?spots=<hash>,<hash>,... (decimal race-track room hashes; the first 16
+    /// valid numbers) adds spots: the count for each exact track room.  ?crews=<hash>,<hash>,... (the rc_room_hash of
+    /// each of the Crews setting's words, decimal; the first 4 that are numbers and not 0, the rest left out) adds
+    /// crews: how many of roam are in each of those crews, in any room, in that order (with --roam-hub on, and one of
+    /// them at least); counts are from the hub's last tick (nothing waits for its thread)
     async fn send_players(&self, q: &Request, s: &mut Response, u: &url::Url) -> Res {
         let info = match &self.online {
             Some(h) => {
@@ -699,7 +727,19 @@ impl App {
         m.insert("roamBusy".into(), serde_json::Value::Bool(self.roam.as_ref().is_some_and(|r| r.crowded())));
         let room = u.param("room").and_then(|r| r.parse::<u32>().ok()).filter(|&r| r != 0);
         if let (Some(room), Some(r)) = (room, &self.roam) {
-            m.insert("room".into(), serde_json::Value::from(r.in_room(room).min(players)));
+            m.insert("room".into(), serde_json::Value::from(r.in_world(room).min(players)));
+        }
+        let rooms: Vec<u32> =
+            u.param("rooms").map_or(Vec::new(), |rooms| rooms.split(',').filter_map(|h| h.parse::<u32>().ok()).take(ROOMS_ASKED).collect());
+        if let Some(r) = self.roam.as_ref().filter(|_| !rooms.is_empty()) {
+            let counts = rooms.iter().map(|&room| serde_json::Value::from(r.in_world(room).min(players))).collect();
+            m.insert("rooms".into(), serde_json::Value::Array(counts));
+        }
+        let spots: Vec<u32> =
+            u.param("spots").map_or(Vec::new(), |spots| spots.split(',').filter_map(|h| h.parse::<u32>().ok()).take(SPOTS_ASKED).collect());
+        if let Some(r) = self.roam.as_ref().filter(|_| !spots.is_empty()) {
+            let counts = spots.iter().map(|&spot| serde_json::Value::from(r.in_room(spot).min(players))).collect();
+            m.insert("spots".into(), serde_json::Value::Array(counts));
         }
         let crews: Vec<u32> = u.param("crews").map_or(Vec::new(), |c| {
             c.split(',').filter_map(|h| h.parse::<u32>().ok()).filter(|&h| h != 0).take(nfsu2_roam::CREWS).collect()

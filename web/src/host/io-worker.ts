@@ -17,8 +17,9 @@ import {
 } from './proto';
 import { BLOCK, CACHE_DIR, av1Path, blockRuns, cacheKey, dataUrl, openCacheFile, putBlock, runUrl, type CacheFile, type Manifest } from './datacache';
 import { movieClose, movieDecode, movieOpen } from './movie';
+import { allocMemory, type MemoryTry } from './memory';
 
-interface Init { memory: WebAssembly.Memory; ctl: SharedArrayBuffer; rpc: SharedArrayBuffer; cfg: BootConfig }
+interface Init { memory?: WebAssembly.Memory; tries?: MemoryTry[]; ctl: SharedArrayBuffer; rpc: SharedArrayBuffer; cfg: BootConfig }
 
 const FT_DIR = 3, FT_FILE = 4;
 const td = new TextDecoder(), te = new TextEncoder();
@@ -62,9 +63,34 @@ function dataLookup(rel: string): DNode | null {
   }
   return cur;
 }
+
+const TUNNEL_TRACKS = new Set([
+  'tracks/l4ra.bun',
+  'tracks/streaml4ra.bun',
+  'tracks/routesl4ra/pathsfreeroam.bin',
+]);
+let tunnelPackReady: boolean | null = null;
+
+/** A partial pack must never mix city, streaming geometry and navigation from different maps. */
+function tunnelOverlayReady(): boolean {
+  if (tunnelPackReady !== null) return tunnelPackReady;
+  const flag = cfg?.env?.NFSU2_OPEN_TUNNEL ?? '';
+  if (!/^(1|on|true)$/i.test(flag)) return (tunnelPackReady = false);
+  tunnelPackReady = [...TUNNEL_TRACKS].every(path => {
+    const node = dataLookup(`MODPACKS/open-tunnel/${path}`);
+    return !!node && !node.dir && node.size > 0;
+  });
+  if (!tunnelPackReady) console.warn('[data] Construction Tunnel pack is incomplete; using the original map');
+  return tunnelPackReady;
+}
 /** A file the game opens: a movie's AV1 copy in its place where the page plays AV1 (NFSU2_MOVIE_CODEC = av1,
  *  movie.ts) and the folder has one (tools/movies_av1.py), else the file itself. */
 function dataFile(rel: string): DNode | null {
+  const normalized = rel.replace(/\\/g, '/').replace(/^\/+/, '').replace(/\/{2,}/g, '/').toLowerCase();
+  if (TUNNEL_TRACKS.has(normalized) && tunnelOverlayReady()) {
+    const overlay = dataLookup(`MODPACKS/open-tunnel/${normalized}`);
+    if (overlay && !overlay.dir) return overlay;
+  }
   const n = dataLookup(rel);
   if (!n || n.dir || cfg.env.NFSU2_MOVIE_CODEC !== 'av1') return n;
   const a = av1Path(n.path);
@@ -90,6 +116,34 @@ let cacheDir: FileSystemDirectoryHandle | null = null;
 const CACHE_OPEN = /Windows/.test(navigator.userAgent) && /\b(Chrome|Firefox)\//.test(navigator.userAgent) ? 512 : 64;
 const cacheFiles = new Map<string, Promise<CacheFile | null>>(), cacheSeen = new Set<string>();
 let keeping = true, kept = 0;                              // blocks still go into the cache (keepBlock)
+// A read whose blocks this device keeps goes straight from its cache file into the game's memory on WebKit.
+// SharedArrayBuffer views are not accepted by every browser's OPFS read(), so a TypeError disables this path.
+let readsKept = true;
+function readKept(cf: CacheFile, pos: number, end: number, dst: { ptr: number; len: number }[], first: number, last: number): number {
+  for (let bi = first; bi <= last; bi++) if (!cf.have[bi]) return -1;
+  const mem = u8();
+  let off = pos;
+  try {
+    for (const d of dst) {
+      if (off >= end) break;
+      if (!d.len) continue;
+      const k = Math.min(d.len, end - off);
+      if (k <= 0) break;
+      if (cf.h.read(mem.subarray(d.ptr, d.ptr + k), { at: off }) !== k) return -1;
+      off += k;
+    }
+  } catch (e) {
+    if (e instanceof TypeError) { readsKept = false; return -1; }
+    throw e;
+  }
+  if (off !== end) return -1;
+  sum.local += last - first + 1;
+  return end - pos;
+}
+function blocksInMemory(n: DNode, first: number, last: number): boolean {
+  for (let bi = first; bi <= last; bi++) if (!memBlocks.has(n.path + '#' + bi)) return false;
+  return true;
+}
 
 // Use the file at once, in the same task: a file that is not among the CACHE_OPEN newest is closed.
 async function cacheFile(n: DNode) {
@@ -124,8 +178,10 @@ function memPut(key: string, b: Uint8Array) {
   const budget = cacheDir && keeping ? MEM_KEPT : MEM_ALONE;
   for (const [k, v] of memBlocks) { if (memBytes <= budget) break; memBlocks.delete(k); memBytes -= v.length; }
 }
+/** this worker's global (the libraries type self as a window's) */
+const me = self as unknown as DedicatedWorkerGlobalScope;
 // a line for the game's log (F9 > Download log), as "[data] ...": what a read waited for on the server
-const note = (s: string) => (self as unknown as Worker).postMessage({ t: 'log', s });
+const note = (s: string) => me.postMessage({ t: 'log', s });
 // At most FETCHES block requests in flight (the server holds each client address to 64 requests at once, so a
 // household of players behind one address stays well inside it).  A block comes compressed when the server offers
 // it (the browser undoes the Content-Encoding), else as a byte range of the file.  A try that fails on the way (no
@@ -345,6 +401,12 @@ async function dataRead(n: DNode, pos: number, dst: { ptr: number; len: number }
   if (end <= pos) return 0;
   const first = Math.floor(pos / BLOCK), last = Math.floor((end - 1) / BLOCK), track = isTrackStream(n);
   if (track) readAhead(n, first);
+  if (readsKept && offPage && cacheDir && !blocksInMemory(n, first, last)) {
+    dataSummary(performance.now());
+    const cf = await cacheFile(n);
+    const direct = cf ? readKept(cf, pos, end, dst, first, last) : -1;
+    if (direct >= 0) return direct;
+  }
   const blocks = await Promise.all(Array.from({ length: last - first + 1 }, (_, i) => getBlock(n, first + i, track ? P_TRACK : P_GAME)));
   const mem = u8();
   let off = pos, di = 0, dOff = 0;
@@ -466,7 +528,7 @@ async function op(o: Op, a: bigint[]): Promise<number> {
       if (e.kind && oflags & 4) return E.EXIST;
       const fh = e.kind ? e.h as FileSystemFileHandle : await e.parent.getFileHandle(e.name, { create: true });
       let sh: FileSystemSyncAccessHandle;
-      try { sh = await (fh as any).createSyncAccessHandle({ mode: 'readwrite-unsafe' }); } catch { return E.ACCES; }
+      try { sh = await fh.createSyncAccessHandle({ mode: 'readwrite-unsafe' }); } catch { return E.ACCES; }
       if (oflags & 8) sh.truncate(0);
       const fd = allocFd({ mount: 'save', kind: 'file', path: rel, pos: 0, append: !!(fdflags & 1), sh, fh, wrote: !!(oflags & 8) });
       dv().setUint32(n(8), fd, true); return 0;
@@ -477,7 +539,7 @@ async function op(o: Op, a: bigint[]): Promise<number> {
       if (f.sh) { f.sh.flush(); f.sh.close(); }
       fds.delete(n(0));
       // posted before the call returns, so the page hears of a save before the game can exit after it
-      if (f.wrote) (self as unknown as Worker).postMessage({ t: 'saved', path: f.path });
+      if (f.wrote) me.postMessage({ t: 'saved', path: f.path });
       return 0;
     }
     case Op.FdRead: case Op.FdPread: {
@@ -543,7 +605,7 @@ async function op(o: Op, a: bigint[]): Promise<number> {
       if (!f.dirents || a[3] === 0n) {
         const list: { name: string; type: number; ino: number }[] = [{ name: '.', type: FT_DIR, ino: 1 }, { name: '..', type: FT_DIR, ino: 1 }];
         if (f.mount === 'data') { const nd = f.node ?? dataLookup(f.path); for (const k of nd?.kids?.values() ?? []) list.push({ name: k.name, type: k.dir ? FT_DIR : FT_FILE, ino: k.ino }); }
-        else for await (const [name, h] of (f.dh as any).entries() as AsyncIterable<[string, FileSystemHandle]>)
+        else for await (const [name, h] of f.dh!.entries())
           list.push({ name, type: h.kind === 'directory' ? FT_DIR : FT_FILE, ino: inoOf(joinRel(f.path, name)) });
         f.dirents = list;
       }
@@ -601,9 +663,12 @@ async function op(o: Op, a: bigint[]): Promise<number> {
 // on a Mac: about one race in three, up to 50 s).  With a timeout no wait was late in 18 races there (50 and
 // 1000 ms); 50 also bounds one that would be to a few frames.
 const DOORBELL_WAIT_MS = 50;
+let offPage = false, memSaid = 0;
+function memGrew() { const b = memory.buffer; if (b.byteLength <= memSaid) return; memSaid = b.byteLength; me.postMessage({ t: 'mem', buf: b }); }
 async function serve() {
   let seen = Atomics.load(ctl, CTL_IO_DOORBELL);
   for (;;) {
+    if (offPage) memGrew();
     for (let s = 0; s < MAX_THREADS; s++) {
       const b = s * (RPC_SLOT / 4);
       if (Atomics.compareExchange(rpcI32, b, RPC_POSTED, RPC_TAKEN) !== RPC_POSTED) continue;
@@ -613,14 +678,34 @@ async function serve() {
         rpcI32[b + 2] = r; Atomics.store(rpcI32, b, RPC_DONE); Atomics.notify(rpcI32, b);
       });
     }
-    const w = (Atomics as any).waitAsync(ctl, CTL_IO_DOORBELL, seen, DOORBELL_WAIT_MS);
+    const w = Atomics.waitAsync(ctl, CTL_IO_DOORBELL, seen, DOORBELL_WAIT_MS);
     if (w.async) await w.value;
     seen = Atomics.load(ctl, CTL_IO_DOORBELL);
   }
 }
 
-onmessage = async (e: MessageEvent<Init>) => {
-  ({ memory, cfg } = e.data);
+onmessage = async (e: MessageEvent<Init | { t: 'save-ready' } | { t: 'give'; port: MessagePort; slot: number } | { t: 'give-page'; slot: number }>) => {
+  if ('t' in e.data) {
+    if (e.data.t === 'give') {
+      try { e.data.port.postMessage(memory); }
+      catch (x) { me.postMessage({ t: 'give-here', slot: e.data.slot, memory }); }
+      e.data.port.close();
+    } else if (e.data.t === 'give-page') me.postMessage({ t: 'give-here', slot: e.data.slot, memory });
+    return;
+  }
+  cfg = e.data.cfg;
+  if (e.data.memory) memory = e.data.memory;
+  else {
+    try {
+      const got = allocMemory(e.data.tries ?? []);
+      memory = got.memory; offPage = true;
+      me.postMessage({ t: 'memory', buf: memory.buffer, note: got.note });
+    } catch (err) {
+      me.postMessage({ t: 'io-error', msg: err instanceof Error ? err.message : String(err), range: err instanceof RangeError, note: (err as { note?: string } | null)?.note });
+      return;
+    }
+  }
+  memSaid = memory.buffer.byteLength;
   ctl = new Int32Array(e.data.ctl); rpcI32 = new Int32Array(e.data.rpc); rpcI64 = new BigInt64Array(e.data.rpc);
   try {
     const opfs = await navigator.storage.getDirectory();
@@ -630,9 +715,9 @@ onmessage = async (e: MessageEvent<Init>) => {
     fds.set(3, { mount: 'data', kind: 'dir', path: '', pos: 0, append: false, node: dataRoot, preopen: '/data' });
     fds.set(4, { mount: 'save', kind: 'dir', path: '', pos: 0, append: false, dh: saveRoot, preopen: '/save' });
     fds.set(5, { mount: 'dev', kind: 'dir', path: '', pos: 0, append: false, preopen: '/dev' });
-    (self as unknown as Worker).postMessage({ t: 'io-ready', files: inoNext });
+    me.postMessage({ t: 'io-ready', files: inoNext });
     void serve();
   } catch (err) {
-    (self as unknown as Worker).postMessage({ t: 'io-error', msg: String(err) });
+    me.postMessage({ t: 'io-error', msg: String(err) });
   }
 };

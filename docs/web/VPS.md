@@ -175,7 +175,9 @@ sees a keyphrase, a key or a save, and its files name no player.
 
 With keyphrase saves on, a player's keyphrase can claim their name (PLAYING.md, Online: "Your name is yours"): while
 the claim holds (180 days after they last played under it) nobody else plays under it in the Online menu or free
-roam, and EA Messenger keeps its lists for it. The server keeps `names.json` in the state folder: each name, a code
+roam, and EA Messenger keeps its lists for it. The current implementation has a hard ceiling of 5,000,000 stored claims. That is a storage limit, not a demonstrated
+5-million-active-player deployment capacity; measure memory, disk and claim-store write costs before planning around
+it. The hold period remains 180 days. The server keeps `names.json` in the state folder: each name, a code
 made from its keyphrase's token (never the keyphrase), when it was claimed and last played. Written whole within a
 minute of a change. A keyphrase deleted from the cloud frees its name.
 
@@ -189,12 +191,31 @@ minute of a change. A keyphrase deleted from the cloud frees its name.
   a name, then 2 a second.
 - **The operator:** `nfsu2-server ctl unclaim <name>` frees a name (the console says which).
 
+## Automatic race bans
+
+Automatic race bans are off by default. To enable them, put one or both positive thresholds in the Docker .env
+file and recreate the server container:
+
+- `NFSU2_CAR_BANS=kw=<kW>` bans a race car at or above that power threshold.
+- `NFSU2_CAR_BANS=rating=<value>` uses the game's rated-performance threshold.
+- Both may be combined with a comma or space; either threshold can trigger the ban. The automatic ban lasts two
+  weeks and is applied through the existing server ban store.
+- `NFSU2_BAN_WEBHOOK=<Discord webhook URL>` optionally posts a notice after the ban is stored. Treat the URL as a
+  secret, keep it only in `.env`, and never commit it. An empty value leaves Discord notices disabled.
+
+The Compose file passes these variables to the container. Apply changes with `docker compose up -d server`.
+Malformed or non-positive thresholds disable the automatic policy; an empty `NFSU2_CAR_BANS` leaves it off.
+
 ## Sizing
 
-For up to 6000 players at once (the image's limit; the Node server's was 2000, [From the Node
-server](#from-the-node-server)): 8 vCPU for 2000 and 16 for 4000 to 6000 (4000 in free roam took the Rust server 6-8 cores of a Ryzen 9 5900X,
-and a Cloudflare Tunnel's cloudflared pays for each message again, `web/server-rs/README.md`), 8 GB of memory (the
-compose file's limit), 40 GB of disk and a 1 Gbit/s port with a few TB of traffic a month.
+The Rust image and Docker Compose expose a virtual-LAN admission ceiling of **24,000 peers** (`NFSU2_MAX_PEERS`,
+1–24,000), matching its 24,000-address pool on 10.77.0.0/17. This is a configured switch/address ceiling, **not a
+measured 24,000-player capacity guarantee**. The Free Roam hub has a separate 6,144-player ceiling, and real
+throughput depends on the VPS, player mix, proxy and traffic. The measured planning points remain 2,000 simulated
+Free Roam players on a Ryzen 9 5900X and 1,209 mixed live players behind a Cloudflare Tunnel; larger real deployments
+are unverified. For the earlier 2,000–4,000-player planning range, use 8 vCPU for 2,000 and 16 for 4,000 (4,000
+simulated Free Roam players took 6–8 cores of a Ryzen 9 5900X), 8–16 GB of memory, 40 GB of disk and a 1 Gbit/s
+port with a few TB of traffic a month.
 
 - Measured on a live server behind a Cloudflare Tunnel (16 vCPU, 2026-10-21): 1209 players, 165 of them in the
   game's Online mode and most of the rest in free roam, took the server 0.7 of a core over its 8 workers and 340 MB,
@@ -470,15 +491,16 @@ plays the VP6 movies anyway.
     restarts);
   - closes, without an answer, a connection that asks for another name (the bare address, a scanner's made-up
     name), on 80 and on 443; a TLS handshake without your name fails, so the certificate is not shown;
-  - opens at most 47900 connections to the server (one per request in progress; with 6000 players the Rust server
-    takes 48000, 8 per player; the Node image, at most 2000 players, takes 16000);
+  - opens at most 191900 connections to the server (one per request in progress; the Rust server budgets up to
+    8 connections per peer, or 192000 at 24000 peers; the Node image remains at most 2000 players);
   - has its admin API off: nothing reconfigures it while it runs, and a changed `.env` takes `docker compose up -d`.
 - **NFSU2_HOST is one name.** For a second name, or a wildcard, edit the Caddyfile in `compose.yml` and the
   server's `NFSU2_HOST` (a comma list; `*.example.com` for one label under it). A wildcard certificate needs Let's
   Encrypt's DNS challenge, which the stock Caddy image cannot do.
 - **The server's container** runs as uid 1000, with a read-only root, no capabilities, `no-new-privileges`,
-  8 GB of memory without swap and 32768 open files. Those are the systemd unit's limits, as far as a container has
-  them, but for the memory: the unit's 3 GB was too little for 110 players (2.6 GB). It writes only to `/state`.
+  16 GB of memory without swap and 262144 open files. The descriptor limit leaves room for the switch's maximum
+  192000 peer connections plus listeners and files; the host must permit that ulimit too. This is a resource ceiling,
+  not proof that 24000 active players fit in 16 GB. It writes only to `/state`.
   At the memory limit the kernel stops the server and Docker starts it again.
 - **Keep the state volume.** It holds the ETag key (a new key makes every player's browser download the game data
   again), the switch's addresses (`lan-addresses.json`: a player who reconnects gets the same one back), the
@@ -879,9 +901,10 @@ paths to the VPS, so pick a VPS location between you.
 - **Keepalive:** the switch pings every connection every 25 s. Proxies and Cloudflare then never cut a quiet player,
   and the switch finds players whose connection died.
 - **Limits:**
-  - 6000 players on the switch with the Rust image (`NFSU2_MAX_PEERS=6000`; the server's own default is 128, and
-    6000 is the most addresses it hands out on its virtual network, 10.77.0.0/19: 250 in each of 10.77.0-23.x), 2000 with
-    the Node image (its network is 10.77.0.0/21);
+  - up to 24000 peer addresses on the Rust image (`NFSU2_MAX_PEERS`, default 24000; the standalone binary defaults
+    to 128). The virtual LAN uses 10.77.0.0/17 (250 addresses in each of 10.77.0-95.x). The separate Free Roam
+    hub limit is 6144. These are software ceilings, not a 24000-player load-test result; set `NFSU2_MAX_PEERS` lower
+    for smaller VPS plans. The Node image remains at most 2000 players (10.77.0.0/21);
   - when every place is taken a game waits in line for one, first come first served (nfsu2-lan `queue.rs`): the
     line's first takes the next place that frees up, and while anyone waits a newcomer waits too. The game shows
     its place in line and, once a few went in, about how long it takes at the pace of the last ten minutes; the

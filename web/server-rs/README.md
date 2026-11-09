@@ -26,6 +26,7 @@ ports; give each its own `--state`.  Knobs for measurements, from the environmen
 | `NFSU2_BUNDLE_JITTER` | each tick is the tick give or take this many percent of it, at random (default 40; nfsu2-lan conn.rs `Clock` says why) |
 | `NFSU2_BUNDLE_MAX_MS`, `NFSU2_BUNDLE_BUDGET` | longer than `NFSU2_BUNDLE_MS`: the tick follows the crowd up to it, aiming at the budget's bundles a second in all (125,000) |
 | `NFSU2_LAN_SNDBUF` | SO_SNDBUF of /lan connections (default 32 KiB, which Linux doubles; 0: the kernel's own, which grows to 4 MB) |
+| `NFSU2_ROAM_MAP_MAX` | MAPD World Map record ceiling (default 512; set 2048 to opt into full capacity; height-bearing parked MAPD is capped at 1664). The legacy MAP path remains capped at 690 records (three 230-entry datagrams); 0 or an invalid value uses the default. |
 | `NFSU2_COMPRESS_THREADS` | the threads that compress the game data's blocks once at brotli's best into the state folder's `blocks/` (src/app/kept.rs; default 2, at the lowest priority, waiting while the CPU quota the server shares is 70 % used; 0: none, every block compressed as it is sent) |
 | `NFSU2_REPO` | where the defaults are (web/dist, out/web/nfsu2.wasm, the state in out/web/server): the repo it was built from |
 
@@ -162,7 +163,7 @@ behind, the switch dropped their snapshots; the server stayed at 1.5 cores): 400
   several workers.  Not hyper: the audits' rules need answers of the server's own to requests a library refuses by
   itself, the pipelining cut, a keep-alive time per connection, and the connection budget before any TLS.
 - **The switch** (nfsu2-lan): each connection's reader routes the frames it reads itself, on whatever worker it runs.
-  Who is on the switch changes under one lock; frames find their receivers without it (a table of the 6000
+  Who is on the switch changes under one lock; frames find their receivers without it (a table of the 24000
   addresses, a copy-on-write list of everyone).  Each receiver's writer takes everything queued into one write, and
   makes bundles of a page's datagrams on the bundle clock.  Counters every frame touches are sharded.
 - **Compact bundles** (nfsu2-lan `compact.rs`, kind 33): to a page whose hello says "compact":1 the datagrams go
@@ -226,10 +227,12 @@ players.
 
 ## Where it differs from the Node server
 
-- 6000 players (`--max-peers` 1 to 6000; the image's `NFSU2_MAX_PEERS=6000`), Node's 2000: the switch's network is
-  10.77.0.0/19 (the welcome's mask 255.255.224.0; addresses round twenty-four of its /24s, 10.77.0-23.x), the free-roam
-  hub takes 6144 players, Online mode 3000 lobby sessions, 900 games and 12000 streams.  The game module's peer bits
-  (mailbox v4) cover a /21: for a player on 10.77.8-23.x the game asks that host itself (`runtime/web/net_lan.c`): a LAN race's
+- 24000 virtual-LAN peers (`--max-peers` 1 to 24000; the image's `NFSU2_MAX_PEERS=24000`), Node's 2000: the
+  switch's network is 10.77.0.0/17 (the welcome's mask 255.255.128.0; addresses round ninety-six of its /24s,
+  10.77.0-95.x). This is the switch's address/admission ceiling, not a measured 24000-player throughput claim. The
+  Free Roam hub has its separate 6144-player cap; Online mode 3000 lobby sessions, 900 games and 12000 streams.
+  The game module's peer bits
+  (mailbox v4) cover a /21: for a player on 10.77.8-95.x the game asks that host itself (`runtime/web/net_lan.c`): a LAN race's
   connect to one who has just left sends its SYN and ends after the same 3 s with WSAETIMEDOUT instead of
   WSAEHOSTUNREACH.  Nothing else differs: the page and the module need no change (`crates/lan/tests/page.mjs`).
 - A full switch keeps a line (nfsu2-lan `queue.rs`) for the pages that say they can wait (/lan?queue): Node closed

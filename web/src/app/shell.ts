@@ -19,16 +19,18 @@
 // While any of them is given, the start page says whether it is in effect.
 
 import registryDefaults from '../../../app/registry-defaults.txt';
-import { browserName, check, checkBrowser, checkGpu, checkIsolation, checkStorage, fmtBytes, type Check } from './checks';
-import { codeOf, dateLocale, language as pageLanguage, lastLanguage, listOf, live, N, onLanguage, setLanguage, t, T, tn, tvars, type Msg } from './i18n';
+import { browserName, check, checkBrowser, checkGpu, checkIsolation, checkStorage, fmtBytes, NO_JIT, noJit, type Check } from './checks';
+import { browserLanguage, codeOf, dateLocale, language as pageLanguage, lastLanguage, listOf, live, N, onLanguage, setLanguage, t, T, tn, tvars, type Msg } from './i18n';
 import { loadGame, serverRev, type Loaded } from './loader';
+import { OTHER_BUILD, sessionStore, UPDATE_FOR } from './prefs';
+import type { GameMemory } from '../host/memory';
 import { claimInstance } from './instance';
 import { LogRing, downloadBlob, stamp } from './logs';
 import { LastGameKeeper, lastGameEnd, lastGameLine, lastGameToOffer, type LastGame } from './lastgame';
 import { browserBrief, deviceBrief } from './devicelog';
 import { canFullscreen, enterFullscreen, exitFullscreen, fromHomeScreen, homeScreenInstead, isFullscreen, keepScreenOn, measureRefresh, settledSize, trackCanvasSize } from './display';
-import { deviceDefaults, isPhone, markTouch, noPinchZoom, padSeen, phoneScreen, touchFirst } from './device';
-import { phoneSeed, phoneUpgrade } from './phonegraphics';
+import { deviceDefaults, deviceKind, isPhone, markTouch, noPinchZoom, noteGraphics, padSeen, phoneScreen, touchFirst } from './device';
+import { deviceSeed, phoneUpgrade } from './phonegraphics';
 import { markPad, padPress, pageDialog } from './padnav';
 import { controlsSheet, controlsState as createControlsState, type ControlsSheet, type ControlsState, type Family, type Tab } from './controls';
 import { askMotion, levelHorizon, menuSize, onLevelHorizon, onSteering, setLevelHorizon, setSteering, steering, STEERING, steeringName, touchSize, type Size, type Steering, TouchControls } from './touch';
@@ -39,17 +41,23 @@ import { DriftPanel } from './drift';
 import { PhotoMode } from './photo';
 import type { PadPage } from '../input/gamepad';
 import type { NetQueue, NetRemoved } from '../net';
-import { blockList, checkSetting, HOST_FIXED, pageOnly, resolveEnv, settingsUpgrade, TEMPLATE, type Resolved } from './settings';
+import { blockList, checkSetting, HOST_FIXED, pageOnly, resolveEnv, TEMPLATE, type Resolved } from './settings';
 import { exists, filesOf, listProfiles, PROFILES_DIR, readText, removeSaveDir, writeFile } from './savefs';
 import { turnOnAutosave } from './profile';
 import { crewControl, showCrewCounts } from './crew-control';
 import { putKey, SettingsService } from './settings-service';
-import { askCrews, queueText, roomHash, serverAnswers, watchPlayers, type PlayerCounts } from './players';
-import { crewList, crewsOf, crewsValue, rgbsValue, rgbWords, type Crew } from './crews';
+import { SettingsFile } from './settings-store';
+import { askCrews, askSpots, askWorlds, queueText, roomHash, serverAnswers, watchPlayers, type PlayerCounts } from './players';
+import { isOwn, noGhost, WORLDS, worldName, worldRooms } from './worlds';
+import { checkCrew, CREW_MAX, crewList, crewsOf, crewsValue, rgbsValue, rgbWords, type Crew } from './crews';
+import { queueCrewInvite, removeCrewInvite, type PendingCrewInvite } from './crew-invite-queue';
 import { privacy, SCRUB_NOTE } from './privacy';
 import { SavesPanel } from './saves-ui';
 import { saveScreenshot } from './shots';
 import { forgetLink, VaultPanel } from './vault-ui';
+import { FriendsApi, FriendsPanel, type FriendRow } from './friends';
+import { atName, friendSpot, SAID_LOCKED, SAID_NOT_FOUND, SAID_NOT_NOW, TRACKS, trackRooms, travelSaid, travelState, whyText, WHY_COOP } from './tracks';
+import { FriendPrompt } from './friend-prompt';
 import { Radio, MODES, radioWasOn, type Mode } from '../radio';
 import { canPickMusic, pickMusic } from '../radio-folder';
 import { RadioLink } from './radio-link';
@@ -84,6 +92,7 @@ function takeParams(dev: boolean): string[] {
   const given = TEST_PARAMS.filter(k => addr.has(k));
   if (!given.length || !dev) return given;
   q = addr;
+  DEVICE.language = 'english';      // development test pages render the same language on every computer
   // never the game data's own OPFS folder (savefs keeps names to one segment)
   const save = (q.get('save') || 'save').replace(/[^A-Za-z0-9._-]/g, '_');
   SAVE = save === 'cache' || /^\.+$/.test(save) ? 'save-test' : save;
@@ -143,8 +152,14 @@ let refreshMeasured: Promise<void> = Promise.resolve();
 let session: GameSession | null = null;
 let hudWide = true;                      // the running game's HUD is edge-anchored (hud = wide), not 4:3
 let solidCars: boolean | null = null;    // the running game's free roam has solid cars (null: no free roam)
+let liveWorld: string | null = null;     // the running game's Free Roam world; null outside Free Roam
+let menuWorldCounts = new Map<number, number>();
+let menuWorldAsk = 0;
+let menuTrackCounts = new Map<number, number>();
+let menuTrackAsk = 0;
 let roamCrews: Crew[] | null = null;     // the running game's crews: as it started, then as the menu changed them (null: no free roam)
 let crewDraft = '';                      // the crew name being typed in the menu
+let pendingCrewInvites: PendingCrewInvite[] = []; // up to four invites wait here until accepted, declined or this game ends
 let popCounts = new Map<number, number>();   // how many are in free roam in each of those crews, by hash (askPopCounts)
 let popAsk = 0;                          // the popup's questions so far: only the newest one's answer shows
 let away: AwayCheck | null = null;
@@ -157,13 +172,13 @@ let hiddenAt = 0;                        // when the page was hidden during a ga
 const checks = new Map<string, Check>();
 let diagnosticsBusy = false;
 let instance: ReturnType<typeof claimInstance>;
-let settingsText: string | null = null;
+let settingsFile: SettingsFile | null = null;
 let starting = false;                    // Play pressed, the session not there yet
 let fatal: { what: string; code?: string } | null = null;   // why the running game had to be stopped (English, for t())
 // the last game lost its graphics (GPU-LOST): Safari's WebGPU gives this page no adapter any more, so Play reloads it
 let gpuGone = false;
 let fps: FpsOverlay;
-let statusAt: { memory: WebAssembly.Memory; ptr: number } | null = null;   // the running game's status block
+let statusAt: { memory: GameMemory; ptr: number } | null = null;   // the running game's status block
 let radioLink: RadioLink | null = null;  // the radio's words of the running game, once the game says it has them
 const radioPort = () => radioLink ??= statusAt ? RadioLink.open(statusAt.memory, statusAt.ptr) : null;
 let radio: Radio | null = null;          // made at the first click on Radio: a player who never uses it runs none of it
@@ -174,6 +189,8 @@ let settings: SettingsService;
 let players: { now(): void; last(): PlayerCounts | null; fresh(ms: number): Promise<PlayerCounts | null> } | null = null;
 let saves: SavesPanel;
 let vault: VaultPanel;
+let friendsPanel: FriendsPanel;
+let friendPrompt: FriendPrompt;
 /** the claimed names (claim.ts), and the line under Your name (claim-ui.ts) */
 let claims: NameClaims;
 let nameRow: NameRow;
@@ -302,6 +319,7 @@ function recheckGpu(since = performance.now()) {
     const c = document.visibilityState === 'visible' ? await checkGpu(true) : null;
     if (!c || c.code === 'GPU-ADAPTER-AFTER-LOST') { recheckGpu(since); return; }
     log.add(`[app] the graphics are back after ${((performance.now() - since) / 1000).toFixed(0)} s`);
+    noteGraphics(c.adapter); Object.assign(DEVICE, deviceDefaults());
     setCheck(c);
   }, 10_000);
 }
@@ -326,6 +344,7 @@ async function refreshDiagnostics() {
       checkStorage(),
       checkGameData(),
     ]);
+    noteGraphics(gpu.adapter); Object.assign(DEVICE, deviceDefaults());
     setCheck(gpu);
     const { answer, ...base } = storage;
     setCheck(base);
@@ -397,27 +416,20 @@ function updatePlay() {
 
 // ------------------------------------------------------------- settings --
 async function loadSettings(): Promise<string | null> {
-  let text = await readText(SAVE, 'settings.ini');
-  if (text === null && instance.owner) {
-    text = TEMPLATE;
-    await writeFile(SAVE, 'settings.ini', text);
-    log.add(`[app] settings: wrote template /save/settings.ini`);
-  } else if (text !== null && instance.owner) {
-    const up = settingsUpgrade(text);
-    if (up) { text = up.text; await writeFile(SAVE, 'settings.ini', text); log.add(`[app] settings: added the new options ${up.added.join(', ')} to /save/settings.ini (commented out, defaults unchanged)`); }
-  }
-  settingsText = text;
+  if (!settingsFile) throw new Error('Settings file is not initialized');
+  const text = await settingsFile.load(instance.owner);
   // who plays on this server, asked again with this file's room and crews (the first question went without them)
   players?.now();
   return text;
 }
 /** this device's own defaults (a phone's: device.ts), below settings.ini and the page address */
-const DEVICE = deviceDefaults();
-function resolved(host: Record<string, string> = {}): Resolved { return resolveEnv(settingsText, ENVIRONMENT, host, DEVICE); }
+const DEVICE: Record<string, string> = { language: browserLanguage(), ...deviceDefaults() };
+function resolved(host: Record<string, string> = {}): Resolved { return resolveEnv(settingsFile?.forGame ?? null, ENVIRONMENT, host, DEVICE); }
 /** the game's language (runtime/language.c): which language pack the page fetches ahead and counts */
 const language = (r: Resolved = resolved()) => (r.env.NFSU2_LANGUAGE ?? 'turkish').toLowerCase();
 /** the texture pack picked (runtime/web/texrep_web.c), '' for none: the one the page fetches ahead and counts */
 const texpack = (r: Resolved = resolved()) => { const v = (r.env.NFSU2_UI_TEXTURES ?? '').toLowerCase(); return v === 'original' ? '' : v; };
+const openTunnel = (r: Resolved = resolved()) => /^(1|on|true)$/i.test(r.env.NFSU2_OPEN_TUNNEL ?? '');
 
 // ----------------------------------------------------------------- play --
 function stageCanvas(): HTMLCanvasElement {
@@ -475,11 +487,10 @@ async function askRoam(): Promise<boolean> {
   const answer = confirmBox(t('Free roam with others?'), body, t('Turn on'), false, '', t('Not now'));
   $<HTMLButtonElement>('#confirm-ok').focus();
   const on = await answer;
-  let text = putKey(settingsText ?? TEMPLATE, 'roam', on ? 'on' : 'off').text;
+  let text = putKey(settingsFile?.forGame ?? TEMPLATE, 'roam', on ? 'on' : 'off').text;
   const typed = field?.value.trim() ?? name;
   if (on && typed !== name) text = putKey(text, 'roam_name', typed || null).text;
-  await writeFile(SAVE, 'settings.ini', text);
-  settingsText = text;
+  await settingsFile!.write(text);
   void settings.refresh();
   log.add(`[app] free roam with others: ${on ? 'on' : 'off'} (asked at the first Play${c?.full === true ? ', the server full' : ''})${on && typed !== name ? `, name ${typed || '(the profile\'s)'}` : ''}`);
   return true;
@@ -699,6 +710,7 @@ async function startGame() {
     NFSU2_WIDTH: String(size.w & ~1), NFSU2_HEIGHT: String(size.h & ~1), NFSU2_DISPLAY_HZ: String(displayHz),
   };
   const r = resolved(host);
+  if (r.env.NFSU2_ROAM === '1' && noGhost(r.env.NFSU2_ROAM_ROOM ?? '')) r.env.NFSU2_ROAM_COLLIDE = 'on';
   if (playAs) r.env.NFSU2_ROAM_NAME = playAs;
   // the names this game goes by, for the log as it leaves the browser (privacy.ts)
   privacy.name(r.env.NFSU2_ROAM_NAME, 'you');
@@ -733,8 +745,11 @@ async function startGame() {
     log.add(`[app] registry seeded from ${q.get('reg')} (page address)`);
   } else if (!await exists(SAVE, reg)) {
     if (r.env.NFSU2_SEED_REGISTRY === '0') log.add('[app] no registry yet, the game will run its first-run check');
-    else if (isPhone()) { await writeFile(SAVE, reg, phoneSeed(registryDefaults)); log.add(`[app] first launch, registry seeded with the built-in defaults and a phone's graphics (/save/${reg})`); }
-    else { await writeFile(SAVE, reg, registryDefaults); log.add(`[app] first launch, registry seeded with the built-in defaults (/save/${reg})`); }
+    else {
+      const kind = deviceKind();
+      await writeFile(SAVE, reg, deviceSeed(kind, registryDefaults));
+      log.add(`[app] first launch, registry seeded with the built-in defaults${kind === 'phone' ? " and a phone's graphics" : kind === 'pc' ? ' and Full Scene Anti-Aliasing on' : ''} (/save/${reg})`);
+    }
   } else if (isPhone()) {
     // a phone that started before the phone graphics (phonegraphics.ts): once
     const text = await readText(SAVE, reg);        // null: not read (it is there), left as it is for the next start
@@ -784,15 +799,20 @@ async function startGame() {
     // session's subsystems keep them (some, like a closed AudioContext, a little
     // longer than the game), and a closure from this function would keep its
     // scope, and with it this game, reachable
+    pendingCrewInvites = []; // invitations belong to this running game, not the next one
     session = await GameSession.start({
-      module: loaded!.module, info: loaded!.info, saveDir: SAVE, env: r.env, canvas, stage, audio, displayHz, netName, notice, lobby, say, chat, marks,
+      module: loaded!.module, info: loaded!.info, saveDir: SAVE, env: r.env, canvas, stage, audio, displayHz, netName, notice, lobby, say, bump: friendBump, chat, friend: friendMessage, networkReady: friendsNetworkReady, marks,
       netBack, netQueue, onSaved,
       netId: net ? pageId() : undefined, netClaim: net ? await vault.token().catch(() => null) ?? undefined : undefined, netRemoved,
       netBlock: net && r.env.NFSU2_ROAM === '1' ? blockList(r.env.NFSU2_ROAM_BLOCK ?? '') : undefined,
       artifacts: q.get('artifacts') ?? undefined, dumpScale: q.get('dumpscale') ? +q.get('dumpscale')! : undefined,
       toggleFullscreen, padPage: PAD_PAGE, log: logLine, onFatal: stopFatal, onOtherBuild: otherBuild,
     });
+    liveWorld = net && r.env.NFSU2_ROAM === '1' ? (r.env.NFSU2_ROAM_ROOM ?? '') : null;
+    menuWorldCounts = new Map();
+    friendPrompt.start(session, net && r.env.NFSU2_ROAM === '1');
   } catch (e) {
+    friendPrompt?.stop();
     log.add(`[app] the game could not start: ${e}`);
     void audio?.close().catch(() => {});
     endStage();
@@ -815,9 +835,10 @@ async function startGame() {
   pauseHint.start(session);
   driftPanel.start(session);
   photo.start(session);
-  quickChat.start(session, net && r.env.NFSU2_ROAM === '1' && r.env.NFSU2_ROAM_SAY !== '0',
+  quickChat.start(session, net && r.env.NFSU2_ROAM_SAY !== '0',
     phrasesOf(r.env.NFSU2_ROAM_SAY_PHRASES), groupsOf(r.env.NFSU2_ROAM_SAY_GROUPS),
-    (roamCrews ?? []).map(c => ({ name: c.name, id: roomHash(c.name) })), netName ?? '');
+    (roamCrews ?? []).map(c => ({ name: c.name, id: roomHash(c.name) })), netName ?? '',
+    blockList(r.env.NFSU2_ROAM_BLOCK ?? ''));
   fps.memory = session.proc.memory;
   const st = session;
   let tries = 0;
@@ -884,13 +905,12 @@ function stopFatal(what: string, code?: string) {
  *  copies (sw.ts) and the module from the server, or from a server swapping its module.  The game is stopped and the
  *  page loaded again from the server: once a tab and module, while the server answers; else as any renderer that
  *  did not start. */
-const OTHER_KEY = 'nfsu2-other-build';
 let reloadAtExit = false;
 function otherBuild(why: string) {
   const s = session, rev = loaded!.info.rev;
   if (!s || s.ended) return;
-  let again = true;
-  try { again = sessionStorage.getItem(OTHER_KEY) === rev; if (!again) sessionStorage.setItem(OTHER_KEY, rev); } catch { /* no storage: no reload that could repeat */ }
+  const again = !sessionStore.usable() || sessionStore.get(OTHER_BUILD) === rev;
+  if (!again) sessionStore.set(OTHER_BUILD, rev);
   if (again || offline) {
     log.add(`[app] this page is of another build than game ${rev} (${why}), ${offline ? 'and the server does not answer' : 'after a reload for that too'}`);
     stopFatal(N('the graphics could not start'), 'GPU-RENDERER');
@@ -924,7 +944,7 @@ const cap = (s: string) => s[0].toUpperCase() + s.slice(1);
 /** The page in the game's language (settings.ini language, the page address's on a development server): English until
  *  the player picks another, in Settings or in the list at the top.  A tab that does not own the saves follows the file. */
 function applyLanguage() {
-  void setLanguage(language(resolveEnv(settingsText ?? settings.text, ENVIRONMENT, {}, DEVICE)), logLine);
+  void setLanguage(language(resolveEnv(settingsFile?.forGame ?? settingsFile?.text ?? null, ENVIRONMENT, {}, DEVICE)), logLine);
 }
 
 /** the controller's share of the page while a game runs (gamepad.ts): Home, or both sticks pressed in, opens or
@@ -985,7 +1005,13 @@ function onExit(s: GameSession, code: number) {
   log.add(`[app] the game exited with code ${code} after ${seconds.toFixed(1)} s`);
   keeper.end(code, fatal?.code ?? 'exit');
   s.terminate();
+  friendPrompt?.stop();
   session = null;
+  liveWorld = null;
+  menuWorldAsk++;
+  menuTrackAsk++;
+  menuWorldCounts = new Map();
+  menuTrackCounts = new Map();
   quitAt = null;
   lastExit = { code, seconds };
   endStage();
@@ -1051,10 +1077,11 @@ function pageToast(msg: string | Msg) {
   pageToastTimer = setTimeout(() => live(el, () => ''), 5000);
 }
 
-/** the controls sheet of the start page, in a dialog (F9, Controls, while the game runs), at the page's tab and
- *  button names */
+/** The Controls sheet in the F9 control deck, at the page's current tab and controller family. */
 let controlState: ControlsState, helpSheet: ControlsSheet | null = null;
 function openHelp() {
+  const m = $<HTMLDialogElement>('#menu');
+  if (!m.open) openMenu();
   const body = $('#help-body');
   if (!helpSheet) {
     const template = document.getElementById('controls-help-template') as HTMLTemplateElement | null;
@@ -1064,7 +1091,7 @@ function openHelp() {
   }
   helpSheet.show(controlState.tab);
   helpSheet.family(controlState.fam);
-  $<HTMLDialogElement>('#help').showModal();
+  selectMenuTab('controls');
 }
 
 /** free roam: a friend joined, left, went into a race (who: the friend's name the text starts with); the server
@@ -1094,6 +1121,119 @@ function chat(json: string) {
 }
 function marks(n: number, m: Float32Array, ids: Uint32Array) { quickChat.marks(n, m, ids); }
 /** quick chat's line in the log: a speech balloon, the name, the phrase; in the notices' box, for 8 s */
+function friendBump(json: string) { friendPrompt?.bump(json); }
+function friendsNetworkReady() {
+  void friendsPanel?.refresh(true);
+}
+function removeQueuedCrewInvite(invite: PendingCrewInvite) {
+  pendingCrewInvites = removeCrewInvite(pendingCrewInvites, invite);
+  document.querySelectorAll<HTMLElement>('.friends-crew-invite').forEach(card => {
+    if (card.dataset.crewName?.toLowerCase() === invite.crew.toLowerCase()) card.remove();
+  });
+  const pop = $<HTMLDialogElement>('#crews-pop');
+  if (pop.open) drawPopCrews(root => root.querySelector('.crew-invite-join:not(:disabled)') ?? root.querySelector('input:enabled'));
+}
+function declineCrewInvite(invite: PendingCrewInvite, card?: HTMLElement) {
+  removeQueuedCrewInvite(invite);
+  card?.remove();
+  toast(t('Crew invitation declined'), 3500);
+}
+async function acceptCrewInvite(invite: PendingCrewInvite, join?: HTMLButtonElement, card?: HTMLElement) {
+  if (roamCrews === null || !session?.net) {
+    toast(t('The Free Roam session is no longer active.'), 5000);
+    return;
+  }
+  if (roamCrews.length >= CREW_MAX) {
+    toast(t('Up to 4 crews: leave one to join another.'), 5000);
+    return;
+  }
+  if (join) join.disabled = true;
+  try {
+    const bridge = (window as unknown as { __trpSettingsBridge?: { joinCrewInvite?: (name: string, room: string) => Promise<Crew[]> } }).__trpSettingsBridge;
+    if (!bridge?.joinCrewInvite) throw new Error(t('Crew settings are not ready.'));
+    const next = await bridge.joinCrewInvite(invite.crew, invite.room);
+    roamCrews = next;
+    quickChat.setCrews(next.map(crew => ({ name: crew.name, id: roomHash(crew.name) })));
+    session.net.crews?.(next.map(crew => roomHash(crew.name)), rgbWords(next));
+    const roomReady = session.net.room?.(invite.room) ?? false;
+    if (roomReady) {
+      // A crew invite can move the running game to another world as well as save settings.ini.
+      liveWorld = invite.room;
+      menuWorldCounts = new Map();
+      menuWorldAsk++;
+      const wantedSolid = noGhost(liveWorld) ? true : resolved().env.NFSU2_ROAM_COLLIDE !== '0';
+      if (solidCars !== null && session.net.solid && solidCars !== wantedSolid) {
+        solidCars = wantedSolid;
+        session.net.solid(wantedSolid);
+      }
+      const solid = document.querySelector<HTMLButtonElement>('#menu [data-act="solid"]');
+      if (solid) solid.textContent = ghostLabel();
+      const worldsTab = document.querySelector<HTMLButtonElement>('#menu [data-menu-tab="worlds"]');
+      if (worldsTab) worldsTab.hidden = false;
+      const menu = document.querySelector<HTMLDialogElement>('#menu');
+      if (menu?.open && menu.dataset.activeTab === 'worlds') {
+        drawMenuWorlds();
+        void refreshMenuWorldCounts();
+      }
+      void friendsPanel?.refresh(true);
+      log.add(`[app] crew invitation changed the live world to ${worldName(liveWorld)}`);
+    }
+    const crewsButton = document.querySelector<HTMLElement>('#menu [data-act="crews"]');
+    if (crewsButton) crewsButton.textContent = crewsLabel();
+    removeQueuedCrewInvite(invite);
+    card?.remove();
+    const pop = $<HTMLDialogElement>('#crews-pop');
+    if (pop.open) {
+      drawPopCrews(root => root.querySelector('input:enabled'));
+      void askPopCounts(1500);
+    }
+    toast(t('Joined crew "{crew}"', { crew: invite.crew }), 5000);
+  } catch (error) {
+    if (join) join.disabled = false;
+    toast(String(error), 6000);
+  }
+}
+function friendMessage(message: Record<string, unknown>) {
+  friendsPanel?.server(message);
+  if (message.op === 'mail' && typeof message.from === 'string' && typeof message.body === 'string') {
+    log.add('[friends] message from ' + message.from);
+    return;
+  }
+  if (message.op !== 'crew' || typeof message.name !== 'string' || typeof message.crew !== 'string' || typeof message.room !== 'string') return;
+  const name = message.name.trim();
+  const checkedCrew = checkCrew(message.crew, []);
+  if (!name || !checkedCrew.ok) return;
+  const room = message.room.trim();
+  const checkedRoom = room ? checkSetting('roam_room', room) : null;
+  if (checkedRoom && !checkedRoom.ok) return;
+  const invite = { name, crew: checkedCrew.name, room: checkedRoom?.ok ? checkedRoom.value : '' };
+  pendingCrewInvites = queueCrewInvite(pendingCrewInvites, invite, (roamCrews ?? []).map(crew => crew.name));
+  const pending = pendingCrewInvites.find(item => item.crew.toLowerCase() === invite.crew.toLowerCase());
+  if (!pending) return;
+  document.querySelectorAll<HTMLElement>('.friends-crew-invite').forEach(old => {
+    if (old.dataset.crewName?.toLowerCase() === pending.crew.toLowerCase()) old.remove();
+  });
+  const card = document.createElement('div');
+  card.className = 'friends-crew-invite';
+  card.dataset.crewName = pending.crew;
+  card.setAttribute('role', 'status');
+  const copy = document.createElement('span');
+  copy.textContent = t('{name} invites you to crew "{crew}"', { name: pending.name, crew: pending.crew });
+  const join = document.createElement('button');
+  join.type = 'button';
+  join.textContent = t('Join');
+  join.disabled = (roamCrews ?? []).length >= CREW_MAX;
+  join.onclick = () => void acceptCrewInvite(pending, join, card);
+  const decline = document.createElement('button');
+  decline.type = 'button';
+  decline.textContent = t('Decline');
+  decline.onclick = () => declineCrewInvite(pending, card);
+  card.append(copy, join, decline);
+  $('#stage .toasts').prepend(card);
+  window.setTimeout(() => card.remove(), 20_000);
+  const pop = $<HTMLDialogElement>('#crews-pop');
+  if (pop.open) drawPopCrews(root => root.querySelector('.crew-invite-join:not(:disabled)') ?? root.querySelector('input:enabled'));
+}
 function chatLine(name: string, text: string, me: boolean) {
   const box = $('#notices'), line = document.createElement('div'), b = document.createElement('b');
   line.className = 'chat' + (me ? ' me' : '');
@@ -1226,6 +1366,10 @@ function openMenu() {
   const crews = m.querySelector<HTMLButtonElement>('[data-act="crews"]')!;
   crews.hidden = roamCrews === null || !session?.net?.crews;
   crews.textContent = crewsLabel();
+  const worldsTab = m.querySelector<HTMLButtonElement>('[data-menu-tab="worlds"]');
+  if (worldsTab) worldsTab.hidden = liveWorld === null || !session?.net?.room;
+  const tracksTab = m.querySelector<HTMLButtonElement>('[data-menu-tab="tracks"]');
+  if (tracksTab) tracksTab.hidden = !travelNow();
   m.querySelector<HTMLButtonElement>('[data-act="quit"]')!.textContent = quitLabel();
   showRadio(m);
   syncChatMenuAppearance();
@@ -1238,7 +1382,10 @@ function openMenu() {
     });
   }
   $('#stage').classList.add('cursor');
-  selectMenuTab(m.dataset.activeTab || 'chat');
+  void friendsPanel.refresh();
+  const activeTab = m.dataset.activeTab || 'chat';
+  selectMenuTab(activeTab === 'worlds' && (liveWorld === null || !session?.net?.room) ? 'multiplayer'
+    : activeTab === 'tracks' && !travelNow() ? 'multiplayer' : activeTab);
   m.showModal();
 }
 /** Switch the F9 control deck between real, native game features. */
@@ -1255,6 +1402,196 @@ function selectMenuTab(name: string) {
   for (const page of m.querySelectorAll<HTMLElement>('[data-menu-page]')) {
     page.hidden = page.dataset.menuPage !== name;
   }
+  if (name === 'multiplayer') void friendsPanel.refresh();
+  if (name === 'worlds') {
+    drawMenuWorlds();
+    void refreshMenuWorldCounts();
+  }
+  if (name === 'tracks') {
+    drawMenuTracks();
+    void refreshMenuTrackCounts();
+  }
+}
+
+/** The game's travel state exists only when a compatible career runtime has attached the Tracks feature. */
+const travelNow = () => (session?.input?.travel ? travelState(session.status?.read()?.get('travel')) : null);
+function openTracks() {
+  if (!travelNow()) return;
+  const menu = $<HTMLDialogElement>('#menu');
+  if (!menu.open) openMenu();
+  selectMenuTab('tracks');
+  const box = $('#menu-tracks-box');
+  (box.querySelector<HTMLElement>('[aria-current="true"]') ?? box.querySelector<HTMLElement>('button:not(:disabled)'))?.focus();
+}
+function drawMenuTracks() {
+  const box = $('#menu-tracks-box'), note = $('#menu-tracks-note');
+  const state = travelNow();
+  box.replaceChildren();
+  if (!state) { note.hidden = true; return; }
+  const { at, why } = state;
+  note.textContent = whyText(why);
+  note.hidden = !why;
+  if (at) {
+    const card = document.createElement('div');
+    card.className = 'menu-control-card';
+    const heading = document.createElement('h5'); heading.textContent = t('Back to the city');
+    const detail = document.createElement('p'); detail.className = 'hint'; detail.textContent = t('Return to Bayview city free roam.');
+    const action = document.createElement('button'); action.type = 'button'; action.className = 'btn menu-action';
+    action.textContent = t('Back to the city');
+    action.disabled = !!why && why !== WHY_COOP;
+    action.onclick = () => travelTo(0);
+    card.append(heading, detail, action); box.append(card);
+  }
+  TRACKS.forEach((spot, i) => {
+    const card = document.createElement('div'); card.className = 'menu-control-card';
+    const heading = document.createElement('h5'); heading.textContent = t(spot.name);
+    const count = menuTrackCounts.get(trackRooms(roomHash(liveWorld ?? ''))[i]);
+    const detail = document.createElement('p'); detail.className = 'hint';
+    detail.textContent = count === undefined ? t('Player count unavailable') : t('{n} in free roam', { n: count });
+    const action = document.createElement('button'); action.type = 'button'; action.className = 'btn menu-action';
+    const selected = at === i + 1;
+    action.textContent = selected ? t('Current track') : t('Go to track');
+    action.disabled = selected || !!why;
+    action.setAttribute('aria-pressed', String(selected));
+    action.onclick = () => travelTo(i + 1);
+    card.append(heading, detail, action); box.append(card);
+  });
+}
+async function refreshMenuTrackCounts() {
+  const game = session, ask = ++menuTrackAsk, world = liveWorld;
+  if (!game?.net?.room || world === null || offline) return;
+  const hashes = trackRooms(roomHash(world));
+  const counts = await askSpots(hashes, 5000);
+  if (!counts || ask !== menuTrackAsk || session !== game || liveWorld !== world ||
+      !$<HTMLDialogElement>('#menu').open || $('#menu').dataset.activeTab !== 'tracks') return;
+  menuTrackCounts = counts;
+  drawMenuTracks();
+}
+function travelTo(spot: number) {
+  const state = travelNow(), game = session, menu = $<HTMLDialogElement>('#menu');
+  if (!state || !game?.input?.travel || state.at === spot || (state.why && !(spot === 0 && state.why === WHY_COOP))) return;
+  menu.close();
+  log.add(`[app] Tracks: ${spot ? TRACKS[spot - 1].name : 'back to the city'}`);
+  game.input.travel(spot);
+}
+async function joinFriend(friend: FriendRow) {
+  const game = session;
+  if (!game?.input?.travelFriend || !travelNow() || friend.where !== 'roam' || typeof friend.at !== 'number') return;
+  if (friend.room !== undefined && roomHash(friend.room) !== roomHash(liveWorld ?? '')) {
+    await switchMenuWorld(friend.room);
+    if (session !== game || roomHash(friend.room) !== roomHash(liveWorld ?? '')) return;
+  }
+  const before = travelSaid(game.status?.read()?.get('travel_said'), -1)?.n ?? 0;
+  if (game.input.travelFriend(roomHash(friend.name), friendSpot(friend.room, friend.at))) {
+    $<HTMLDialogElement>('#menu').close();
+    watchFriendTravel(friend.name, before);
+  }
+}
+function watchFriendTravel(name: string, before: number) {
+  const game = session, until = performance.now() + 60000;
+  const timer = window.setInterval(() => {
+    const said = travelSaid(game?.status?.read()?.get('travel_said'), before);
+    if (!said && session === game && performance.now() < until) return;
+    window.clearInterval(timer);
+    if (!said || session !== game) return;
+    if (said.what === SAID_LOCKED) toast(t('{name} is in a part of the city your career has not opened yet.', { name }), 5000);
+    else if (said.what === SAID_NOT_FOUND) toast(t('{name} could not be found in free roam.', { name }), 5000);
+    else if (said.what === SAID_NOT_NOW && whyText(said.why)) toast(whyText(said.why), 5000);
+  }, 250);
+}
+
+/** Draw the F9 World page using the game's live Free Roam room. */
+function drawMenuWorlds() {
+  const box = $('#menu-worlds-box');
+  const current = liveWorld;
+  box.replaceChildren();
+  if (current === null) {
+    const p = document.createElement('p'); p.className = 'hint';
+    p.textContent = t('Free Roam is not active in this game.');
+    box.append(p);
+    return;
+  }
+  const rooms = ['', ...WORLDS, ...(isOwn(current) ? [current] : [])];
+  for (const room of rooms) {
+    const card = document.createElement('div');
+    card.className = 'menu-control-card';
+    const heading = document.createElement('h5');
+    heading.textContent = worldName(room);
+    const count = menuWorldCounts.get(roomHash(room));
+    const detail = document.createElement('p');
+    detail.className = 'hint';
+    detail.textContent = count === undefined ? t('Player count unavailable') : t('{n} in free roam', { n: count });
+    const action = document.createElement('button');
+    action.type = 'button';
+    action.className = 'btn menu-action';
+    const selected = roomHash(room) === roomHash(current);
+    action.textContent = selected ? t('Current world') : t('Switch to this world');
+    action.disabled = selected || !session?.net?.room;
+    action.setAttribute('aria-pressed', String(selected));
+    action.onclick = () => void switchMenuWorld(room);
+    card.append(heading, detail, action);
+    box.append(card);
+  }
+  const input = $<HTMLInputElement>('#menu-own-world');
+  if (document.activeElement !== input) input.value = isOwn(current) ? current : '';
+}
+
+/** Refresh room counts only for the newest request; zero is the main world. */
+async function refreshMenuWorldCounts() {
+  const current = liveWorld, game = session, ask = ++menuWorldAsk;
+  if (current === null || !game?.net?.room || offline) return;
+  const counts = await askWorlds(worldRooms(current), 5000);
+  if (!counts || ask !== menuWorldAsk || session !== game || liveWorld === null ||
+      !$<HTMLDialogElement>('#menu').open || $('#menu').dataset.activeTab !== 'worlds') return;
+  menuWorldCounts = counts;
+  drawMenuWorlds();
+}
+
+/** Change the live game room, then persist it. A failed save restores the live room. */
+async function switchMenuWorld(room: string) {
+  const game = session, previous = liveWorld;
+  if (!game?.net?.room || previous === null) return;
+  const raw = room.trim();
+  let next = '';
+  if (raw) {
+    const checked = checkSetting('roam_room', raw);
+    if (!checked?.ok) {
+      $('#menu-world-status').textContent = t('This world name is invalid.');
+      return;
+    }
+    next = checked.value;
+  }
+  if (roomHash(next) === roomHash(previous)) return;
+  if (!game.net.room(next)) {
+    $('#menu-world-status').textContent = t('This game cannot change its Free Roam world.');
+    return;
+  }
+  liveWorld = next;
+  const text = putKey(settingsFile?.forGame ?? TEMPLATE, 'roam_room', next || null).text;
+  try {
+    await settingsFile!.write(text);
+    if (session !== game) return;
+  } catch (e) {
+    game.net.room(previous);
+    liveWorld = previous;
+    $('#menu-world-status').textContent = t('The previous world was restored because settings.ini could not be saved.');
+    log.add('[app] world change rolled back: ' + e);
+    drawMenuWorlds();
+    return;
+  }
+  await settings.refresh().catch(error => log.add(`[app] settings refresh after world change: ${error}`));
+  if (solidCars !== null && game.net.solid) {
+    // The saved setting remains the player's preference; World 4 overrides it only while active.
+    const wantedSolid = noGhost(next) ? true : resolved().env.NFSU2_ROAM_COLLIDE !== '0';
+    if (solidCars !== wantedSolid) { solidCars = wantedSolid; game.net.solid(wantedSolid); }
+    const solid = $('#menu [data-act="solid"]');
+    if (solid) solid.textContent = ghostLabel();
+  }
+  $('#menu-world-status').textContent = t('World changed to {world}.', { world: worldName(next) });
+  log.add('[app] world changed to ' + worldName(next) + ' (live; saved for the next Play)');
+  void friendsPanel.refresh(true);
+  drawMenuWorlds();
+  void refreshMenuWorldCounts();
 }
 
 /** The menu's chat sliders change only this browser's HUD presentation, not game/network settings. */
@@ -1321,6 +1658,42 @@ async function askPopCounts(ms = 0) {
 function drawPopCrews(focus?: (root: HTMLElement) => Element | null | undefined) {
   const box = $('#crews-pop-box'), had = box.contains(document.activeElement);
   box.replaceChildren();
+  if (pendingCrewInvites.length) {
+    const section = document.createElement('section');
+    section.className = 'crew-invites-waiting';
+    const heading = document.createElement('h3');
+    heading.textContent = t('Pending crew invitations');
+    const list = document.createElement('div');
+    list.className = 'crew-invite-pending-list';
+    for (const invite of pendingCrewInvites) {
+      const row = document.createElement('div');
+      row.className = 'crew-invite-pending-row';
+      const copy = document.createElement('span');
+      copy.className = 'crew-invite-pending-copy';
+      copy.textContent = t('{name} invites you to crew "{crew}"', { name: invite.name, crew: invite.crew });
+      const actions = document.createElement('div');
+      actions.className = 'crew-invite-pending-actions';
+      const join = document.createElement('button');
+      join.type = 'button'; join.className = 'btn crew-invite-join'; join.textContent = t('Join');
+      join.disabled = (roamCrews ?? []).length >= CREW_MAX;
+      join.title = join.disabled ? t('Up to 4 crews: leave one to join another.') : t('Join');
+      join.onclick = () => void acceptCrewInvite(invite, join);
+      const decline = document.createElement('button');
+      decline.type = 'button'; decline.className = 'btn crew-invite-decline'; decline.textContent = t('Decline');
+      decline.onclick = () => declineCrewInvite(invite);
+      actions.append(join, decline);
+      row.append(copy, actions);
+      list.append(row);
+    }
+    section.append(heading, list);
+    if ((roamCrews ?? []).length >= CREW_MAX) {
+      const hint = document.createElement('p');
+      hint.className = 'crew-invite-pending-hint';
+      hint.textContent = t('Up to 4 crews: leave one to join another.');
+      section.append(hint);
+    }
+    box.append(section);
+  }
   crewControl({ list: roamCrews ?? [], id: 'crews-pop-input', labelId: 'crews-pop-title', placeholder: N('Crew name'), counts: popCounts, draft: crewDraft,
     onDraft: v => { crewDraft = v; }, change: (list, f) => void menuCrews(list, f) }, box).setAttribute('aria-labelledby', 'crews-pop-title');
   if (had && focus) ((focus(box) ?? box.querySelector('input:enabled')) as HTMLElement | null)?.focus({ focusVisible: true } as FocusOptions);
@@ -1335,9 +1708,9 @@ async function menuCrews(list: Crew[], focus: (root: HTMLElement) => Element | n
   drawPopCrews(focus);
   void askPopCounts(1500);
   $('#menu [data-act="crews"]').textContent = crewsLabel();
-  let text = putKey(settingsText ?? TEMPLATE, 'roam_crew', list.length ? crewsValue(list.map(c => c.name)) : null).text;
+  let text = putKey(settingsFile?.forGame ?? TEMPLATE, 'roam_crew', list.length ? crewsValue(list.map(c => c.name)) : null).text;
   text = putKey(text, 'roam_crew_colours', list.length ? rgbsValue(list) : null).text;
-  try { await writeFile(SAVE, 'settings.ini', text); settingsText = text; void settings.refresh(); }
+  try { await settingsFile!.write(text); void settings.refresh(); }
   catch (e) { log.add(`[app] settings.ini not written: ${e}`); }
   log.add(`[app] crews: ${list.length ? list.map(c => `${c.name} (${c.rgb})`).join(', ') : 'none'} (the page menu)`);
 }
@@ -1412,20 +1785,33 @@ async function menuAction(act: string) {
     case 'fps': fps.cycle(); m.querySelector<HTMLButtonElement>('[data-act="fps"]')!.textContent = fpsLabel(fps.mode); break;
     case 'solid': {
       if (solidCars === null || !session?.net?.solid) break;
+      if (liveWorld !== null && noGhost(liveWorld)) {
+        solidCars = true;
+        session.net.solid(true);
+        m.querySelector<HTMLButtonElement>('[data-act="solid"]')!.textContent = ghostLabel();
+        toast(t('Ghost mode stays off in World 4.'), 3500);
+        break;
+      }
       solidCars = !solidCars;
       session.net.solid(solidCars);
       m.querySelector<HTMLButtonElement>('[data-act="solid"]')!.textContent = ghostLabel();
       // and in settings.ini for the next game, as Settings, Online, Ghost mode would
-      const text = putKey(settingsText ?? TEMPLATE, 'roam_collide', solidCars ? 'on' : 'off').text;
-      try { await writeFile(SAVE, 'settings.ini', text); settingsText = text; void settings.refresh(); }
+      const text = putKey(settingsFile?.forGame ?? TEMPLATE, 'roam_collide', solidCars ? 'on' : 'off').text;
+      try { await settingsFile!.write(text); void settings.refresh(); }
       catch (e) { log.add(`[app] settings.ini not written: ${e}`); }
       log.add(`[app] solid cars ${solidCars ? 'on' : 'off'} (the page menu)`);
       break;
     }
     case 'crews': openCrews(); break;
+    case 'tracks': openTracks(); break;
+    case 'world-own-save': {
+      const input = $<HTMLInputElement>('#menu-own-world');
+      await switchMenuWorld(input.value);
+      break;
+    }
     case 'radio-folder': case 'radio': await radioClick(act); showRadio(m); break;
     case 'playlist': openPlaylist(); break;
-    case 'help': m.close(); openHelp(); break;
+    case 'help': openHelp(); break;
     case 'offline':
       m.close();
       if (!inLine || !session?.net?.offline) break;
@@ -1439,6 +1825,7 @@ async function menuAction(act: string) {
       if (!s) break;
       const stage = quitStage(s);
       if (stage === 0) {
+        if (!await quitUnsaved(s)) break;
         if (s.requestQuit()) { quitAt = { s, t: performance.now(), forced: false }; toast(t('Quitting: the game saves and closes.'), 5000); break; }
       } else if (stage === 1) {
         // the game's own second-request rule: open save files are finished, then it exits
@@ -1464,7 +1851,26 @@ async function menuAction(act: string) {
 // never offers to cut a save in half that the game is still finishing.
 const FORCED_CLOSE_MAX_MS = 5000 + 2000;
 const STOP_AFTER_MS = FORCED_CLOSE_MAX_MS + 3000;
+/** A quit warning after this long without a save (or when this game has not saved at all). */
+const UNSAVED_MS = 10 * 60_000;
 let quitAt: { s: GameSession; t: number; forced: boolean } | null = null;
+
+/** Warn before a first quit if this session has no recent save; keep the game open on Cancel or a session change. */
+async function quitUnsaved(s: GameSession): Promise<boolean> {
+  if (saved && Date.now() - saved.at < UNSAVED_MS) return true;
+  const last = saved
+    ? t('Last saved at {when} ({name}).', { when: when(saved.at), name: saved.name })
+    : t('Nothing saved during this game yet.');
+  log.add(`[app] quit: ${saved ? `last saved ${Math.round((Date.now() - saved.at) / 60_000)} min ago` : 'nothing saved during this game'}, warned first`);
+  return await confirmBox(
+    t('Quit without saving?'),
+    `${last} ${t('To save, stop the car, press Esc and choose Save.')}`,
+    t('Quit game'),
+    true,
+    'quit'
+  ) && session === s;
+}
+
 function quitStage(s: GameSession): 0 | 1 | 2 {
   if (!s.canQuit()) return 2;
   if (!quitAt || quitAt.s !== s) return 0;
@@ -1543,10 +1949,16 @@ async function loadModule() {
     void checkNewer();
   } catch (e) {
     moduleFails++;
-    const wait = Math.min(30, 2 ** moduleFails);
-    log.add(`[app] the game module did not load (attempt ${moduleFails}): ${e}; next try in ${wait} s`);
     moduleLoading = false;
     setProgress(0);
+    // The interpreter cannot compile the module; retrying cannot fix this browser setting.
+    if (noJit(e)) {
+      log.add(`[app] the game module did not load: ${e}; the JavaScript optimizer is off for this site`);
+      setCheck(check('module', N('Game module'), 'fail', NO_JIT, 'PAGE-NO-JIT'));
+      return;
+    }
+    const wait = Math.min(30, 2 ** moduleFails);
+    log.add(`[app] the game module did not load (attempt ${moduleFails}): ${e}; next try in ${wait} s`);
     live($('#module-download-status'), () => t('The game did not load ({error}). Trying again in {n} s, or press Retry.', { error: String(e), n: wait }));
     setCheck(check('module', N('Game module'), 'fail', N('The game did not load ({error}). Trying again in {n} s, or press Retry.'), 'MODULE-LOAD', { error: String(e), n: wait }));
     moduleTimer = setTimeout(() => void loadModule(), wait * 1000);
@@ -1576,7 +1988,7 @@ async function loadModule() {
 // sessionStorage names the version a reload was for: a reload that still came
 // back without it offers it, and is not repeated by itself.  A test page (the
 // address's test settings) only offers it: its tool drives it.
-const NEWER_EVERY_MS = 5 * 60_000, UPDATE_KEY = 'nfsu2-update';
+const NEWER_EVERY_MS = 5 * 60_000;
 let newer: string | null = null;
 /** the version a reload of this tab was for and did not bring */
 let tried: string | null = null;
@@ -1612,8 +2024,7 @@ function netBack() { setTimeout(() => void checkNewer(), Math.random() * 30_000)
 /** Reload for the server's version rev.  sessionStorage names it (afterUpdate); by itself only then (false: not
  *  reloaded), at Play either way. */
 async function reloadFor(rev: string, why: string, byItself: boolean): Promise<boolean> {
-  let marked = false;
-  try { sessionStorage.setItem(UPDATE_KEY, rev); marked = true; } catch { /* no storage here */ }
+  const marked = sessionStore.set(UPDATE_FOR, rev);
   if (byItself && !marked) return false;
   log.add(`[app] the server has game ${rev} now, this page ${loaded!.info.rev}: reloading (${why})`);
   await reload();
@@ -1621,11 +2032,10 @@ async function reloadFor(rev: string, why: string, byItself: boolean): Promise<b
 }
 /** after a reload for a new version: whether it brought it */
 function afterUpdate() {
-  let want: string | null = null;
-  try { want = sessionStorage.getItem(UPDATE_KEY); } catch { /* no storage here */ }
+  const want = sessionStore.get(UPDATE_FOR);
   if (!want || !loaded) return;
   if (want === loaded.info.rev) {
-    try { sessionStorage.removeItem(UPDATE_KEY); } catch { /* no storage here */ }
+    sessionStore.remove(UPDATE_FOR);
     updated = true;
     log.add(`[app] reloaded for game ${want}: this page has it`);
   } else {
@@ -1721,10 +2131,12 @@ export async function boot() {
   fps.extra = () => session?.stats() ?? {};
   // the language this browser showed last, at once (settings.ini says which it is: applyLanguage, once it is read)
   void setLanguage(lastLanguage(), logLine);
+  settingsFile = new SettingsFile(() => SAVE, line => log.add(line));
   settings = new SettingsService({
     // another language or texture pack counts other files as the game data (its pack); a keyphrase sends the file
-    saveDir: SAVE, environment: ENVIRONMENT, defaults: DEVICE, onSaved: text => {
-      const was = language() + '/' + texpack(); settingsText = text;
+    file: settingsFile!, environment: ENVIRONMENT, defaults: DEVICE, onSaved: (_text, previous) => {
+      const before = resolveEnv(previous, ENVIRONMENT, {}, DEVICE);
+      const was = language(before) + '/' + texpack(before);
       if (language() + '/' + texpack() !== was) void saves.refresh();
       vault?.changed(); players?.now();
       applyLanguage();
@@ -1734,28 +2146,31 @@ export async function boot() {
     // the tab that owns the saves is the one whose Play reads the file: another tab only looks
     readOnly: () => !instance.owner, say: pageToast, confirm: confirmBox,
   });
-  window.__trpSettingsBridge = {
-    current: key => settings.current(key),
+  Object.assign(window, {
+    __trpSettingsBridge: {
+    current: (key: string) => settings.current(key),
     snapshot: () => settings.reactSnapshot(),
     rawSnapshot: () => settings.rawSnapshot(),
-    saveRaw: async text => { const message = await settings.saveRawFromReact(text); window.dispatchEvent(new Event('trp-settings-changed')); return message; },
+    saveRaw: async (text: string) => { const message = await settings.saveRawFromReact(text); window.dispatchEvent(new Event('trp-settings-changed')); return message; },
     resetAll: async () => { const reset = await settings.resetAllFromReact(); window.dispatchEvent(new Event('trp-settings-changed')); return reset; },
-    resetOther: async (line, key) => { await settings.resetOtherFromReact(line, key); window.dispatchEvent(new Event('trp-settings-changed')); },
-    setOption: async (key, value) => { await settings.setFromReact(key, value); window.dispatchEvent(new Event('trp-settings-changed')); },
-    resetOption: async key => { await settings.resetFromReact(key); window.dispatchEvent(new Event('trp-settings-changed')); },
-    previewOption: (key, value) => settings.previewFromReact(key, value),
-    stopPreviewOption: key => settings.stopPreviewFromReact(key),
-    set: async (key, value) => { await settings.set(key, value); window.dispatchEvent(new Event('trp-settings-changed')); },
-    setValidated: async (key, value) => { await settings.setValidated(key, value); window.dispatchEvent(new Event('trp-settings-changed')); },
+    resetOther: async (line: number, key: string) => { await settings.resetOtherFromReact(line, key); window.dispatchEvent(new Event('trp-settings-changed')); },
+    setOption: async (key: string, value: string) => { await settings.setFromReact(key, value); window.dispatchEvent(new Event('trp-settings-changed')); },
+    resetOption: async (key: string) => { await settings.resetFromReact(key); window.dispatchEvent(new Event('trp-settings-changed')); },
+    previewOption: (key: string, value: string) => settings.previewFromReact(key, value),
+    stopPreviewOption: (key: string) => settings.stopPreviewFromReact(key),
+    set: async (key: string, value: string) => { await settings.set(key, value); window.dispatchEvent(new Event('trp-settings-changed')); },
+    setValidated: async (key: string, value: string) => { await settings.setValidated(key, value); window.dispatchEvent(new Event('trp-settings-changed')); },
     crews: () => crewsOf(settings.current('roam_crew'), settings.current('roam_crew_colours')),
-    crewCount: name => settings.crewCount(roomHash(name)),
-    setCrews: async list => { await settings.saveCrewsFromReact(list); window.dispatchEvent(new Event('trp-settings-changed')); },
+    crewCount: (name: string) => settings.crewCount(roomHash(name)),
+    setCrews: async (list: readonly Crew[]) => { await settings.saveCrewsFromReact(list); window.dispatchEvent(new Event('trp-settings-changed')); },
+    joinCrewInvite: async (name: string, room: string) => { const next = await settings.joinCrewInvite(name, room); window.dispatchEvent(new Event('trp-settings-changed')); return next; },
     quickChat: () => ({ phrases: phrasesOf(settings.current('quick_chat_phrases')), groups: groupsOf(settings.current('quick_chat_groups')) }),
-    saveQuickChat: async (phrases, groups) => { await settings.saveQuickChatFromReact(phrases, groups); window.dispatchEvent(new Event('trp-settings-changed')); },
+    saveQuickChat: async (phrases: readonly number[], groups: readonly string[]) => { await settings.saveQuickChatFromReact(phrases, groups); window.dispatchEvent(new Event('trp-settings-changed')); },
     readOnly: () => !instance.owner,
     onlineStatus: () => settings.onlineStatus(),
     refresh: async () => { await settings.refresh(); window.dispatchEvent(new Event('trp-settings-changed')); },
-  };
+    },
+  });
   window.dispatchEvent(new Event('trp-settings-ready'));
 
   setupPlatformFeatures(settings, confirmBox, logLine);
@@ -1764,10 +2179,10 @@ export async function boot() {
   players = watchPlayers((line, crews) => { settings.setStatus(line); settings.setCrewCounts(crews); window.dispatchEvent(new Event('trp-settings-changed')); }, () => !session && !starting, setReach,
     () => { const e = resolved().env; return e.NFSU2_ROAM === '1' ? e.NFSU2_ROAM_ROOM ?? '' : ''; },
     () => crewList(resolved().env.NFSU2_ROAM_CREW ?? '').map(roomHash));
-  window.addEventListener('online', () => players?.now());
+  window.addEventListener('online', () => { players?.now(); if ($<HTMLDialogElement>('#menu').open) void friendsPanel.refresh(); });
   window.addEventListener('resize', placeNotices);
   window.addEventListener('resize', placeLobby);
-  download = new Predownload(s => saves.showData(s), logLine, () => language(), () => texpack());
+  download = new Predownload(s => saves.showData(s), logLine, () => language(), () => texpack(), () => openTunnel());
   saves = new SavesPanel({
     saveDir: SAVE, busy: () => !!session || starting || !instance.owner, confirm: confirmBox,
     onRestored: () => { void loadSettings(); void settings.refresh(); }, download, onChanged: () => vault.changed(),
@@ -1830,6 +2245,18 @@ export async function boot() {
     putBack: () => vault.putBackFromReact(),
   };
   window.dispatchEvent(new Event('trp-vault-ready'));
+  const friendsApi = new FriendsApi(() => vault ? vault.token() : Promise.resolve(null));
+  friendsPanel = new FriendsPanel($('#friends-panel'), friendsApi, logLine, () => resolved().env.NFSU2_ROAM_ROOM ?? '',
+    friend => void joinFriend(friend), () => !!session?.input?.travelFriend && !!travelNow());
+  friendPrompt = new FriendPrompt($('#stage'), { api: friendsApi, friendKey: () => { const key = resolved().env.NFSU2_KEY_FRIEND; return !key ? 'KeyF' : key.toLowerCase() === 'off' ? null : key; }, toast, log: logLine, refresh: () => { void friendsPanel.refresh(true); } });
+  Object.assign(window, {
+    __trpFriendsBridge: {
+      refresh: () => friendsApi.room(resolved().env.NFSU2_ROAM_ROOM ?? ''),
+      act: (op: 'ask' | 'accept' | 'decline' | 'remove' | 'block', name: string) => friendsApi.act(op, name),
+      crew: (name: string, crew: string) => friendsApi.crew(name, crew, resolved().env.NFSU2_ROAM_ROOM ?? ''),
+    },
+  });
+  window.dispatchEvent(new Event('trp-friends-ready'));
   $<HTMLButtonElement>('#play').onclick = () => void play();
   $<HTMLButtonElement>('#retry').onclick = () => void loadModule();
   $<HTMLButtonElement>('#reload').onclick = () => void reload();
@@ -1937,7 +2364,9 @@ export async function boot() {
   stageMenu.onclick = () => { if (session) openMenu(); };
   $('#stage').addEventListener('pointerdown', e => { if (e.pointerType === 'touch') stageMenu.hidden = false; }, { capture: true });
   quickChat = new QuickChat($('#stage'), { line: chatLine, lobby: (name, text) => lobbyPanel.say(name, text), place: placeNotices, log: logLine });
-  touch = new TouchControls($('#stage'), { toast, log: logLine, chat: () => quickChat.toggle() });
+  touch = new TouchControls($('#stage'), {
+    toast, log: logLine, chat: () => quickChat.toggle(), raceChatOn: () => quickChat.enabled,
+  });
   textField = new TextField($('#stage'), { log: logLine });
   pauseHint = new PauseHint($('#stage'), {
     open: openMenu, log: logLine,
@@ -1966,13 +2395,17 @@ export async function boot() {
   void saves.refresh();
   void vault.start();
   void instance.whenOwner.then(async () => { await loadSettings(); evaluate(); void settings.refresh(); void saves.refresh(); vault.ownerNow(); });
-  void checkGpu(lastGame?.ended?.why === 'GPU-LOST').then(c => { setCheck(c); if (c.code === 'GPU-ADAPTER-AFTER-LOST') recheckGpu(); });
+  void checkGpu(lastGame?.ended?.why === 'GPU-LOST').then(c => {
+    noteGraphics(c.adapter); Object.assign(DEVICE, deviceDefaults());
+    setCheck(c); if (c.code === 'GPU-ADAPTER-AFTER-LOST') recheckGpu();
+  });
   // Firefox's answer to its storage prompt comes later: the check again then
   void checkStorage().then(({ answer, ...c }) => { setCheck(c); void answer?.then(setCheck); });
   void checkGameData().then(setCheck);
   refreshMeasured = measureRefresh(60).then(r => { displayHz = r.hz; log.add(`[app] display refresh ${r.raw.toFixed(1)} Hz -> ${r.hz}`); });
 
-  if (crossOriginIsolated) await loadModule();
+  // If WebAssembly is unavailable entirely, checkIsolation has already identified the site's disabled optimizer.
+  if (crossOriginIsolated) { if (typeof WebAssembly !== 'undefined') await loadModule(); }
   else setCheck(check('module', N('Game module'), 'fail', N('Not loaded: the page is not isolated (see above).'), 'MODULE-NOT-ISOLATED'));
   evaluate();
   (window as any).__nfsu2 = {
@@ -1980,7 +2413,7 @@ export async function boot() {
     get session() { return session; }, log, save: SAVE, download: () => download.status, offline: () => offline, displayHz: () => displayHz, retryModule: () => loadModule(),
     newer: () => newer, tried: () => tried, touch: () => touch.state(), textField: () => textField.state(), renderCheck: () => renderCheck?.state() ?? null,
     quickChat: () => quickChat.state(), quickChatStick: (x: number, y: number) => quickChat.stick(x, y),
-    env: () => resolved().env, settingsText: () => settingsText, checks: () => [...checks.values()],
+    env: () => resolved().env, settingsText: () => settingsFile?.forGame ?? settingsFile?.text ?? null, checks: () => [...checks.values()],
     fpsMode: (m?: FpsMode) => { if (m && FPS_MODES.includes(m)) fps.set(m); return fps.mode; },
     quitTimes: { forcedCloseMaxMs: FORCED_CLOSE_MAX_MS, stopAfterMs: STOP_AFTER_MS },
   };

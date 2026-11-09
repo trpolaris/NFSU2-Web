@@ -299,6 +299,12 @@ int roam_plat_said(const char *json){
     if (n <= 0 || n > (int)NET_MAX_PAYLOAD) return 1;
     return tx_push(NET_KIND_SAY, 0, 0, (const uint8_t *)json, n) ? 1 : -1;
 }
+int roam_plat_friend(const char *json){
+    int n = (int)strlen(json);
+    if (!MB) return -1;
+    if (n <= 0 || n > (int)NET_MAX_PAYLOAD) return 1;
+    return tx_push(NET_KIND_FRIEND, 0, 0, (const uint8_t *)json, n) ? 1 : -1;
+}
 void roam_plat_say_marks(const uint32_t *ids, const float *xys, int n){
     GwMark m[GW_MARKS_MAX];
     if (n > GW_MARKS_MAX) n = GW_MARKS_MAX;
@@ -313,6 +319,22 @@ uint32_t roam_plat_crews(uint32_t crews[RC_CREW_MAX], uint32_t rgb[RC_CREW_MAX])
         if (!g) return 0;
         for (int i = 0; i < RC_CREW_MAX; i++){ crews[i] = i < 4 ? ld(&MB->crews[i]) : 0; rgb[i] = i < 4 ? ld(&MB->crews_rgb[i]) & 0xffffffu : 0; }
         if (ld(&MB->crews_gen) == g) return g;
+    }
+    return 0;
+}
+
+/* The page's room name is copied between matching generation reads so a
+ * concurrent write cannot expose a partially updated value to Free Roam. */
+uint32_t roam_plat_room(char name[64]){
+    for (int tries = 0; MB && tries < 4; tries++){
+        uint32_t gen = ld(&MB->room_gen);
+        if (!gen) return 0;
+        for (int i = 0; i < 16; i++){
+            uint32_t word = ld(&MB->room_name[i]);
+            for (int k = 0; k < 4; k++) name[4 * i + k] = (char)(word >> (8 * k));
+        }
+        name[63] = 0;
+        if (ld(&MB->room_gen) == gen) return gen;
     }
     return 0;
 }

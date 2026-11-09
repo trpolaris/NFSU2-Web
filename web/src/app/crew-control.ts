@@ -107,8 +107,9 @@ export function crewControl(o: CrewControl, ctl: HTMLElement): HTMLInputElement 
   const check = () => {
     const r = checkCrew(inp.value, list.map(c => c.name)), full = list.length >= CREW_MAX;
     inp.disabled = full; join.disabled = !r.ok;
-    note.textContent = r.ok || !r.why ? '' : t(r.why, { name: r.name ?? '' });
-    note.classList.toggle('warn', !full);
+    const why = r.ok || !r.why ? '' : t(r.why, { name: r.name ?? '' });
+    note.textContent = why || (list.length ? '' : t('No crew yet? Agree on a name with your friends and each type it here, or open a crew\'s invite link.'));
+    note.classList.toggle('warn', !!why && !full);
     return r;
   };
   const add = () => {

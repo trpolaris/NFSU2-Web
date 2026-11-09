@@ -381,8 +381,7 @@ async fn player_hub_profiles_and_garage_are_session_scoped_and_csrf_protected() 
 
     let a = kit.get("/api/v1/session", &[]).await;
     assert_eq!(a.status, 200, "{}", String::from_utf8_lossy(&a.body));
-    let cookie_a = a.header("set-cookie").expect("a new host-only session cookie")
-        .split(';').next().expect("a cookie pair").to_string();
+    let cookie_a = a.header("set-cookie").expect("a new host-only session cookie").split(';').next().expect("a cookie pair").to_string();
     let token_a = cookie_a.split_once('=').expect("cookie token").1.to_string();
     assert!(a.header("set-cookie").unwrap().contains("HttpOnly"));
     assert!(a.header("set-cookie").unwrap().contains("Secure"));
@@ -394,47 +393,44 @@ async fn player_hub_profiles_and_garage_are_session_scoped_and_csrf_protected() 
     let unauthenticated = kit.get("/api/v1/me", &[]).await;
     assert_eq!(unauthenticated.status, 401);
 
-    let without_csrf = kit.request(
-        "PUT",
-        "/api/v1/me",
-        &[("Cookie", cookie_a.as_str()), ("Content-Type", "application/json")],
-        br#"{"displayName":"Blocked"}"#,
-    ).await;
+    let without_csrf = kit
+        .request(
+            "PUT",
+            "/api/v1/me",
+            &[("Cookie", cookie_a.as_str()), ("Content-Type", "application/json")],
+            br#"{"displayName":"Blocked"}"#,
+        )
+        .await;
     assert_eq!(without_csrf.status, 403);
 
-    let update_profile = kit.request(
-        "PUT",
-        "/api/v1/me",
-        &[
-            ("Cookie", cookie_a.as_str()),
-            ("X-TRP-CSRF", csrf_a.as_str()),
-            ("Content-Type", "application/json"),
-        ],
-        br#"{"displayName":"Driver A","bio":"Night racer","favoriteCar":"Skyline GT-R"}"#,
-    ).await;
+    let update_profile = kit
+        .request(
+            "PUT",
+            "/api/v1/me",
+            &[("Cookie", cookie_a.as_str()), ("X-TRP-CSRF", csrf_a.as_str()), ("Content-Type", "application/json")],
+            br#"{"displayName":"Driver A","bio":"Night racer","favoriteCar":"Skyline GT-R"}"#,
+        )
+        .await;
     assert_eq!(update_profile.status, 200, "{}", String::from_utf8_lossy(&update_profile.body));
     let updated: serde_json::Value = serde_json::from_slice(&update_profile.body).unwrap();
     assert_eq!(updated["profile"]["displayName"], "Driver A");
     assert_eq!(updated["profile"]["favoriteCar"], "Skyline GT-R");
 
-    let add_vehicle = kit.request(
-        "POST",
-        "/api/v1/garage",
-        &[
-            ("Cookie", cookie_a.as_str()),
-            ("X-TRP-CSRF", csrf_a.as_str()),
-            ("Content-Type", "application/json"),
-        ],
-        br#"{"manufacturer":"Nissan","model":"Skyline GT-R","year":2002,"notes":"Player-entered test vehicle"}"#,
-    ).await;
+    let add_vehicle = kit
+        .request(
+            "POST",
+            "/api/v1/garage",
+            &[("Cookie", cookie_a.as_str()), ("X-TRP-CSRF", csrf_a.as_str()), ("Content-Type", "application/json")],
+            br#"{"manufacturer":"Nissan","model":"Skyline GT-R","year":2002,"notes":"Player-entered test vehicle"}"#,
+        )
+        .await;
     assert_eq!(add_vehicle.status, 201, "{}", String::from_utf8_lossy(&add_vehicle.body));
     let added: serde_json::Value = serde_json::from_slice(&add_vehicle.body).unwrap();
     let vehicle_id = added["vehicles"][0]["id"].as_str().expect("created vehicle id").to_string();
 
     let b = kit.get("/api/v1/session", &[]).await;
     assert_eq!(b.status, 200);
-    let cookie_b = b.header("set-cookie").expect("a second private session cookie")
-        .split(';').next().expect("a cookie pair").to_string();
+    let cookie_b = b.header("set-cookie").expect("a second private session cookie").split(';').next().expect("a cookie pair").to_string();
     let other_profile = kit.get("/api/v1/me", &[("Cookie", cookie_b.as_str())]).await;
     let other: serde_json::Value = serde_json::from_slice(&other_profile.body).unwrap();
     assert_eq!(other_profile.status, 200);
@@ -444,16 +440,14 @@ async fn player_hub_profiles_and_garage_are_session_scoped_and_csrf_protected() 
     assert_eq!(other_garage.status, 200);
     assert_eq!(other["count"], 0);
 
-    let delete_vehicle = kit.request(
-        "DELETE",
-        &format!("/api/v1/garage/{vehicle_id}"),
-        &[
-            ("Cookie", cookie_a.as_str()),
-            ("X-TRP-CSRF", csrf_a.as_str()),
-            ("Content-Type", "application/json"),
-        ],
-        b"",
-    ).await;
+    let delete_vehicle = kit
+        .request(
+            "DELETE",
+            &format!("/api/v1/garage/{vehicle_id}"),
+            &[("Cookie", cookie_a.as_str()), ("X-TRP-CSRF", csrf_a.as_str()), ("Content-Type", "application/json")],
+            b"",
+        )
+        .await;
     assert_eq!(delete_vehicle.status, 200, "{}", String::from_utf8_lossy(&delete_vehicle.body));
     let deleted: serde_json::Value = serde_json::from_slice(&delete_vehicle.body).unwrap();
     assert_eq!(deleted["count"], 0);
@@ -475,10 +469,6 @@ async fn player_hub_rejects_cross_origin_session_bootstrap() {
     let same_origin_without_origin_header = kit.get("/api/v1/session", &[]).await;
     assert_eq!(same_origin_without_origin_header.status, 200);
 
-    let cross_origin = kit.get(
-        "/api/v1/session",
-        &[("Origin", "https://attacker.example")],
-    ).await;
+    let cross_origin = kit.get("/api/v1/session", &[("Origin", "https://attacker.example")]).await;
     assert_eq!(cross_origin.status, 403, "{}", String::from_utf8_lossy(&cross_origin.body));
 }
-

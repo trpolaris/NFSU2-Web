@@ -5,14 +5,15 @@
 // waits for career free roam, the only place with a phone, and a profile that has it already counts.  Without
 // storage (a private window) each load counts from 0.
 import type { GameSession } from './game';
+import { localStore, PLAY_MS, PLAY_SMS } from './prefs';
 
 export const SMS_AFTER_MS = 2 * 3600_000;
-const PLAYED = 'nfsu2.play.ms', SENT = 'nfsu2.play.sms';
+const PLAYED = PLAY_MS, SENT = PLAY_SMS;
 const MSG = 1;                          /* sms.c: "Enjoying the game?" */
 const IDLE_MS = 5 * 60_000, TICK_MS = 5000;
 
-const read = (key: string): string | null => { try { return localStorage.getItem(key); } catch { return null; } };
-const write = (key: string, v: string) => { try { localStorage.setItem(key, v); } catch { /* not kept */ } };
+const read = (key: string): string | null => localStore.get(key);
+const write = (key: string, v: string) => { localStore.set(key, v); };
 
 export class PlayTime {
   private timer: ReturnType<typeof setInterval> | null = null;

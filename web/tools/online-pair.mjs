@@ -13,6 +13,7 @@
 //        [--ranked]  the host creates a ranked game (Options: Game Type)
 //        [--horn]    in the race each instance holds N (its horn, runtime/racehorn.c) for a second, one after the
 //                    other: instance n 3 + 4 (n - 1) s after the start; the others' logs say "[horn] <name>'s horn"
+//        [--say]      each player sends one Quick Chat phrase in the race and another on results; peers must receive both
 //        [--quit-mid N:MS]   instance N's game quits MS after its race started (the others race on)
 //        [--racewin N:MS]   instance N's game ends its race MS after it started, the way not driven (racewin: as a
 //                    cheat that finishes the race at once does; the server's [cheat] lines see it)
@@ -75,6 +76,7 @@ const WAIT_ROOM = +opt('wait-room', 70000), JOIN_WAIT = +opt('join-wait', 40000)
 const MODES = { circuit: 0, sprint: 1, drag: 2, drift: 3, streetx: 4 };
 const RANKED = argv.includes('--ranked');
 const HORN = argv.includes('--horn');
+const SAY = argv.includes('--say');
 const EA_LOGIN = argv.includes('--ea-login') || argv.includes('--canary');
 // --quit-mid N:MS: instance N quits its game MS after its race started (the others race on)
 const QUIT_MID = opt('quit-mid', '') ? opt('quit-mid', '').split(':').map(Number) : [0, 0];
@@ -256,6 +258,14 @@ function raceFlow(w, host, race, raceMs, inst) {
     w('+0    autopilot on 6000'); w('+0    wzero'); w('+0    log race-start');
   }
   if (HORN && race === 1) { w(`+${3000 + 4000 * (inst - 1)}ms log horn`); w('+0    down N'); w('+1000ms up N'); }
+  // Phrase p = 4 * (group - 1) + place - 1 in the default sixteen-phrase layout.
+  const place = (inst - 1) % 4 + 1;
+  const say = (group, label) => {
+    w('+0    log ' + label);
+    if (PAGE === 'app') w('+0    log KEY Digit' + group + ' Digit' + place);
+    else w('+0    roam racesay ' + (4 * (group - 1) + place - 1));
+  };
+  if (SAY && race === 1) { w('+' + (12000 + 3000 * (inst - 1)) + 'ms log say-race'); say(1, 'say'); }
   if (RACEWIN[0] === inst) { w(`+${RACEWIN[1]}ms log racewin`); w('+0    racewin'); }
   if (QUIT_MID[0] === inst) {
     // this player's process ends in the middle of the race (sockets closed, nothing more sent)
@@ -269,6 +279,7 @@ function raceFlow(w, host, race, raceMs, inst) {
   w(`+0    waitfng ${RANKED ? 'UI_PostRace_TournResults.fng' : 'UI_PostRaceResults.fng'} 30000`);
   w(`+0    log results${x}`);
   w('+0    untrace');
+  if (SAY && race === 1) { w('+' + (1000 * inst) + 'ms log say-results'); say(4, 'say'); w('+' + (20000 - 1000 * inst) + 'ms log said'); }
   w(`+180  dump results${x}`);
   w(`+3000ms dump results_2${x}`);
   if (RANKED) {
@@ -290,6 +301,7 @@ const COMMON = {
   NFSU2_STATUS_EVERY: '600', NOMOVIES: '1', SNDSYNC: '0', GPUVS: '1', NFSU2_OL_NAME: '', NFSU2_OL_PASS: PASSWORD,
 };
 for (const kv of opts('env')) COMMON[kv.slice(0, kv.indexOf('='))] = kv.slice(kv.indexOf('=') + 1);
+if (SAY && COMMON.NFSU2_ROAM_SAY === undefined) COMMON.NFSU2_ROAM_SAY = '1';
 const stamp = Date.now().toString(36);
 // the scripts are answered by this tool (Playwright's request interception) at a path of the page's own
 // origin (the server's Content-Security-Policy refuses data: URLs; it serves only the repository's tests/)
@@ -386,8 +398,16 @@ async function start(i) {
     w(s); lines.push(s); console.log(`online-pair: ${NAMES[i]} ${s.slice(14)}`);
   }).catch(e => w(`[online-pair] tab switch failed: ${e}`)));
   const hideRe = hide && new RegExp(`\\bLOG ${hide.from}$`), showRe = hide && new RegExp(`\\bLOG ${hide.to}(_r\\d+)?$`);
+  // Script log KEY requests presses on the web page; script key commands still target only the guest game.
+  let pageKeys = Promise.resolve();
+  const pressPageKeys = codes => (pageKeys = pageKeys.then(async () => {
+    for (const code of codes) { await page.keyboard.press(code); await new Promise(r => setTimeout(r, 250)); }
+    w('[online-pair] pressed ' + codes.join(' '));
+  }).catch(e => w('[online-pair] key press failed: ' + e)));
   page.on('console', m => {
     const t = m.text(); w(t);
+    const pageKeyRequest = PAGE === 'app' && /\bLOG KEY ([\w ]+)$/.exec(t);
+    if (pageKeyRequest) void pressPageKeys(pageKeyRequest[1].trim().split(/\s+/));
     const g = /^\[\d+!?\] ([^]*)$/.exec(t);
     if (g) lines.push(g[1]); else { const e = /^EXIT (-?\d+)$/.exec(t); if (e) exit = +e[1]; lines.push(t); }
     if (PAGE === 'app') { const x = /guest exited with code (-?\d+)|\[app\] the game exited with code (-?\d+)/.exec(t); if (x) exit = +(x[1] ?? x[2]); }
@@ -461,6 +481,26 @@ for (const x of inst) {
   if (log.includes('UNRESOLVED INDIRECT')) why.push(`${n}:unresolved-icall`);
   if (has(/^\[net\] BLOCKED/m)) why.push(`${n}:net-blocked`);
   if (has(/^PAGEERROR|^CRASH/m)) why.push(`${n}:page-error`);
+  if (SAY && flow) {
+    const env = (i, key) => [...opts('env'), ...opts('env-i' + (i + 1))]
+      .filter(kv => kv.startsWith(key + '=')).map(kv => kv.slice(key.length + 1)).pop();
+    const off = i => /^(0|off)$/i.test(env(i, 'NFSU2_ROAM_SAY') ?? '');
+    const blocked = new Set((env(x.i, 'NFSU2_ROAM_BLOCK') ?? '').split(',').map(v => v.trim().toLowerCase()).filter(Boolean));
+    for (const y of inst) {
+      if (y === x || QUIT_MID[0] === y.i + 1) continue;
+      const place = y.i % 4 + 1;
+      for (const phrase of [place - 1, 11 + place]) {
+        const sent = PAGE === 'app'
+          ? log.split('\n').some(line => line.includes('[chat] ' + y.name + ' said ' + phrase + ' (') && line.includes(', in the race'))
+          : log.includes('[racechat] ' + y.name + ' said phrase ' + phrase + ' ');
+        const isBlocked = PAGE === 'app' && blocked.has(y.name.toLowerCase());
+        const blockedLine = log.includes('[chat] ' + y.name + ' said ' + phrase + ', in the race: not shown (blocked)');
+        const expected = off(x.i) || off(y.i) ? !sent
+          : isBlocked ? blockedLine && !sent : sent;
+        if (!expected) why.push(n + ':say-' + y.name + '-' + phrase);
+      }
+    }
+  }
   if (HIDE?.n === x.i + 1) {
     // in the background the game was told (deactivated) and kept running in the network session
     if (!x.hidden.some(h => h.state === 'hidden')) why.push(`${n}:never-hidden`);
@@ -474,6 +514,7 @@ for (const x of inst) {
     online: grab(/^\[net\] (online|virtual LAN: tcp connect 10\.77\.0\.1)/).slice(0, 8),
     lanstats: grab(/^\[net\] virtual LAN (stats|at exit)/).slice(-1),
     ...(HIDE?.n === x.i + 1 ? { hidden: x.hidden, background: grab(/^app: (de)?activated|the game keeps running|^\[online-pair\]/) } : {}),
+    ...(SAY ? { chat: grab(/^\[(racechat|chat)\] /) } : {}),
     why,
   };
   summary.why.push(...why);

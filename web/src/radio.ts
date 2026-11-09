@@ -6,18 +6,18 @@ import type { Lines, Place, RadioLink } from './app/radio-link';
 import { keptFolder, keepFolder, reopenFolder, sortedTracks, subfolderOf, type Folder, type Picked } from './radio-folder';
 import { plaqueTags, tagsOf } from './radio-tags';
 
+import { localStore, RADIO_MODES, RADIO_NEXT, RADIO_ON, RADIO_SHUFFLE } from './app/prefs';
+
 export type Mode = 'menu' | 'racing' | 'all' | 'off';
 export const MODES: readonly Mode[] = ['menu', 'racing', 'all', 'off'];
 export type PickFolder = () => Promise<Picked | null>;
-const MODES_KEY = 'nfsu2.radio.modes', ON_KEY = 'nfsu2.radio.on';   // {path in the folder: mode} without the All ones; '1': left on
-const NEXT_KEY = 'nfsu2.radio.next', SHUFFLE_KEY = 'nfsu2.radio.shuffle';   // [path of the next track of the menus, of driving]; '1': at random
-export const radioWasOn = () => { try { return localStorage.getItem(ON_KEY) === '1'; } catch { return false; } };
-const keepRadioOn = (on: boolean) => { try { localStorage.setItem(ON_KEY, on ? '1' : '0'); } catch { /* a private window keeps nothing */ } };
-const readShuffle = () => { try { return localStorage.getItem(SHUFFLE_KEY) === '1'; } catch { return false; } };
-const readNext = (): unknown[] => { try { const kept = JSON.parse(localStorage.getItem(NEXT_KEY) ?? '[]'); return Array.isArray(kept) ? kept : []; } catch { return []; } };
+export const radioWasOn = () => { try { return localStore.get(RADIO_ON) === '1'; } catch { return false; } };
+const keepRadioOn = (on: boolean) => { try { localStore.set(RADIO_ON, on ? '1' : '0'); } catch { /* a private window keeps nothing */ } };
+const readShuffle = () => { try { return localStore.get(RADIO_SHUFFLE) === '1'; } catch { return false; } };
+const readNext = (): unknown[] => { try { const kept = localStore.getJSON(RADIO_NEXT); return Array.isArray(kept) ? kept : []; } catch { return []; } };
 const readModes = (): Map<string, Mode> => {
   try {
-    const kept = Object.entries(JSON.parse(localStorage.getItem(MODES_KEY) ?? '{}') ?? {});
+    const kept = Object.entries(localStore.getJSON(RADIO_MODES) ?? {});
     return new Map(kept.filter(([, m]) => m !== 'all' && MODES.includes(m as Mode)) as [string, Mode][]);
   } catch { return new Map(); }
 };
@@ -58,14 +58,14 @@ export class Radio {
   get shuffle() { return this.shuffled; }
   mode(name: string): Mode { return this.modes.get(name) ?? 'all'; }
   private suits(name: string, place: Place) { const m = this.mode(name); return m === 'all' || m === (place ? 'racing' : 'menu'); }
-  private saveModes() { try { localStorage.setItem(MODES_KEY, JSON.stringify(Object.fromEntries(this.modes))); } catch { /* a private window keeps nothing */ } }
+  private saveModes() { try { localStore.setJSON(RADIO_MODES, Object.fromEntries(this.modes)); } catch { /* a private window keeps nothing */ } }
   private fail = (e: unknown) => this.stop(`error: ${e}`);
 
   /** Shuffle on: the next track of a place is any that suits it but the last one; off: the queue goes on from where it stood. */
   setShuffle(on: boolean) {
     if (on === this.shuffled) return;
     this.shuffled = on;
-    try { localStorage.setItem(SHUFFLE_KEY, on ? '1' : '0'); } catch { /* a private window keeps nothing */ }
+    try { localStore.set(RADIO_SHUFFLE, on ? '1' : '0'); } catch { /* a private window keeps nothing */ }
     this.log(`player sets shuffle ${on ? 'on' : 'off'}`);
     if (this.on) void this.offer().catch(this.fail);
   }
@@ -142,7 +142,7 @@ export class Radio {
 
   private keepNext() {
     const n = this.paths.length;
-    try { localStorage.setItem(NEXT_KEY, JSON.stringify(this.next.map(i => this.paths[i % n]))); } catch { /* a private window keeps nothing */ }
+    try { localStore.setJSON(RADIO_NEXT, this.next.map(i => this.paths[i % n])); } catch { /* a private window keeps nothing */ }
   }
 
   /** The next track of the place from where its queue stands, the first whose mode suits it; with Shuffle any that suits it but the last (-1: none). */

@@ -443,7 +443,7 @@ fn in_free_roam_driving_or_paused_each_browser_once() {
     assert_eq!(k.hub.in_roam(), 1, "left the switch");
 }
 
-// /players' room: in free roam by room, for the rooms with a name (room 0, none, is not counted), each browser once
+// /players' room and rooms: in free roam by room, including room 0 (the main world), each browser once
 #[test]
 fn in_free_roam_by_room() {
     let mut k = Kit::new(RoamOptions::default());
@@ -455,7 +455,11 @@ fn in_free_roam_by_room() {
     k.from(V(5), &hello(605));
     k.hub.frame(V(1), &frame_ports(V(1), &hello_with(606, &HelloOpts { room: blue, ..Default::default() }), 47211, 47210));
     let rooms = k.hub.in_rooms();
-    assert_eq!((rooms.get(&blue), rooms.get(&red), rooms.len()), (Some(&2), Some(&1), 2), "driving or paused, a browser once: {rooms:?}");
+    assert_eq!(
+        (rooms.get(&blue), rooms.get(&red), rooms.get(&0), rooms.len()),
+        (Some(&2), Some(&1), Some(&1), 3),
+        "driving or paused, a browser once: {rooms:?}"
+    );
     assert_eq!(k.hub.in_roam(), 4);
 }
 
@@ -772,9 +776,14 @@ fn wait_for(what: &str, mut f: impl FnMut() -> bool) {
 
 #[test]
 fn on_its_thread_frames_reach_the_hub_its_lists_go_out_through_the_switch_a_departure_is_forgotten() {
+    // Outside a runtime, RoamHub uses process CPU time; parallel tests can make an idle hub look busy.
+    // Give it its own idle workers so this test measures only its runtime's utilization.
+    let rt = tokio::runtime::Builder::new_multi_thread().worker_threads(2).enable_all().build().expect("a runtime");
     let lines = Arc::new(Mutex::new(Vec::<String>::new()));
     let l2 = lines.clone();
-    let hub = RoamHub::spawn(RoamOptions { tick_ms: 50, ..RoamOptions::default() }, Arc::new(move |s: &str| l2.lock().push(s.into())));
+    let hub = rt.block_on(async {
+        RoamHub::spawn(RoamOptions { tick_ms: 50, ..RoamOptions::default() }, Arc::new(move |s: &str| l2.lock().push(s.into())))
+    });
     assert_eq!(hub.vip(), ROAM_HUB_VIP);
     assert_eq!(hub.name(), "free-roam hub");
     assert!(!hub.listed(), "the hub is on nobody's peer list");

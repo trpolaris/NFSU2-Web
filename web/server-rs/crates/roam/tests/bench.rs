@@ -184,7 +184,7 @@ fn bench_4000_players() {
 fn bench_blocks() {
     let blocks = |rooms: u32| {
         move |i: u32| -> Vec<String> {
-            if i % 20 != 0 {
+            if i.checked_rem(20) != Some(0) {
                 return Vec::new();
             }
             (1..=10).map(|k| format!("p{}", (i + k * 37 * rooms) % 2000)).collect()

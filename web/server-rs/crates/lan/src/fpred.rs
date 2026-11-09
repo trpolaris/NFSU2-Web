@@ -209,11 +209,11 @@ pub fn write(v: &Fields, out: &mut Vec<u8>) -> bool {
     for i in 0..3 {
         out.extend_from_slice(&((v[V + i] as f64 / 100.0) as f32).to_le_bytes());
     }
-    for i in Q..Q + 4 {
-        out.extend_from_slice(&(v[i] as i16).to_le_bytes());
+    for value in &v[Q..Q + 4] {
+        out.extend_from_slice(&(*value as i16).to_le_bytes());
     }
-    for i in W..W + 3 {
-        out.extend_from_slice(&(v[i] as i16).to_le_bytes());
+    for value in &v[W..W + 3] {
+        out.extend_from_slice(&(*value as i16).to_le_bytes());
     }
     out.extend_from_slice(&(v[STEER] as i16).to_le_bytes());
     out.extend_from_slice(&[v[THR] as u8, v[BRK] as u8]);
@@ -223,8 +223,8 @@ pub fn write(v: &Fields, out: &mut Vec<u8>) -> bool {
     if v[FLAGS] & HF_STATEX != 0 {
         out.push(x as u8);
         if let Some((hyd, slip, eng)) = groups {
-            for i in WZ..WZ + 4 {
-                out.extend_from_slice(&(v[i] as i16).to_le_bytes());
+            for value in &v[WZ..WZ + 4] {
+                out.extend_from_slice(&(*value as i16).to_le_bytes());
             }
             out.push(v[NOS] as u8);
             if hyd {
@@ -473,7 +473,8 @@ pub(crate) mod tests {
         for x in [None, Some(0), Some(9), Some(11), Some(16), Some(23), Some(28)] {
             let (mut enc, mut dec) = (Fpred::default(), Fpred::default());
             for k in 0..5 {
-                let b = body(0xABCD_0001, 10 + k as u16, 1_000_000 + 50_000 * k as u32, [1695.123, -884.5, 24.25], [12.5, -3.25, 0.01], k, x);
+                let b =
+                    body(0xABCD_0001, 10 + k as u16, 1_000_000 + 50_000 * k as u32, [1695.123, -884.5, 24.25], [12.5, -3.25, 0.01], k, x);
                 through(&mut enc, &mut dec, 0x0102, &b);
             }
         }
@@ -505,7 +506,10 @@ pub(crate) mod tests {
             t = t.wrapping_add(50_000 + if k % 7 == 0 { 16_667 } else { 0 });
             let a = k as f64 * 0.05;
             let (p, v) = if k < 300 {
-                ([(1000.0 + 40.0 * a.cos()) as f32, (-500.0 + 40.0 * a.sin()) as f32, 24.0], [(-40.0 * a.sin()) as f32, (40.0 * a.cos()) as f32, 0.0])
+                (
+                    [(1000.0 + 40.0 * a.cos()) as f32, (-500.0 + 40.0 * a.sin()) as f32, 24.0],
+                    [(-40.0 * a.sin()) as f32, (40.0 * a.cos()) as f32, 0.0],
+                )
             } else {
                 ([1040.0, -500.0, 24.0], [0.0, 0.0, 0.0])
             };
@@ -584,7 +588,8 @@ pub(crate) mod tests {
         let (mut enc, mut dec) = (Fpred::default(), Fpred::default());
         for round in 0..3u32 {
             for s in 0..(REFS_MAX as u16 + 40) {
-                let b = body(s as u32, round as u16, 1_000_000 * round + s as u32, [s as f32, 2.0, 3.0], [1.0, 0.0, 0.0], s as i32, Some(11));
+                let b =
+                    body(s as u32, round as u16, 1_000_000 * round + s as u32, [s as f32, 2.0, 3.0], [1.0, 0.0, 0.0], s as i32, Some(11));
                 through(&mut enc, &mut dec, s, &b);
             }
             assert!(enc.last.len() <= REFS_MAX && enc.last.len() == dec.last.len());

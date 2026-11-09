@@ -3,6 +3,7 @@
 //! - [`js`]: text and numbers the way JavaScript makes them (its `\s`, `trim()`, `Number#toString`), and
 //!   `printable()`: what the server prints, stores and sends is byte for byte what the Node server it replaced did
 //! - [`json`]: `JSON.stringify` of a `serde_json::Value` (JS number formatting, insertion order)
+//! - [`atomic_file`]: a file written whole to replace the old one (a private temporary file, synced and renamed)
 //! - [`log`]: the console, and `log::limited` (a few lines a minute per client and topic)
 //! - [`bucket`]: a token bucket (`Bucket`), what clients hold at once (`Budget`) and how often they may do something
 //!   (`Rate`)
@@ -13,6 +14,7 @@
 //!   hands them frames and how they send through it
 //! - [`rand`]: random bytes and integers from the OS (Node's `crypto.randomBytes`, `crypto.randomInt`)
 
+pub mod atomic_file;
 pub mod bucket;
 pub mod clock;
 pub mod counter;

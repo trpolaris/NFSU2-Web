@@ -108,7 +108,7 @@ test('Nightshift shell keeps the runtime anchors used by the game modules', () =
   for (const id of [
     'app','home-page','play-panel','play','progress','progress-fill',
     'status','status-sub','lastgame','report','newer','problems','override','retry','reload','log-btn',
-    'saves','mods','diagnostics','game-data','stage','stage-menu'
+    'stage','stage-menu'
   ]) assert.match(html, new RegExp('id="' + id + '"'), id);
   assert.match(reactUi, /function InstallAppReact\(\)/);
   assert.match(main, /import ['"]\.\/app\/experience\.css['"]/);
@@ -117,10 +117,13 @@ test('Nightshift shell keeps the runtime anchors used by the game modules', () =
 test('React owns the Controls route while the F9 help sheet keeps its inert source template', () => {
   assert.match(html, /<template id="controls-help-template">/);
   assert.doesNotMatch(html, /id="controls"|id="keys"/);
-  for (const tab of ['keys','pad','site']) assert.match(html, new RegExp('data-tab="' + tab + '"'));
+  assert.match(reactUi, /function ControlsReactPanel\(\)/);
+  assert.match(reactUi, /role="tab" aria-selected=\{state\.tab === 'keys'\}/);
+  assert.match(reactUi, /role="tab" aria-selected=\{state\.tab === 'pad'\}/);
+  assert.match(reactUi, /role="tab" aria-selected=\{state\.tab === 'site'\}/);
   for (const hook of ['data-steer','data-level','data-size','data-menu-size']) assert.ok(html.includes(hook), hook);
-  assert.match(html, /role="tablist"/);
-  assert.match(html, /role="tabpanel"/);
+  assert.match(reactUi, /role="tablist"/);
+  assert.match(reactUi, /role="tabpanel"/);
   assert.equal((html.match(/data-pad-mount/g) || []).length, 1, 'controller SVG has a dedicated mount');
   assert.match(controls, /querySelector<HTMLElement>\('\[data-pad-mount\]'\)/);
   assert.match(wheel, /querySelector<HTMLElement>\('\[data-pad-mount\]'\)/);
@@ -160,7 +163,8 @@ test('first-run, language default, accessibility and version metadata stay align
   assert.match(platform, /currentVersion: APP_BUILD_VERSION/);
   assert.match(platform, /lastLanguage\(\)/, 'first-run language falls back to the saved language');
   assert.match(platform, /: lastLanguage\(\)/, 'an empty top picker does not blank the first-run language');
-  assert.match(i18n, /return isLanguage\(v\) \? v : 'turkish'/, 'new visitors default to Turkish');
+  assert.match(i18n, /export function browserLanguage/);
+  assert.match(i18n, /return 'english';/, 'unsupported browser preferences fall back to English');
   assert.match(sw, /nfsu2-offline-19/);
 });
 

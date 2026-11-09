@@ -8,7 +8,7 @@
  *  room: of roam, those in the room asked for (/players?room=, missing without one or from an older server);
  *  crews: of roam, those in each crew asked for, in the order asked (/players?crews=, the same) */
 export interface PlayerCounts {
-  players: number; online: number | null; roam?: number | null; full?: boolean; roamBusy?: boolean; room?: number; crews?: number[];
+  players: number; online: number | null; roam?: number | null; full?: boolean; roamBusy?: boolean; room?: number; rooms?: number[]; crews?: number[]; spots?: number[];
   /** pages waiting in line for a place (missing from an older server) */
   queue?: number;
 }
@@ -69,6 +69,53 @@ export function queueText(q: { pos: number; of: number; eta?: number }): string 
 export async function serverAnswers(ms: number): Promise<boolean> {
   try { return (await fetch('/players', { method: 'HEAD', cache: 'no-store', signal: AbortSignal.timeout(ms) })).status < 500; }
   catch { return false; }
+}
+
+/** How many are in free roam in each world asked for (room hashes, in order; 0 is the main world), by hash. */
+export function worldCounts(c: PlayerCounts, asked: readonly number[]): Map<number, number> {
+  const m = new Map<number, number>();
+  if (Array.isArray(c.rooms)) asked.forEach((h, i) => {
+    const n = c.rooms![i];
+    if (Number.isInteger(n) && n >= 0) m.set(h, n);
+  });
+  return m;
+}
+
+/** Ask the server for counts in up to eight worlds. Older servers simply return no rooms field. */
+export async function askWorlds(hashes: readonly number[], ms: number): Promise<Map<number, number> | null> {
+  const rooms = hashes.slice(0, 8);
+  if (!rooms.length) return new Map();
+  try {
+    const r = await fetch(`/players?rooms=${rooms.join(',')}`, { cache: 'no-store', signal: AbortSignal.timeout(ms) });
+    return r.ok ? worldCounts(await r.json() as PlayerCounts, rooms) : null;
+  } catch { return null; }
+}
+
+/** The count for each exact race-track spot room, in the requested order. */
+export function spotCounts(c: PlayerCounts, asked: readonly number[]): Map<number, number> {
+  const m = new Map<number, number>();
+  if (Array.isArray(c.spots)) asked.forEach((h, i) => {
+    const n = c.spots![i];
+    if (Number.isInteger(n) && n >= 0) m.set(h, n);
+  });
+  return m;
+}
+
+/** Ask for up to sixteen exact track-spot counts. Older servers have no `spots` field, so ask their room counts in
+ *  batches of eight instead. */
+export async function askSpots(hashes: readonly number[], ms: number): Promise<Map<number, number> | null> {
+  const spots = hashes.slice(0, 16);
+  if (!spots.length) return new Map();
+  try {
+    const r = await fetch(`/players?spots=${spots.join(',')}`, { cache: 'no-store', signal: AbortSignal.timeout(ms) });
+    if (!r.ok) return null;
+    const c = await r.json() as PlayerCounts;
+    if (Array.isArray(c.spots)) return spotCounts(c, spots);
+  } catch { return null; }
+  const first = await askWorlds(spots.slice(0, 8), ms);
+  if (spots.length <= 8) return first;
+  const second = await askWorlds(spots.slice(8), ms);
+  return first ? new Map([...first, ...(second ?? [])]) : null;
 }
 
 /** How many are in free roam in each crew asked for (their hashes, in the order asked), by hash; none from an older

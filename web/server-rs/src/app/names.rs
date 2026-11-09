@@ -205,6 +205,13 @@ impl App {
         }
     }
 
+    /// a keyphrase used (its cloud saves read or saved, /vault): its claimed name stays live.
+    pub(super) fn names_used(&self, vault_id: &[u8; 32], now: i64) {
+        if let Some(n) = &self.names {
+            n.claims.used(&owner_of_id(vault_id), now);
+        }
+    }
+
     async fn too_many_names(&self, q: &Request, s: &mut Response) -> Res {
         self.plain(q, s, 429, "Too many requests", &[("retry-after", "60")], Cache::Store, true).await
     }

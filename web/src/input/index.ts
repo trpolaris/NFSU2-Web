@@ -36,9 +36,10 @@ import { HostKind } from '../host/abi';
 import { CODES, cp1252, isMeta, keyChars, keyVk } from './keymap';
 import { PadPoller, type PadPage, type TouchPad } from './gamepad';
 import { SynthDriver } from './synth';
+import { AltGrCtrl } from './altgr';
 import {
   IEV_FOCUS, IEV_KEY_DOWN, IEV_KEY_TAP, IEV_KEY_UP, IEV_LOG, IEV_MOUSE_DOWN, IEV_MOUSE_MOVE, IEV_MOUSE_UP, IEV_QUIT, IEV_SMS,
-  IEV_PHOTO, IEV_RELEASE_ALL, IEV_TEXT, IEV_WHEEL, IKF_ALT, IKF_CTRL, IKF_DEAD, IKF_REPEAT, IKF_SHIFT, IKF_SYNTH, IKF_TOUCH, IM_ATTACHED,
+  IEV_PHOTO, IEV_TRAVEL, IEV_TRAVEL_FRIEND, IEV_RELEASE_ALL, IEV_TEXT, IEV_WHEEL, IKF_ALT, IKF_CTRL, IKF_DEAD, IKF_REPEAT, IKF_SHIFT, IKF_SYNTH, IKF_TOUCH, IM_ATTACHED,
   IM_EV_DROP, IM_EV_R, IM_EV_W, IM_EVENTS, IM_GAME_INACTIVE, IM_HDR_WORDS, IM_KEYS_HELD, IM_MAGIC, IM_MOUSE_X,
   IM_MOUSE_Y, IM_NAMES_GEN, IM_OFF_EV, IM_OFF_NAMES, IM_OFF_SYN, IM_QUIT_REQ, IM_SYN_R, IM_SYN_W, IM_TEXT,
   IM_TEXT_KIND, IM_TEXT_LEN, IM_TEXT_MAX, IM_TEXT_SEQ, IM_MENU_SCALE, IM_VERSION, IM_VIEW_ROLL, INPUT_EV_N, INPUT_MAGIC, INPUT_NAME_LEN,
@@ -90,6 +91,8 @@ export interface InputHandle {
   sms(id: number): boolean;
   /** photo mode (runtime/photo.c): what (its PH_* number) and its values.  false: it cannot reach the game */
   photo(what: number, a?: number, b?: number): boolean;
+  travel(where: number): boolean;
+  travelFriend(nameHash: number, spot: number): boolean;
   enterFullscreen(): Promise<boolean>;
   exitFullscreen(): Promise<void>;
   toggleFullscreen(): Promise<void>;
@@ -141,6 +144,7 @@ const keyboardApi = () => (navigator as unknown as { keyboard?: KeyboardApi }).k
 export function attachInput(proc: GameProcess, element: HTMLElement, opts: InputOptions = {}): InputHandle {
   const log = opts.log ?? ((s: string) => console.log(s));
   const mac = opts.mac ?? detectMac();
+  const altGr = new AltGrCtrl(/Windows/.test(navigator.userAgent), log);
   const kbTarget = opts.keyboardTarget ?? window;
   const pass = new Set(opts.passThrough ?? ['F11', 'F12']);
   let h: Int32Array | null = null, u8: Uint8Array | null = null, i32: Int32Array | null = null, base = 0;
@@ -194,9 +198,20 @@ export function attachInput(proc: GameProcess, element: HTMLElement, opts: Input
     (e.altKey ? IKF_ALT : 0) | (e.ctrlKey ? IKF_CTRL : 0) | (e.shiftKey ? IKF_SHIFT : 0) | (e.isTrusted ? 0 : IKF_SYNTH);
   const vkOf = (code: string, e: KeyboardEvent, vk: number) => keyVk(code, e, vk, layout);
   const charsOf = (code: string, e: KeyboardEvent) => keyChars(code, e, mac, layout);
+  /** Recover modifier codes when a privacy mode/browser leaves KeyboardEvent.code blank. */
+  let codeless = false;
+  const codeOf = (e: KeyboardEvent): string => {
+    if (CODES[e.code]) return e.code;
+    const side = e.location === 2 ? 'Right' : 'Left';
+    const c = e.key === 'Shift' ? `Shift${side}` : e.key === 'Control' ? `Control${side}` : e.key === 'Alt' ? `Alt${side}`
+      : e.key === 'AltGraph' ? 'AltRight' : '';
+    if (c && !codeless) { codeless = true; log(`[input] a key with no code of ours (code "${e.code}", key ${e.key}, side ${e.location}): taken as ${c}`); }
+    return c || e.code;
+  };
   function onKeyDown(e: KeyboardEvent) {
     if (detached || ignored(e) || e.isComposing || e.keyCode === 229) return;
     if (isMeta(e.code) || e.key === 'Meta') {
+      altGr.flush();
       if (!e.repeat) push(IEV_RELEASE_ALL, 0, 0, 0, [], 0, IREASON_META);
       return;
     }
@@ -205,12 +220,13 @@ export function attachInput(proc: GameProcess, element: HTMLElement, opts: Input
       if (mac && e.code === 'KeyF' && !e.repeat) { e.preventDefault(); if (opts.toggleFullscreen) opts.toggleFullscreen(); else void api.toggleFullscreen(); }
       return;
     }
-    const k = CODES[e.code];
+    const code = codeOf(e), k = CODES[code];
     if (!k) return;
-    if (!pass.has(e.code)) e.preventDefault();
-    if (mac && e.code === 'CapsLock') { push(IEV_KEY_TAP, k.dik, k.vk, flagsOf(e)); return; }
-    const { chars, dead, sys } = charsOf(e.code, e);
-    push(IEV_KEY_DOWN, k.dik, vkOf(e.code, e, k.vk), flagsOf(e) | (e.repeat ? IKF_REPEAT : 0) | (dead ? IKF_DEAD : 0), chars, 0, sys);
+    if (!pass.has(code)) e.preventDefault();
+    if (mac && code === 'CapsLock') { push(IEV_KEY_TAP, k.dik, k.vk, flagsOf(e)); return; }
+    const { chars, dead, sys } = charsOf(code, e);
+    const vk = vkOf(code, e, k.vk), flags = flagsOf(e) | (e.repeat ? IKF_REPEAT : 0) | (dead ? IKF_DEAD : 0);
+    altGr.key({ code, key: e.key, repeat: e.repeat }, true, () => push(IEV_KEY_DOWN, k.dik, vk, flags, chars, 0, sys));
   }
   function onKeyUp(e: KeyboardEvent) {
     // every release goes to the game, even one aimed at the page's own UI:
@@ -218,11 +234,12 @@ export function attachInput(proc: GameProcess, element: HTMLElement, opts: Input
     // ignores releases of keys the game does not hold)
     if (detached) return;
     if (isMeta(e.code) || e.key === 'Meta') return;
-    const k = CODES[e.code];
+    const code = codeOf(e), k = CODES[code];
     if (!k) return;
-    if (!pass.has(e.code) && !ignored(e)) e.preventDefault();   // also keeps Alt from opening a menu bar
-    if (mac && e.code === 'CapsLock') { push(IEV_KEY_TAP, k.dik, k.vk, flagsOf(e)); return; }
-    push(IEV_KEY_UP, k.dik, k.vk, flagsOf(e));
+    if (!pass.has(code) && !ignored(e)) e.preventDefault();   // also keeps Alt from opening a menu bar
+    if (mac && code === 'CapsLock') { push(IEV_KEY_TAP, k.dik, k.vk, flagsOf(e)); return; }
+    const flags = flagsOf(e);
+    altGr.key({ code, key: e.key, repeat: e.repeat }, false, () => push(IEV_KEY_UP, k.dik, k.vk, flags));
   }
 
   // ---- mouse -------------------------------------------------------------------
@@ -275,23 +292,38 @@ export function attachInput(proc: GameProcess, element: HTMLElement, opts: Input
   // first finger's button goes up, the cursor to the point between them, then
   // the middle button goes down and the cursor follows that point.  When one of
   // the two lifts, the button goes up and no finger is the mouse until all are.
-  let finger = -1, second = -1;
-  const fingers = new Map<number, [number, number]>();
+  // Any two fingers make it, whichever came first; Safari must not use the
+  // gesture for its own pinch/pan and cancel the page's pointers.
+  // A new primary finger also forgets a gesture Safari cancelled without a
+  // final pointerup/pointercancel.
+  let finger = -1, second = -1, twoAt = 0, twoMoves = 0, twoLogged = 0;
+  const fingers = new Map<number, [number, number]>(), heard = new Map<number, number>();
+  const STALE_MS = 300;
   const between = (): [number, number] => {
     const a = fingers.get(finger)!, b = fingers.get(second)!;
     return [Math.round((a[0] + b[0]) / 2), Math.round((a[1] + b[1]) / 2)];
   };
   function onFingerDown(e: PointerEvent) {
-    fingers.set(e.pointerId, pos(e));
-    if (!e.isPrimary) {
-      if (finger < 0 || second >= 0) return;
-      second = e.pointerId;
-      push(IEV_MOUSE_UP, 0, 0, flagsOf(e), [], 0);
+    const now = performance.now();
+    if (e.isPrimary && [...heard.values()].some(t => now - t > STALE_MS)) {
+      if (second >= 0) push(IEV_MOUSE_UP, 0, 0, flagsOf(e), [], 2);
+      else if (buttons & 1) push(IEV_MOUSE_UP, 0, 0, flagsOf(e), [], 0);
+      buttons &= ~5; fingers.clear(); heard.clear(); finger = second = -1;
+    }
+    fingers.set(e.pointerId, pos(e)); heard.set(e.pointerId, now);
+    if (second < 0 && fingers.size >= 2) {
+      const other = [...fingers.keys()].find(id => id !== e.pointerId)!;
+      if (finger < 0) finger = other;
+      second = e.pointerId === finger ? other : e.pointerId;
+      if (buttons & 1) push(IEV_MOUSE_UP, 0, 0, flagsOf(e), [], 0);
       push(IEV_MOUSE_MOVE, 0, 0, flagsOf(e), [], ...between());
       push(IEV_MOUSE_DOWN, 0, 0, flagsOf(e), [], 2);
       buttons = (buttons & ~1) | 4;
+      twoAt = performance.now(); twoMoves = 0;
+      e.preventDefault();
       return;
     }
+    if (!e.isPrimary || finger >= 0) return;
     finger = e.pointerId;
     push(IEV_MOUSE_MOVE, 0, 0, flagsOf(e) | IKF_TOUCH, [], ...pos(e));
     push(IEV_MOUSE_DOWN, 0, 0, flagsOf(e), [], 0);
@@ -301,16 +333,21 @@ export function attachInput(proc: GameProcess, element: HTMLElement, opts: Input
   }
   function onFingerMove(e: PointerEvent) {
     if (!fingers.has(e.pointerId)) return;
-    fingers.set(e.pointerId, pos(e));
-    if (second >= 0) { if (e.pointerId === finger || e.pointerId === second) push(IEV_MOUSE_MOVE, 0, 0, flagsOf(e), [], ...between()); }
-    else if (e.pointerId === finger) push(IEV_MOUSE_MOVE, 0, 0, flagsOf(e), [], ...pos(e));
+    fingers.set(e.pointerId, pos(e)); heard.set(e.pointerId, performance.now());
+    if (second >= 0) {
+      if (e.pointerId === finger || e.pointerId === second) { push(IEV_MOUSE_MOVE, 0, 0, flagsOf(e), [], ...between()); twoMoves++; }
+    } else if (e.pointerId === finger) push(IEV_MOUSE_MOVE, 0, 0, flagsOf(e), [], ...pos(e));
   }
   function onFingerUp(e: PointerEvent) {
-    fingers.delete(e.pointerId);
+    fingers.delete(e.pointerId); heard.delete(e.pointerId);
     if (second >= 0 && (e.pointerId === finger || e.pointerId === second)) {
       finger = second = -1;
       push(IEV_MOUSE_UP, 0, 0, flagsOf(e), [], 2);
       buttons &= ~4;
+      if (twoLogged < 5) {
+        twoLogged++;
+        log(`[touch] a two-finger turn: ${twoMoves} moves, ended by ${e.type === 'pointercancel' ? 'the browser (pointercancel)' : 'a finger lifted'} after ${Math.round(performance.now() - twoAt)} ms`);
+      }
       return;
     }
     if (e.pointerId !== finger) return;
@@ -407,6 +444,16 @@ export function attachInput(proc: GameProcess, element: HTMLElement, opts: Input
       push(IEV_PHOTO, what, 0, 0, [], a, b);
       return true;
     },
+    travel(where) {
+      if (!Number.isInteger(where) || where < 0 || where > 9 || !h || !api.canQuit()) return false;
+      push(IEV_TRAVEL, 0, 0, 0, [], where, 0);
+      return true;
+    },
+    travelFriend(nameHash, spot) {
+      if (!Number.isInteger(nameHash) || nameHash < 0 || nameHash > 0xffffffff || !Number.isInteger(spot) || spot < 0 || spot > 9 || !h || !api.canQuit()) return false;
+      push(IEV_TRAVEL_FRIEND, 0, 0, 0, [], nameHash | 0, spot);
+      return true;
+    },
     async enterFullscreen() {
       try {
         if (document.fullscreenElement !== element) await element.requestFullscreen({ navigationUI: 'hide' });
@@ -471,7 +518,7 @@ export function attachInput(proc: GameProcess, element: HTMLElement, opts: Input
       push(IEV_RELEASE_ALL, 0, 0, 0, [], 0, IREASON_PAGE);
       api.viewRoll(0);
       if (h) Atomics.compareExchange(h, IM_ATTACHED, 1, 0);   // only our own claim (2 = the C ns* driver)
-      detached = true; quitPending = 0; cancelAnimationFrame(raf); clearInterval(timer);
+      detached = true; quitPending = 0; cancelAnimationFrame(raf); clearInterval(timer); altGr.cancel();
       pads?.dispose(); pads = null; synth = null;
       h = null; u8 = null; i32 = null; synF32 = null;     // no view of the old process's memory stays reachable
       kbTarget.removeEventListener('keydown', onKeyDown as EventListener, { capture: true });
@@ -495,6 +542,12 @@ export function attachInput(proc: GameProcess, element: HTMLElement, opts: Input
   for (const [t, f] of listeners) element.addEventListener(t, f);
   element.addEventListener('wheel', onWheel, { passive: false });
   listeners.push(['wheel', onWheel as EventListener]);
+  // two fingers on the game are the page's garage turn, not a browser pinch or pan
+  const onTwoTouch = (e: TouchEvent) => { if (e.touches.length >= 2 && e.cancelable) e.preventDefault(); };
+  for (const t of ['touchstart', 'touchmove']) {
+    element.addEventListener(t, onTwoTouch as EventListener, { passive: false });
+    listeners.push([t, onTwoTouch as EventListener]);
+  }
   addEventListener('blur', onBlur); addEventListener('focus', onFocus); addEventListener('pagehide', onPageHide);
   // the page's own menus and dialogs count too: the player is there
   for (const t of USE_EVENTS) addEventListener(t, onUse, { capture: true, passive: true });

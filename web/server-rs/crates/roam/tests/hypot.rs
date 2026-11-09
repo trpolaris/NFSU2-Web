@@ -59,6 +59,8 @@ fn hypots() -> Vec<[f64; 3]> {
     v
 }
 
+// Keep `chunks_exact` for the workspace's Rust 1.85 baseline; `as_chunks` is newer.
+#[allow(clippy::chunks_exact_to_as_chunks)]
 #[test]
 fn hypot_is_math_hypot() {
     if Command::new("node").arg("--version").output().is_err() {

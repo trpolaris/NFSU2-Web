@@ -27,6 +27,7 @@ test('chat HUD appearance controls are bounded and immediately applied to the ov
     const result = await page.evaluate(async bundleUrl => {
       const { QuickChat } = await import(bundleUrl);
       const chat = new QuickChat(document.querySelector('#stage'), { line() {}, lobby() {}, place() {}, log() {} });
+      chat.chatHud.hidden = false;
       chat.setAppearance(0.75, 0.35);
       const low = {
         width: getComputedStyle(chat.chatHud).width,
@@ -68,6 +69,7 @@ test('chat history keeps the latest 200 lines and does not pull the reader away 
     await page.evaluate(async bundleUrl => {
       const { QuickChat } = await import(bundleUrl);
       const chat = new QuickChat(document.querySelector('#stage'), { line() {}, lobby() {}, place() {}, log() {} });
+      chat.chatHud.hidden = false;
       // The message renderer only needs a live session marker for these room messages.
       chat.session = {};
       chat.chatHud.classList.add('active');
@@ -147,6 +149,7 @@ test('chat filters, search, mute, mentions and per-player name colours stay loca
     await page.evaluate(async bundleUrl => {
       const { QuickChat } = await import(bundleUrl);
       const chat = new QuickChat(document.querySelector('#stage'), { line() {}, lobby() {}, place() {}, log() {} });
+      chat.chatHud.hidden = false;
       chat.playerName = 'POLARIS';
       chat.setCrews([{ name: 'Night Crew', id: 77 }]);
       chat.session = {};
@@ -206,6 +209,7 @@ test('chat position and width preferences apply to the live overlay', { timeout:
     const result = await page.evaluate(async bundleUrl => {
       const { QuickChat } = await import(bundleUrl);
       const chat = new QuickChat(document.querySelector('#stage'), { line() {}, lobby() {}, place() {}, log() {} });
+      chat.chatHud.hidden = false;
       chat.setAppearance(1, 0.72, 'bottom-right', 500);
       const style = getComputedStyle(chat.chatHud);
       const out = {

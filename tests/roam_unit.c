@@ -303,7 +303,19 @@ static void t_roundtrip(void){
       r2[n2 - 3] = 77;                                       /* as an older core reads it: skipped */
       CHECK(rc_carcfg_decode(r2, n2, &d2) == RC_OK && d2.has_perf && !d2.has_horn, "horn extension skipped as unknown");
       cp.has_perf = 0; n2 = rc_carcfg_encode(&cp, r2, sizeof r2);
-      CHECK(n2 == n + 3 && rc_carcfg_decode(r2, n2, &d2) == RC_OK && !d2.has_perf && d2.has_horn && d2.horn == 6, "horn extension alone"); }
+      CHECK(n2 == n + 3 && rc_carcfg_decode(r2, n2, &d2) == RC_OK && !d2.has_perf && d2.has_horn && d2.horn == 6, "horn extension alone");
+      cp.has_horn = 0; cp.has_rating = 1; cp.rating_cls = 2; cp.rating = 1234;
+      n2 = rc_carcfg_encode(&cp, r2, sizeof r2);
+      CHECK(n2 == n + 5 && r2[n - 1] == 1 && r2[n] == RC_EXT_RATING && r2[n + 1] == 3,
+            "rating extension encoded: %d bytes", n2);
+      CHECK(rc_carcfg_decode(r2, n2, &d2) == RC_OK && d2.has_rating && d2.rating_cls == 2 && d2.rating == 1234,
+            "rating extension round trip");
+      r2[n] = 77;
+      CHECK(rc_carcfg_decode(r2, n2, &d2) == RC_OK && !d2.has_rating, "unknown rating extension skipped");
+      cp.rating = 5001; cp.rating_cls = 2;
+      n2 = rc_carcfg_encode(&cp, r2, sizeof r2);
+      CHECK(rc_carcfg_decode(r2, n2, &d2) == RC_OK && !d2.has_rating, "out-of-range rating ignored");
+    }
     CHECK(rc_carcfg_decode(rec, n, &c2) == RC_OK && c2.type_hash == cc.type_hash && !strcmp(c2.type_name, "350Z") && c2.n_parts == RC_PART_SLOTS &&
           !memcmp(c2.part, cc.part, sizeof cc.part), "car record round trip");
     /* record: version 1, type hash 4, name 16, ride bytes 4, count 1 = 26, then 9 per part */
@@ -319,7 +331,7 @@ static void t_roundtrip(void){
 
 /* ---- 3. hostile datagrams ----------------------------------------------------------------- */
 static void t_fuzz(long iters){
-    uint8_t b[1600], base[16][RC_MAX_DGRAM]; int bn[16];
+    uint8_t b[1600], base[17][RC_MAX_DGRAM]; int bn[17];
     rc_msg m;
     /* one valid datagram of each type, to mutate */
     for (int t = 1; t <= 16; t++){
@@ -342,6 +354,12 @@ static void t_fuzz(long iters){
                                   m.u.raceres.row[0].done = 2.f; m.u.raceres.row[1].id = 10; m.u.raceres.row[1].done = 1.5f; }
         bn[t - 1] = rc_encode(&m, base[t - 1], RC_MAX_DGRAM);
     }
+    /* MAPD has type 18 because type 17 is used by the TRPOLARIS typed chat bridge. */
+    static const uint8_t me[RC_MAPD_PLACE + 2] = { 3, 0, 10, 0, 20, 0, 64, 5, 0xfb, 4, 0x80 };
+    memset(&m,0,sizeof m);m.h.type=RC_MSG_MAPD;m.h.sender=9;
+    m.u.mapd.req=1;m.u.mapd.base=0;m.u.mapd.part=0;m.u.mapd.nparts=1;m.u.mapd.total=2;m.u.mapd.n=2;
+    m.u.mapd.data=me;m.u.mapd.len=sizeof me;
+    bn[16]=rc_encode(&m,base[16],RC_MAX_DGRAM);
     rc_session s; rc_config cf; memset(&cf, 0, sizeof cf); cf.self_id = 1; cf.port = 1; cf.max_players = 8; cf.rate_hz = 20; cf.test_mode = 1;
     cf.duels = 1; cf.lobbies = 1; cf.say = 1;
     rc_io io = { 0, 0, 0, 0 };
@@ -352,7 +370,7 @@ static void t_fuzz(long iters){
         int kind = (int)(rnd() % 4);
         if (kind == 0){ len = (int)(rnd() % 1300); for (int i = 0; i < len; i++) b[i] = (uint8_t)rnd(); }
         else {
-            int t = (int)(rnd() % 16); len = bn[t]; memcpy(b, base[t], (size_t)len);
+            int t = (int)(rnd() % 17); len = bn[t]; memcpy(b, base[t], (size_t)len);
             int nm = 1 + (int)(rnd() % 6);
             for (int k = 0; k < nm; k++) b[rnd() % (uint32_t)len] = (uint8_t)rnd();
             if (kind == 2) len = (int)(rnd() % (uint32_t)(len + 1));
@@ -1478,7 +1496,7 @@ static void t_lobby(void){
     l.to = 0; l.lobby = 0xAB;
     CHECK(rc_send_lobby(&g_n[0], &l) == 1 && g_hub_lobby[0] == 1 && g_hub_lobby_last[0].race == 0x1234 && g_hub_lobby_last[0].x == 100,
           "the advert reaches the hub (%d)", g_hub_lobby[0]);
-    CHECK(rc_ask_map(&g_n[0], g_now) == 1, "the map is asked for");
+    CHECK(rc_ask_map(&g_n[0], g_now, RC_MAP_MAX, 0) == 1, "the map is asked for");
     static const uint8_t le[3 * RC_LOBBIES_ENTRY] = { 10, 0, 20, 0, 0x34, 0x12, 0, 0, 2, 6, RC_LS_OPEN,
                                                       1, 0, 1, 0, 0, 0, 0, 0, 1, 4, 0,              /* no race: skipped */
                                                       0xf6, 0xff, 5, 0, 1, 0, 0, 0, 4, 4, RC_LS_STARTING };
@@ -1528,11 +1546,261 @@ static void t_say(void){
           "say inbox: %d kept, %u dropped, %d taken", kept, g_n[1].say_dropped, taken);
 }
 
+/* A room transition must evict every old-room link and invalidate queued network state. */
+static void t_room_reset(void){
+    rc_session s;
+    rc_config cf; memset(&cf, 0, sizeof cf);
+    cf.self_id = 1; cf.room = 0x11111111u; cf.max_players = 8; cf.rate_hz = 20;
+    rc_io io = { 0, 0, 0, 0 };
+    rc_session_init(&s, &cf, &io);
+    s.peer[0].state = RC_PS_EST; s.peer[0].configured = 1; s.peer[0].id = 2;
+    s.peer[0].ip = 0x7f000002u; s.peer[0].port = 41002;
+    snprintf(s.peer[0].name, sizeof s.peer[0].name, "OldRoomPeer");
+    s.map_n = 4; s.map_total = 8; s.map_held = 3; s.map_mask = 5; s.map_asked_us = 1234;
+    s.near_n = 3; s.near_total = 6; s.near_held = 7; s.near_asked_us = 5678;
+    s.lobbies_n = 2; s.lobbies_req = 9;
+    s.n_duel_in = 1; s.n_lobby_in = 1; s.n_say_in = 1;
+    uint32_t mg = s.map_gen, ng = s.near_gen, lg = s.lobbies_gen;
+    CHECK(rc_set_room(&s, 0x22222222u) == 1, "room change returns the number of established peers");
+    CHECK(s.conf.room == 0x22222222u && s.peer[0].state == RC_PS_CANDIDATE &&
+          s.peer[0].id == 0 && s.peer[0].configured &&
+          s.peer[0].ip == 0x7f000002u && s.peer[0].port == 41002,
+          "room change clears established identity but preserves configured endpoint for re-handshake");
+    CHECK(!s.map_n && !s.map_total && !s.map_held && !s.map_mask && !s.map_asked_us && s.map_gen == mg + 1,
+          "room change invalidates pending World Map state");
+    CHECK(!s.near_n && !s.near_total && !s.near_held && !s.near_asked_us && s.near_gen == ng + 1,
+          "room change invalidates pending Minimap state");
+    CHECK(!s.lobbies_n && !s.lobbies_req && s.lobbies_gen == lg + 1 &&
+          !s.n_duel_in && !s.n_lobby_in && !s.n_say_in,
+          "room change clears old-room lobby and message inboxes");
+    CHECK(rc_set_room(&s, 0x22222222u) == 0 && s.map_gen == mg + 1 && s.near_gen == ng + 1,
+          "setting the same room is an idempotent no-op");
+}
+
+/* The hub's NEARD is accepted only for the outstanding request and
+ * merges its slot-keyed updates/removals without disturbing other entries. */
+static void t_neard_merge(void){
+    rc_session s;
+    rc_config cf; memset(&cf, 0, sizeof cf);
+    cf.self_id = 0x901; cf.port = 47211; cf.max_players = 8; cf.rate_hz = 20;
+    cf.test_mode = 1; cf.hub_ip = HUB_IP; cf.hub_port = HUB_PORT;
+    rc_io io = { 0, 0, 0, 0 };
+    rc_session_init(&s, &cf, &io);
+    s.hub_since = 1; s.hub_heard_us = 1000000; s.hub_was = 2;
+    const int64_t asked = 2000000, arrived = 2050000;
+    CHECK(rc_ask_near(&s, asked, RC_NEAR_MAX, 350), "NEARREQ is sent while the hub answers");
+    uint8_t data[2 * RC_MAPD_PLACE] = {
+        2,0, 0x10,0, 0x20,0, 64, 3, (uint8_t)-2,
+        8,0, 0x30,0, 0x40,0, 96, (uint8_t)-1, 4
+    };
+    rc_msg m; memset(&m, 0, sizeof m);
+    m.h.type = RC_MSG_NEARD; m.h.sender = 0xB0B;
+    m.u.mapd.req = s.near_req; m.u.mapd.base = 0; m.u.mapd.total = 2;
+    m.u.mapd.part = 0; m.u.mapd.nparts = 1; m.u.mapd.n = 2;
+    m.u.mapd.data = data; m.u.mapd.len = sizeof data;
+    uint8_t packet[RC_MAX_DGRAM];
+    int n = rc_encode(&m, packet, sizeof packet);
+    CHECK(n > 0, "NEARD full answer encodes");
+    rc_receive(&s, HUB_IP, HUB_PORT, packet, n, arrived);
+    CHECK(s.near_n == 2 && s.near_total == 2 && s.near_held == s.near_req && s.near_gen == 1,
+          "NEARD full answer updates the held list (%d / %u)", s.near_n, s.near_total);
+    CHECK(s.near_e[0].id == 2 && s.near_e[0].x == 16 && s.near_e[0].y == 32 &&
+          s.near_e[0].heading == 64 && s.near_e[0].vx == 3 && s.near_e[0].vy == -2 &&
+          s.near_e[0].at_us == arrived, "NEARD player position and velocity decoded");
+    CHECK(s.near_e[1].id == 8 && s.near_e[1].x == 48 && s.near_e[1].y == 64,
+          "NEARD second player decoded");
+    uint32_t gen = s.near_gen;
+    CHECK(rc_ask_near(&s, arrived + 1000, RC_NEAR_MAX, 350), "second NEARREQ is sent");
+    uint8_t delta[RC_MAPD_PLACE + 2] = {
+        2,0, 0x18,0, 0x28,0, 80, 5, 1,
+        (uint8_t)(8 | (RC_MAPD_GONE & 0xff)), (uint8_t)(RC_MAPD_GONE >> 8)
+    };
+    memset(&m, 0, sizeof m);
+    m.h.type = RC_MSG_NEARD; m.h.sender = 0xB0B;
+    m.u.mapd.req = s.near_req; m.u.mapd.base = s.near_held; m.u.mapd.total = 1;
+    m.u.mapd.part = 0; m.u.mapd.nparts = 1; m.u.mapd.n = 2;
+    m.u.mapd.data = delta; m.u.mapd.len = sizeof delta;
+    n = rc_encode(&m, packet, sizeof packet);
+    CHECK(n > 0, "NEARD delta encodes");
+    rc_receive(&s, HUB_IP, HUB_PORT, packet, n, arrived + 51000);
+    CHECK(s.near_gen == gen + 1 && s.near_n == 1 && s.near_total == 1 &&
+          s.near_e[0].id == 2 && s.near_e[0].x == 24 && s.near_e[0].y == 40 &&
+          s.near_e[0].vx == 5 && s.near_e[0].vy == 1,
+          "NEARD delta merge: req=%u held=%u asked=%lld n=%d total=%u first=%u at %d,%d vel %d,%d",
+          s.near_req, s.near_held, (long long)s.near_asked_us, s.near_n, s.near_total,
+          s.near_n ? s.near_e[0].id : 0, s.near_n ? s.near_e[0].x : 0, s.near_n ? s.near_e[0].y : 0,
+          s.near_n ? s.near_e[0].vx : 0, s.near_n ? s.near_e[0].vy : 0);
+    /* An unsolicited/old request must not mutate the held snapshot. */
+    gen = s.near_gen;
+    m.u.mapd.req = (uint16_t)(s.near_req - 1);
+    n = rc_encode(&m, packet, sizeof packet);
+    rc_receive(&s, HUB_IP, HUB_PORT, packet, n, arrived + 52000);
+    CHECK(s.near_gen == gen && s.near_n == 1 && !s.near_asked_us,
+          "stale NEARD request ignored: req=%u held=%u asked=%lld n=%d gen=%u",
+          s.near_req, s.near_held, (long long)s.near_asked_us, s.near_n, s.near_gen);
+}
+
+/* The hub already emits up to 2048 slot-keyed records in 16 unfragmented MAPD datagrams.
+ * Exercise the full answer through rc_receive so assembly, ordering and the client cap agree. */
+static void t_mapd_capacity_2048(void){
+    rc_session s;
+    rc_config cf; memset(&cf, 0, sizeof cf);
+    cf.self_id = 0x902; cf.port = 47212; cf.max_players = 8; cf.rate_hz = 20;
+    cf.test_mode = 1; cf.hub_ip = HUB_IP; cf.hub_port = HUB_PORT;
+    rc_io io = { 0, 0, 0, 0 };
+    rc_session_init(&s, &cf, &io);
+    s.hub_since = 1; s.hub_heard_us = 1000000; s.hub_was = 2;
+    CHECK(RC_MAP_MAX == 2048 && RC_MAP_MAX_V1 == 512 && RC_MAPD_PARTS == 16,
+          "World Map native capacity is 2048 while the legacy MAPREQ default remains 512");
+    const int64_t asked = 2000000;
+    CHECK(rc_ask_map(&s, asked, RC_MAP_MAX, RC_MAPREQ_PARKED),
+          "the native client requests the hub's full 2048-entry World Map");
+    uint8_t data[RC_MAPD_BYTES], packet[RC_MAX_DGRAM];
+    rc_msg m; memset(&m, 0, sizeof m);
+    m.h.type = RC_MSG_MAPD; m.h.sender = 0xB0C;
+    m.u.mapd.req = s.map_req; m.u.mapd.base = 0;
+    m.u.mapd.nparts = RC_MAPD_PARTS; m.u.mapd.total = RC_MAP_MAX; m.u.mapd.n = 128;
+    m.u.mapd.data = data; m.u.mapd.len = sizeof data;
+    int last = 0;
+    for (int part = 0; part < RC_MAPD_PARTS; part++){
+        for (int j = 0; j < 128; j++){
+            uint16_t id = (uint16_t)(part * 128 + j + 1);
+            int16_t x = (int16_t)id, y = (int16_t)-(int)id;
+            uint8_t *e = data + j * RC_MAPD_PLACE;
+            e[0] = (uint8_t)id; e[1] = (uint8_t)(id >> 8);
+            e[2] = (uint8_t)x; e[3] = (uint8_t)((uint16_t)x >> 8);
+            e[4] = (uint8_t)y; e[5] = (uint8_t)((uint16_t)y >> 8);
+            e[6] = (uint8_t)id; e[7] = 1; e[8] = (uint8_t)-1;
+        }
+        m.u.mapd.part = (uint8_t)part;
+        int n = rc_encode(&m, packet, sizeof packet);
+        CHECK(n == RC_HDR + 9 + RC_MAPD_BYTES + RC_CRC,
+              "MAPD part %d encodes as one sub-1200-byte datagram (%d bytes)", part, n);
+        if (n <= 0) continue;
+        rc_receive(&s, HUB_IP, HUB_PORT, packet, n, 2050000 + part * 1000);
+        last = part;
+        if (part < RC_MAPD_PARTS - 1)
+            CHECK(s.map_n == 0 && s.map_gen == 0,
+                  "World Map part %d is held until all 16 pieces arrive", part);
+    }
+    CHECK(last == RC_MAPD_PARTS - 1 && s.map_n == RC_MAP_MAX && s.map_total == RC_MAP_MAX &&
+          s.map_held == s.map_req && s.map_gen == 1 && !s.map_asked_us && !s.map_mask,
+          "all 16 MAPD parts assemble 2048 entries (%d / %u, gen %u)", s.map_n, s.map_total, s.map_gen);
+    CHECK(s.map_e[0].id == 1 && s.map_e[0].x == 1 && s.map_e[0].y == -1 &&
+          s.map_e[0].vx == 1 && s.map_e[0].vy == -1 &&
+          s.map_e[RC_MAP_MAX - 1].id == 2048 && s.map_e[RC_MAP_MAX - 1].x == 2048 &&
+          s.map_e[RC_MAP_MAX - 1].y == -2048,
+          "the full MAPD snapshot preserves first and last slot keys and positions");
+}
+
+/* The parked/height-bearing MAPD form uses 11 bytes per place, so the same
+ * 16 x 1152-byte budget holds 1664 entries (the hub's MAPD_MAX_Z). */
+static void t_mapd_capacity_z_1664(void){
+    rc_session s;
+    rc_config cf; memset(&cf, 0, sizeof cf);
+    cf.self_id = 0x903; cf.port = 47213; cf.max_players = 8; cf.rate_hz = 20;
+    cf.test_mode = 1; cf.hub_ip = HUB_IP; cf.hub_port = HUB_PORT;
+    rc_io io = { 0, 0, 0, 0 };
+    rc_session_init(&s, &cf, &io);
+    s.hub_since = 1; s.hub_heard_us = 1000000; s.hub_was = 2;
+    const int per = RC_MAPD_BYTES / RC_MAPD_PLACE_Z;
+    CHECK(RC_MAPD_MAX_Z == 1664 && per == 104,
+          "height-bearing MAPD capacity is 16 x 104 = 1664 records");
+    CHECK(rc_ask_map(&s, 2000000, RC_MAP_MAX, RC_MAPREQ_PARKED),
+          "the native client requests parked positions with height");
+    uint8_t data[RC_MAPD_BYTES], packet[RC_MAX_DGRAM];
+    rc_msg m; memset(&m, 0, sizeof m);
+    m.h.type = RC_MSG_MAPD; m.h.sender = 0xB0D; m.h.flags = RC_HF_MAPZ;
+    m.u.mapd.req = s.map_req; m.u.mapd.base = 0;
+    m.u.mapd.nparts = RC_MAPD_PARTS; m.u.mapd.total = RC_MAPD_MAX_Z;
+    m.u.mapd.n = (uint8_t)per; m.u.mapd.data = data; m.u.mapd.len = (uint16_t)(per * RC_MAPD_PLACE_Z);
+    for (int part = 0; part < RC_MAPD_PARTS; part++){
+        for (int j = 0; j < per; j++){
+            uint16_t id = (uint16_t)(part * per + j + 1);
+            int16_t x = (int16_t)id, y = (int16_t)-(int)id, z = (int16_t)(500 + id % 300);
+            uint8_t *e = data + j * RC_MAPD_PLACE_Z;
+            e[0] = (uint8_t)id; e[1] = (uint8_t)(id >> 8);
+            e[2] = (uint8_t)x; e[3] = (uint8_t)((uint16_t)x >> 8);
+            e[4] = (uint8_t)y; e[5] = (uint8_t)((uint16_t)y >> 8);
+            e[6] = (uint8_t)id; e[7] = (uint8_t)-1; e[8] = 1;
+            e[9] = (uint8_t)z; e[10] = (uint8_t)((uint16_t)z >> 8);
+        }
+        m.u.mapd.part = (uint8_t)part;
+        int n = rc_encode(&m, packet, sizeof packet);
+        CHECK(n == RC_HDR + 9 + per * RC_MAPD_PLACE_Z + RC_CRC,
+              "height MAPD part %d encodes as one unfragmented datagram (%d bytes)", part, n);
+        if (n <= 0) continue;
+        rc_receive(&s, HUB_IP, HUB_PORT, packet, n, 2050000 + part * 1000);
+    }
+    int16_t last_z = (int16_t)(500 + RC_MAPD_MAX_Z % 300);
+    CHECK(s.map_n == RC_MAPD_MAX_Z && s.map_total == RC_MAPD_MAX_Z &&
+          s.map_held == s.map_req && s.map_gen == 1 && !s.map_asked_us && !s.map_mask,
+          "all height-bearing MAPD parts assemble 1664 records (%d / %u, gen %u)", s.map_n, s.map_total, s.map_gen);
+    CHECK(s.map_e[0].id == 1 && s.map_e[0].z == 501 &&
+          s.map_e[RC_MAPD_MAX_Z - 1].id == RC_MAPD_MAX_Z &&
+          s.map_e[RC_MAPD_MAX_Z - 1].x == RC_MAPD_MAX_Z &&
+          s.map_e[RC_MAPD_MAX_Z - 1].y == -RC_MAPD_MAX_Z &&
+          s.map_e[RC_MAPD_MAX_Z - 1].z == last_z,
+          "height-bearing snapshot preserves first/last slot, XY and Z values");
+}
+
+/* ---- MAPD and minimap wire compatibility ----------------------------------------------- */
+static void t_mapd_codec(void){
+    rc_msg m; uint8_t b[RC_MAX_DGRAM], legacy[RC_MAX_DGRAM];
+    static const uint8_t entries[RC_MAPD_PLACE + 2] = { 3, 0, 10, 0, 20, 0, 64, 5, 0xfb, 4, 0x80 };
+    memset(&m, 0, sizeof m); m.h.type = RC_MSG_MAPD; m.h.sender = 9;
+    m.u.mapd.req = 1; m.u.mapd.base = 0; m.u.mapd.part = 0; m.u.mapd.nparts = 1;
+    m.u.mapd.total = 2; m.u.mapd.n = 2; m.u.mapd.data = entries; m.u.mapd.len = sizeof entries;
+    int n = rc_encode(&m, b, sizeof b);
+    CHECK(n == 16 + 9 + (int)sizeof entries + 4, "MAPD encodes its variable entry payload (%d)", n);
+    CHECK(rc_decode(b, n, &m) == RC_OK && m.h.type == RC_MSG_MAPD, "MAPD decodes");
+    CHECK(m.u.mapd.req == 1 && m.u.mapd.n == 2 && m.u.mapd.len == sizeof entries, "MAPD retains request, count and payload length");
+    static const uint8_t entries_z[RC_MAPD_PLACE_Z + 2] = { 3, 0, 10, 0, 20, 0, 64, 5, 0xfb, 30, 0, 4, 0x80 };
+    memset(&m, 0, sizeof m); m.h.type = RC_MSG_MAPD; m.h.sender = 9; m.h.flags = RC_HF_MAPZ;
+    m.u.mapd.req = 2; m.u.mapd.nparts = 1; m.u.mapd.total = 2; m.u.mapd.n = 2;
+    m.u.mapd.data = entries_z; m.u.mapd.len = sizeof entries_z;
+    n = rc_encode(&m, b, sizeof b);
+    CHECK(n == 16 + 9 + (int)sizeof entries_z + 4, "height MAPD includes per-player z");
+    CHECK(rc_decode(b, n, &m) == RC_OK && (m.h.flags & RC_HF_MAPZ), "height MAPD decodes with header flag");
+    CHECK(m.u.mapd.len == sizeof entries_z && m.u.mapd.n == 2, "height MAPD length accepts 11-byte placed entries");
+    memset(&m, 0, sizeof m); m.h.type = RC_MSG_MAPREQ; m.h.sender = 9;
+    m.u.mapreq.req = 12; m.u.mapreq.max = 1800; m.u.mapreq.base = 7; m.u.mapreq.flags = RC_MAPREQ_PARKED;
+    n = rc_encode(&m, b, sizeof b);
+    CHECK(n == 16 + 8 + 4, "MAPREQ parked request encodes four fields");
+    CHECK(rc_decode(b, n, &m) == RC_OK && m.h.type == RC_MSG_MAPREQ, "MAPREQ parked request decodes");
+    CHECK(m.u.mapreq.req == 12 && m.u.mapreq.max == 1800 && m.u.mapreq.base == 7 && m.u.mapreq.flags == RC_MAPREQ_PARKED,
+          "MAPREQ parked flags round-trip");
+
+    memset(&m, 0, sizeof m); m.h.type = RC_MSG_NEARREQ; m.h.sender = 9;
+    m.u.nearreq.req = 7; m.u.nearreq.max = RC_NEAR_MAX; m.u.nearreq.base = 3; m.u.nearreq.radius = 350;
+    n = rc_encode(&m, b, sizeof b);
+    CHECK(n == 16 + 8 + 4, "NEARREQ encodes its fixed request");
+    CHECK(rc_decode(b, n, &m) == RC_OK && m.h.type == RC_MSG_NEARREQ, "NEARREQ decodes");
+    CHECK(m.u.nearreq.req == 7 && m.u.nearreq.max == RC_NEAR_MAX && m.u.nearreq.base == 3 && m.u.nearreq.radius == 350,
+          "NEARREQ fields round-trip");
+
+    /* A pre-delta MAPREQ carries only its request number. */
+    memset(&m, 0, sizeof m); m.h.type = RC_MSG_MAPREQ; m.h.sender = 9; m.u.mapreq.req = 11;
+    n = rc_encode(&m, b, sizeof b);
+    memcpy(legacy, b, 18);
+    legacy[6] = 22; legacy[7] = 0;
+    uint32_t crc = rc_crc32(legacy, 18);
+    legacy[18] = (uint8_t)crc; legacy[19] = (uint8_t)(crc >> 8); legacy[20] = (uint8_t)(crc >> 16); legacy[21] = (uint8_t)(crc >> 24);
+    CHECK(rc_decode(legacy, 22, &m) == RC_OK && m.h.type == RC_MSG_MAPREQ, "legacy two-byte MAPREQ still decodes");
+    CHECK(m.u.mapreq.req == 11 && m.u.mapreq.max == RC_MAP_MAX_V1 && m.u.mapreq.base == 0,
+          "legacy MAPREQ receives its version-one defaults");
+}
+
 int main(int argc, char **argv){
     long fuzz = argc > 1 ? atol(argv[1]) : 200000;
     printf("roam_unit: core %d, protocol %d\n", RC_CORE_VER, RC_PROTO_VER);
     t_layout();
     t_roundtrip();
+    t_room_reset();
+    t_neard_merge();
+    t_mapd_capacity_2048();
+    t_mapd_capacity_z_1664();
+    t_mapd_codec();
     t_fuzz(fuzz);
     t_session();
     t_review();
@@ -1548,4 +1816,5 @@ int main(int argc, char **argv){
     t_guard();
     printf("roam_unit: %d passed, %d failed\n", g_pass, g_fail);
     return g_fail ? 1 : 0;
+
 }

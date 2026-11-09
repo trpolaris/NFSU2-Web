@@ -1,6 +1,7 @@
 /* Guest file I/O -> POSIX.  Maps Windows paths to the game folder and
  * resolves them case-insensitively.                                    */
 #include "cpu.h"
+#include "opentunnel.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -181,12 +182,11 @@ static int overlay_cannot_have(const char *win){
  * overlay has no copy of its own.  Its list is read once, so every other
  * open costs nothing more. */
 static char g_lroot[1024];
-static struct lfile { char *key, *rel; } *g_lf;     /* sorted by key: the path lower-cased */
-static int g_lnf, g_lcap;
-static int lfile_cmp(const void *a, const void *b){
-    return strcmp(((const struct lfile *)a)->key, ((const struct lfile *)b)->key);
-}
-static void lpack_walk(const char *dir, const char *rel){
+struct lfile { char *key, *rel; };
+struct flist { struct lfile *f; int n, cap; };
+static struct flist g_lp;
+static int lfile_cmp(const void *a, const void *b){ return strcmp(((const struct lfile *)a)->key, ((const struct lfile *)b)->key); }
+static void lpack_walk(struct flist *l, const char *dir, const char *rel){
     DIR *d = opendir(dir); if (!d) return;
     struct dirent *e;
     while ((e = readdir(d))){
@@ -195,34 +195,82 @@ static void lpack_walk(const char *dir, const char *rel){
         snprintf(p, sizeof p, "%s/%s", dir, e->d_name);
         snprintf(r, sizeof r, "%s%s%s", rel, rel[0] ? "/" : "", e->d_name);
         if (stat(p, &st) != 0) continue;
-        if (S_ISDIR(st.st_mode)){ lpack_walk(p, r); continue; }
+        if (S_ISDIR(st.st_mode)){ lpack_walk(l, p, r); continue; }
         if (!S_ISREG(st.st_mode)) continue;
-        if (g_lnf == g_lcap){
-            g_lcap = g_lcap ? 2*g_lcap : 64;
-            struct lfile *nf = realloc(g_lf, (size_t)g_lcap * sizeof *g_lf); if (!nf) break;
-            g_lf = nf;
+        if (l->n == l->cap){
+            l->cap = l->cap ? 2*l->cap : 64;
+            struct lfile *nf = realloc(l->f, (size_t)l->cap * sizeof *l->f); if (!nf) break;
+            l->f = nf;
         }
-        g_lf[g_lnf].rel = strdup(r); g_lf[g_lnf].key = strdup(r);
-        for (char *k = g_lf[g_lnf].key; *k; k++) *k = (char)tolower((unsigned char)*k);
-        g_lnf++;
+        l->f[l->n].rel = strdup(r); l->f[l->n].key = strdup(r);
+        for (char *k = l->f[l->n].key; *k; k++) *k = (char)tolower((unsigned char)*k);
+        l->n++;
     }
     closedir(d);
 }
-/* -> how many files the pack has (0: none, or no such folder) */
-int fileio_set_language_pack(const char *rel){
-    if (!resolve_in(g_root, rel, g_lroot, sizeof g_lroot)) return 0;
-    lpack_walk(g_lroot, "");
-    qsort(g_lf, (size_t)g_lnf, sizeof *g_lf, lfile_cmp);
-    return g_lnf;
-}
-static int lpack_resolve(const char *win, char *out, size_t outsz){
-    if (!g_lnf) return 0;
+static const struct lfile *flist_find(const struct flist *l, const char *win){
+    if (!l->n) return 0;
     char rel[1024]; rel_of(win, rel, sizeof rel);
     for (char *k = rel; *k; k++) *k = (char)tolower((unsigned char)*k);
     struct lfile key = { rel, 0 };
-    const struct lfile *f = bsearch(&key, g_lf, (size_t)g_lnf, sizeof *g_lf, lfile_cmp);
+    return bsearch(&key, l->f, (size_t)l->n, sizeof *l->f, lfile_cmp);
+}
+int fileio_set_language_pack(const char *rel){
+    if (!resolve_in(g_root, rel, g_lroot, sizeof g_lroot)) return 0;
+    lpack_walk(&g_lp, g_lroot, "");
+    qsort(g_lp.f, (size_t)g_lp.n, sizeof *g_lp.f, lfile_cmp);
+    return g_lp.n;
+}
+static int lpack_resolve(const char *win, char *out, size_t outsz){
+    const struct lfile *f = flist_find(&g_lp, win);
     if (!f) return 0;
     snprintf(out, outsz, "%s/%s", g_lroot, f->rel);
+    return 1;
+}
+
+/* VINYLPACKS/<game path>: Japanese-release Art Factory 28-34 textures. */
+#define VP_HDR 32u
+static char g_vroot[1024];
+static struct flist g_vp;
+static int g_vp_walked;
+static void vpack_walk(void){
+    if (g_vp_walked) return;
+    g_vp_walked = 1;
+    if (!resolve_in(g_root, "VINYLPACKS", g_vroot, sizeof g_vroot)) return;
+    lpack_walk(&g_vp, g_vroot, "");
+    qsort(g_vp.f, (size_t)g_vp.n, sizeof *g_vp.f, lfile_cmp);
+    if (g_vp.n) fprintf(stderr, "file: VINYLPACKS: %d files\n", g_vp.n);
+}
+int fileio_vinyl_packs(void){ vpack_walk(); return g_vp.n; }
+
+/* MODPACKS: community-added game data shared by every client. */
+#define MP_NEEDS_MEMFILE 1u
+#define MP_MEMFILE "global/globalmemoryfile.bin"
+static char g_mroot[1024];
+static struct flist g_mp;
+static int g_mp_walked, g_mp_memfile;
+static void mpack_walk(void){
+    if(g_mp_walked) return;
+    g_mp_walked=1;
+    if(!resolve_in(g_root,"MODPACKS",g_mroot,sizeof g_mroot)){g_mroot[0]=0;return;}
+    lpack_walk(&g_mp,g_mroot,"");
+    qsort(g_mp.f,(size_t)g_mp.n,sizeof *g_mp.f,lfile_cmp);
+    if(g_mp.n) fprintf(stderr,"file: MODPACKS: %d files\\n",g_mp.n);
+}
+int fileio_mod_pack(const char *rel,char *out,size_t outsz){
+    mpack_walk();
+    const struct lfile *e=flist_find(&g_mp,rel);
+    if(!e) return 0;
+    snprintf(out,outsz,"%s/%s",g_mroot,e->rel);
+    return 1;
+}
+static int mpack_resolve(const char *win,char *out,size_t outsz){
+    mpack_walk();
+    const struct lfile *e=flist_find(&g_mp,win);
+    if(!e) return 0;
+    snprintf(out,outsz,"%s/%s",g_mroot,e->rel);
+    static int said;
+    if(said++<8) fprintf(stderr,"  [file] %s: MODPACKS/%s\\n",win,e->rel);
     return 1;
 }
 /* Read: the write root if the file is there, then the language pack, otherwise the game root. */
@@ -232,8 +280,11 @@ static int resolve(const char *win, char *out, size_t outsz){
         if (resolve_in(g_wroot, win, w, sizeof w) && strcmp(w, g_wroot) != 0){
             snprintf(out, outsz, "%s", w); return 1; }
     }
+    char rel[1024]; rel_of(win, rel, sizeof rel);
+    if (opentunnel_resolve(rel, out, outsz)) return 1;
     if (lpack_resolve(win, out, outsz)) return 1;
-    return resolve_in(g_root, win, out, outsz);
+    if (resolve_in(g_root, win, out, outsz)) return 1;
+    return mpack_resolve(win, out, outsz);
 }
 /* Write: ALWAYS the write root if there is one. */
 static int resolve_w(const char *win, char *out, size_t outsz){
@@ -241,6 +292,8 @@ static int resolve_w(const char *win, char *out, size_t outsz){
 }
 /* runtime/garage.c: a file the game could read, by its guest path */
 int fileio_resolve_save(const char *win, char *out, size_t outsz){ return resolve(win, out, outsz); }
+/* runtime/mpcredit.c: pending career wins are written beside the profile, under the game's write root. */
+int fileio_resolve_save_w(const char *win, char *out, size_t outsz){ return resolve_w(win, out, outsz); }
 /* A profile the game saves, "<root>/NFS Underground 2/<NAME>/<NAME>" (any
  * case): garage.c keeps its slots 6-10 in a file beside it. */
 void garage_profile_written(const char *path);
@@ -313,9 +366,9 @@ static int path_under(const char *path, const char *dir){
 #ifdef GF_CACHE
 #define GF_N    1024                    /* names (a power of two); 3/4 full: all forgotten */
 #define GF_FDS  256                     /* closed handles' descriptors kept open */
-static struct { char *win, *real; int64_t size; } g_gf[GF_N];
+static struct { char *win, *real; int64_t size; char *real2; int64_t cut, head, bsize; const char *pk; } g_gf[GF_N];
 static int g_gf_n; static unsigned g_gf_gen = 1;
-static struct { int fd, name; uint32_t used; } g_gfd[GF_FDS];
+static struct { int fd, fd2, name; uint32_t used; } g_gfd[GF_FDS];
 static int g_gfd_n; static uint32_t g_gfd_tick;
 static uint64_t g_gf_hits, g_gf_fds;
 static int gf_find(const char *win){
@@ -327,9 +380,9 @@ static int gf_find(const char *win){
 }
 static void gf_forget(void){
     if (!g_gf_n) return;
-    for (int i = 0; i < g_gfd_n; i++) close(g_gfd[i].fd);
+    for (int i = 0; i < g_gfd_n; i++){ close(g_gfd[i].fd); if (g_gfd[i].fd2 >= 0) close(g_gfd[i].fd2); }
     g_gfd_n = 0;
-    for (int i = 0; i < GF_N; i++){ free(g_gf[i].win); free(g_gf[i].real); g_gf[i].win = g_gf[i].real = 0; }
+    for (int i = 0; i < GF_N; i++){ free(g_gf[i].win); free(g_gf[i].real); free(g_gf[i].real2); g_gf[i].win = g_gf[i].real = g_gf[i].real2 = 0; }
     g_gf_n = 0; g_gf_gen++;                              /* handles open now give their descriptors back closed */
 }
 static int gf_add(const char *win, const char *real, int64_t size){
@@ -339,26 +392,29 @@ static int gf_add(const char *win, const char *real, int64_t size){
     i = -i - 1;
     while (g_gf[i].win) i = (i + 1) & (GF_N - 1);
     if (!(g_gf[i].win = strdup(win)) || !(g_gf[i].real = strdup(real))){ free(g_gf[i].win); g_gf[i].win = 0; return -1; }
-    g_gf[i].size = size; g_gf_n++;
+    g_gf[i].size = size; g_gf[i].real2 = 0; g_gf_n++;
     return i;
 }
-/* a kept descriptor of that file (the latest kept), or -1 */
-static int gf_fd_take(int name){
+/* a kept descriptor of that file (the latest kept), or -1; *fd2 its vinyl pack's (or -1) */
+static int gf_fd_take(int name, int *fd2){
     int best = -1;
+    *fd2 = -1;
     for (int i = 0; i < g_gfd_n; i++) if (g_gfd[i].name == name && (best < 0 || g_gfd[i].used > g_gfd[best].used)) best = i;
     if (best < 0) return -1;
     int fd = g_gfd[best].fd;
+    *fd2 = g_gfd[best].fd2;
     g_gfd[best] = g_gfd[--g_gfd_n];
     return fd;
 }
-static void gf_fd_keep(int name, int fd){
+static void gf_fd_keep(int name, int fd, int fd2){
     int k = g_gfd_n;
-    if (k == GF_FDS){                                    /* full: the least recently kept is closed */
+    if (k == GF_FDS){
         k = 0;
         for (int i = 1; i < g_gfd_n; i++) if (g_gfd[i].used < g_gfd[k].used) k = i;
         close(g_gfd[k].fd);
+        if (g_gfd[k].fd2 >= 0) close(g_gfd[k].fd2);
     } else g_gfd_n++;
-    g_gfd[k].fd = fd; g_gfd[k].name = name; g_gfd[k].used = ++g_gfd_tick;
+    g_gfd[k].fd = fd; g_gfd[k].fd2 = fd2; g_gfd[k].name = name; g_gfd[k].used = ++g_gfd_tick;
 }
 #else
 static void gf_forget(void){}
@@ -384,12 +440,13 @@ int fileio_open_writers(void){ return g_open_wr; }
 typedef struct { int fd; int empty; int used; char path[512]; DIR *dir; char pat[128];
                  DIR *dir2; char path1[512];        /* dir2: game root (while the save overlay is active) */
                  int wr;                            /* wr: opened for writing (g_open_wr) */
-                 int gf; unsigned gf_gen; int64_t pos, size; } FH;   /* gf: a game folder file's name + 1 (GF_CACHE) */
+                 int gf; unsigned gf_gen; int64_t pos, size;   /* gf: a game folder file's name + 1 (GF_CACHE) */
+                 int fd2; int64_t sp_cut, sp_head, sp_bsize; const char *pk; } FH;
 static FH g_fh[FH_MAX];
 static int g_fh_peak = 0; static uint64_t g_fh_full = 0;   /* v12na: leak check */
 static uint32_t fh_new(void){
     for (int i=1;i<FH_MAX;i++) if(!g_fh[i].used){ memset(&g_fh[i],0,sizeof g_fh[i]);
-        g_fh[i].used=1; g_fh[i].fd=-1;
+        g_fh[i].used=1; g_fh[i].fd=-1; g_fh[i].fd2=-1;
         { int n = 0; for (int k = 1; k < FH_MAX; k++) n += g_fh[k].used; if (n > g_fh_peak) g_fh_peak = n; }
         return FH_BASE+(uint32_t)i; }
     if (!g_fh_full++) fprintf(stderr, "  [file] WARNING: handle table full (%d)\n", FH_MAX - 1);
@@ -401,6 +458,117 @@ static FH *fh_get(uint32_t h){
 }
 int fileio_is_handle(uint32_t h){ return fh_get(h)!=0; }
 int fileio_open_handles(void){ int n = 0; for (int k = 1; k < FH_MAX; k++) n += g_fh[k].used; return n; }
+
+/* Track the origin of pack-backed reads so malformed compressed blocks never
+ * fall through to the game's unbounded unpacker.  VPAK splice reads record
+ * only their head and tail; the middle bytes still belong to the original
+ * game file. */
+#define PR_N 256
+static struct { uint32_t at, len; int64_t off; const char *pk; } g_pr[PR_N];
+static unsigned g_pr_n;
+static const char *pk_name(const char *p){
+    static char *names[512]; static int n;
+    for (int i = 0; i < n; i++) if (!strcmp(names[i], p)) return names[i];
+    if (n == 512 || !(names[n] = strdup(p))) return 0;
+    return names[n++];
+}
+static void pr_add(uint32_t at, int64_t len, int64_t off, const char *pk){
+    if (len <= 0) return;
+    unsigned k = g_pr_n++ % PR_N;
+    g_pr[k].at = at;
+    g_pr[k].len = len > 0xffffffffLL ? 0xffffffffu : (uint32_t)len;
+    g_pr[k].off = off;
+    g_pr[k].pk = pk;
+}
+static void pr_note(const FH *f, uint32_t buf, int64_t got, int64_t at){
+    if (!f->pk || got <= 0 || at < 0) return;
+    if (f->fd2 < 0){ pr_add(buf, got, at, f->pk); return; }
+    int64_t mid = f->sp_head + (f->sp_bsize - f->sp_cut), end = at + got;
+    if (at < f->sp_head)
+        pr_add(buf, (end < f->sp_head ? end : f->sp_head) - at, VP_HDR + at, f->pk);
+    if (end > mid){
+        int64_t a = at > mid ? at : mid;
+        pr_add(buf + (uint32_t)(a - at), end - a,
+               VP_HDR + f->sp_head + (a - mid), f->pk);
+    }
+}
+#ifdef __wasm__
+void guest_wait_begin(void); void guest_wait_end(void);
+#endif
+/* 1: bytes still match a pack file; -1: their pack file cannot be reread;
+ * 0: not pack-backed (or the guest buffer has since changed). */
+int fileio_pack_bytes(uint32_t a, uint32_t n, const char **pk, int64_t *off){
+    if (!pk || !off) return 0;
+    for (unsigned i = 0; i < PR_N && i < g_pr_n; i++){
+        unsigned k = (g_pr_n - 1u - i) % PR_N;
+        if (a < g_pr[k].at || a - g_pr[k].at >= g_pr[k].len) continue;
+        const char *path = g_pr[k].pk;
+        int64_t o = g_pr[k].off + (a - g_pr[k].at);
+        uint8_t b[32];
+        ssize_t got = -1;
+        if (n > sizeof b) n = sizeof b;
+#ifdef __wasm__
+        guest_wait_begin();
+#endif
+        int fd = open(path, O_RDONLY);
+        if (fd >= 0){ got = pread(fd, b, n, (off_t)o); close(fd); }
+#ifdef __wasm__
+        guest_wait_end();
+#endif
+        *pk = path; *off = o;
+        if (got != (ssize_t)n) return -1;
+        return memcmp(b, g_mem + a, n) ? 0 : 1;
+    }
+    return 0;
+}
+/* Resolve a VPAK overlay for an existing game file (vinyl pack first, then mod pack). */
+static int vp_path(const char *win,char *p,size_t psz,const char **dir){
+    vpack_walk(); mpack_walk();
+    const struct lfile *e=flist_find(&g_vp,win);
+    if(e){snprintf(p,psz,"%s/%s",g_vroot,e->rel);if(dir)*dir="VINYLPACKS";return 1;}
+    e=flist_find(&g_mp,win);
+    if(e){snprintf(p,psz,"%s/%s",g_mroot,e->rel);if(dir)*dir="MODPACKS";return 1;}
+    return 0;
+}
+static int vp_open(FH *f,const char *win,const char *real,int fd){
+    char p[1100]; uint8_t h[VP_HDR]; struct stat st={0},pst={0}; const char *dir="";
+    if(!vp_path(win,p,sizeof p,&dir)) return 0;
+    if(!path_under(real,g_root)||(g_wroot[0]&&path_under(real,g_wroot))||
+       (g_lroot[0]&&path_under(real,g_lroot))||(g_mroot[0]&&path_under(real,g_mroot))) return 0;
+    int fd2=open(p,O_RDONLY); if(fd2<0)return 0;
+    uint32_t v[8];
+    int fits=pread(fd2,h,VP_HDR,0)==(ssize_t)VP_HDR&&fstat(fd,&st)==0&&fstat(fd2,&pst)==0;
+    if(fits){memcpy(v,h,sizeof v);fits=!memcmp(h,"VPAK",4)&&v[1]==1u&&
+      (uint64_t)v[2]==(uint64_t)st.st_size&&v[3]<=v[2]&&
+      (uint64_t)VP_HDR+(uint64_t)v[4]+(uint64_t)v[5]==(uint64_t)pst.st_size;}
+    if(fits&&dir[0]=='M'&&v[6]==MP_NEEDS_MEMFILE&&!g_mp_memfile){
+      static int waited;if(waited++<4)fprintf(stderr,"  [file] %s: MODPACKS pack waits for GlobalMemoryFile\\n",win);
+      close(fd2);return 0;
+    }
+    if(!fits){static int bad;if(bad++<4)fprintf(stderr,"  [file] %s/%s does not fit %s (%lld bytes)\\n",dir,p,win,(long long)st.st_size);close(fd2);return 0;}
+    f->pk=pk_name(p);f->fd2=fd2;f->sp_bsize=v[2];f->sp_cut=v[3];f->sp_head=v[4];
+    f->size=(int64_t)v[4]+((int64_t)v[2]-v[3])+v[5];f->pos=0;
+    const char *rel=p+strlen(dir[0]=='V'?g_vroot:g_mroot)+1;
+    if(dir[0]=='M'&&!strcasecmp(rel,MP_MEMFILE))g_mp_memfile=1;
+    static int said_v,said_m;int *n=dir[0]=='V'?&said_v:&said_m;
+    if((*n)++<4)fprintf(stderr,"  [file] %s: %s/%s overlay (%u more)\\n",win,dir,rel,(unsigned)(f->size-st.st_size));
+    return 1;
+}
+static ssize_t vp_pread(FH *f, uint8_t *buf, size_t len, int64_t off){
+    size_t done = 0;
+    int64_t mid = f->sp_head + (f->sp_bsize - f->sp_cut);
+    while (done < len && off >= 0 && off < f->size){
+        int fd; int64_t at, room;
+        if (off < f->sp_head){ fd = f->fd2; at = VP_HDR + off; room = f->sp_head - off; }
+        else if (off < mid){ fd = f->fd; at = f->sp_cut + (off - f->sp_head); room = mid - off; }
+        else { fd = f->fd2; at = VP_HDR + f->sp_head + (off - mid); room = f->size - off; }
+        size_t n = (uint64_t)room < len - done ? (size_t)room : len - done;
+        ssize_t got = pread(fd, buf + done, n, (off_t)at);
+        if (got <= 0) break;
+        done += (size_t)got; off += got;
+    }
+    return (ssize_t)done;
+}
 /* Per-thread last error for failing calls (win32.c, TEB+0x34). */
 void win32_set_last_error(CPU *, uint32_t);
 static void set_err(CPU *c, uint32_t e){ win32_set_last_error(c, e); }
@@ -487,18 +655,24 @@ int fileio_call(CPU *c, const char *n, uint32_t *out){
         if (flags == O_RDONLY && !g_open_wr){
             int i = gf_find(GS(pn));
             if (i >= 0){
-                int fd = gf_fd_take(i);
+                int fd2, fd = gf_fd_take(i, &fd2);
                 if (fd >= 0) g_gf_fds++;
-                else fd = open(g_gf[i].real, O_RDONLY);
+                else {
+                    fd = open(g_gf[i].real, O_RDONLY);
+                    if (fd >= 0 && g_gf[i].real2 && (fd2 = open(g_gf[i].real2, O_RDONLY)) < 0){ close(fd); fd = -1; }
+                }
                 uint32_t h = fd >= 0 ? fh_new() : 0;
                 if (h){
                     FH *f = fh_get(h);
                     f->fd = fd; f->gf = i + 1; f->gf_gen = g_gf_gen; f->size = g_gf[i].size;
+                    if (g_gf[i].real2){ f->fd2 = fd2; f->sp_cut = g_gf[i].cut; f->sp_head = g_gf[i].head; f->sp_bsize = g_gf[i].bsize; }
+                    f->pk = g_gf[i].pk;
                     snprintf(f->path, sizeof f->path, "%s", g_gf[i].real);
                     g_file_open++; g_gf_hits++;
                     *out = h; return 1;
                 }
                 if (fd >= 0) close(fd);
+                if (fd2 >= 0) close(fd2);
             }
         }
 #endif
@@ -585,6 +759,14 @@ int fileio_call(CPU *c, const char *n, uint32_t *out){
             else { FH*f=fh_get(h); f->fd=fd; f->empty = g_empty_next; g_empty_next = 0;
                    snprintf(f->path,sizeof f->path,"%s",real);
                    if (flags != O_RDONLY){ f->wr = 1; g_open_wr++; }
+                   else if (ok && !f->empty){
+                       vp_open(f, GS(pn), real, fd);
+                       /* LANGPACKS and MODPACKS files read in their own right
+                        * are pack sources too, not only VPAK splices. */
+                       if (f->fd2 < 0 && ((g_lroot[0] && path_under(real, g_lroot)) ||
+                                          (g_mroot[0] && path_under(real, g_mroot))))
+                           f->pk = pk_name(real);
+                   }
 #ifdef GF_CACHE
                    /* a file of the game folder or the language pack, not a movie (NOMOVIES may empty those) */
                    const char *ext = strrchr(real, '.');
@@ -595,8 +777,13 @@ int fileio_call(CPU *c, const char *n, uint32_t *out){
                        !(ext && (!strcasecmp(ext,".vp6") || !strcasecmp(ext,".vp8") || !strcasecmp(ext,".bik") ||
                                  !strcasecmp(ext,".mpg") || !strcasecmp(ext,".ivf") || !strcasecmp(ext,".webm"))) &&
                        fstat(fd, &st) == 0 && S_ISREG(st.st_mode)){
-                       int i = gf_add(GS(pn), real, (int64_t)st.st_size);
-                       if (i >= 0){ f->gf = i + 1; f->gf_gen = g_gf_gen; f->size = (int64_t)st.st_size; }
+                       int64_t size = f->fd2 >= 0 ? f->size : (int64_t)st.st_size;
+                       char p2[1100] = "";
+                       if (f->fd2 >= 0 && !vp_path(GS(pn), p2, sizeof p2, 0)) p2[0] = 0;
+                       int i = (f->fd2 < 0 || p2[0]) ? gf_add(GS(pn), real, size) : -1;
+                       if (i >= 0 && f->fd2 >= 0 && !g_gf[i].real2 && (g_gf[i].real2 = strdup(p2))){
+                           g_gf[i].cut = f->sp_cut; g_gf[i].head = f->sp_head; g_gf[i].bsize = f->sp_bsize; }
+                       if (i >= 0 && (f->fd2 < 0) == !g_gf[i].real2){ f->gf = i + 1; f->gf_gen = g_gf_gen; f->size = size; g_gf[i].pk = f->pk; }
                    }
 #endif
                    g_file_open++; r=h; }
@@ -630,8 +817,10 @@ int fileio_call(CPU *c, const char *n, uint32_t *out){
                uint64_t _rd0 = now_ns_io();
                if (ov && mem_is_committed(ov+19)){
                    uint64_t off = (uint64_t)MR32(ov+8) | ((uint64_t)MR32(ov+12) << 32);
-                   { int fd = f->fd; READ_UNLOCKED(got = pread(fd, g_mem+buf, len, (off_t)off)); }
+                   if (f->fd2 >= 0) READ_UNLOCKED(got = vp_pread(f, g_mem+buf, len, (int64_t)off));
+                   else { int fd = f->fd; READ_UNLOCKED(got = pread(fd, g_mem+buf, len, (off_t)off)); }
                    if(got<0) got=0;
+                   pr_note(f, buf, got, (int64_t)off);
                    MR32(ov+0) = 0;                      /* Internal = STATUS_SUCCESS */
                    MR32(ov+4) = (uint32_t)got;          /* InternalHigh = bytes read */
                    uint32_t hev = MR32(ov+16);
@@ -646,13 +835,21 @@ int fileio_call(CPU *c, const char *n, uint32_t *out){
                    g_overlapped_reads++;
                } else if (f->empty){
                    got = 0;                       /* immediate end of file */
+               } else if (f->fd2 >= 0){
+                   READ_UNLOCKED(got = vp_pread(f, g_mem+buf, len, f->pos));
+                   if(got<0) got=0;
+                   pr_note(f, buf, got, f->pos);
+                   f->pos += got;
                } else if (f->gf){                 /* a kept descriptor: the position is the handle's */
                    { int fd = f->fd; off_t at = (off_t)f->pos; READ_UNLOCKED(got = pread(fd, g_mem+buf, len, at)); }
                    if(got<0) got=0;
+                   pr_note(f, buf, got, f->pos);
                    f->pos += got;
                } else {
                    { int fd = f->fd; READ_UNLOCKED(got = read(fd, g_mem+buf, len)); }
                    if(got<0) got=0;
+                   if (f->pk && got > 0)
+                       pr_note(f, buf, got, (int64_t)lseek(f->fd, 0, SEEK_CUR) - got);
                }
                /* MUTEFILE=<part>: fill the reads of the matching file with
                 * ZEROS.  To measure objectively whether sound effects remain
@@ -706,7 +903,7 @@ int fileio_call(CPU *c, const char *n, uint32_t *out){
     else if (!strcmp(n,"SetFilePointer")){
         FH*f=fh_get(A(c,0)); int32_t dist=(int32_t)A(c,1); uint32_t method=A(c,3);
         if(!f||f->fd<0) r=0xFFFFFFFFu;
-        else if (f->gf){
+        else if (f->gf || f->fd2 >= 0){
             int64_t p = (method==1 ? f->pos : method==2 ? f->size : 0) + dist;
             if (p < 0) r=0xFFFFFFFFu; else { f->pos = p; r=(uint32_t)p; }
         }
@@ -717,7 +914,7 @@ int fileio_call(CPU *c, const char *n, uint32_t *out){
     else if (!strcmp(n,"GetFileSize")){
         FH*f=fh_get(A(c,0)); uint32_t ph=A(c,1);
         if(!f||f->fd<0) r=0xFFFFFFFFu;
-        else if (f->gf){ r=(uint32_t)f->size; if(ph) MR32(ph)=(uint32_t)((uint64_t)f->size>>32); }
+        else if (f->gf || f->fd2 >= 0){ r=(uint32_t)f->size; if(ph) MR32(ph)=(uint32_t)((uint64_t)f->size>>32); }
         else { struct stat st; if(fstat(f->fd,&st)==0){ r=(uint32_t)st.st_size;
                  if(ph) MR32(ph)=(uint32_t)(((uint64_t)st.st_size)>>32); } else r=0xFFFFFFFFu; }
     }
@@ -730,7 +927,12 @@ int fileio_call(CPU *c, const char *n, uint32_t *out){
             /* WASI has no birth time: the status-change time stands in */
             const struct timespec *ts[3] = { &st.st_ctim, &st.st_atim, &st.st_mtim };
 #else
+#if defined(__APPLE__)
             const struct timespec *ts[3] = { &st.st_birthtimespec, &st.st_atimespec, &st.st_mtimespec };
+#else
+            /* POSIX hosts without birthtime: ctime is the closest stable creation/change marker. */
+            const struct timespec *ts[3] = { &st.st_ctim, &st.st_atim, &st.st_mtim };
+#endif
 #endif
             for (int k = 0; k < 3; k++){ uint32_t p=A(c,1+k); if(!p) continue;
                 uint64_t ft = ((uint64_t)ts[k]->tv_sec + 11644473600ull) * 10000000ull + (uint64_t)ts[k]->tv_nsec / 100u;
@@ -746,10 +948,10 @@ int fileio_call(CPU *c, const char *n, uint32_t *out){
         FH*f=fh_get(A(c,0));
         if(!f) return 0;                       /* not ours - let the other layer handle it */
 #ifdef GF_CACHE
-        if(f->fd>=0 && f->gf && f->gf_gen == g_gf_gen && !g_open_wr) gf_fd_keep(f->gf - 1, f->fd);
+        if(f->fd>=0 && f->gf && f->gf_gen == g_gf_gen && !g_open_wr) gf_fd_keep(f->gf - 1, f->fd, f->fd2);
         else
 #endif
-        if(f->fd>=0) close(f->fd);
+        { if(f->fd>=0) close(f->fd); if(f->fd2>=0) close(f->fd2); }
         if(f->dir) closedir(f->dir);
         if(f->wr){ if (f->fd >= 0 && is_profile(f->path)) garage_profile_written(f->path); g_open_wr--; }
         f->used=0; r=1;

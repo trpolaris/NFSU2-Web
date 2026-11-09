@@ -258,12 +258,16 @@ export function backupItems(r: Restore, vault = false): string[] {
 export async function addProfiles(fs: RenameFiles, r: Restore) {
   const names = new Set(r.profiles.map(lower));
   const written = new Set(r.entries.map(e => e.path.split('/')[1]));
+  const paths = new Set(r.entries.map(e => e.path));
+  const stale: string[] = [];
   const old = new Set<string>();
   for (const { path } of await fs.listFiles()) {
     const s = path.split('/');
     if (s.length >= 3 && s[0] === PROFILES_DIR && names.has(lower(coverOf(s[1])?.profile ?? s[1])) && !written.has(s[1])) old.add(s[1]);
+    else if (s.length >= 3 && s[0] === PROFILES_DIR && written.has(s[1]) && lower(s[2]) === 'modparts.dat' && !paths.has(path)) stale.push(path);
   }
   for (const e of r.entries) await fs.writeFile(e.path, e.data);
+  for (const path of stale) await fs.remove(path);
   for (const f of old) await fs.remove(`${PROFILES_DIR}/${f}`);
   const seen = await fs.readText(AUTOSAVE_SEEN);
   const kept = seen?.split('\n').filter(l => !names.has(lower(l.trim()))).join('\n');
@@ -363,7 +367,7 @@ export class SavesPanel {
     }
     if (this.deps.download.running) { this.showData(); return; }
     const current = ++this.counted;
-    const [keptBytes, data] = await Promise.all([cacheBytes(), gameDataKept(this.deps.download.language(), this.deps.download.texpack()).catch(() => null)]);
+    const [keptBytes, data] = await Promise.all([cacheBytes(), gameDataKept(this.deps.download.language(), this.deps.download.texpack(), this.deps.download.openTunnel()).catch(() => null)]);
     if (current !== this.counted) return;
     this.kept = keptBytes; this.data = data; this.showData();
   }

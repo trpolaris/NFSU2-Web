@@ -485,6 +485,8 @@ html:has(> body > .stage:not([hidden])) { overflow: hidden; }
   padding: var(--t) var(--r) var(--b) var(--l);
 }
 .touch > * { position: absolute; pointer-events: auto; touch-action: none; -webkit-tap-highlight-color: transparent; }
+/* Reset at speed (touch.ts): invisible in place, so neighbouring buttons never move under a thumb. */
+.touch .tc.stowed { visibility: hidden; }
 .tc {
   display: flex; align-items: center; justify-content: center; text-align: center;
   background: rgba(0, 0, 0, 0.4); color: rgba(255, 255, 255, 0.72); font: italic 700 calc(16px * var(--ts)) / calc(20px * var(--ts)) var(--font);
@@ -538,6 +540,10 @@ html:has(> body > .stage:not([hidden])) { overflow: hidden; }
 .touch:not([data-steering="stick"]) .stick,
 .touch:not([data-steering="tilt"]) [data-ctl="center"],
 .touch:not([data-roam]) .roam { display: none; }
+/* multiplayer race quick chat: reuse the existing button when the race status is active */
+.touch[data-netrace]:not([data-no-race-chat]) .tc[data-ctl="chat"] { display: flex; top: var(--t); left: calc(var(--l) + 280px * var(--ts)); }
+.touch[data-netrace][data-no-race-chat] .tc[data-ctl="chat"] { display: none; }
+.touch[data-netrace][data-mode="menu"] > .tc[data-ctl="chat"] { left: calc(var(--l) + 56px * var(--ts)); top: var(--t); }
 /* the menus': the arrows as a D-pad bottom left, Back over OK bottom right, in the bars beside the game's 4:3 menus
  * (--bar wide): the keys as big as the bar leaves room for, 44 to 52 px.  A faint rim: the bars are black behind the
  * movies and the profile screens */
@@ -743,6 +749,9 @@ html:has(> body > .stage:not([hidden])) { overflow: hidden; }
 .ph-mode button.on { background: var(--lime-fill); color: var(--lime); }
 .ph-slider { display: flex; flex-direction: column; gap: 2px; color: var(--muted); }
 .ph-slider input { width: 100%; margin: 0; accent-color: var(--lime); }
+.ph-option { display: flex; align-items: center; gap: 7px; color: var(--muted); cursor: pointer; }
+.ph-option input { margin: 0; accent-color: var(--lime); }
+.ph-option:has(input:disabled) { opacity: 0.5; cursor: default; }
 .ph-buttons { display: flex; flex-direction: column; gap: 8px; }
 .ph-buttons button {
   padding: 6px 16px; border: 1px solid var(--edge); border-radius: 6px; background: var(--field);
@@ -1005,6 +1014,13 @@ html:has(> body > .stage:not([hidden])) { overflow: hidden; }
 .lobby-places li { display: flex; gap: 0.6em; align-items: baseline; padding: 0.12em 0; border-top: 1px solid rgba(255, 255, 255, 0.08); }
 .lobby-places li.open { color: rgba(255, 255, 255, 0.35); font-style: italic; }
 .lobby-places.dim li.taken { opacity: 0.6; }
+/* A compact performance gauge inside the existing race lobby panel. */
+.lobby-speed { display: flex; justify-content: center; align-items: center; gap: 0.4em; margin-top: 0.25em; color: var(--muted); font-size: 0.85em; }
+.lobby-gauge { flex: none; width: 1.9em; height: 1.1em; }
+.lobby-gauge path { fill: none; stroke-linecap: round; stroke-width: 2; }
+.lobby-gauge .track { stroke: var(--edge); }
+.lobby-gauge .red { stroke: var(--bad); }
+.lobby-gauge .needle { stroke: var(--text); }
 .lobby-n { width: 1em; text-align: right; color: var(--muted); }
 .lobby-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lobby-tag { font-size: 0.75em; text-transform: uppercase; color: var(--lime); }
@@ -1279,7 +1295,7 @@ dialog.menu {
 .menu-tab small { color: #4b5c58; font: 700 9px/1 var(--font); }
 .menu-tab:hover { color: #f1fffb; background: rgba(255,255,255,.035); border-color: rgba(255,255,255,.07); }
 .menu-tab:active { transform: scale(.975); }
-.menu-tab.is-active[data-menu-tab="chat"], .menu-tab.is-active[data-menu-tab="multiplayer"] {
+.menu-tab.is-active[data-menu-tab="chat"], .menu-tab.is-active[data-menu-tab="multiplayer"], .menu-tab.is-active[data-menu-tab="worlds"] {
   color: #00ffcc; border-left-color: #00ffcc; background: rgba(0,255,204,.085);
   box-shadow: 0 0 15px rgba(0,255,204,.12), inset 0 0 15px rgba(0,255,204,.045);
 }
@@ -1463,3 +1479,97 @@ dialog.menu .menu-shell { height: 100%; min-height: 0; }
 dialog.menu .menu-sidebar { min-height: 0; overflow-y: auto; gap: clamp(10px, 2vh, 18px); }
 dialog.menu .menu-save-wrap { margin-top: 10px !important; }
 dialog.menu .menu-resume { flex: 0 0 auto; }
+
+
+/* Friends in the existing F9 Driver Network tab. */
+.menu-friends-panel {
+  display: grid; gap: 12px; margin-top: 16px; padding: 15px;
+  border: 1px solid rgba(0,255,204,.18); border-radius: 5px;
+  background: linear-gradient(140deg, rgba(8,24,25,.94), rgba(3,12,14,.92));
+}
+.friends-panel-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.friends-panel-head h5 { margin: 4px 0 0; color: #effffb; font: 900 14px/1.2 var(--font-racing); }
+.friends-panel-note { margin: 0; min-height: 18px; color: #91ada5; font: 600 10px/1.45 var(--font); }
+.friends-panel-tools { display: grid; grid-template-columns: 1.2fr .8fr; gap: 12px; }
+.friends-mailbox { display: grid; gap: 7px; padding: 9px; border: 1px solid rgba(0,255,204,.22); border-radius: 3px; background: rgba(0,255,204,.035); }
+.friends-mailbox[hidden] { display: none; }
+.friends-mailbox-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.friends-mailbox h6 { display: flex; gap: 7px; margin: 0; color: #70d9c3; font: 900 9px/1.3 var(--font-racing); letter-spacing: .08em; }
+.friends-mailbox ul { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.friends-mail-row { display: grid; gap: 4px; padding: 8px; border: 1px solid rgba(155,210,195,.1); border-radius: 3px; background: rgba(3,10,11,.55); }
+.friends-mail-row b { color: #effffb; font: 800 10px/1.3 var(--font-racing); }
+.friends-mail-row p { margin: 0; color: #a9c7bd; white-space: pre-wrap; overflow-wrap: anywhere; font: 600 10px/1.45 var(--font); }
+.friends-panel-tools label, .friends-discord label { display: grid; gap: 6px; color: #a9c7bd; font: 800 9px/1.3 var(--font-racing); letter-spacing: .08em; text-transform: uppercase; }
+.friends-form-row { display: flex; gap: 6px; }
+.friends-form-row input, .friends-filter input {
+  width: 100%; min-width: 0; min-height: 34px; padding: 7px 9px;
+  border: 1px solid rgba(0,255,204,.2); border-radius: 3px;
+  color: #effffb; background: #071314; font: 600 11px/1.3 var(--font);
+}
+.friends-form-row input:focus, .friends-filter input:focus { outline: 1px solid rgba(0,255,204,.55); }
+.friends-form-row .btn { flex: 0 0 auto; min-height: 34px; padding: 6px 10px; font-size: 9px; }
+.friends-panel-columns { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.friends-panel-columns > section { min-width: 0; padding: 10px; border: 1px solid rgba(155,210,195,.1); border-radius: 3px; background: rgba(3,10,11,.48); }
+.friends-panel-columns h6 { display: flex; justify-content: space-between; gap: 8px; margin: 0 0 9px; color: #70d9c3; font: 900 9px/1.3 var(--font-racing); letter-spacing: .08em; }
+.friends-panel-columns h6 span { color: #a8c6bd; }
+.friends-panel-columns ul { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.friends-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; padding: 7px; border: 1px solid rgba(155,210,195,.09); border-radius: 3px; background: rgba(9,22,22,.7); }
+.friends-row-copy { display: grid; gap: 3px; min-width: 0; }
+.friends-row-copy b { overflow: hidden; color: #effffb; font: 800 10px/1.3 var(--font-racing); text-overflow: ellipsis; }
+.friends-row-copy small { color: #829d95; font: 600 9px/1.3 var(--font); }
+.friends-row-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px; }
+.friends-row-action { min-height: 25px; padding: 4px 6px; border: 1px solid rgba(0,255,204,.18); border-radius: 2px; color: #9dcfc1; background: rgba(0,255,204,.035); font: 800 8px/1 var(--font-racing); cursor: pointer; }
+.friends-row-action:hover { border-color: rgba(0,255,204,.55); color: #eafff8; }
+.friends-empty { padding: 7px 2px; color: #758c85; font: 600 9px/1.4 var(--font); }
+.friends-panel-pagination { display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+.friends-panel-pagination[hidden] { display: none; }
+.friends-panel-pagination span { min-width: 40px; color: #829d95; text-align: center; font: 600 9px/1 var(--font); font-variant-numeric: tabular-nums; }
+.friends-panel-pagination button:disabled { opacity: .35; cursor: default; }
+.friends-discord { display: grid; gap: 5px; max-width: 420px; padding-top: 10px; border-top: 1px solid rgba(155,210,195,.1); }
+.friends-send { display: grid; gap: 5px; padding-top: 10px; border-top: 1px solid rgba(155,210,195,.1); }
+.friends-send label { display: grid; gap: 6px; color: #a9c7bd; font: 800 9px/1.3 var(--font-racing); letter-spacing: .08em; text-transform: uppercase; }
+.friends-send select { width: min(180px, 100%); min-width: 110px; min-height: 34px; padding: 6px 8px; border: 1px solid rgba(0,255,204,.2); border-radius: 3px; color: #effffb; background: #071314; font: 600 10px/1.3 var(--font); }
+.friends-send .friends-form-row input { flex: 1 1 240px; }
+.friends-discord small { color: #829d95; font: 600 9px/1.4 var(--font); }
+@media (max-width: 720px) {
+  .friends-panel-tools, .friends-panel-columns { grid-template-columns: minmax(0,1fr); }
+  .friends-panel-columns > section { padding: 9px; }
+}
+
+
+/* A live friend-to-crew invitation, shown over the game alongside existing notices. */
+.friends-crew-invite {
+  display:flex; align-items:center; justify-content:space-between; gap:12px; width:min(420px,calc(100vw - 28px));
+  margin:0 0 8px; padding:12px 14px; border:1px solid rgba(102,215,176,.42); border-left:3px solid #66d7b0;
+  border-radius:10px; color:#eef8f4; background:rgba(9,19,26,.96); box-shadow:0 10px 28px rgba(0,0,0,.35);
+  font:700 12px/1.4 var(--font);
+}
+.friends-crew-invite button {
+  flex:0 0 auto; padding:7px 12px; border:1px solid rgba(102,215,176,.4); border-radius:7px;
+  color:#b9f2dc; background:rgba(102,215,176,.1); font:800 11px/1.2 var(--font); cursor:pointer;
+}
+.friends-crew-invite button:disabled { opacity:.45; cursor:default; }
+
+
+/* Pending live crew invitations share the existing Crews dialog and its current visual language. */
+.crew-invites-waiting{display:grid;gap:8px;padding:10px 12px;border:1px solid rgba(102,215,176,.28);border-radius:10px;background:rgba(7,19,20,.56)}
+.crew-invites-waiting h3{margin:0;color:#a6f1d6;font:800 11px/1.3 var(--font);letter-spacing:.04em}
+.crew-invite-pending-list{display:grid;gap:7px}
+.crew-invite-pending-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 9px;border:1px solid rgba(102,215,176,.17);border-radius:8px;background:rgba(102,215,176,.035)}
+.crew-invite-pending-copy{min-width:0;color:#dcebe6;font:650 11px/1.45 var(--font);overflow-wrap:anywhere}
+.crew-invite-pending-actions{display:flex;flex:0 0 auto;gap:6px}
+.crew-invite-pending-actions .btn{min-height:30px;height:auto;padding:5px 9px;font-size:10px}
+.crew-invite-pending-actions .crew-invite-join{border-color:rgba(102,215,176,.35);color:#b9f2dc;background:rgba(102,215,176,.1)}
+.crew-invite-pending-actions .crew-invite-join:disabled{opacity:.42;cursor:not-allowed}
+.crew-invite-pending-hint{margin:0;color:#d9bd82;font:600 10px/1.4 var(--font)}
+@media(max-width:520px){.crew-invite-pending-row{align-items:flex-start;flex-direction:column}.crew-invite-pending-actions{width:100%;justify-content:flex-end}}
+
+.friend-bump-prompt { pointer-events:auto; }
+.friend-bump-prompt[hidden] { display:none; }
+.friend-bump-prompt > span { min-width:0; flex:1 1 auto; }
+.friend-bump-prompt > button { pointer-events:auto; }
+
+/* The Controls sheet is hosted inside the F9 control deck instead of a second dialog. */
+.menu-controls-sheet { min-width: 0; padding: 4px 0 18px; }
+.menu-controls-sheet .keys { min-width: 0; }
+.menu-controls-sheet .keys > div { max-width: 100%; }

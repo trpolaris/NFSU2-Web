@@ -227,6 +227,7 @@ static const struct { const char *key, *env; int kind; const char *vals; } g_key
     { "roam_max_players",         "NFSU2_ROAM_MAX_PLAYERS",     K_INT   | K_IC, "2..33" },
     { "roam_max_cars",            "NFSU2_ROAM_MAX_CARS",        K_INT   | K_IC, "0..32" },
     { "roam_collide",             "NFSU2_ROAM_COLLIDE",         K_BOOL  | K_IC },
+    { "show_hidden_races",       "NFSU2_SHOW_HIDDEN_RACES",    K_BOOL     },
     { "roam_rate",                "NFSU2_ROAM_RATE",            K_INT   | K_IC, "10..30" },
     { "roam_delay",               "NFSU2_ROAM_DELAY",           K_INT   | K_IC, "0..1000" },
     { "roam_extrap",              "NFSU2_ROAM_EXTRAP",          K_INT   | K_IC, "0..1000" },
@@ -409,6 +410,12 @@ static const char *const k_template =
 "# Large image: an asset key of your own application, or an https URL of an\n"
 "# image you may use.  Empty = none.  [NFSU2_DISCORD_LARGE_IMAGE]\n"
 "#discord_large_image =\n"
+"\n"
+"# ---- Career -------------------------------------------------------------\n"
+"\n"
+"# Show the career races normally hidden by the game. This is an in-memory change only.\n"
+"# Off keeps the original behaviour. [NFSU2_SHOW_HIDDEN_RACES]\n"
+"#show_hidden_races = off\n"
 "\n"
 "# ---- Free-roam multiplayer ---------------------------------------------\n"
 "\n"

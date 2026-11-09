@@ -133,21 +133,27 @@ test('typing @ in the FreeRoam composer suggests live server players and inserts
     };
     chat.start(session, true, [], [], [], 'LocalDriver');
     chat.driveAt = -Infinity;
-    chat.toggle();
+    const composerOpened = chat.openChat();
     const input = document.querySelector('#chatInput');
     input.value = '@ali';
     input.setSelectionRange(input.value.length, input.value.length);
     input.dispatchEvent(new Event('input', { bubbles: true }));
-    await new Promise(resolve => setTimeout(resolve, 0));
+    const deadline = Date.now() + 3000;
+    while (!document.querySelector('.chat-mention-option') && Date.now() < deadline) {
+      await new Promise(resolve => setTimeout(resolve, 20));
+    }
     const suggestions = [...document.querySelectorAll('.chat-mention-option')].map(node => node.textContent);
     const candidate = document.querySelector('.chat-mention-option');
     if (candidate) candidate.click();
     const output = input.value;
     const expanded = input.getAttribute('aria-expanded');
+    const composerOpen = chat.chatHud.classList.contains('active');
     chat.stop();
-    return { suggestions, output, expanded };
+    return { suggestions, output, expanded, composerOpen, composerOpened };
   });
   if (!result) return;
+  assert.equal(result.composerOpened, true);
+  assert.equal(result.composerOpen, true);
   assert.deepEqual(result.suggestions, ['@AliceRacerFREE ROAM']);
   assert.equal(result.output, '@AliceRacer ');
   assert.equal(result.expanded, 'false');

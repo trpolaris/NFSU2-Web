@@ -1,4 +1,4 @@
-// The Controls sheet is retained for the in-game Controls dialog (shell.ts openHelp); the routed page is React.
+// The Controls sheet is shared by the start page and the F9 control deck (shell.ts openHelp); the routed page is React.
 // Three tabs: the keyboard (on a touch screen: touch), the controller and this site.  The controller's tab is a
 // drawing of a pad with what each button the game uses does beside it, the buttons named as Xbox or PlayStation
 // names them (the switch under it; a PlayStation controller connecting, or taking over in the game, picks those
@@ -10,7 +10,8 @@
 // SVG's 336 px, the labels in rows of px left and right of it and over its middle, each joined to its control by a
 // line.  The D-pad's three rows and the face buttons' four share one line, from a bracket beside them.
 
-import { drivingPad, familyOf, PAD_DRIVER_EVENT } from '../input/gamepad';
+import { allPads, drivingPad, familyOf, PAD_DRIVER_EVENT } from '../input/gamepad';
+import { connectSteamPad, steamPadsPicked, steamPadsPossible } from '../input/steampad';
 import { PADF_PLAYSTATION } from '../input/proto';
 import { wheelSection } from './wheel-setup';
 import { askMotion, levelHorizon, menuSize, onLevelHorizon, onSteering, setLevelHorizon, setSteering, steering, STEERING, steeringName,
@@ -175,7 +176,7 @@ export function controlsState(opts: { tab?: Tab; fam?: Family; follow?: boolean;
       if (gamepad) seen(gamepad);
     });
     try {
-      const gamepad = navigator.getGamepads?.().find(p => p?.connected);
+      const gamepad = allPads().find(p => p?.connected);
       if (gamepad) seen(gamepad);
     } catch { /* Gamepad API is unavailable in this browser. */ }
   }
@@ -226,14 +227,32 @@ export function controlsSheet(root: HTMLElement, id: string, opts: { tab?: Tab; 
     <div class="seg" role="radiogroup" aria-label="${esc(t('Button names'))}">
       <label class="opt"><input type="radio" name="${id}-fam" value="xb">Xbox</label>
       <label class="opt"><input type="radio" name="${id}-fam" value="ps">PlayStation</label>
-    </div></div>`;
+    </div>
+    ${steamPadsPossible() ? '<p class="hint steam-state"></p><div class="row"><button type="button" class="btn" data-steam></button></div>' : ''}
+    </div>`;
     mount.append(wheel.box);
     svg = mount.querySelector('svg')!;
-    radios = [...mount.querySelectorAll<HTMLInputElement>('input[type="radio"]')];
+    radios = [...mount.querySelectorAll<HTMLInputElement>('.pad-foot input[type="radio"]')];
     for (const r of radios) r.onchange = () => { if (r.checked) sheet.family(r.value as Family); };
+    steamPart();
     wheel.relabel();
     requestAnimationFrame(fit);
   };
+  /** Let the player explicitly pick Valve's WebHID device in the browser's permission chooser. */
+  const steamPart = () => {
+    const btn = mount.querySelector<HTMLButtonElement>('[data-steam]');
+    const state = mount.querySelector<HTMLElement>('.steam-state');
+    if (!btn || !state) return;
+    const show = (names: string[]) => {
+      state.textContent = names.length ? t('{names}: connected in this browser.', { names: names.join(', ') })
+        : t('Steam Controller or Steam Deck: connect it once.');
+      btn.textContent = names.length ? t('Connect another') : t('Connect a Steam Controller');
+    };
+    show([]);
+    void steamPadsPicked().then(show);
+    btn.onclick = () => { void connectSteamPad().then(() => steamPadsPicked()).then(show).catch(() => {}); };
+  };
+
   /** a label too long for the drawing (another language's words) a little smaller, so it stays inside the 336 px;
    *  measured once the tab shows (a hidden one has no size) */
   const fit = () => {
@@ -328,7 +347,7 @@ export function controlsSheet(root: HTMLElement, id: string, opts: { tab?: Tab; 
     };
     window.addEventListener('gamepadconnected', e => seen(e.gamepad));
     window.addEventListener(PAD_DRIVER_EVENT, () => { const g = drivingPad(); if (g) seen(g); });
-    try { const g = navigator.getGamepads?.().find(p => p?.connected); if (g) seen(g); } catch { /* no Gamepad API */ }
+    try { const g = allPads().find(p => p?.connected); if (g) seen(g); } catch { /* no Gamepad API */ }
   }
   sheet.show(tab);
   sheet.family(fam);

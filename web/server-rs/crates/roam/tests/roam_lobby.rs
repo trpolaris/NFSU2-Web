@@ -5,9 +5,11 @@ mod kit;
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::sync::Arc;
 
 use kit::*;
-use nfsu2_roam::RoamOptions;
+use nfsu2_roam::{CarBan, CarBans, RoamOptions};
+use parking_lot::Mutex;
 
 fn repo() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../..")
@@ -417,4 +419,78 @@ fn race_reports_on_the_wire_roam_core_and_the_hub_agree() {
         ["[race] lobby a1b2c3d4, race 0badf00d (sprint, track 4102, 1 lap, 3 cars): Ann K. (host) 2nd of 3 in 95.50 s; 350Z (type 22), \
           class 2, rating 316.6 (the cars' average 280.5), 214 kW, 1450 kg, 249 km/h, power x1.250"]
     );
+}
+
+/// A lobby RACEREP: its sender's own car, before the race's engine balancing.
+fn race_report(sender: u32, lobby: u32, players: u8, car_type: u8, rating: f32, kw: f32) -> Vec<u8> {
+    let mut p = vec![0u8; 64];
+    p[0..4].copy_from_slice(&lobby.to_le_bytes());
+    p[4..8].copy_from_slice(&0x0BAD_F00Du32.to_le_bytes());
+    p[8] = 1;
+    p[9] = 1;
+    p[10..12].copy_from_slice(&4104u16.to_le_bytes());
+    p[12] = 1;
+    p[13] = players;
+    p[15] = car_type;
+    for (k, v) in [rating, 500.0, 1.0, kw, 1338.0, 381.0, 0.0].iter().enumerate() {
+        p[20 + 4 * k..24 + 4 * k].copy_from_slice(&v.to_le_bytes());
+    }
+    p[48..55].copy_from_slice(b"SKYLINE");
+    dgram(14, sender, &p)
+}
+
+#[test]
+fn configured_car_bans_only_reported_multiplayer_player_cars_over_threshold() {
+    let told: Arc<Mutex<Vec<CarBan>>> = Default::default();
+    let t = told.clone();
+    let call = Arc::new(move |c: CarBan| t.lock().push(c));
+    let mut k =
+        Kit::new(RoamOptions { car_bans: Some(CarBans { kw: Some(1500.0), rating: Some(3000.0), call }), ..RoamOptions::default() });
+    k.from(W(0), &hello_with(100, &HelloOpts { core: 5, name: b"Evl", ..Default::default() }));
+
+    // An honest car, a race alone, and a traffic vehicle do not trigger a ban.
+    k.from(W(0), &race_report(100, 0xC1, 4, 27, 735.0, 505.0));
+    k.step(25_000.0);
+    k.from(W(0), &race_report(100, 0xC2, 1, 27, 1451.0, 2829.0));
+    k.step(25_000.0);
+    k.from(W(0), &race_report(100, 0xC3, 4, 37, 1451.0, 2829.0));
+    assert!(told.lock().is_empty());
+
+    k.step(25_000.0);
+    k.from(W(0), &race_report(100, 0xC4, 4, 27, 1451.0, 2829.0));
+    assert_eq!(told.lock().len(), 1);
+    let got = told.lock();
+    let c = &got[0];
+    assert_eq!((c.vip, c.name.as_str(), c.car.as_str(), c.car_type), (W(0), "Evl", "SKYLINE", 27));
+    assert_eq!((c.kw, c.kg, c.kmh, c.rating), (2829.0, 1338.0, 381.0, 1451.0));
+    assert_eq!(c.place, "1st of 4");
+    assert_eq!(k.info("carBans"), 1.0);
+    drop(got);
+
+    // A second report for the same lobby is deduplicated by the hub.
+    k.from(W(0), &race_report(100, 0xC4, 4, 27, 1451.0, 2829.0));
+    assert_eq!(told.lock().len(), 1);
+
+    // No policy configured: no automatic reports regardless of the car figures.
+    let mut off = Kit::new(RoamOptions::default());
+    off.from(W(1), &hello_with(101, &HelloOpts { core: 5, name: b"Other", ..Default::default() }));
+    off.from(W(1), &race_report(101, 0xD1, 4, 27, 5000.0, 9999.0));
+    assert_eq!(off.info("carBans"), 0.0);
+}
+
+// a career-counting race report marks the reporter's win credit in the hub's log.
+#[test]
+fn a_race_that_counted_in_the_career_says_so() {
+    let mut k = Kit::new(RoamOptions::default());
+    k.from(W(0), &hello_with(100, &HelloOpts { core: 5, name: b"Ann", ..Default::default() }));
+    let mut d = racerep(100, 0xA3, 1, 2, 0, 239.3, b"PEUGOT", 64);
+    d[16 + 17] = 2; // the reporter's career-credit byte
+    let n = d.len();
+    let crc = crc32fast::hash(&d[..n - 4]);
+    d[n - 4..].copy_from_slice(&crc.to_le_bytes());
+    k.from(W(0), &d);
+    let lines = k.lines.lock().clone();
+    assert_eq!(lines.len(), 1, "{lines:?}");
+    assert!(lines[0].starts_with("[race] lobby 000000a3"), "{lines:?}");
+    assert!(lines[0].ends_with("power x1.000; a friend's win in the career"), "{lines:?}");
 }

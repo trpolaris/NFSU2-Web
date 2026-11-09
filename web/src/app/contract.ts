@@ -62,8 +62,14 @@ export interface NetOptions extends CommonOptions {
   lobby?: (json: string) => void;
   /** free roam: quick chat, a phrase said (by a friend or the player), as JSON from the game */
   say?: (json: string) => void;
+  /** Free Roam front-bumper contact with a friend, as JSON */
+  bump?: (json: string) => void;
   /** typed FreeRoam room or Crew chat, relayed by the hub as JSON */
   chat?: (json: string) => void;
+  /** Free Roam friend notifications delivered by the server */
+  friend?: (message: Record<string, unknown>) => void;
+  /** the LAN welcomed this page: sync its claimed-name Friends list with the hub */
+  networkReady?: () => void;
   /** the server's LAN took this page back after the link was lost (a server restart, as for a deploy) */
   back?: () => void;
   /** the server is full: this page's place in line for one (null: not in line) */
@@ -117,6 +123,14 @@ export interface InputSubsystem extends Subsystem {
   sms?(id: number): boolean;
   /** photo mode (runtime/photo.c, photo.ts): what (its PH_* number) and its values; false: it cannot reach the game */
   photo?(what: number, a?: number, b?: number): boolean;
+  /** career Free Roam Tracks menu: 0 the city, 1..9 a race-track map */
+  travel?(where: number): boolean;
+  /** career Free Roam Friends menu: the friend's room hash and race-track spot (0: the city) */
+  travelFriend?(nameHash: number, spot: number): boolean;
+  /** career Free Roam Tracks menu: 0 the city, 1..9 a race-track map */
+  travel?(where: number): boolean;
+  /** career Free Roam Friends menu: join a named friend, at its track spot (0: the city) */
+  travelFriend?(nameHash: number, spot: number): boolean;
   /** every key and button the game holds goes up (photo mode takes the keys) */
   releaseAll?(): void;
   /** performance.now() of the player's last key, mouse or controller input; null: the page cannot tell
@@ -153,12 +167,14 @@ export interface NetSubsystem extends Subsystem {
   /** free roam's solid cars, switched while the game runs (the page menu) */
   solid?(on: boolean): void;
   /** quick chat: the player says phrase p (quickchat.ts); false: the game has no free roam */
-  say?(p: number): boolean;
+  say?(p: number, race?: boolean): boolean;
   /** typed FreeRoam room or Crew chat; crewId is the selected Crew hash (0 for All) */
   chat?(text: string, scope: 'room' | 'crew', crewId?: number): boolean;
   /** free roam's crews, changed while the game runs (the page menu): their hashes, in the player's order, and their
    *  colours (0x00rrggbb) */
   crews?(hashes: readonly number[], rgbs: readonly number[]): void;
+  /** Change the current Free Roam room; false when no compatible mailbox is attached. */
+  room?(name: string): boolean;
 }
 
 export type AttachRenderer = (proc: GameProcess, canvas: HTMLCanvasElement, opts: RendererOptions) => RendererSubsystem | Promise<RendererSubsystem>;

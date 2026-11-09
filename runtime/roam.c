@@ -792,18 +792,24 @@ static void roam_frame(CPU *c){
     if (g_carlog_every > 0 && f >= g_carlog_next){ g_carlog_next = f + g_carlog_every; log_cars("periodic"); }
 }
 void roam_game_frame(CPU *c);                 /* roam_game.c: the multiplayer feature */
+void travel_frame(CPU *c);
+int travel_hook(CPU *c, uint32_t ip);
 void racehorn_frame(CPU *c);                  /* racehorn.c: horns in races between players */
 void racenet_frame(CPU *c);                   /* racenet.c: how the other players' cars came in, at a race's end */
 void racenet_prestep(CPU *c);                 /*   and the cars' own places back before the world's step */
 void mprace_frame(CPU *c);                    /* mprace.c: a multiplayer race's trip from free roam and back */
+void mpcredit_frame(CPU *c);                  /* mpcredit.c: pending career wins, sponsors and movie */
 void optslider_frame(CPU *c);                 /* optslider.c: our option sliders' copied parts (the pause menu's Horn Volume) */
 void drift_frame(CPU *c);                     /* drift.c: drift mode in free roam (F2) */
 void photo_frame(CPU *c);                     /* photo.c: photo mode (F12, the pause menu's Photo Mode) */
 void language_texts_frame(CPU *c);            /* language.c: texts of our own in the game's language table */
 void sms_frame(CPU *c);                       /* sms.c: a text message of ours on the game's phone */
+void engage_frame(CPU *c);                    /* engage.c: recover a stale career marker transition */
 void carspot_frame(void);                    /* carspot.c: sanitize the career's saved car position */
 void reads_frame(CPU *c);                     /* overrides.c: the streamer's reads and Loading screens, for the log */
 void roam_game_hud(CPU *c);                 /* its names over friends' cars */
+void gpsdistance_hud(CPU *c);
+void hiddenraces_frame(void);
 int roam_game_cmd(CPU *c, const char *args, long *wait_start);
 /* the "virtual Windows friend" (roam_asipeer.c, only in out/nfsu2_asipeer):
  * the Windows plugin under Unicorn instead of roam_game.c */
@@ -812,11 +818,12 @@ __attribute__((weak)) int roam_asipeer_cmd(CPU *c, const char *args, long *wait_
     (void)c; (void)args; (void)wait_start;
     fprintf(stderr, "[roam] asi: not in this build (ASIPEER=1 ./link.sh orig makes out/nfsu2_asipeer)\n"); return 1; }
 int roam_hook(CPU *c, uint32_t ip){
+    if (travel_hook(c, ip)) return 1;
     switch (ip){
-    case HOOK_SITE(0x00581475): reads_frame(c); language_texts_frame(c); sms_frame(c); carspot_frame(); mprace_frame(c); if (!roam_asipeer_frame(c)) roam_game_frame(c); racehorn_frame(c); racenet_frame(c); optslider_frame(c); drift_frame(c); photo_frame(c); roam_frame(c); return 1;
+    case HOOK_SITE(0x00581475): hiddenraces_frame(); reads_frame(c); language_texts_frame(c); sms_frame(c); carspot_frame(); mprace_frame(c); mpcredit_frame(c); if (!roam_asipeer_frame(c)) roam_game_frame(c); travel_frame(c); racehorn_frame(c); racenet_frame(c); optslider_frame(c); drift_frame(c); photo_frame(c); engage_frame(c); roam_frame(c); return 1;
     /* Player::Update's HUD step (0x600590), behind its call of the HUD
      * update (0x4EC5A0), where the game places its own LAN race labels */
-    case HOOK_SITE(0x006005e0): roam_game_hud(c); return 1;
+    case HOOK_SITE(0x006005e0): gpsdistance_hud(c); roam_game_hud(c); return 1;
     /* the main loop's call of World::DoTimestep (0x609CE0), its only one */
     case HOOK_SITE(0x00581407): racenet_prestep(c); return 1;
     }
@@ -895,6 +902,11 @@ int roam_cmd(CPU *c, const char *line, long *wait_start){
     long f = autotest_frame();
     if (!strcasecmp(sub, "mp")) return roam_game_cmd(c, rest, wait_start);
     if (!strcasecmp(sub, "asi")) return roam_asipeer_cmd(c, rest, wait_start);
+    if (!strcasecmp(sub, "racesay")){
+        void racehorn_test_say(int phrase);
+        racehorn_test_say(atoi(a1));
+        fprintf(stderr, "[roam] f=%ld racesay %d\n", f, atoi(a1));
+        return 1; }
     g_active = 1;
     if (!strcasecmp(sub, "call") || !strcasecmp(sub, "cars") || !strcasecmp(sub, "ghost") ||
         !strcasecmp(sub, "types") || !strcasecmp(sub, "loader") || !strcasecmp(sub, "rewind") ||

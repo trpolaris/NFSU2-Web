@@ -24,6 +24,10 @@ export const MIN_CHROME = 140;
 /** Atomics.waitAsync (the renderer's and the network's doorbells) is in Firefox from 145 */
 export const MIN_FIREFOX = 145;
 
+/** The site's JavaScript optimizer is disabled; the interpreter cannot compile this game's WebAssembly. */
+export const NO_JIT = N('The JavaScript optimizer is off for this site, and the game can\'t run without it. In Chrome: Settings, Privacy and security, JavaScript optimization and security, allow this site (Android\'s Advanced Protection turns it off). In Edge: add this site as an exception to Enhanced security.');
+export const noJit = (e: unknown) => /Wasm interpreter|WebAssembly is not defined/i.test(String(e));
+
 /** "Google Chrome" major version, or null (another browser), from User-Agent Client Hints. */
 export function chromeVersion(): { brand: string; major: number } | null {
   const uad = (navigator as any).userAgentData as { brands?: { brand: string; version: string }[] } | undefined;
@@ -73,12 +77,15 @@ export function checkIsolation(): Check {
   if (!crossOriginIsolated || typeof SharedArrayBuffer === 'undefined') {
     return check('isolation', label, 'fail', N('The page is not cross-origin isolated (no SharedArrayBuffer). Open it from the NFSU2 web server, not another server.'), 'PAGE-NOT-ISOLATED');
   }
-  try { new WebAssembly.Memory({ initial: 1, maximum: 65536, shared: true }); }
-  catch (e) { return check('isolation', label, 'fail', N('Shared 4 GB WebAssembly memory is not available: {error}'), 'PAGE-NO-MEMORY', { error: String(e) }); }
-  if (typeof (Atomics as { waitAsync?: unknown }).waitAsync !== 'function') {
+  if (typeof WebAssembly === 'undefined') return check('isolation', label, 'fail', NO_JIT, 'PAGE-NO-JIT');
+  // Probe only whether shared memory works. Reserving a 4 GB maximum here can itself consume a 32-bit
+  // browser's address space before Play allocates the actual game memory.
+  try { new WebAssembly.Memory({ initial: 1, maximum: 1, shared: true }); }
+  catch (e) { return check('isolation', label, 'fail', N('Shared WebAssembly memory is not available: {error}'), 'PAGE-NO-MEMORY', { error: String(e) }); }
+  if (typeof Atomics.waitAsync !== 'function') {
     return check('isolation', label, 'fail', N('This browser is too old for the game (no Atomics.waitAsync). Update {browser}.'), 'PAGE-NO-WAITASYNC', { browser: browserName() });
   }
-  return check('isolation', label, 'ok', N('HTTPS or localhost, cross-origin isolated, threads and 4 GB memory available.'));
+  return check('isolation', label, 'ok', N('HTTPS or localhost, cross-origin isolated, threads and shared memory available.'));
 }
 
 /**
@@ -148,6 +155,13 @@ export async function checkGpu(lostBefore = false): Promise<Check & { adapter?: 
   const ffg = ff && windows && !info ? firefoxGraphics() : null;
   if (ffg) info = ffg.name;
   const named = info ? N('Graphics: {info}') : label;
+  // Some browsers hand WebGPU a processor-based fallback (SwiftShader/llvmpipe) instead of the real GPU.
+  if (chromium && ((ad.info as { isFallbackAdapter?: boolean } | undefined)?.isFallbackAdapter || /swiftshader|llvmpipe|lavapipe|softpipe/i.test(info))) {
+    return { ...check('gpu', named, 'warn', linux
+      ? N('Chrome gave the game its software graphics, which run on the processor, so the game will be very slow. Turn on chrome://flags/#enable-vulkan and chrome://flags/#default-angle-vulkan, then restart Chrome.')
+      : N('Chrome isn\'t using this computer\'s graphics. Turn on graphics acceleration in chrome://settings/system and restart Chrome. If it\'s already on, update the graphics driver.'),
+    'GPU-SOFTWARE', { info }), adapter: info };
+  }
   // no BC (PowerVR, Mali): the renderer unpacks the textures (web/src/gpu/dxt.ts), so it plays.  With ASTC (iPhones,
   // iPads, most phones) the most of them go up as ASTC instead (astc.ts): ~50 MB more, not 200, nothing to say
   if (!ad.features.has('texture-compression-bc') && !ad.features.has('texture-compression-astc')) {

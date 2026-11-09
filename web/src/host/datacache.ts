@@ -54,8 +54,26 @@ export function av1Path(path: string): string | null {
 /** What "Preload the game data" fetches: all but the movies (MOVIES/, a third of the folder in VP6 video that
  *  does not compress, and their AV1 copies).  They stream as they play, and with Movies off the game never opens
  *  them. */
-export const aheadFiles = (files: DataFile[], language: string, texpack = '') =>
-  gameFiles(files, language, texpack).filter(f => !isMovie(f));
+const TUNNEL_TRACKS = [
+  'tracks/l4ra.bun',
+  'tracks/streaml4ra.bun',
+  'tracks/routesl4ra/pathsfreeroam.bin',
+] as const;
+const TUNNEL_PACK = TUNNEL_TRACKS.map(p => `modpacks/open-tunnel/${p}`);
+
+/** Select only a complete, explicitly requested tunnel overlay; incomplete packs fall back as a unit. */
+export function withTunnelOverlay(files: DataFile[], enabled: boolean): DataFile[] {
+  const names = new Set(files.map(f => parts(f).join('/')));
+  const use = enabled && TUNNEL_PACK.every(p => names.has(p) && files.some(f => parts(f).join('/') === p && f.size > 0));
+  return files.filter(f => {
+    const p = parts(f).join('/');
+    if (p.startsWith('modpacks/open-tunnel/')) return use && TUNNEL_PACK.includes(p);
+    if (use && (TUNNEL_TRACKS as readonly string[]).includes(p)) return false;
+    return true;
+  });
+}
+export const aheadFiles = (files: DataFile[], language: string, texpack = '', openTunnel = false) =>
+  withTunnelOverlay(gameFiles(files, language, texpack), openTunnel).filter(f => !isMovie(f));
 /** The movies a game in this language can open: its VP6 files, or where it plays AV1 (av1) their AV1 copies, the
  *  VP6 file where a movie has none (as the I/O worker opens them, io-worker.ts dataFile). */
 export function languageMovies(files: DataFile[], language: string, av1 = false): DataFile[] {
@@ -72,9 +90,9 @@ export async function openCacheFile(dir: FileSystemDirectoryHandle, f: DataFile)
   const k = cacheKey(f);
   const fh = await dir.getFileHandle(k, { create: true });
   const mh = await dir.getFileHandle(k + '.have', { create: true });
-  const h = await (fh as any).createSyncAccessHandle({ mode: 'readwrite-unsafe' }) as FileSystemSyncAccessHandle;
+  const h = await fh.createSyncAccessHandle({ mode: 'readwrite-unsafe' });
   let haveH: FileSystemSyncAccessHandle;
-  try { haveH = await (mh as any).createSyncAccessHandle({ mode: 'readwrite-unsafe' }) as FileSystemSyncAccessHandle; }
+  try { haveH = await mh.createSyncAccessHandle({ mode: 'readwrite-unsafe' }); }
   catch (e) { h.close(); throw e; }
   const nb = blockCount(f.size);
   const have = new Uint8Array(nb);
