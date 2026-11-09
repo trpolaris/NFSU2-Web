@@ -150,6 +150,8 @@ jobs:
           cc -std=gnu11 -D_POSIX_C_SOURCE=200809L -Iruntime -fsyntax-only runtime/uniques.c
           cc -std=c11 -Wall -Wextra -Werror -DUNIQUES_UNIT -Iruntime tests/uniques_unit.c runtime/uniques.c -o /tmp/uniques_unit
           /tmp/uniques_unit
+          cc -std=c11 -Wall -Wextra -Werror -Iruntime tests/uniques_memory_unit.c runtime/uniques.c -o /tmp/uniques_memory_unit
+          /tmp/uniques_memory_unit
           grep -Eq '(^|,)515500(,|$)' <(tools/genstamp.sh overrides)
           grep -Eq '^RT=.*[[:space:]]uniques([[:space:]]|\")' web/build.sh
           grep -Eq '^CSRC=.*[[:space:]]uniques([[:space:]]|\")' link.sh
