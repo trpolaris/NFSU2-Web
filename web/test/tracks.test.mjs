@@ -78,6 +78,8 @@ test('Tracks UI events stay wired through the C mailbox, game frame and status p
   assert.ok(roam.includes('case HOOK_SITE(0x00581475):'));
   assert.ok(roam.includes('travel_frame(c);'));
   assert.ok(travel.includes('void sub_0041ace0_orig(CPU *c);'));
+  assert.ok(travel.includes('void sub_0041ace0(CPU *c){'));
+  assert.ok(travel.includes('if (on_track()){ c->eax &= ~0xffu; POP32(c->eip); return; }'));
   assert.ok(travel.includes('void sub_00540780_orig(CPU *c);'));
   assert.ok(travel.includes('void sub_00581820_orig(CPU *c);'));
   assert.ok(build.includes('travel sbrk'));
