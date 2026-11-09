@@ -1602,5 +1602,7 @@
   "The game continues running behind this menu.": "このメニューの背後でゲームは実行され続けます。",
   "RETURN TO GAME": "ゲームに戻る",
   "Enable mod rim brands": "Modのホイールブランドを有効にする",
-  "Adds compatible mod rim brands to Body Shop. Requires a compatible MODPACKS pack in the game folder. Off by default. Changes apply the next time you press Play.": "互換性のあるModホイールブランドをBody Shopに追加します。ゲームフォルダーに互換性のあるMODPACKSパックが必要です。初期設定はオフです。変更は次回のゲーム起動時に適用されます。"
+  "Adds compatible mod rim brands to Body Shop. Requires a compatible MODPACKS pack in the game folder. Off by default. Changes apply the next time you press Play.": "互換性のあるModホイールブランドをBody Shopに追加します。ゲームフォルダーに互換性のあるMODPACKSパックが必要です。初期設定はオフです。変更は次回のゲーム起動時に適用されます。",
+  "Unique parts for every car": "全車にユニークパーツ",
+  "Once Caleb is beaten, the shops sell the unique visual parts, wide body kits too, for every car in your career. Off: as in the original, each one only for the car you earned it with.": "Calebを倒すと、キャリアのすべての車向けにショップでユニークな外装パーツ（ワイドボディキットも）が販売されます。オフ: オリジナルと同じく、各パーツは獲得したときの車専用です。"
 }
