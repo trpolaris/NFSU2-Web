@@ -310,6 +310,11 @@ function closeWebSocket(ws: WebSocket, code: number, reason: string): void {
   if (ws.readyState === WebSocket.CONNECTING) {
     const terminate = (ws as WebSocket & { terminate?: () => void }).terminate;
     if (typeof terminate === 'function') {
+      // The ws package emits an error when terminate() aborts an unfinished
+      // handshake. Keep that expected cancellation from becoming an unhandled
+      // EventEmitter error; browsers do not expose terminate() or once().
+      const nodeSocket = ws as WebSocket & { once?: (event: string, listener: () => void) => void };
+      nodeSocket.once?.('error', () => {});
       terminate.call(ws);
       return;
     }
