@@ -112,3 +112,83 @@ test('F9 Friends roster paginates 20 rows, clamps pages and resets pagination on
     await browser.close();
   }
 });
+
+
+test('F9 Friends inbox persists unread state per claimed name and keeps read history', { timeout: 30_000 }, async t => {
+  let browser;
+  try {
+    browser = await chromium.launch({ headless: true });
+  } catch (error) {
+    t.skip(`no Chromium: ${String(error).split('\\n')[0]}`);
+    return;
+  }
+
+  try {
+    const page = await browser.newPage();
+    await page.setContent('<main id="friends"></main>');
+    const result = await page.evaluate(async bundleUrl => {
+      const { FriendsPanel } = await import(bundleUrl);
+      localStorage.clear();
+      const lists = {
+        me: 'LocalDriver',
+        friends: [{ name: 'Bo', where: '' }, { name: 'Cy', where: '' }],
+        asks: [],
+        sent: [],
+        mail: [
+          { from: 'Bo', body: 'first message', t: 1000 },
+          { from: 'Cy', body: 'newer message', t: 2000 },
+        ],
+      };
+      const snapshot = root => ({
+        unread: root.querySelector('[data-friends-mail-count]')?.textContent ?? '',
+        mailboxHidden: root.querySelector('[data-friends-mailbox]')?.hidden ?? true,
+        markAllHidden: root.querySelector('[data-friends-mail-clear]')?.hidden ?? true,
+        rows: [...root.querySelectorAll('.friends-mail-row')].map(row => ({
+          sender: row.querySelector('b')?.textContent ?? '',
+          unread: row.dataset.unread ?? '',
+        })),
+      });
+
+      const firstRoot = document.querySelector('#friends');
+      new FriendsPanel(firstRoot, { room: async () => lists }, () => {});
+      await new Promise(resolve => setTimeout(resolve, 0));
+      const initial = snapshot(firstRoot);
+      firstRoot.querySelector('.friends-mail-row.is-unread [data-friends-mail-read]')?.click();
+      const afterOneRead = snapshot(firstRoot);
+
+      const secondRoot = document.createElement('main');
+      document.body.append(secondRoot);
+      new FriendsPanel(secondRoot, { room: async () => ({ ...lists, mail: [] }) }, () => {});
+      await new Promise(resolve => setTimeout(resolve, 0));
+      const afterReload = snapshot(secondRoot);
+      secondRoot.querySelector('[data-friends-mail-clear]')?.click();
+      const afterMarkAll = snapshot(secondRoot);
+
+      const otherRoot = document.createElement('main');
+      document.body.append(otherRoot);
+      new FriendsPanel(otherRoot, { room: async () => ({ ...lists, me: 'OtherDriver', mail: [] }) }, () => {});
+      await new Promise(resolve => setTimeout(resolve, 0));
+      const otherPlayer = snapshot(otherRoot);
+      return { initial, afterOneRead, afterReload, afterMarkAll, otherPlayer };
+    }, BUNDLE_URL);
+
+    assert.deepEqual(result.initial, {
+      unread: '2', mailboxHidden: false, markAllHidden: false,
+      rows: [{ sender: 'Cy', unread: 'true' }, { sender: 'Bo', unread: 'true' }],
+    });
+    assert.deepEqual(result.afterOneRead, {
+      unread: '1', mailboxHidden: false, markAllHidden: false,
+      rows: [{ sender: 'Bo', unread: 'true' }, { sender: 'Cy', unread: 'false' }],
+    });
+    assert.deepEqual(result.afterReload, result.afterOneRead, 'delivered mail and its read state survive a page reload');
+    assert.deepEqual(result.afterMarkAll, {
+      unread: '0', mailboxHidden: false, markAllHidden: true,
+      rows: [{ sender: 'Bo', unread: 'false' }, { sender: 'Cy', unread: 'false' }],
+    });
+    assert.deepEqual(result.otherPlayer, {
+      unread: '0', mailboxHidden: true, markAllHidden: true, rows: [],
+    }, 'another claimed name must not see this inbox');
+  } finally {
+    await browser.close();
+  }
+});

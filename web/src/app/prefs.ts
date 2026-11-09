@@ -98,6 +98,8 @@ export const PHOTO_MARK = 'nfsu2-photo-mark';
 
 /** + the claimed name (lower case): its conversations (messages.ts, as JSON) */
 export const MESSAGES = 'nfsu2.msgs.';
+/** + the claimed name: delivered EA Messenger messages and their read state in this browser (friends.ts, as JSON) */
+export const FRIENDS_INBOX = 'nfsu2.friends.inbox.';
 
 // the touch controls (touch.ts); each is also the name of the event its change sends
 export const TOUCH_STEERING = 'nfsu2-touch-steering';
