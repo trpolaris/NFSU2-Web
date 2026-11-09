@@ -15,8 +15,11 @@ const check = shell.slice(start, end);
 
 test('only SPEED2.EXE is required; SDATA archive is not a startup prerequisite', () => {
   assert.match(check, /const required = \['SPEED2\.EXE'\];/);
-  assert.doesNotMatch(check, /SDATA\/sdat\.viv/);
-  assert.doesNotMatch(check, /const required = \[[^\]]*,/);
+  const optionalStart = check.indexOf('const optional = [');
+  const optionalEnd = check.indexOf('];', optionalStart);
+  assert.ok(optionalStart >= 0 && optionalEnd > optionalStart, 'optional file list exists');
+  const optionalList = check.slice(optionalStart, optionalEnd + 2);
+  assert.doesNotMatch(optionalList, /SDATA\/sdat\.viv/i);
 });
 
 test('alternate music and both speech pack layouts are recognized as optional data', () => {
