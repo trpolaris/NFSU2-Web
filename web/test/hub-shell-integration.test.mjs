@@ -37,12 +37,13 @@ test('mobile navigation remains reachable and respects reduced-motion preference
   assert.match(shell, /@media \(prefers-reduced-motion: reduce\)/);
 });
 
-test('game runtime anchors and same-tab Hub navigation remain in the original HTML', () => {
+test('game runtime anchors, PWA manifest and same-tab Hub navigation remain in the original HTML', () => {
   const hubEntry = html.match(/<a class="hub-entry" href="\/hub\/"[^>]*>/);
   assert.ok(hubEntry, 'the Player Hub link remains available from the main page');
   assert.doesNotMatch(hubEntry[0], /target=/, 'the Hub opens in the current tab');
-  for (const id of ['play', 'progress', 'progress-fill', 'first-run-language', 'install-app']) {
+  for (const id of ['play', 'progress', 'progress-fill', 'first-run-language']) {
     assert.match(html, new RegExp('id="' + id + '"'), 'existing game anchor: ' + id);
   }
+  assert.match(html, /<link rel="manifest" href="\/manifest\.json">/, 'the PWA manifest remains linked');
   assert.match(html, /<script type="module" src="\/main\.js"><\/script>/);
 });
