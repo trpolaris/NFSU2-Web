@@ -1,4 +1,4 @@
-import { atName, friendSpot } from './tracks';
+import { atName, friendRoom, friendSpot } from './tracks';
 
 export interface FriendRow {
   name: string;
@@ -39,11 +39,13 @@ export class FriendsApi {
     const friends: FriendRow[] = Array.isArray(value.friends) ? value.friends.flatMap((v): FriendRow[] => {
       if (!v || typeof v !== 'object' || typeof (v as any).name !== 'string') return [];
       const f = v as Record<string, unknown>;
+      const at: number | undefined = typeof f.at === 'number' && Number.isInteger(f.at) && f.at >= 0 && f.at <= 0xffffffff ? f.at : undefined;
+      const room = friendRoom(typeof f.room === 'string' ? f.room : undefined, at);
       return [{
         name: f.name as string,
         where: f.where === 'roam' ? 'roam' : f.where === 'online' ? 'online' : '',
-        ...(typeof f.room === 'string' ? { room: f.room } : {}),
-        ...(typeof f.at === 'number' && Number.isInteger(f.at) && f.at >= 0 && f.at <= 0xffffffff ? { at: f.at } : {}),
+        ...(room !== undefined ? { room } : {}),
+        ...(at !== undefined ? { at } : {}),
         ...(typeof f.contact === 'string' ? { contact: f.contact } : {}),
       }];
     }) : [];
