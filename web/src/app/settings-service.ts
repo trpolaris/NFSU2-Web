@@ -74,6 +74,7 @@ const GROUPS: Group[] = [
   ] },
   { title: N('Mods'), more: N('More mod settings'), items: [
     { key: 'open_tunnel', label: N('Drive through the Construction Tunnel, including early in your career.'), help: N('Changes apply the next time you press Play.'), c: { t: 'switch' } },
+    { key: 'mod_rims', label: N('Enable mod rim brands'), help: N('Adds compatible mod rim brands to Body Shop. Requires a compatible MODPACKS pack in the game folder. Off by default. Changes apply the next time you press Play.'), c: { t: 'switch' }, more: true },
   ] },
   { title: N('Display'), more: N('More display settings'), items: [
     { key: 'fullscreen', label: N('Full screen on Play'), help: N('Off plays in this browser window; the menu (F9) has full screen while you play. Hold Esc to leave it. On by default on phones.'), c: { t: 'switch' } },
