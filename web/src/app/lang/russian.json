@@ -1715,5 +1715,7 @@
   "SESSION STATUS": "СОСТОЯНИЕ СЕАНСА",
   "GAME RUNNING": "ИГРА ЗАПУЩЕНА",
   "The game continues running behind this menu.": "Игра продолжает работать за этим меню.",
-  "RETURN TO GAME": "ВЕРНУТЬСЯ В ИГРУ"
+  "RETURN TO GAME": "ВЕРНУТЬСЯ В ИГРУ",
+  "Enable mod rim brands": "Включить модифицированные бренды дисков",
+  "Adds compatible mod rim brands to Body Shop. Requires a compatible MODPACKS pack in the game folder. Off by default. Changes apply the next time you press Play.": "Добавляет совместимые бренды дисков из модов в Body Shop. В папке игры должен находиться совместимый пакет MODPACKS. По умолчанию выключено. Изменения вступят в силу при следующем запуске игры."
 }
