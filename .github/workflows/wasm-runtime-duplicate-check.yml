@@ -1,15 +1,33 @@
 name: WASM Runtime Duplicate Symbol Check
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/wasm-runtime-duplicate-check.yml'
+      - 'web/build.sh'
+      - 'runtime/mprace.c'
+      - 'runtime/mprace.h'
+      - 'runtime/roam_game.c'
+      - 'runtime/mpcredit_store.c'
+      - 'runtime/web/**'
+      - 'tools/check_runtime_source_ownership.py'
+      - 'web/tools/check-wasi-runtime.sh'
   pull_request:
     branches:
       - main
     paths:
       - '.github/workflows/wasm-runtime-duplicate-check.yml'
       - 'web/build.sh'
+      - 'runtime/mprace.c'
+      - 'runtime/mprace.h'
+      - 'runtime/roam_game.c'
+      - 'runtime/mpcredit_store.c'
       - 'runtime/web/**'
       - 'tools/check_runtime_source_ownership.py'
       - 'web/tools/check-wasi-runtime.sh'
+  workflow_dispatch:
 
 permissions:
   contents: read
