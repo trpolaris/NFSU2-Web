@@ -83,19 +83,11 @@ jobs:
           WASI="$sdk_dir"
           CC="$WASI/bin/clang"
           "$CC" --version
-          # Keep this in lockstep with web/build.sh: real wasm32-wasip1-threads
-          # target, runtime compatibility headers, WASI emulation defines and
-          # production feature flags. The full game-module link still needs the
-          # user's own SPEED2.EXE to generate gen/all and gen/server.
+          # Verify every runtime/web/*.c source is owned by the WEB wildcard only.
+          python3 tools/check_runtime_source_ownership.py
           WASI="$WASI" web/tools/aliasguard.sh
-          # Every runtime/web/*.c is compiled by the WEB wildcard. Do not also
-          # list a web-only source in RT: that emits a second object with the
-          # same global symbols (e.g. sbrk, heap_break and memory_bytes).
-          python3 - <<'PY'
-          import pathlib
-          import re
-          script = pathlib.Path("web/build.sh").read_text(encoding="utf-8")
-          match = re.search(r'^RT="([^"]+)"            --target=wasm32-wasip1-threads -pthread -O3
+          flags=(
+            --target=wasm32-wasip1-threads -pthread -O3
             -msimd128 -mbulk-memory -mnontrapping-fptoint -mtail-call
             -mexception-handling -mllvm -wasm-enable-sjlj
             -mllvm -wasm-use-legacy-eh=false
@@ -106,10 +98,12 @@ jobs:
             -Wno-unused-label -Wno-parentheses-equality
             -DNFS_ENHANCED=0
           )
+          index=0
           for source in runtime/com.c runtime/mpcredit.c runtime/mpcredit_store.c runtime/web/sbrk.c; do
-            object="$RUNNER_TEMP/$(basename "${source%.c}").wasm.o"
+            object="$RUNNER_TEMP/wasi-unit-$index.o"
             echo "Compile $source -> $object"
             "$CC" "${flags[@]}" -c "$source" -o "$object"
+            index=$((index + 1))
           done
 
       - name: Check MODPACKS builder and native runtime syntax
