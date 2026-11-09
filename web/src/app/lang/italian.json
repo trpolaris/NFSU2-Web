@@ -1692,5 +1692,7 @@
   "SESSION STATUS": "STATO SESSIONE",
   "GAME RUNNING": "GIOCO IN CORSO",
   "The game continues running behind this menu.": "Il gioco continua a funzionare dietro questo menu.",
-  "RETURN TO GAME": "TORNA AL GIOCO"
+  "RETURN TO GAME": "TORNA AL GIOCO",
+  "Enable mod rim brands": "Attiva i marchi di cerchi modificati",
+  "Adds compatible mod rim brands to Body Shop. Requires a compatible MODPACKS pack in the game folder. Off by default. Changes apply the next time you press Play.": "Aggiunge al Body Shop i marchi di cerchi compatibili con le mod. Richiede un pacchetto MODPACKS compatibile nella cartella del gioco. Disattivato per impostazione predefinita. Le modifiche si applicano al prossimo avvio del gioco."
 }
