@@ -221,6 +221,7 @@ jobs:
 
       - name: Run web regression tests
         run: |
+          set -o pipefail
           node --test --test-concurrency=1 web/test/*.test.mjs 2>&1 | tee out/ci/web-tests.log
 
       - name: Enforce focused diagnostic result
