@@ -108,14 +108,11 @@ impl FriendsRoute {
                     }
                     .into(),
                 );
-                match &where_ {
-                    Some(place) if nfsu2_roam::main_world(place.room) => {
-                        row.insert("room".into(), "".into());
-                    }
-                    Some(nfsu2_roam::Whereabouts { room_name: Some(name), .. }) => {
-                        row.insert("room".into(), name.clone().into());
-                    }
-                    _ => {}
+                if let Some(name) = friend_room_name(
+                    where_.as_ref().map_or(0, |place| place.room),
+                    where_.as_ref().and_then(|place| place.room_name.as_deref()),
+                ) {
+                    row.insert("room".into(), name.into());
                 }
                 // A mutual friend's current room hash (world or track spot) is all the page needs to Join.
                 if let Some(place) = &where_ {
@@ -334,6 +331,15 @@ impl FriendsRoute {
     }
 }
 
+/// The page's friend row: main-world track rooms are still the empty/default room, not a named world.
+fn friend_room_name(room: u32, name: Option<&str>) -> Option<String> {
+    if nfsu2_roam::main_world(room) {
+        Some(String::new())
+    } else {
+        name.map(str::to_owned)
+    }
+}
+
 fn friend_state(has_claim: bool, mutual: bool, asks: bool, sent: bool) -> &'static str {
     if !has_claim {
         "claim"
@@ -377,7 +383,7 @@ mod tests {
     use serde_json::{Value, json};
 
     use super::super::testkit::Kit;
-    use super::tidy_invite_name;
+    use super::{friend_room_name, tidy_invite_name};
 
     const A: (&str, &str) = ("Authorization", "Bearer AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
     const B: (&str, &str) = ("Authorization", "Bearer BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB");
@@ -519,6 +525,20 @@ mod tests {
         )
         .await;
         assert_eq!(away["done"], "away");
+    }
+
+    #[test]
+    fn main_world_track_rooms_keep_the_default_friend_room_name() {
+        assert_eq!(friend_room_name(0, Some("player")), Some(String::new()));
+        assert_eq!(friend_room_name(nfsu2_roam::track_room(0, 4311), Some("player")), Some(String::new()));
+        assert_eq!(friend_room_name(nfsu2_roam::track_room(0, 4605), None), Some(String::new()));
+
+        let world = 0xBEEF_0002;
+        assert_eq!(friend_room_name(world, Some("World 2")), Some("World 2".to_string()));
+        assert_eq!(
+            friend_room_name(nfsu2_roam::track_room(world, 4605), Some("World 2")),
+            Some("World 2".to_string())
+        );
     }
 
     #[test]
