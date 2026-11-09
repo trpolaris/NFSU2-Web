@@ -145,8 +145,12 @@ test('F9 Friends inbox keeps live LAN mail once across a real page reload', { ti
       localStorage.clear();
       const root = document.querySelector('#friends');
       const panel = new FriendsPanel(root, { room: async () => snapshot }, () => {});
-      // Match the Friends panel's established account-ready test fixture before delivering live LAN mail.
-      await new Promise(resolve => setTimeout(resolve, 0));
+      // The constructor starts refresh asynchronously; wait for the claimed inbox owner before live LAN mail.
+      const deadline = performance.now() + 10_000;
+      while (!root.querySelector('[data-friends-note]')?.textContent?.includes(`${snapshot.me} hesabı`)) {
+        if (performance.now() >= deadline) throw new Error('Initial Friends snapshot did not establish the claimed player');
+        await new Promise(resolve => setTimeout(resolve, 10));
+      }
       const message = { op: 'mail', from: 'Bo', body: 'live LAN message', at: 3000 };
       panel.server(message);
       panel.server(message);
@@ -172,7 +176,11 @@ test('F9 Friends inbox keeps live LAN mail once across a real page reload', { ti
       const { FriendsPanel } = await import(bundleUrl);
       const root = document.querySelector('#friends');
       new FriendsPanel(root, { room: async () => snapshot }, () => {});
-      await new Promise(resolve => setTimeout(resolve, 0));
+      const deadline = performance.now() + 10_000;
+      while (!root.querySelector('[data-friends-note]')?.textContent?.includes(`${snapshot.me} hesabı`)) {
+        if (performance.now() >= deadline) throw new Error('Reloaded Friends snapshot did not establish the claimed player');
+        await new Promise(resolve => setTimeout(resolve, 10));
+      }
       return {
         unread: root.querySelector('[data-friends-mail-count]')?.textContent ?? '',
         rows: [...root.querySelectorAll('.friends-mail-row')].map(row => ({
@@ -229,10 +237,17 @@ test('F9 Friends inbox persists unread state per claimed name and keeps read his
           unread: row.dataset.unread ?? '',
         })),
       });
+      const waitForOwner = async (root, name) => {
+        const deadline = performance.now() + 10_000;
+        while (!root.querySelector('[data-friends-note]')?.textContent?.includes(`${name} hesabı`)) {
+          if (performance.now() >= deadline) throw new Error(`Friends snapshot did not establish ${name}`);
+          await new Promise(resolve => setTimeout(resolve, 10));
+        }
+      };
 
       const firstRoot = document.querySelector('#friends');
       new FriendsPanel(firstRoot, { room: async () => lists }, () => {});
-      await new Promise(resolve => setTimeout(resolve, 0));
+      await waitForOwner(firstRoot, 'LocalDriver');
       const initial = snapshot(firstRoot);
       firstRoot.querySelector('.friends-mail-row.is-unread [data-friends-mail-read]')?.click();
       const afterOneRead = snapshot(firstRoot);
@@ -240,7 +255,7 @@ test('F9 Friends inbox persists unread state per claimed name and keeps read his
       const secondRoot = document.createElement('main');
       document.body.append(secondRoot);
       new FriendsPanel(secondRoot, { room: async () => ({ ...lists, mail: [] }) }, () => {});
-      await new Promise(resolve => setTimeout(resolve, 0));
+      await waitForOwner(secondRoot, 'LocalDriver');
       const afterReload = snapshot(secondRoot);
       secondRoot.querySelector('[data-friends-mail-clear]')?.click();
       const afterMarkAll = snapshot(secondRoot);
@@ -248,7 +263,7 @@ test('F9 Friends inbox persists unread state per claimed name and keeps read his
       const otherRoot = document.createElement('main');
       document.body.append(otherRoot);
       new FriendsPanel(otherRoot, { room: async () => ({ ...lists, me: 'OtherDriver', mail: [] }) }, () => {});
-      await new Promise(resolve => setTimeout(resolve, 0));
+      await waitForOwner(otherRoot, 'OtherDriver');
       const otherPlayer = snapshot(otherRoot);
       return { initial, afterOneRead, afterReload, afterMarkAll, otherPlayer };
     }, BUNDLE_URL);
