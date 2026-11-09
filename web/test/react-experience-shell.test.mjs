@@ -209,7 +209,7 @@ test('Free Roam and Online toggles are React-controlled through the DOM-free Set
   assert.match(gameEntry, /interface TrpSettingsBridge/);
   assert.match(gameEntry, /__trpSettingsBridge\?: TrpSettingsBridge/);
   assert.match(settingsRuntime, /__trpSettingsBridge:\s*\{/);
-  assert.match(settingsRuntime, /current: key => settings\.current\(key\)/);
+  assert.match(settingsRuntime, /current: \(key: string\) => settings\.current\(key\)/);
   assert.match(settingsRuntime, /set: async \(key, value\) => \{ await settings\.set\(key, value\)/);
   assert.match(settingsRuntime, /readOnly: \(\) => !instance\.owner/);
   assert.match(settingsRuntime, /trp-settings-ready/);
@@ -237,7 +237,7 @@ test('React Online name and room editors reuse SettingsService normalization and
   assert.match(app, /textValues\.roam_name/);
   assert.match(app, /textValues\.roam_room/);
   assert.match(gameEntry, /setValidated\(key: string, value: string \| null\): Promise<void>/);
-  assert.match(runtime, /setValidated: async \(key, value\) => \{ await settings\.setValidated\(key, value\)/);
+  assert.match(runtime, /setValidated: async \(key: string, value: string\) => \{ await settings\.setValidated\(key, value\)/);
   assert.match(settingsUi, /async setValidated\(key: string, value: string \| null\)/);
   assert.match(settingsUi, /onlineName\(next\)/);
   assert.match(settingsUi, /checkSetting\(key, next\)/);
@@ -292,7 +292,7 @@ test('React Quick Chat phrase editor keeps four groups of four and saves phrase/
   assert.match(app, /PHRASES\.map/);
   assert.match(gameEntry, /saveQuickChat\(phrases: number\[\], groups: string\[\]\): Promise<void>/);
   assert.match(runtime, /quickChat: \(\) => \(\{ phrases: phrasesOf\(settings\.current\('quick_chat_phrases'\)\), groups: groupsOf\(settings\.current\('quick_chat_groups'\)\) \}\)/);
-  assert.match(runtime, /saveQuickChat: async \(phrases, groups\) => \{ await settings\.saveQuickChatFromReact/);
+  assert.match(runtime, /saveQuickChat: async \(phrases: readonly number\[\], groups: readonly string\[\]\) => \{ await settings\.saveQuickChatFromReact/);
   assert.match(settingsUi, /async saveQuickChatFromReact\(phrases: readonly number\[\], groups: readonly string\[\]\)/);
   assert.match(settingsUi, /checkSetting\('quick_chat_phrases', phraseValue\)/);
   assert.match(settingsUi, /checkSetting\('quick_chat_groups', groupValue\)/);
@@ -602,7 +602,7 @@ test('Settings groups are React-rendered through the DOM-free SettingsService', 
   assert.match(app, /await bridge\.setOption\(key, value\)/);
   assert.match(app, /await bridge\.resetOption\(key\)/);
   assert.match(runtime, /snapshot: \(\) => settings\.reactSnapshot\(\)/);
-  assert.match(runtime, /setOption: async \(key, value\) => \{ await settings\.setFromReact/);
+  assert.match(runtime, /setOption: async \(key: string, value: string\) => \{ await settings\.setFromReact/);
   assert.match(gameEntry, /interface TrpSettingsSnapshot/);
   assert.match(settingsUi, /reactSnapshot\(\)/);
   assert.match(settingsUi, /setFromReact\(key: string, rawValue: string\)/);

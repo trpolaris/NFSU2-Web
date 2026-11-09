@@ -188,9 +188,10 @@ async function look(browser, kind, touch) {
           await measureRoute(route);
           continue;
         }
-        for (const [tab, label] of [['keys', 'Keyboard'], ['pad', 'Controller'], ['site', 'Site']]) {
-          await page.locator('.trp-controls-react-tabs [role="tab"]').filter({ hasText: label }).click();
-          await page.waitForFunction(value => document.querySelector('.trp-controls-react-tabs [role="tab"][aria-selected="true"]')?.textContent.includes(value), label, { timeout: 10_000 });
+        for (const [index, tab] of ['keys', 'pad', 'site'].entries()) {
+          const tabs = page.locator('.trp-controls-react-tabs [role="tab"]');
+          await tabs.nth(index).click();
+          await page.waitForFunction(i => document.querySelectorAll('.trp-controls-react-tabs [role="tab"]')[i]?.getAttribute('aria-selected') === 'true', index, { timeout: 10_000 });
           await frames();
           await measureRoute('controls / ' + tab);
         }

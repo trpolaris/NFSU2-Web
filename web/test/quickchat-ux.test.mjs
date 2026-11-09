@@ -133,7 +133,7 @@ test('typing @ in the FreeRoam composer suggests live server players and inserts
     };
     chat.start(session, true, [], [], [], 'LocalDriver');
     chat.driveAt = -Infinity;
-    assert.equal(chat.openChat(), true, 'the Free Roam composer opens through its public entry point');
+    const composerOpened = chat.openChat();
     const input = document.querySelector('#chatInput');
     input.value = '@ali';
     input.setSelectionRange(input.value.length, input.value.length);
@@ -148,9 +148,10 @@ test('typing @ in the FreeRoam composer suggests live server players and inserts
     const output = input.value;
     const expanded = input.getAttribute('aria-expanded');
     chat.stop();
-    return { suggestions, output, expanded, composerOpen: chat.chatHud.classList.contains('active') };
+    return { suggestions, output, expanded, composerOpen: chat.chatHud.classList.contains('active'), composerOpened };
   });
   if (!result) return;
+  assert.equal(result.composerOpened, true);
   assert.equal(result.composerOpen, true);
   assert.deepEqual(result.suggestions, ['@AliceRacerFREE ROAM']);
   assert.equal(result.output, '@AliceRacer ');
