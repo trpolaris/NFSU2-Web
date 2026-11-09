@@ -151,6 +151,9 @@ async function look(browser, kind, touch) {
     const phase = await page.waitForFunction(() => ['ready', 'error'].includes(window.__nfsu2?.phase) && window.__nfsu2.phase, null, { timeout: 120_000, polling: 250 }).then(h => h.jsonValue());
     // the language is a setting: the tab owns the saves and has read its settings
     await page.waitForFunction(() => !!document.querySelector('.trp-settings-dashboard .trp-settings-react-group') && window.__trpSettingsBridge?.readOnly() === false && !document.querySelector('#settings'), null, { timeout: 30_000 });
+    // GitHub's test host may inject a blocking environment notice; it is not part of the product UI.
+    const environmentNotice = page.locator('dialog[data-testid="test-environment-notice"]');
+    if (await environmentNotice.count()) await environmentNotice.evaluate(dialog => { if (dialog.open) dialog.close(); });
     // Require the current server API, not a stale out/web binary that only knows the legacy /vault route.
     const cloudStatus = await page.evaluate(async () => {
       try { return (await fetch('/cloud/v1/saves', { cache: 'no-store' })).status; }

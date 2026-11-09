@@ -208,7 +208,7 @@ test('Free Roam and Online toggles are React-controlled through the DOM-free Set
   assert.match(app, /bridge\.set\(key, next\)/);
   assert.match(gameEntry, /interface TrpSettingsBridge/);
   assert.match(gameEntry, /__trpSettingsBridge\?: TrpSettingsBridge/);
-  assert.match(settingsRuntime, /window\.__trpSettingsBridge = \{/);
+  assert.match(settingsRuntime, /__trpSettingsBridge:\s*\{/);
   assert.match(settingsRuntime, /current: key => settings\.current\(key\)/);
   assert.match(settingsRuntime, /set: async \(key, value\) => \{ await settings\.set\(key, value\)/);
   assert.match(settingsRuntime, /readOnly: \(\) => !instance\.owner/);
@@ -226,13 +226,14 @@ test('React Online toggle status follows the existing UI language and does not l
   assert.match(app, /const statusRoot = useRef\(null\)/);
   assert.match(app, /data-i18n-src=\{!ready \? 'Loading'/);
   assert.match(app, /__trpTranslateReact\(statusRoot\.current\)/);
-  assert.match(shellCss, /\.trp-online-legacy-slot > #online #online-body \.set\[data-key="roam"\]/);
-  assert.match(shellCss, /\.trp-online-legacy-slot > #online #online-body \.set\[data-key="online"\]/);
+  assert.match(shellCss, /\.trp-online-react-controls/);
+  assert.doesNotMatch(shellCss, /\.trp-online-legacy-slot/);
 });
 
 
 test('React Online name and room editors reuse SettingsService normalization and validation', () => {
-  assert.match(app, /bridge\.setValidated\(key, textValues\[key\]\)/);
+  assert.match(app, /await bridge\.setValidated\(key, value\)/);
+  assert.match(app, /const saveText = async key => saveValidated\(key, textValues\[key\]\)/);
   assert.match(app, /textValues\.roam_name/);
   assert.match(app, /textValues\.roam_room/);
   assert.match(gameEntry, /setValidated\(key: string, value: string \| null\): Promise<void>/);
@@ -246,7 +247,9 @@ test('React Online name and room editors reuse SettingsService normalization and
 
 
 test('React Online room field matches the settings schema text limit', () => {
-  assert.match(app, /maxLength=\{63\} autoComplete="off" value=\{textValues\.roam_room\}/);
+  assert.match(app, /<input type="text" maxLength=\{63\} autoComplete="off"/);
+  assert.match(app, /value=\{ownWorldDraft\}/);
+  assert.match(app, /saveValidated\('roam_room', ownWorldDraft\)/);
   assert.match(settingsUi, /key: 'roam_room'/);
   assert.match(read('src/app/settings.ts'), /text: N\('text of 1 to 63 bytes without control characters'\)/);
 });
@@ -274,7 +277,7 @@ test('React Crew editor keeps crew order, palette colours, limits and atomic set
   assert.match(app, /CREW_MAX/);
   assert.match(gameEntry, /setCrews\(list: TrpCrew\[\]\): Promise<void>/);
   assert.match(runtime, /crews: \(\) => crewsOf\(settings\.current\('roam_crew'\), settings\.current\('roam_crew_colours'\)\)/);
-  assert.match(runtime, /setCrews: async list => \{ await settings\.saveCrewsFromReact\(list\)/);
+  assert.match(runtime, /setCrews: async \(list: readonly Crew\[\]\) => \{ await settings\.saveCrewsFromReact\(list\)/);
   assert.match(settingsUi, /async saveCrewsFromReact\(list: readonly Crew\[\]\)/);
   assert.match(settingsUi, /rgbsValue\(list\)/);
   assert.match(settingsUi, /this\.put\([\s\S]*'roam_crew_colours'/);
@@ -287,7 +290,7 @@ test('React Quick Chat phrase editor keeps four groups of four and saves phrase/
   assert.match(app, /bridge\.saveQuickChat\(quickChatDraft\.phrases, quickChatDraft\.groups\)/);
   assert.match(app, /CATS\.map/);
   assert.match(app, /PHRASES\.map/);
-  assert.match(main, /saveQuickChat\(phrases: number\[\], groups: string\[\]\): Promise<void>/);
+  assert.match(gameEntry, /saveQuickChat\(phrases: number\[\], groups: string\[\]\): Promise<void>/);
   assert.match(runtime, /quickChat: \(\) => \(\{ phrases: phrasesOf\(settings\.current\('quick_chat_phrases'\)\), groups: groupsOf\(settings\.current\('quick_chat_groups'\)\) \}\)/);
   assert.match(runtime, /saveQuickChat: async \(phrases, groups\) => \{ await settings\.saveQuickChatFromReact/);
   assert.match(settingsUi, /async saveQuickChatFromReact\(phrases: readonly number\[\], groups: readonly string\[\]\)/);
@@ -309,7 +312,7 @@ test('React Crew and Quick Chat dynamic controls are retranslated whenever their
 test('React Crew rows show only live /players counts and the existing large-crew warning', () => {
   assert.match(gameEntry, /crewCount\(name: string\): number \| undefined/);
   assert.match(settingsUi, /crewCount\(hash: number\): number \| undefined/);
-  assert.match(runtime, /crewCount: name => settings\.crewCount\(roomHash\(name\)\)/);
+  assert.match(runtime, /crewCount: \(name: string\) => settings\.crewCount\(roomHash\(name\)\)/);
   assert.match(runtime, /settings\.setCrewCounts\(crews\); window\.dispatchEvent\(new Event\('trp-settings-changed'\)\)/);
   assert.match(app, /crewCount\(crew\.name\)/);
   assert.match(app, /count !== undefined && count > CREW_BIG/);
@@ -505,7 +508,8 @@ test('Accessibility switches are React-controlled through the existing browser p
   assert.ok(platform.includes('trp-accessibility-ready'));
   assert.ok(platform.includes('trp-accessibility-changed'));
   assert.ok(shellCss.includes('.trp-a11y-react-options'));
-  assert.ok(shellCss.includes('.trp-settings-accessibility-legacy'));
+  assert.ok(shellCss.includes('.trp-a11y-react-options'));
+  assert.ok(!shellCss.includes('.trp-settings-accessibility-legacy'));
 });
 
 test('Mod Library cards are React-owned while existing local-storage and manifest helpers remain the source of truth', () => {
@@ -515,7 +519,9 @@ test('Mod Library cards are React-owned while existing local-storage and manifes
   assert.match(app, /const removeCustom = id => \{/);
   assert.match(app, /bridge\.removeCustom\(id\)/);
   assert.ok(app.includes('bridge.checkPacks()'));
-  assert.ok(html.includes('id="mod-link-form"'), 'the existing validated mod-link form remains mounted for the platform service');
+  assert.ok(app.includes('function ModLibraryForm()'));
+  assert.ok(app.includes('<form onSubmit={submit}>'));
+  assert.ok(!html.includes('id="mod-link-form"'), 'the form is owned by the React route, not legacy HTML');
   assert.doesNotMatch(app, /LegacyNode selector="#mod-link-form"/);
   assert.ok(!app.includes('LegacyNode selector="#pack-list"'));
   assert.ok(!app.includes('LegacyNode selector="#custom-mod-list"'));
@@ -571,8 +577,8 @@ test('local save profiles and backup actions are React-owned through the existin
   assert.match(savesUi, /importBackup\(file: File\): Promise<void>/);
   assert.match(savesUi, /readonly nameMax = NAME_MAX/);
   assert.match(shellCss, /\.trp-saves-react-manager/);
-  assert.match(shellCss, /#saves > #save-hint/);
-  assert.ok(html.includes('id="save-hint"'));
+  assert.match(shellCss, /\.trp-saves-react-manager/);
+  assert.ok(!html.includes('id="save-hint"'));
 });
 
 test('Screenshots and Cloud Vault are React-owned over DOM-free persistence services', () => {
@@ -594,7 +600,7 @@ test('Screenshots and Cloud Vault are React-owned over DOM-free persistence serv
 test('Settings groups are React-rendered through the DOM-free SettingsService', () => {
   assert.match(app, /function SettingsReactControls\(\)/);
   assert.match(app, /await bridge\.setOption\(key, value\)/);
-  assert.match(app, /bridge\.resetOption\(item\.key\)/);
+  assert.match(app, /await bridge\.resetOption\(key\)/);
   assert.match(runtime, /snapshot: \(\) => settings\.reactSnapshot\(\)/);
   assert.match(runtime, /setOption: async \(key, value\) => \{ await settings\.setFromReact/);
   assert.match(gameEntry, /interface TrpSettingsSnapshot/);
@@ -618,7 +624,7 @@ test('Settings profiles, quick presets and the raw settings editor are React-own
   assert.match(platform, /settings\.applyProfileValues\(profile\.name, profile\.values\)/);
   assert.match(platform, /settings\.applyPreset\(preset\.name, preset\.values\)/);
   assert.match(runtime, /rawSnapshot: \(\) => settings\.rawSnapshot\(\)/);
-  assert.match(runtime, /saveRaw: async text => \{ const message = await settings\.saveRawFromReact/);
+  assert.match(runtime, /saveRaw: async \(text: string\) => \{ const message = await settings\.saveRawFromReact\(text\)/);
   assert.match(settingsUi, /rawSnapshot\(\)/);
   assert.match(settingsUi, /saveRawFromReact\(raw: string\)/);
   assert.match(settingsUi, /resetAllFromReact\(\)/);

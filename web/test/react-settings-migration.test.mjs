@@ -89,7 +89,8 @@ test('settings profiles and presets no longer depend on legacy profile HTML', ()
   assert.match(platform, /import: async \(file: File\)/);
   assert.match(platform, /preset: async \(id: string\)/);
   assert.doesNotMatch(platform, /#config-profile-|renderProfilePicker|selectedProfile\(/);
-  assert.match(platform, /trp-settings-profiles-changed/);
+  assert.match(platform, /trp-settings-profiles-ready/);
+  assert.match(react, /addEventListener\('trp-settings-profiles-ready'/);
   assert.match(react, /addEventListener\('trp-settings-profiles-changed'/);
   assert.match(react, /function SettingsProfilesReactControls\(\)/);
   assert.match(react, /function SettingsPresetsReactControls\(\)/);
@@ -158,7 +159,7 @@ test('unsupported experimental rim settings stay out of the panel and portable p
   assert.ok(profileKeys.includes("'catchup'"));
   assert.match(service, /key: 'open_tunnel'/);
   assert.doesNotMatch(service, /ug2net_parts|others_mod_parts/);
-  assert.match(service, /PROFILE_SETTING_KEYS = \[[^]]*open_tunnel/);
+  assert.ok(profileKeys.includes("'open_tunnel'"));
   assert.doesNotMatch(service, /PROFILE_SETTING_KEYS = \[[^]]*(?:ug2net_parts|others_mod_parts)/);
   const settings = read('src/app/settings.ts');
   assert.match(settings, /key: 'open_tunnel'/);

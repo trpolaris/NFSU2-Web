@@ -490,11 +490,11 @@ test('separate USB pedals do not become the primary controller and drive the con
     const axis = i => f[P2.IM_PAD_AXIS + i];
     poller.poll();
     assert.equal(G2.drivingPad(), wheel);
-    assert.deepEqual([axis(P2.PAD_AXIS_LT), axis(P2.PAD_AXIS_RT)], [0, 0]);
+    assert.deepEqual([axis(P2.PAD_AXIS_LT), axis(P2.PAD_AXIS_RT)].map(value => value === 0 ? 0 : value), [0, 0]);
     pedals.axes[0] = 1; pedals.axes[1] = 0.5; poller.poll();
     assert.deepEqual([axis(P2.PAD_AXIS_LT), axis(P2.PAD_AXIS_RT)], [0.75, 1]);
     pedals.axes[0] = -1; pedals.axes[1] = -1; pads[0] = null; poller.poll();
-    assert.deepEqual([axis(P2.PAD_AXIS_LT), axis(P2.PAD_AXIS_RT)], [0, 0]);
+    assert.deepEqual([axis(P2.PAD_AXIS_LT), axis(P2.PAD_AXIS_RT)].map(value => value === 0 ? 0 : value), [0, 0]);
     assert.ok(logs.some(s => /gas axis 0 of FANATEC ClubSport Pedals V3/.test(s)));
     poller.dispose();
   });
