@@ -465,7 +465,7 @@ function OnlineReactControls() {
 
   return (
     <div ref={statusRoot} className="trp-online-react-controls">
-      <label className="trp-online-toggle-card">
+      <label className="trp-online-toggle-card" data-key="roam">
         <span className="trp-online-toggle-icon"><CarFront size={19} /></span>
         <span className="trp-online-toggle-copy">
           <strong data-i18n>Free roam with others</strong>
@@ -475,7 +475,7 @@ function OnlineReactControls() {
         <input type="checkbox" role="switch" checked={values.roam === 'on'} disabled={!ready || readOnly || !!busy}
           aria-label="Free roam with others" onChange={event => void update('roam', event.target.checked)} />
       </label>
-      <label className="trp-online-toggle-card trp-online-toggle-violet">
+      <label className="trp-online-toggle-card trp-online-toggle-violet" data-key="online">
         <span className="trp-online-toggle-icon"><Gamepad2 size={19} /></span>
         <span className="trp-online-toggle-copy">
           <strong data-i18n>Online mode</strong>
