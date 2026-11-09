@@ -127,10 +127,6 @@ export interface InputSubsystem extends Subsystem {
   travel?(where: number): boolean;
   /** career Free Roam Friends menu: the friend's room hash and race-track spot (0: the city) */
   travelFriend?(nameHash: number, spot: number): boolean;
-  /** career Free Roam Tracks menu: 0 the city, 1..9 a race-track map */
-  travel?(where: number): boolean;
-  /** career Free Roam Friends menu: join a named friend, at its track spot (0: the city) */
-  travelFriend?(nameHash: number, spot: number): boolean;
   /** every key and button the game holds goes up (photo mode takes the keys) */
   releaseAll?(): void;
   /** performance.now() of the player's last key, mouse or controller input; null: the page cannot tell
