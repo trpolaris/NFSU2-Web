@@ -21,7 +21,7 @@ const settingsBuilt = await esbuild.build({
   format: 'esm',
   platform: 'node',
 });
-const { TEMPLATE } = await import('data:text/javascript;base64,' + Buffer.from(settingsBuilt.outputFiles[0].text).toString('base64'));
+const { TEMPLATE, DEFAULTS, keyDef, resolveEnv } = await import('data:text/javascript;base64,' + Buffer.from(settingsBuilt.outputFiles[0].text).toString('base64'));
 
 function memoryFiles(initial = null) {
   let disk = initial;
@@ -141,4 +141,25 @@ test('edit starts from the current file, not a stale cached view', async () => {
   assert.equal(disk.disk, edited);
   assert.equal(file.text, edited);
   assert.equal(file.forGame, edited);
+});
+
+
+test('community rim brands are explicitly opt-in and default off', () => {
+  const definition = keyDef('mod_rims');
+  assert.deepEqual(
+    { env: definition?.env, kind: definition?.kind, scope: definition?.scope },
+    { env: 'NFSU2_MOD_RIMS', kind: 'bool', scope: 'web' },
+  );
+  assert.equal(DEFAULTS.get('mod_rims'), 'off');
+
+  const enabled = resolveEnv('mod_rims = on\\n', {}, {});
+  assert.equal(enabled.env.NFSU2_MOD_RIMS, '1');
+  assert.equal(enabled.source.NFSU2_MOD_RIMS, 'settings.ini');
+
+  const disabled = resolveEnv('mod_rims = off\\n', {}, {});
+  assert.equal(disabled.env.NFSU2_MOD_RIMS, '0');
+
+  const invalid = resolveEnv('mod_rims = maybe\\n', {}, {});
+  assert.equal(invalid.env.NFSU2_MOD_RIMS, undefined);
+  assert.match(invalid.notes.join('\\n'), /mod_rims.*ignored/);
 });
