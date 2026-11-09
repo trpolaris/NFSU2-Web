@@ -22,7 +22,7 @@
 // drew them on the screen).
 import * as P from './proto';
 import { D, F, Kind, Op } from './proto';
-import { COPY, FF_FS, TONE, TVERT_VS } from './wgsl';
+import { COPY, FF_FS, MS_RESOLVE, TONE, TVERT_VS } from './wgsl';
 import { createShaderAbi, alphaFunc, PSCUBE, VSPAR_SIZE, KWIN_SIZE, PSPAR_SIZE, HLPAR_SIZE } from './shader-abi';
 import type { GameMemory } from '../host/memory';
 import { unpackDxt } from './dxt';
@@ -128,6 +128,9 @@ export class Encoder {
   screen: GPUTexture | null = null; screenView: GPUTextureView | null = null;
   /** the game's Full Scene Anti-Aliasing: 4-sample twins resolved into the screen and marked render targets */
   private bbSamples = 1;
+  // msResolve's shader, layout, pipelines by format and bind groups by twin, made at its first use
+  private msRes: { mod: GPUShaderModule; bgl: GPUBindGroupLayout; layout: GPUPipelineLayout; pipes: Map<string, GPURenderPipeline>;
+    bgs: WeakMap<GPUTexture, GPUBindGroup> } | null = null;
   private msScreen: MsTwin | null = null;
   private msZ = new Map<string, { tex: GPUTexture; view: GPUTextureView }>();
   private msZpend = new Uint8Array(64); private msZpendV = new Float32Array(64);
@@ -306,7 +309,8 @@ export class Encoder {
     this.texBytes += bytes; if (gf.unpack) this.unpackBytes += bytes; if (gf.astc) this.astcBytes += bytes;
     let ms: MsTwin | undefined;
     if ((flags & P.TF_MS) && rt && !cube && levels === 1) {
-      const mt = this.device.createTexture({ label: `t${id} x4`, size: [w, h], format: gf.f, sampleCount: 4, usage: GPUTextureUsage.RENDER_ATTACHMENT });
+      const mt = this.device.createTexture({ label: `t${id} x4`, size: [w, h], format: gf.f, sampleCount: 4,
+        usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING });
       ms = { tex: mt, view: mt.createView(), stale: true };
       bytes += w * h * 16; this.texBytes += w * h * 16;
     }
@@ -453,8 +457,33 @@ export class Encoder {
     if (s) this.destroyLater.push(s.tex);
     for (const [k, z] of this.msZ) if (!k.endsWith(`:${w}x${h}`)) { this.destroyLater.push(z.tex); this.msZ.delete(k); }
     const tex = this.device.createTexture({ label: `backbuffer x4 ${w}x${h}`, size: [w, h], format: 'bgra8unorm', sampleCount: 4,
-      usage: GPUTextureUsage.RENDER_ATTACHMENT });
+      usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING });
     return this.msScreen = { tex, view: tex.createView(), stale: true };
+  }
+
+  /** a twin's picture into its target (dst: the target's view, of the twin's size), each pixel the average of its 4
+   *  samples, in a pass of its own after the twin's (see the multisampling fields: not the GPU's own resolve) */
+  private msResolve(enc: GPUCommandEncoder, twin: MsTwin, dst: GPUTextureView): void {
+    const d = this.device;
+    const r = this.msRes ??= (() => {
+      const bgl = d.createBindGroupLayout({ entries: [
+        { binding: 0, visibility: GPUShaderStage.FRAGMENT, texture: { sampleType: 'unfilterable-float', multisampled: true } }] });
+      return { mod: this.module('ms-resolve', MS_RESOLVE), bgl, layout: d.createPipelineLayout({ bindGroupLayouts: [bgl] }),
+        pipes: new Map<string, GPURenderPipeline>(), bgs: new WeakMap<GPUTexture, GPUBindGroup>() };
+    })();
+    const fmt = twin.tex.format;
+    let p = r.pipes.get(fmt);
+    if (!p) r.pipes.set(fmt, p = d.createRenderPipeline({ label: `ms-resolve ${fmt}`, layout: r.layout,
+      vertex: { module: r.mod, entryPoint: 'vs_full' }, fragment: { module: r.mod, entryPoint: 'fs_resolve', targets: [{ format: fmt }] },
+      primitive: { topology: 'triangle-list' } }));
+    let g = r.bgs.get(twin.tex);
+    if (!g) r.bgs.set(twin.tex, g = d.createBindGroup({ layout: r.bgl, entries: [{ binding: 0, resource: twin.view }] }));
+    // every pixel is written: nothing of the target's to load
+    const pass = enc.beginRenderPass({ colorAttachments: [{ view: dst, loadOp: 'clear', clearValue: [0, 0, 0, 1], storeOp: 'store' }] });
+    pass.setPipeline(p);
+    pass.setBindGroup(0, g);
+    pass.draw(3);
+    pass.end();
   }
 
   private msZView(zid: number, w: number, h: number): { view: GPUTextureView; fresh: boolean } {
@@ -719,7 +748,13 @@ export class Encoder {
     const b1 = this.b1, dyn = this.dyn;
     b1[0] = -1;
     let draws = 0, passes = 0, skipped = 0;
-    const endPass = () => { if (pass) { pass.end(); pass = null; } };
+    // the twin of the pass that is open and its target's view: resolved (msResolve) as the pass ends
+    let msOut: { twin: MsTwin; dst: GPUTextureView } | null = null;
+    const endPass = () => {
+      if (!pass) return;
+      pass.end(); pass = null;
+      if (msOut) { this.msResolve(enc, msOut.twin, msOut.dst); msOut = null; passes++; }
+    };
 
     const openPass = (target: number, zid: number): GPURenderPassEncoder | null => {
       let view: GPUTextureView, w: number, h: number, key: number;
@@ -751,13 +786,13 @@ export class Encoder {
         const ts = this.firstPassTs; this.firstPassTs = undefined;
         const p = enc.beginRenderPass({
           timestampWrites: ts,
-          colorAttachments: [{ view: twin.view, resolveTarget: view, loadOp: first ? 'clear' : 'load', storeOp: 'store',
+          colorAttachments: [{ view: twin.view, loadOp: first ? 'clear' : 'load', storeOp: 'store',
             clearValue: { r: ((c >>> 16) & 255) / 255, g: ((c >>> 8) & 255) / 255, b: (c & 255) / 255, a: 1 } }],
           depthStencilAttachment: zv
             ? { view: zv, depthLoadOp: zclear ? 'clear' : 'load', depthClearValue: zval, depthStoreOp: 'store' }
             : { view: this.depthView(0, w, h, true), depthLoadOp: 'clear', depthClearValue: 1, depthStoreOp: 'discard' },
         });
-        twin.stale = false;
+        twin.stale = false; msOut = { twin, dst: view };
         if (key === -1) screenTouched = true; else touched.add(key);
         passes++; this.calls.pass++; this.msPasses++;
         if (tr) tr.push(`  pass ${passes}: ${target ? `tex ${target & 0xFFFF}` : 'SCREEN'} x4 ${w}x${h} color ${first ? `clear ${c.toString(16)}` : 'load'}, z ${zv ? `zid ${zid} ${zclear ? `clear ${zval}` : 'load'}` : `none (zid ${zid})`}`);
