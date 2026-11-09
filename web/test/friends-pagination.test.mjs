@@ -145,8 +145,9 @@ test('F9 Friends inbox keeps live LAN mail once across a real page reload', { ti
       localStorage.clear();
       const root = document.querySelector('#friends');
       const panel = new FriendsPanel(root, { room: async () => snapshot }, () => {});
+      // Let the initial /friends snapshot establish the claimed player before a live LAN event arrives.
+      await new Promise(resolve => setTimeout(resolve, 0));
       const message = { op: 'mail', from: 'Bo', body: 'live LAN message', at: 3000 };
-      // A live message can arrive before the initial Friends snapshot claims this browser's player name.
       panel.server(message);
       panel.server(message);
     }, BUNDLE_URL, lists);
