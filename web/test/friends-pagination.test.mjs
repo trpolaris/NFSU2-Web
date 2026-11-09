@@ -125,7 +125,7 @@ test('F9 Friends inbox keeps live LAN mail once across a real page reload', { ti
 
   try {
     const page = await browser.newPage();
-    await page.route('**/*', route => route.fulfill({
+    await page.route('http://friends-live-inbox.test/**', route => route.fulfill({
       status: 200,
       contentType: 'text/html',
       body: '<main id="friends"></main>',
@@ -140,25 +140,16 @@ test('F9 Friends inbox keeps live LAN mail once across a real page reload', { ti
       sent: [],
       mail: [],
     };
-    await page.evaluate(async (bundleUrl, snapshot) => {
+    const first = await page.evaluate(async (bundleUrl, snapshot) => {
       const { FriendsPanel } = await import(bundleUrl);
       localStorage.clear();
       const root = document.querySelector('#friends');
       const panel = new FriendsPanel(root, { room: async () => snapshot }, () => {});
-      // Let the initial /friends snapshot establish the claimed player before a live LAN event arrives.
+      // Match the Friends panel's established account-ready test fixture before delivering live LAN mail.
       await new Promise(resolve => setTimeout(resolve, 0));
       const message = { op: 'mail', from: 'Bo', body: 'live LAN message', at: 3000 };
       panel.server(message);
       panel.server(message);
-    }, BUNDLE_URL, lists);
-
-    await page.waitForFunction(
-      () => localStorage.getItem('nfsu2.friends.inbox.localdriver') !== null,
-      null,
-      { timeout: 10_000 },
-    );
-    const first = await page.evaluate(() => {
-      const root = document.querySelector('#friends');
       return {
         unread: root.querySelector('[data-friends-mail-count]')?.textContent ?? '',
         rows: [...root.querySelectorAll('.friends-mail-row')].map(row => ({
@@ -168,7 +159,7 @@ test('F9 Friends inbox keeps live LAN mail once across a real page reload', { ti
         })),
         persisted: localStorage.getItem('nfsu2.friends.inbox.localdriver'),
       };
-    });
+    }, BUNDLE_URL, lists);
 
     assert.deepEqual(first, {
       unread: '1',
@@ -177,14 +168,11 @@ test('F9 Friends inbox keeps live LAN mail once across a real page reload', { ti
     });
 
     await page.reload();
-    await page.evaluate(async (bundleUrl, snapshot) => {
+    const afterReload = await page.evaluate(async (bundleUrl, snapshot) => {
       const { FriendsPanel } = await import(bundleUrl);
       const root = document.querySelector('#friends');
       new FriendsPanel(root, { room: async () => snapshot }, () => {});
-    }, BUNDLE_URL, lists);
-    await page.waitForFunction(() => document.querySelector('.friends-mail-row') !== null, null, { timeout: 10_000 });
-    const afterReload = await page.evaluate(() => {
-      const root = document.querySelector('#friends');
+      await new Promise(resolve => setTimeout(resolve, 0));
       return {
         unread: root.querySelector('[data-friends-mail-count]')?.textContent ?? '',
         rows: [...root.querySelectorAll('.friends-mail-row')].map(row => ({
@@ -194,7 +182,7 @@ test('F9 Friends inbox keeps live LAN mail once across a real page reload', { ti
         })),
         persisted: localStorage.getItem('nfsu2.friends.inbox.localdriver'),
       };
-    });
+    }, BUNDLE_URL, lists);
 
     assert.deepEqual(afterReload, first, 'live messages and unread state survive a real page reload');
   } finally {
