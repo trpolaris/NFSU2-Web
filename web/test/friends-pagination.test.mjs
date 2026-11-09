@@ -140,7 +140,7 @@ test('F9 Friends inbox keeps live LAN mail once across a real page reload', { ti
       sent: [],
       mail: [],
     };
-    const first = await page.evaluate(async (bundleUrl, snapshot) => {
+    const first = await page.evaluate(async ({ bundleUrl, snapshot }) => {
       const { FriendsPanel } = await import(bundleUrl);
       localStorage.clear();
       const root = document.querySelector('#friends');
@@ -163,7 +163,7 @@ test('F9 Friends inbox keeps live LAN mail once across a real page reload', { ti
         })),
         persisted: localStorage.getItem('nfsu2.friends.inbox.localdriver'),
       };
-    }, BUNDLE_URL, lists);
+    }, { bundleUrl: BUNDLE_URL, snapshot: lists });
 
     assert.deepEqual(first, {
       unread: '1',
@@ -172,7 +172,7 @@ test('F9 Friends inbox keeps live LAN mail once across a real page reload', { ti
     });
 
     await page.reload();
-    const afterReload = await page.evaluate(async (bundleUrl, snapshot) => {
+    const afterReload = await page.evaluate(async ({ bundleUrl, snapshot }) => {
       const { FriendsPanel } = await import(bundleUrl);
       const root = document.querySelector('#friends');
       new FriendsPanel(root, { room: async () => snapshot }, () => {});
@@ -190,7 +190,7 @@ test('F9 Friends inbox keeps live LAN mail once across a real page reload', { ti
         })),
         persisted: localStorage.getItem('nfsu2.friends.inbox.localdriver'),
       };
-    }, BUNDLE_URL, lists);
+    }, { bundleUrl: BUNDLE_URL, snapshot: lists });
 
     assert.deepEqual(afterReload, first, 'live messages and unread state survive a real page reload');
   } finally {
