@@ -1669,5 +1669,7 @@
   "SESSION STATUS": "SESSIESTATUS",
   "GAME RUNNING": "SPEL ACTIEF",
   "The game continues running behind this menu.": "Het spel blijft achter dit menu actief.",
-  "RETURN TO GAME": "TERUG NAAR HET SPEL"
+  "RETURN TO GAME": "TERUG NAAR HET SPEL",
+  "Enable mod rim brands": "Mod-velgmerken inschakelen",
+  "Adds compatible mod rim brands to Body Shop. Requires a compatible MODPACKS pack in the game folder. Off by default. Changes apply the next time you press Play.": "Voegt compatibele mod-velgmerken toe aan de Body Shop. Hiervoor is een compatibel MODPACKS-pakket in de gamemap nodig. Standaard uitgeschakeld. Wijzigingen gelden bij de volgende start van de game."
 }
