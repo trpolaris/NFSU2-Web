@@ -1692,5 +1692,7 @@
   "SESSION STATUS": "ÉTAT DE LA SESSION",
   "GAME RUNNING": "JEU EN COURS",
   "The game continues running behind this menu.": "Le jeu continue de fonctionner derrière ce menu.",
-  "RETURN TO GAME": "RETOUR AU JEU"
+  "RETURN TO GAME": "RETOUR AU JEU",
+  "Enable mod rim brands": "Activer les marques de jantes modifiées",
+  "Adds compatible mod rim brands to Body Shop. Requires a compatible MODPACKS pack in the game folder. Off by default. Changes apply the next time you press Play.": "Ajoute les marques de jantes compatibles au magasin de carrosserie. Nécessite un pack MODPACKS compatible dans le dossier du jeu. Désactivé par défaut. Les changements s’appliquent au prochain lancement du jeu."
 }
