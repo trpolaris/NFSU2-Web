@@ -74,6 +74,7 @@ test('Tracks UI events stay wired through the C mailbox, game frame and status p
   const roam = readSource('runtime/roam.c');
   const travel = readSource('runtime/travel.c');
   const build = readSource('web/build.sh');
+  const rtSources = build.match(/^RT="([^"]+)"$/m)?.[1].split(/\s+/) ?? [];
   const status = readSource('runtime/web/status_web.c');
   const main = readSource('runtime/web/main_web.c');
 
@@ -94,7 +95,8 @@ test('Tracks UI events stay wired through the C mailbox, game frame and status p
   assert.ok(travel.includes('if (on_track()){ c->eax &= ~0xffu; POP32(c->eip); return; }'));
   assert.ok(travel.includes('void sub_00540780_orig(CPU *c);'));
   assert.ok(travel.includes('void sub_00581820_orig(CPU *c);'));
-  assert.ok(build.includes('travel sbrk'));
+  assert.ok(rtSources.includes('travel'));
+  assert.ok(!rtSources.includes('sbrk'));
   assert.ok(build.includes('WEB="$(cd runtime/web && ls *.c'));
   assert.ok(status.includes('int host_status_slot(const char *name)'));
   assert.ok(status.includes('void status_web_start(void)'));
