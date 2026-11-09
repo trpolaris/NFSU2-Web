@@ -125,12 +125,13 @@ test('F9 Friends inbox keeps live LAN mail once across a real page reload', { ti
 
   try {
     const page = await browser.newPage();
-    await page.route('http://friends-live-inbox.test/**', route => route.fulfill({
+    await page.route('**/*', route => route.fulfill({
       status: 200,
       contentType: 'text/html',
       body: '<main id="friends"></main>',
     }));
     await page.goto('http://friends-live-inbox.test/');
+    assert.equal(await page.evaluate(() => location.origin), 'http://friends-live-inbox.test');
 
     const lists = {
       me: 'LocalDriver',
