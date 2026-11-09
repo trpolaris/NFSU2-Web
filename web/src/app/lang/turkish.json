@@ -1602,5 +1602,7 @@
   "The game continues running behind this menu.": "Oyun bu menünün arkasında açık kalır.",
   "RETURN TO GAME": "OYUNA GERİ DÖN",
   "Enable mod rim brands": "Mod jant markalarını etkinleştir",
-  "Adds compatible mod rim brands to Body Shop. Requires a compatible MODPACKS pack in the game folder. Off by default. Changes apply the next time you press Play.": "Uyumlu mod jant markalarını Body Shop'a ekler. Oyun klasöründe uyumlu bir MODPACKS paketi bulunmalıdır. Varsayılan olarak kapalıdır. Değişiklikler oyunu bir sonraki başlatışınızda uygulanır."
+  "Adds compatible mod rim brands to Body Shop. Requires a compatible MODPACKS pack in the game folder. Off by default. Changes apply the next time you press Play.": "Uyumlu mod jant markalarını Body Shop'a ekler. Oyun klasöründe uyumlu bir MODPACKS paketi bulunmalıdır. Varsayılan olarak kapalıdır. Değişiklikler oyunu bir sonraki başlatışınızda uygulanır.",
+  "Unique parts for every car": "Her arabaya özel parçalar",
+  "Once Caleb is beaten, the shops sell the unique visual parts, wide body kits too, for every car in your career. Off: as in the original, each one only for the car you earned it with.": "Caleb yenildikten sonra mağazalar, geniş gövde kitleri dahil özel görsel parçaları kariyerindeki her araba için satar. Kapalı: orijinal oyundaki gibi, her biri yalnızca onu kazandığın araba için."
 }
