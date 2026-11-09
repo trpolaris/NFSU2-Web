@@ -163,3 +163,14 @@ test('community rim brands are explicitly opt-in and default off', () => {
   assert.equal(invalid.env.NFSU2_MOD_RIMS, undefined);
   assert.match(invalid.notes.join('\n'), /mod_rims.*ignored/);
 });
+
+
+test('unique visual parts remain original by default and opt in only after Caleb', () => {
+  assert.equal(DEFAULTS.get('uniques'), 'off');
+  assert.equal(keyDef('uniques')?.env, 'NFSU2_UNIQUES');
+  assert.equal(resolveEnv('uniques = on\\n', {}, {}).env.NFSU2_UNIQUES, '1');
+  assert.equal(resolveEnv('uniques = off\\n', {}, {}).env.NFSU2_UNIQUES, '0');
+  const invalid = resolveEnv('uniques = maybe\\n', {}, {});
+  assert.equal(invalid.env.NFSU2_UNIQUES, undefined);
+  assert.match(invalid.notes.join('\\n'), /uniques.*ignored/);
+});
