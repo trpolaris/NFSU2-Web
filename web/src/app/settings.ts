@@ -164,6 +164,8 @@ export const KEYS: readonly KeyDef[] = [
   { key: 'catchup', env: 'NFSU2_CATCHUP', kind: 'enum', vals: 'original|noboost|off', scope: 'web' },
   // Optional Construction Tunnel map overlay; generated from the player's original game assets.
   { key: 'open_tunnel', env: 'NFSU2_OPEN_TUNNEL', kind: 'bool', scope: 'web' },
+  // Community rim packs: explicit opt-in, off by default (runtime/modpacks.c).
+  { key: 'mod_rims', env: 'NFSU2_MOD_RIMS', kind: 'bool', scope: 'web' },
   // the movies' subtitles (runtime/language.c).  Not in bundle.m's table either
   { key: 'subtitles', env: 'NFSU2_SUBTITLES', kind: 'bool', scope: 'web' },
   // the player's horn, which the others hear too (runtime/horn.c).  Not in bundle.m's table either: NFSU2_HORN there
@@ -254,7 +256,9 @@ export const TEMPLATE = `# NFSU2 settings, read at every launch.
 # Disabled by default. The three-file overlay is used only when the complete pack is installed. [NFSU2_OPEN_TUNNEL]
 #open_tunnel = off
 
-# Experimental rim-pack settings are not supported on this build. See docs/web/MODPACKS.md.
+# Optional community rim brands from MODPACKS/ (e.g. Blitz). Requires a compatible pack built from separately
+# obtained mod and game assets. Off by default. [NFSU2_MOD_RIMS]
+#mod_rims = off
 
 # Sound output.  [NOSOUND, inverted]
 #sound = on
