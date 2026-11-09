@@ -6,7 +6,7 @@
  * stay, with the switch off too: a save never loses them.  Without
  * MODPACKS/PARTS.BIN nothing changes.  Today the packs hold new rim brands
  * (Blitz), mod_rims = on (NFSU2_MOD_RIMS=1), off by default; for now the
- * page has no row for it (web/src/app/settings.ts).
+ * page exposes an opt-in toggle (web/src/app/settings.ts); off by default.
  *
  * The parts: GLOBALB's car part database (chunk 0x80034602, its loader
  * 0x636BE0: runtime/vinylpacks.c, which hands its copy of the chunk here)
@@ -37,7 +37,8 @@
  *    name text of a mod's brand, RIMS_BRAND_<name>, from the pack (the mod's
  *    English text) into the game's language table (language.c). */
 #include "cpu.h"
-#include <stdio.h>
+#include "modpacks_config.h"
+#include <stdio>
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
@@ -98,8 +99,8 @@ static int ok(uint32_t a, uint32_t n){ return a && mem_is_committed(a) && mem_is
 static uint32_t rd32(const uint8_t *b){ return (uint32_t)b[0] | (uint32_t)b[1] << 8 | (uint32_t)b[2] << 16 | (uint32_t)b[3] << 24; }
 static const char *pstr(uint32_t o){ return o < g.nstr ? (const char *)g.str + o : 0; }
 static int switched_on(const char *env){
-    const char *e = getenv(env);   /* the page writes 1 or 0; the Mac app passes the line's own on/off */
-    return e && *e && *e != '0' && strcasecmp(e, "off") && strcasecmp(e, "no") && strcasecmp(e, "false");
+    /* The settings page validates booleans and writes 1/0; native settings may pass on/off. */
+    return modpacks_switch_enabled(getenv(env));
 }
 
 /* MODPACKS/PARTS.BIN, read and checked once; 0: none (or not as tools/modpacks.py writes it, logged) */
@@ -129,9 +130,8 @@ static int load(void){
     g.nmods = (int)nm;
     for (uint32_t i = 0; i < nm; i++){
         memcpy(g.env[i], m + PK_MOD * i, 31); g.env[i][31] = 0;
-        /* the rims are out for now (web/src/app/mods.ts): no shop offers them, whatever MODPACKS or
-         * settings.ini says; back: g.on[i] = switched_on(g.env[i]) */
-        g.on[i] = 0; (void)switched_on;
+        /* Each pack is opt-in; a missing setting or an explicit off never adds shop entries. */
+        g.on[i] = switched_on(g.env[i]);
     }
     for (uint32_t i = 0; i < np; i++){
         const uint8_t *q = pp + PK_PART * i;
