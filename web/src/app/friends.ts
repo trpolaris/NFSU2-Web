@@ -1,4 +1,5 @@
 import { atName, friendRoom, friendSpot } from './tracks';
+import { FRIENDS_INBOX, localStore } from './prefs';
 
 export interface FriendRow {
   name: string;
@@ -87,6 +88,9 @@ export class FriendsApi {
 }
 
 const FRIEND_PAGE_LINES = 20;
+const FRIEND_INBOX_MAX = 500;
+const FRIEND_INBOX_PER_SENDER = 40;
+type ReceivedMail = FriendLists['mail'][number] & { read: boolean };
 
 const el = <K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: string) => {
   const node = document.createElement(tag);
@@ -97,7 +101,8 @@ const el = <K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: 
 
 export class FriendsPanel {
   private lists: FriendLists | null = null;
-  private received: FriendLists['mail'] = [];
+  private received: ReceivedMail[] = [];
+  private inboxOwner = '';
   private busy = false;
   private again = false;
   private filter = '';
@@ -112,7 +117,7 @@ export class FriendsPanel {
       </div>
       <p class="friends-panel-note" data-friends-note aria-live="polite">Arkadaş listesi yükleniyor…</p>
       <section class="friends-mailbox" data-friends-mailbox hidden>
-        <div class="friends-mailbox-head"><h6>BEKLEYEN MESAJLAR <span data-friends-mail-count>0</span></h6><button type="button" class="friends-row-action" data-friends-mail-clear>Okundu</button></div>
+        <div class="friends-mailbox-head"><h6>GELEN MESAJLAR <span data-friends-mail-count>0</span></h6><button type="button" class="friends-row-action" data-friends-mail-clear hidden>Tümünü okundu yap</button></div>
         <ul data-friends-mail></ul>
       </section>
       <div class="friends-panel-tools">
@@ -172,9 +177,16 @@ export class FriendsPanel {
         this.renderFriends();
         return;
       }
+      const mailIndex = button.dataset.friendsMailRead;
+      if (mailIndex !== undefined) {
+        const index = Number(mailIndex);
+        const mail = Number.isInteger(index) ? this.received[index] : undefined;
+        if (mail) this.markMailRead(mail);
+        return;
+      }
       if (button.matches('[data-friends-mail-clear]')) {
-        this.received = [];
-        this.renderMail();
+        this.markAllMailRead();
+        return;
       }
       const joinName = button.dataset.friendJoin;
       if (joinName && this.join) {
@@ -203,8 +215,7 @@ export class FriendsPanel {
     this.setNote('Arkadaş listesi yenileniyor…');
     try {
       const lists = await this.api.room(this.room());
-      this.lists = lists;
-      if (lists) this.keepMail(lists.mail);
+      this.setLists(lists);
       if (!lists) this.setNote('Arkadaş listesi kullanılamıyor. İsim sahipliğini ve çevrimiçi bağlantını kontrol et.');
       else if (!lists.me) this.setNote('Arkadaş eklemek için önce bulut kayıtlarından bir oyuncu adı sahiplenmelisin.');
       else this.setNote(`${lists.me} hesabı · ${lists.mail.length} bekleyen mesaj`);
@@ -233,8 +244,7 @@ export class FriendsPanel {
     try {
       const lists = await this.api.act(op, name);
       if (lists) {
-        this.lists = lists;
-        this.keepMail(lists.mail);
+        this.setLists(lists);
         const labels: Record<string, string> = {
           asked: 'Arkadaşlık isteği gönderildi.',
           friends: 'Artık arkadaşsınız.',
@@ -268,7 +278,7 @@ export class FriendsPanel {
         this.setNote('Mesaj gönderilemedi. Bağlantıyı kontrol et.');
         return false;
       }
-      this.lists = lists;
+      this.setLists(lists);
       const labels: Record<string, string> = {
         sent: 'Mesaj arkadaşına iletildi.',
         kept: 'Arkadaşın çevrimdışı. Mesaj teslim edilmek üzere saklandı.',
@@ -295,7 +305,7 @@ export class FriendsPanel {
     try {
       const lists = await this.api.discord(name);
       if (lists) {
-        this.lists = lists;
+        this.setLists(lists);
         this.setNote(lists.done === 'ok' ? 'Discord adı kaydedildi.' : lists.done === 'rate' ? 'Biraz bekleyip tekrar dene.' : 'Discord kullanıcı adı geçersiz.');
         this.render();
       } else this.setNote('Discord adı kaydedilemedi.');
@@ -333,11 +343,89 @@ export class FriendsPanel {
     if (this.root.isConnected) this.setNote(`Yeni arkadaş mesajı: ${message.from}`);
   }
 
-  private keepMail(mail: FriendLists['mail']) {
-    for (const item of mail) {
-      const key = `${item.from.toLowerCase()}|${item.t}|${item.body}`;
-      if (!this.received.some(x => `${x.from.toLowerCase()}|${x.t}|${x.body}` === key)) this.received.push(item);
+  /** Apply a fresh server snapshot without discarding messages already delivered to this browser. */
+  private setLists(lists: FriendLists | null) {
+    this.lists = lists;
+    if (!lists) return;
+    this.setInboxOwner(lists.me);
+    this.keepMail(lists.mail);
+  }
+
+  /** Local inboxes are separated by claimed player name; an unclaimed session stays memory-only. */
+  private setInboxOwner(name: string | null) {
+    const owner = typeof name === 'string' ? name.trim().toLowerCase() : '';
+    if (owner === this.inboxOwner) return;
+    const pending = this.inboxOwner ? [] : this.received;
+    this.inboxOwner = owner;
+    const stored = owner ? localStore.getJSON(`${FRIENDS_INBOX}${encodeURIComponent(owner)}`) : null;
+    this.received = Array.isArray(stored) ? stored.flatMap((value): ReceivedMail[] => {
+      if (!value || typeof value !== 'object') return [];
+      const item = value as Partial<ReceivedMail>;
+      return typeof item.from === 'string' && typeof item.body === 'string'
+        && typeof item.t === 'number' && Number.isFinite(item.t)
+        ? [{ from: item.from, body: item.body, t: item.t, read: item.read === true }]
+        : [];
+    }) : [];
+    if (pending.length) this.keepMail(pending);
+    else {
+      this.trimInbox();
+      this.renderMail();
     }
+  }
+
+  private mailKey(item: FriendLists['mail'][number]): string {
+    return `${item.from.toLowerCase()}|${item.t}|${item.body}`;
+  }
+
+  /** Keep unread messages first, at most 40 per sender and 500 in this browser inbox. */
+  private trimInbox() {
+    const perSender = new Map<string, number>();
+    this.received = [...this.received]
+      .sort((a, b) => Number(a.read) - Number(b.read) || b.t - a.t)
+      .filter(item => {
+        const key = item.from.toLowerCase();
+        const count = perSender.get(key) ?? 0;
+        if (count >= FRIEND_INBOX_PER_SENDER) return false;
+        perSender.set(key, count + 1);
+        return true;
+      })
+      .slice(0, FRIEND_INBOX_MAX);
+  }
+
+  private persistInbox() {
+    if (!this.inboxOwner) return;
+    // Storage is best-effort: the panel still works in memory when browser storage is blocked or full.
+    localStore.setJSON(`${FRIENDS_INBOX}${encodeURIComponent(this.inboxOwner)}`, this.received);
+  }
+
+  private keepMail(mail: FriendLists['mail']) {
+    const known = new Set(this.received.map(item => this.mailKey(item)));
+    for (const item of mail) {
+      const key = this.mailKey(item);
+      if (known.has(key)) continue;
+      this.received.push({ ...item, read: false });
+      known.add(key);
+    }
+    this.trimInbox();
+    this.persistInbox();
+    this.renderMail();
+  }
+
+  private markMailRead(mail: ReceivedMail) {
+    if (mail.read) return;
+    mail.read = true;
+    this.persistInbox();
+    this.renderMail();
+  }
+
+  private markAllMailRead() {
+    let changed = false;
+    for (const mail of this.received) {
+      if (mail.read) continue;
+      mail.read = true;
+      changed = true;
+    }
+    if (changed) this.persistInbox();
     this.renderMail();
   }
 
@@ -345,13 +433,26 @@ export class FriendsPanel {
     const box = this.root.querySelector<HTMLElement>('[data-friends-mailbox]');
     const list = this.root.querySelector<HTMLElement>('[data-friends-mail]');
     const count = this.root.querySelector<HTMLElement>('[data-friends-mail-count]');
+    const allRead = this.root.querySelector<HTMLButtonElement>('[data-friends-mail-clear]');
     if (!box || !list || !count) return;
     list.replaceChildren();
-    count.textContent = String(this.received.length);
+    const unread = this.received.filter(mail => !mail.read).length;
+    count.textContent = String(unread);
+    if (allRead) allRead.hidden = unread === 0;
     box.hidden = !this.received.length;
-    for (const mail of this.received) {
-      const row = el('li', 'friends-mail-row');
+    const ordered = [...this.received].sort((a, b) => Number(a.read) - Number(b.read) || b.t - a.t);
+    for (const mail of ordered) {
+      const row = el('li', mail.read ? 'friends-mail-row' : 'friends-mail-row is-unread');
+      row.dataset.unread = String(!mail.read);
       row.append(el('b', '', mail.from), el('p', '', mail.body));
+      row.append(el('small', 'friends-mail-state', mail.read ? 'Okundu' : 'Yeni'));
+      if (!mail.read) {
+        const action = el('button', 'friends-row-action', 'Okundu');
+        action.type = 'button';
+        action.dataset.friendsMailRead = String(this.received.indexOf(mail));
+        action.setAttribute('aria-label', `${mail.from} mesajını okundu işaretle`);
+        row.append(action);
+      }
       list.append(row);
     }
   }

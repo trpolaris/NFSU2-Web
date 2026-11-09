@@ -112,3 +112,179 @@ test('F9 Friends roster paginates 20 rows, clamps pages and resets pagination on
     await browser.close();
   }
 });
+
+
+test('F9 Friends inbox keeps live LAN mail once across a real page reload', { timeout: 30_000 }, async t => {
+  let browser;
+  try {
+    browser = await chromium.launch({ headless: true });
+  } catch (error) {
+    t.skip(`no Chromium: ${String(error).split('\\n')[0]}`);
+    return;
+  }
+
+  try {
+    const page = await browser.newPage();
+    await page.route('http://friends-live-inbox.test/**', route => route.fulfill({
+      status: 200,
+      contentType: 'text/html',
+      body: '<main id="friends"></main>',
+    }));
+    await page.goto('http://friends-live-inbox.test/');
+    assert.equal(await page.evaluate(() => location.origin), 'http://friends-live-inbox.test');
+
+    const lists = {
+      me: 'LocalDriver',
+      friends: [{ name: 'Bo', where: '' }],
+      asks: [],
+      sent: [],
+      mail: [],
+    };
+    const first = await page.evaluate(async ({ bundleUrl, snapshot }) => {
+      const { FriendsPanel } = await import(bundleUrl);
+      localStorage.clear();
+      const root = document.querySelector('#friends');
+      const panel = new FriendsPanel(root, { room: async () => snapshot }, () => {});
+      // The constructor starts refresh asynchronously; wait for the claimed inbox owner before live LAN mail.
+      const deadline = performance.now() + 10_000;
+      while (!root.querySelector('[data-friends-note]')?.textContent?.includes(`${snapshot.me} hesabı`)) {
+        if (performance.now() >= deadline) throw new Error('Initial Friends snapshot did not establish the claimed player');
+        await new Promise(resolve => setTimeout(resolve, 10));
+      }
+      const message = { op: 'mail', from: 'Bo', body: 'live LAN message', at: 3000 };
+      panel.server(message);
+      panel.server(message);
+      return {
+        unread: root.querySelector('[data-friends-mail-count]')?.textContent ?? '',
+        rows: [...root.querySelectorAll('.friends-mail-row')].map(row => ({
+          sender: row.querySelector('b')?.textContent ?? '',
+          body: row.querySelector('p')?.textContent ?? '',
+          unread: row.dataset.unread ?? '',
+        })),
+        persisted: localStorage.getItem('nfsu2.friends.inbox.localdriver'),
+      };
+    }, { bundleUrl: BUNDLE_URL, snapshot: lists });
+
+    assert.deepEqual(first, {
+      unread: '1',
+      rows: [{ sender: 'Bo', body: 'live LAN message', unread: 'true' }],
+      persisted: JSON.stringify([{ from: 'Bo', body: 'live LAN message', t: 3000, read: false }]),
+    });
+
+    await page.reload();
+    const afterReload = await page.evaluate(async ({ bundleUrl, snapshot }) => {
+      const { FriendsPanel } = await import(bundleUrl);
+      const root = document.querySelector('#friends');
+      new FriendsPanel(root, { room: async () => snapshot }, () => {});
+      const deadline = performance.now() + 10_000;
+      while (!root.querySelector('[data-friends-note]')?.textContent?.includes(`${snapshot.me} hesabı`)) {
+        if (performance.now() >= deadline) throw new Error('Reloaded Friends snapshot did not establish the claimed player');
+        await new Promise(resolve => setTimeout(resolve, 10));
+      }
+      return {
+        unread: root.querySelector('[data-friends-mail-count]')?.textContent ?? '',
+        rows: [...root.querySelectorAll('.friends-mail-row')].map(row => ({
+          sender: row.querySelector('b')?.textContent ?? '',
+          body: row.querySelector('p')?.textContent ?? '',
+          unread: row.dataset.unread ?? '',
+        })),
+        persisted: localStorage.getItem('nfsu2.friends.inbox.localdriver'),
+      };
+    }, { bundleUrl: BUNDLE_URL, snapshot: lists });
+
+    assert.deepEqual(afterReload, first, 'live messages and unread state survive a real page reload');
+  } finally {
+    await browser.close();
+  }
+});
+
+test('F9 Friends inbox persists unread state per claimed name and keeps read history', { timeout: 30_000 }, async t => {
+  let browser;
+  try {
+    browser = await chromium.launch({ headless: true });
+  } catch (error) {
+    t.skip(`no Chromium: ${String(error).split('\\n')[0]}`);
+    return;
+  }
+
+  try {
+    const page = await browser.newPage();
+    await page.route('http://friends-inbox.test/**', route => route.fulfill({
+      status: 200,
+      contentType: 'text/html',
+      body: '<main id="friends"></main>',
+    }));
+    await page.goto('http://friends-inbox.test/');
+    const result = await page.evaluate(async bundleUrl => {
+      const { FriendsPanel } = await import(bundleUrl);
+      localStorage.clear();
+      const lists = {
+        me: 'LocalDriver',
+        friends: [{ name: 'Bo', where: '' }, { name: 'Cy', where: '' }],
+        asks: [],
+        sent: [],
+        mail: [
+          { from: 'Bo', body: 'first message', t: 1000 },
+          { from: 'Cy', body: 'newer message', t: 2000 },
+        ],
+      };
+      const snapshot = root => ({
+        unread: root.querySelector('[data-friends-mail-count]')?.textContent ?? '',
+        mailboxHidden: root.querySelector('[data-friends-mailbox]')?.hidden ?? true,
+        markAllHidden: root.querySelector('[data-friends-mail-clear]')?.hidden ?? true,
+        rows: [...root.querySelectorAll('.friends-mail-row')].map(row => ({
+          sender: row.querySelector('b')?.textContent ?? '',
+          unread: row.dataset.unread ?? '',
+        })),
+      });
+      const waitForOwner = async (root, name) => {
+        const deadline = performance.now() + 10_000;
+        while (!root.querySelector('[data-friends-note]')?.textContent?.includes(`${name} hesabı`)) {
+          if (performance.now() >= deadline) throw new Error(`Friends snapshot did not establish ${name}`);
+          await new Promise(resolve => setTimeout(resolve, 10));
+        }
+      };
+
+      const firstRoot = document.querySelector('#friends');
+      new FriendsPanel(firstRoot, { room: async () => lists }, () => {});
+      await waitForOwner(firstRoot, 'LocalDriver');
+      const initial = snapshot(firstRoot);
+      firstRoot.querySelector('.friends-mail-row.is-unread [data-friends-mail-read]')?.click();
+      const afterOneRead = snapshot(firstRoot);
+
+      const secondRoot = document.createElement('main');
+      document.body.append(secondRoot);
+      new FriendsPanel(secondRoot, { room: async () => ({ ...lists, mail: [] }) }, () => {});
+      await waitForOwner(secondRoot, 'LocalDriver');
+      const afterReload = snapshot(secondRoot);
+      secondRoot.querySelector('[data-friends-mail-clear]')?.click();
+      const afterMarkAll = snapshot(secondRoot);
+
+      const otherRoot = document.createElement('main');
+      document.body.append(otherRoot);
+      new FriendsPanel(otherRoot, { room: async () => ({ ...lists, me: 'OtherDriver', mail: [] }) }, () => {});
+      await waitForOwner(otherRoot, 'OtherDriver');
+      const otherPlayer = snapshot(otherRoot);
+      return { initial, afterOneRead, afterReload, afterMarkAll, otherPlayer };
+    }, BUNDLE_URL);
+
+    assert.deepEqual(result.initial, {
+      unread: '2', mailboxHidden: false, markAllHidden: false,
+      rows: [{ sender: 'Cy', unread: 'true' }, { sender: 'Bo', unread: 'true' }],
+    });
+    assert.deepEqual(result.afterOneRead, {
+      unread: '1', mailboxHidden: false, markAllHidden: false,
+      rows: [{ sender: 'Bo', unread: 'true' }, { sender: 'Cy', unread: 'false' }],
+    });
+    assert.deepEqual(result.afterReload, result.afterOneRead, 'delivered mail and its read state survive a page reload');
+    assert.deepEqual(result.afterMarkAll, {
+      unread: '0', mailboxHidden: false, markAllHidden: true,
+      rows: [{ sender: 'Cy', unread: 'false' }, { sender: 'Bo', unread: 'false' }],
+    });
+    assert.deepEqual(result.otherPlayer, {
+      unread: '0', mailboxHidden: true, markAllHidden: true, rows: [],
+    }, 'another claimed name must not see this inbox');
+  } finally {
+    await browser.close();
+  }
+});
