@@ -16,6 +16,32 @@ const entry = `export { attachNet } from './web/src/net/index.ts'; export * as P
 const js = (await esbuild.build({ stdin: { contents: entry, resolveDir: ROOT, loader: 'ts' }, bundle: true, format: 'esm', write: false, platform: 'neutral' })).outputFiles[0].text;
 const { attachNet, P } = await import('data:text/javascript;base64,' + Buffer.from(js).toString('base64'));
 
+// Link.connect() constructs a same-origin URL even when this suite only tests mailbox writes.
+// Keep its transport inert; this file does not test live WebSocket behavior.
+class TestWebSocket {
+  static CONNECTING = 0;
+  static OPEN = 1;
+  static CLOSING = 2;
+  static CLOSED = 3;
+  readyState = TestWebSocket.CONNECTING;
+  binaryType = 'arraybuffer';
+  onopen = null;
+  onmessage = null;
+  onclose = null;
+  onerror = null;
+  constructor(url) { this.url = String(url); }
+  send() {}
+  close() {
+    this.readyState = TestWebSocket.CLOSED;
+    this.onclose?.({ code: 1000, reason: 'test closed' });
+  }
+}
+Object.defineProperty(globalThis, 'location', {
+  configurable: true,
+  value: { protocol: 'https:', host: 'nfsu2.test', href: 'https://nfsu2.test/' },
+});
+Object.defineProperty(globalThis, 'WebSocket', { configurable: true, value: TestWebSocket });
+
 const NET = 4; // HostKind.Net
 const PTR = 65536;
 const tick = (ms = 0) => new Promise(resolve => setTimeout(resolve, ms));
