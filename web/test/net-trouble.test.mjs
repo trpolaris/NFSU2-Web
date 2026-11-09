@@ -150,6 +150,22 @@ async function switchOf({ answers, ms }) {
   return { port: srv.address().port, links: () => n, close: () => new Promise(r => { wss.close(); srv.closeAllConnections(); srv.close(r); }) };
 }
 
+test('closing while the WebSocket handshake is pending aborts cleanly', async () => {
+  const srv = http.createServer((q, s) => { s.writeHead(404); s.end(); });
+  let handshakeSocket = null;
+  srv.on('upgrade', (q, sock) => { handshakeSocket = sock; });
+  await new Promise(r => srv.listen(0, '127.0.0.1', r));
+  const g = game(srv.address().port);
+  try {
+    await until(() => handshakeSocket !== null, 'pending WebSocket handshake');
+    assert.equal(g.link.state, 'connecting');
+    assert.doesNotThrow(() => g.link.close());
+  } finally {
+    handshakeSocket?.destroy();
+    await new Promise(r => srv.close(r));
+  }
+});
+
 test('links that go quiet, three in a row: told once; links whose pings are answered: not', async () => {
   const quiet = await switchOf({ answers: false, ms: 200 });
   const g = game(quiet.port, { pingMs: 40 });
