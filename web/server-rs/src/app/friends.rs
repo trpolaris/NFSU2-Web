@@ -109,7 +109,7 @@ impl FriendsRoute {
                     .into(),
                 );
                 match &where_ {
-                    Some(place) if place.room == 0 => {
+                    Some(place) if nfsu2_roam::main_world(place.room) => {
                         row.insert("room".into(), "".into());
                     }
                     Some(nfsu2_roam::Whereabouts { room_name: Some(name), .. }) => {
