@@ -351,11 +351,13 @@
 }
 
 .trp-online-crews-panel {
-  display:grid; gap:10px; margin:0 0 14px; padding:16px;
+  display:grid; grid-template-columns:minmax(0,1fr); gap:10px; min-width:0; width:100%; box-sizing:border-box; margin:0 0 14px; padding:16px;
   border:1px solid rgba(167,185,214,.13); border-radius:15px;
   background:linear-gradient(145deg,rgba(18,29,46,.88),rgba(10,17,29,.96));
 }
-.trp-online-crews-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:2px; }
+.trp-online-crews-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; min-width:0; margin-bottom:2px; }
+.trp-online-crews-heading > div { min-width:0; }
+.trp-online-crews-count { flex:0 0 auto; }
 .trp-online-crews-heading h3 { margin:5px 0 0; color:#edf2f8; font-size:.88rem; font-weight:850; }
 .trp-online-crews-count { color:#a69aff; font:800 .62rem ui-monospace,monospace; }
 .trp-online-crew-row { display:grid; grid-template-columns:minmax(100px,.8fr) minmax(180px,1.2fr) auto; align-items:center; gap:10px; padding:10px; border:1px solid rgba(167,185,214,.09); border-radius:11px; background:rgba(255,255,255,.025); }
@@ -366,7 +368,7 @@
 .trp-online-crew-swatch[aria-pressed="true"] { outline:2px solid #fff; outline-offset:2px; }
 .trp-online-crew-swatch:disabled { opacity:.45; cursor:not-allowed; }
 .trp-online-crew-leave { min-height:32px; padding:0 10px; border:1px solid rgba(255,105,69,.22); border-radius:8px; background:rgba(255,105,69,.06); color:#ffab93; font-size:.63rem; font-weight:780; }
-.trp-online-crew-add { display:flex; align-items:center; gap:8px; }
+.trp-online-crew-add { display:flex; align-items:center; gap:8px; min-width:0; width:100%; box-sizing:border-box; }
 .trp-online-crew-add input { flex:1 1 auto; min-width:0; min-height:38px; padding:8px 10px; border:1px solid rgba(167,185,214,.16); border-radius:9px; background:rgba(4,10,19,.52); color:#f0f4fb; font-size:.7rem; }
 .trp-online-crew-add button { min-height:38px; padding:0 12px; border:1px solid rgba(102,215,176,.24); border-radius:9px; background:rgba(102,215,176,.08); color:#9ae6cd; font-size:.66rem; font-weight:800; }
 .trp-online-crew-add button:disabled,.trp-online-crew-add input:disabled,.trp-online-crew-leave:disabled { opacity:.45; cursor:not-allowed; }
