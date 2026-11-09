@@ -40,13 +40,21 @@ static int committed(uint32_t address, uint32_t bytes){
 
 /* The final event recorded in the stage-5 career info is Caleb's race. */
 int uniques_caleb_beaten(void){
+    /* Do not dereference even the fixed global slots until their guest pages
+     * are known to be committed. A malformed or partially loaded career must
+     * leave the original shop restriction in place, not fault the game. */
+    if (!committed(G_S5_INFO, 4u) ||
+        !committed(G_CAREER + C_NEVENTS, 4u)) return 0;
+
     uint32_t stage_info = MR32(G_S5_INFO);
     if (!committed(stage_info, SI_FINAL + 4u)) return 0;
     uint32_t final_hash = MR32(stage_info + SI_FINAL);
     uint32_t event_count = MR32(G_CAREER + C_NEVENTS);
     if (!final_hash || event_count > C_MAXEVENTS) return 0;
+
     for (uint32_t i = 0; i < event_count; ++i){
         uint32_t record = G_CAREER + C_EVENTS + 8u * i;
+        if (!committed(record, 7u)) return 0;
         if (MR32(record) == final_hash) return MR8(record + 6u) == 1u;
     }
     return 0;
