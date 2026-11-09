@@ -626,7 +626,9 @@ Good to know:
   your list and are told when you come online; **Remove Friend** takes the two of you off each other's lists. A
   message to a friend who is away waits for them (7 days), and shows with an envelope when they are back; a message
   to anyone else reaches them only while they are online. Players you block stay blocked: nothing of theirs reaches
-  you.
+  you. Messages delivered to the F9 Friends panel are kept in this browser's inbox under the claimed player name;
+  unread messages stay counted until marked read. This local history does not sync to other browsers or devices and is
+  not stored as delivered mail on the server.
 - **Who is on:** Online on the start page shows how many play on this server now, how many of them are in Online
   mode (in its menus or racing) and how many in free roam. Only numbers: no names.
 - Turning it off: Online, More online settings, Online mode on the start page (the game then cannot connect).
