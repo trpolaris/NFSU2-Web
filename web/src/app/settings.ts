@@ -213,7 +213,7 @@ export const TEMPLATE = `# NFSU2 settings, read at every launch.
 #intro = skippable
 
 # The game's Full Scene Anti-Aliasing (Options > Display > Customize Display Settings).
-# Four WebGPU samples; new computers start with it on. Phones: off. [NFSU2_FSAA]
+# Four WebGPU samples; computers start with it on except AMD GCN-5/Vega and Qualcomm. Phones and tablets: off. [NFSU2_FSAA]
 #fsaa = on
 
 # Sharper road lines and building fronts at an angle: anisotropic filtering
