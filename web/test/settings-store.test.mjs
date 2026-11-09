@@ -152,14 +152,14 @@ test('community rim brands are explicitly opt-in and default off', () => {
   );
   assert.equal(DEFAULTS.get('mod_rims'), 'off');
 
-  const enabled = resolveEnv('mod_rims = on\\n', {}, {});
+  const enabled = resolveEnv('mod_rims = on\n', {}, {});
   assert.equal(enabled.env.NFSU2_MOD_RIMS, '1');
   assert.equal(enabled.source.NFSU2_MOD_RIMS, 'settings.ini');
 
-  const disabled = resolveEnv('mod_rims = off\\n', {}, {});
+  const disabled = resolveEnv('mod_rims = off\n', {}, {});
   assert.equal(disabled.env.NFSU2_MOD_RIMS, '0');
 
-  const invalid = resolveEnv('mod_rims = maybe\\n', {}, {});
+  const invalid = resolveEnv('mod_rims = maybe\n', {}, {});
   assert.equal(invalid.env.NFSU2_MOD_RIMS, undefined);
-  assert.match(invalid.notes.join('\\n'), /mod_rims.*ignored/);
+  assert.match(invalid.notes.join('\n'), /mod_rims.*ignored/);
 });
