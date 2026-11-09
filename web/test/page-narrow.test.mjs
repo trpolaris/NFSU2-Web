@@ -1,4 +1,4 @@
-// The start page 320 px wide, in each of its languages: no sideways scroll.
+// The React app shell at 320 px, across every route and language: no sideways scroll.
 //   node --test web/test/page-narrow.test.mjs
 // Chrome (Playwright's channel 'chrome') on this checkout's page (web/dist: node web/build.mjs; a web/dist older than
 // one of the page's sources fails at once, never measures the older page) from the server
@@ -113,7 +113,7 @@ function measure() {
   const check = (el, b, what) => {
     if (!b.width && !b.height) return;
     if ((b.right > vw + 0.5 || b.left < -0.5) && !clipped(el, null, vw)) past.push(`${what} ${b.left.toFixed(1)}..${b.right.toFixed(1)}`);
-    const panel = el.closest('.panel, .top');
+    const panel = el.closest('.panel, .top, .trp-route-page, [class*="-panel"], .trp-content');
     if (!panel || panel === el) return;
     const ps = getComputedStyle(panel), pb = panel.getBoundingClientRect();
     const left = pb.left + parseFloat(ps.paddingLeft) + parseFloat(ps.borderLeftWidth);
@@ -121,12 +121,12 @@ function measure() {
     if ((b.right > right + 0.5 || b.left < left - 0.5) && !clipped(el, panel, right))
       intoPadding.push(`${what} ${b.left.toFixed(1)}..${b.right.toFixed(1)}, its panel's ${left.toFixed(1)}..${right.toFixed(1)}`);
   };
-  for (const el of document.querySelectorAll('.app *')) {
+  for (const el of document.querySelectorAll('.trp-react-shell *')) {
     if (el.closest('svg') && el.tagName.toLowerCase() !== 'svg') continue;
     if (el.getClientRects().length) check(el, el.getBoundingClientRect(), name(el));
   }
   // text: a word wider than its box reaches out of the box, which itself stays in
-  const walk = document.createTreeWalker(document.querySelector('.app'), NodeFilter.SHOW_TEXT), r = document.createRange();
+  const walk = document.createTreeWalker(document.querySelector('.trp-react-shell'), NodeFilter.SHOW_TEXT), r = document.createRange();
   for (let n = walk.nextNode(); n; n = walk.nextNode()) {
     if (!n.data.trim() || !n.parentElement.getClientRects().length) continue;
     r.selectNodeContents(n);
@@ -158,41 +158,39 @@ async function look(browser, kind, touch) {
     });
     assert.equal(cloudStatus, 401,
       `test server must expose TRPOLARIS Cloud v1 (HTTP 401 without a token); got HTTP ${cloudStatus}. Rebuild it with: bash server-rs/build.sh`);
-    // The redesigned UI keeps Saves and Controls on separate pages; visit Saves before testing its cloud controls.
-    await page.click('.quick-link[data-page="saves"]');
-    await page.waitForFunction(() => document.body.dataset.uiPage === 'saves', null, { timeout: 10_000 });
-    // VaultPanel.start() probes this endpoint asynchronously; settings readiness alone does not make #vault visible.
-    await page.waitForFunction(() => {
-      const vault = document.querySelector('#vault');
-      return !!vault && !vault.hidden && !!document.querySelector('#vault-make')?.getClientRects().length;
-    }, null, { timeout: 30_000 });
-    await page.click('#vault-make');
-    await page.waitForFunction(() => !document.querySelector('#vault-on').hidden, null, { timeout: 30_000 });
-    // The layout loop exercises Controls tabs; make that page active instead of clicking through a hidden panel.
-    await page.click('.quick-link[data-page="controls"]');
-    await page.waitForFunction(() => document.body.dataset.uiPage === 'controls', null, { timeout: 10_000 });
     const frames = () => page.evaluate(() => document.fonts.ready.then(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))));
+    const routeIds = ['home', 'online', 'mods', 'saves', 'controls', 'settings', 'system', 'about'];
+    const nav = id => page.locator('.trp-nav-link[data-page="' + id + '"]');
+    const waitForRoute = id => page.waitForFunction(value => {
+      const item = document.querySelector('.trp-nav-link[data-page="' + value + '"]');
+      return item?.getAttribute('aria-current') === 'page';
+    }, id, { timeout: 15_000 });
     for (const lang of LANGUAGES) {
-      if (await page.evaluate(() => document.querySelector('#lang-pick').value) !== lang) {
+      const picker = page.locator('[data-language-picker]');
+      if (await picker.inputValue() !== lang) {
         const was = await page.evaluate(() => document.documentElement.lang);
-        await page.selectOption('#lang-pick', lang);
-        await page.waitForFunction(w => document.documentElement.lang !== w, was, { timeout: 15_000 });
+        await picker.selectOption(lang);
+        await page.waitForFunction(previous => document.documentElement.lang !== previous, was, { timeout: 20_000 });
       }
-      for (const shown of ['as it is', 'everything shown']) {
-        await page.evaluate(all => {
-          for (const d of document.querySelectorAll('.app details')) d.open = true;
-          if (all) window.__shown = [...document.querySelectorAll('.app [hidden]:not(.tab-panel)')].map(el => { el.hidden = false; return el; });
-        }, shown === 'everything shown');
-        for (const tab of ['keys', 'pad', 'site']) {
-          await page.click(`.tab[data-tab="${tab}"]`);
-          await frames();
+      for (const route of routeIds) {
+        await nav(route).click();
+        await waitForRoute(route);
+        await frames();
+        const measureRoute = async label => {
           const m = await page.evaluate(measure);
           looks++;
-          if (m.wider > 0 || m.past.length || m.intoPadding.length) found[`${kind}, ${lang}, ${shown}, ${tab} tab`] = m;
+          if (m.wider > 0 || m.past.length || m.intoPadding.length) found[kind + ', ' + lang + ', ' + label] = m;
+        };
+        if (route !== 'controls') {
+          await measureRoute(route);
+          continue;
         }
-        await page.click('.tab[data-tab="keys"]');
-        // hidden again, as the page had them, before the next language
-        await page.evaluate(() => { for (const el of window.__shown ?? []) el.hidden = true; window.__shown = []; });
+        for (const [tab, label] of [['keys', 'Keyboard'], ['pad', 'Controller'], ['site', 'Site']]) {
+          await page.locator('.trp-controls-react-tabs [role="tab"]').filter({ hasText: label }).click();
+          await page.waitForFunction(value => document.querySelector('.trp-controls-react-tabs [role="tab"][aria-selected="true"]')?.textContent.includes(value), label, { timeout: 10_000 });
+          await frames();
+          await measureRoute('controls / ' + tab);
+        }
       }
     }
     return { found, looks, phase, errors };
