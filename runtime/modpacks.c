@@ -38,7 +38,7 @@
  *    English text) into the game's language table (language.c). */
 #include "cpu.h"
 #include "modpacks_config.h"
-#include <stdio>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
