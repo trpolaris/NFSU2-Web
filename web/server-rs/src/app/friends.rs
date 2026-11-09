@@ -333,11 +333,7 @@ impl FriendsRoute {
 
 /// The page's friend row: main-world track rooms are still the empty/default room, not a named world.
 fn friend_room_name(room: u32, name: Option<&str>) -> Option<String> {
-    if nfsu2_roam::main_world(room) {
-        Some(String::new())
-    } else {
-        name.map(str::to_owned)
-    }
+    if nfsu2_roam::main_world(room) { Some(String::new()) } else { name.map(str::to_owned) }
 }
 
 fn friend_state(has_claim: bool, mutual: bool, asks: bool, sent: bool) -> &'static str {
@@ -535,10 +531,7 @@ mod tests {
 
         let world = 0xBEEF_0002;
         assert_eq!(friend_room_name(world, Some("World 2")), Some("World 2".to_string()));
-        assert_eq!(
-            friend_room_name(nfsu2_roam::track_room(world, 4605), Some("World 2")),
-            Some("World 2".to_string())
-        );
+        assert_eq!(friend_room_name(nfsu2_roam::track_room(world, 4605), Some("World 2")), Some("World 2".to_string()));
     }
 
     #[test]
