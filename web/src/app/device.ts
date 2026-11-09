@@ -38,7 +38,8 @@ export function deviceKind(): 'phone' | 'tablet' | 'pc' {
  *  was stopped for memory as 22 friends' cars loaded at once at the new career's start, 2026-10-25). */
 export function deviceDefaults(): Record<string, string> {
   if (isPhone()) return { render: rememberedRender() === 'backing' ? 'backing' : 'scale:0.75', fullscreen: fullScreenFails() ? 'off' : 'on', roam_max_cars: '16', fsaa: 'off', anisotropic: 'off' };
-  return touchFirst() ? { roam_max_cars: '24', anisotropic: 'off' } : { anisotropic: 'on' };
+  if (touchFirst()) return { roam_max_cars: '24', anisotropic: 'off', fsaa: 'off' };
+  return { anisotropic: 'on', ...(fsaaFails() ? { fsaa: 'off' } : {}) };
 }
 
 /** Adapter name returned by the WebGPU check; held only in this tab. */
@@ -47,6 +48,9 @@ export function noteGraphics(info: string | undefined) { graphics = info ?? ''; 
 
 /** PowerVR B-Series adapters can run out of WebGPU memory when the game canvas fills a phone's screen. */
 export const fullScreenFails = (info = graphics): boolean => /^img-tec b-series/i.test(info);
+
+/** 4x MSAA breaks Chrome/Edge on AMD GCN-5 (Vega) and Qualcomm Adreno graphics; keep it off by default there. */
+export const fsaaFails = (info = graphics): boolean => /^(amd gcn-5|qualcomm)\\b/i.test(info);
 
 /** the render check's verdict on this phone: in this browser only, like the other device defaults (settings.ini,
  *  and with it the cloud saves, never has it) */
