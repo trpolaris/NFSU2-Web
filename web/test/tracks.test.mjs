@@ -20,6 +20,18 @@ test('track rooms use the game\'s uint32 world/key calculation and never return 
   assert.notEqual(T.trackRoom(base, 4711), base);
 });
 
+test("a friend's room is checked against its world hash, including main-world tracks", () => {
+  const w2 = T.P.roomHash('World 2');
+  assert.equal(T.friendRoom('', 0), '');
+  assert.equal(T.friendRoom('player', T.trackRoom(0, 4311)), '');
+  assert.equal(T.friendRoom(undefined, T.trackRoom(0, 4711)), '');
+  assert.equal(T.friendRoom('World 2', w2), 'World 2');
+  assert.equal(T.friendRoom('world2', T.trackRoom(w2, 4605)), 'world2');
+  assert.equal(T.friendRoom('Blue Room', w2), undefined);
+  assert.equal(T.friendRoom(undefined, w2), undefined);
+  assert.equal(T.friendRoom('Blue Room', undefined), 'Blue Room');
+});
+
 test('the nine career race-track spots keep travel.c order and unique rooms', () => {
   assert.deepEqual(T.TRACKS.map(s => s.key), [4711, 4701, 4311, 4301, 4201, 4211, 4221, 4601, 4605]);
   const rooms = T.trackRooms(0);
