@@ -241,8 +241,21 @@ function setCheck(c: Check) {
 /** Verify the server's actual game-data manifest before the WASM guest touches files.
  *  The I/O worker already resolves case-insensitively; a missing path here is genuinely absent from /data. */
 async function checkGameData(): Promise<Check> {
-  const required = ['SPEED2.EXE', 'SDATA/sdat.viv'];
-  const optional = ['PFData/MusicSFX.mpf', 'speech/UG2_Speech.big'];
+  // Only the executable is mandatory. Music and speech can come from the
+  // user's alternate PFData/SPEECH files; SDATA/sdat.viv is not required.
+  const required = ['SPEED2.EXE'];
+  const optional = [
+    'PFData/MusicSFx.mpf',
+    'PFData/MusicSFx.mus',
+    'speech/nisaudio.evt',
+    'speech/nisaudio.idx',
+    'speech/nisaudio.big',
+    'speech/nisaudio.csi',
+    'speech/UG2_Speech.big',
+    'speech/UG2_Speech.csi',
+    'speech/UG2_Speech.evt',
+    'speech/UG2_Speech.idx',
+  ];
   try {
     const response = await fetch('/data-manifest', { cache: 'no-store', signal: AbortSignal.timeout(5000) });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
