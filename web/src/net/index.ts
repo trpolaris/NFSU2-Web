@@ -303,21 +303,17 @@ const BLOCKED_TEXT = N('Your antivirus or network is probably blocking the conne
 const QUIET_TEXT = N('Your connection to other players keeps dropping. Your network may be limiting it: try another network or a VPN.');
 
 /** Close a socket safely in browsers and in the ws-based regression harness.
- *  The ws package throws when close() is called before the handshake opens; its
- *  terminate() method is the correct equivalent of aborting a browser handshake. */
+ *  The ws package reports the expected abort of a CONNECTING handshake as an
+ *  "error" event. Consume that one event, then use its normal close() path;
+ *  terminate() itself throws while CONNECTING. Browsers retain the standard
+ *  WebSocket close() behavior and do not expose EventEmitter.once(). */
 function closeWebSocket(ws: WebSocket, code: number, reason: string): void {
   ws.onopen = null; ws.onmessage = null; ws.onerror = null; ws.onclose = null;
   if (ws.readyState === WebSocket.CONNECTING) {
-    const terminate = (ws as WebSocket & { terminate?: () => void }).terminate;
-    if (typeof terminate === 'function') {
-      // The ws package emits an error when terminate() aborts an unfinished
-      // handshake. Keep that expected cancellation from becoming an unhandled
-      // EventEmitter error; browsers do not expose terminate() or once().
-      const nodeSocket = ws as WebSocket & { once?: (event: string, listener: () => void) => void };
-      nodeSocket.once?.('error', () => {});
-      terminate.call(ws);
-      return;
-    }
+    const nodeWs = ws as WebSocket & {
+      once?: (event: 'error', listener: (error: Error) => void) => unknown;
+    };
+    if (typeof nodeWs.once === 'function') nodeWs.once('error', () => undefined);
   }
   if (ws.readyState === WebSocket.CONNECTING || ws.readyState === WebSocket.OPEN) ws.close(code, reason);
 }
