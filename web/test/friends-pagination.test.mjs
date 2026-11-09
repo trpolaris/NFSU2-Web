@@ -114,6 +114,78 @@ test('F9 Friends roster paginates 20 rows, clamps pages and resets pagination on
 });
 
 
+test('F9 Friends inbox keeps live LAN mail once across a real page reload', { timeout: 30_000 }, async t => {
+  let browser;
+  try {
+    browser = await chromium.launch({ headless: true });
+  } catch (error) {
+    t.skip(`no Chromium: ${String(error).split('\\n')[0]}`);
+    return;
+  }
+
+  try {
+    const page = await browser.newPage();
+    await page.route('http://friends-live-inbox.test/**', route => route.fulfill({
+      status: 200,
+      contentType: 'text/html',
+      body: '<main id="friends"></main>',
+    }));
+    await page.goto('http://friends-live-inbox.test/');
+
+    const lists = {
+      me: 'LocalDriver',
+      friends: [{ name: 'Bo', where: '' }],
+      asks: [],
+      sent: [],
+      mail: [],
+    };
+    const first = await page.evaluate(async (bundleUrl, snapshot) => {
+      const { FriendsPanel } = await import(bundleUrl);
+      localStorage.clear();
+      const root = document.querySelector('#friends');
+      const panel = new FriendsPanel(root, { room: async () => snapshot }, () => {});
+      await new Promise(resolve => setTimeout(resolve, 0));
+      const message = { op: 'mail', from: 'Bo', body: 'live LAN message', at: 3000 };
+      panel.server(message);
+      panel.server(message);
+      const inspect = () => ({
+        unread: root.querySelector('[data-friends-mail-count]')?.textContent ?? '',
+        rows: [...root.querySelectorAll('.friends-mail-row')].map(row => ({
+          sender: row.querySelector('b')?.textContent ?? '',
+          body: row.querySelector('p')?.textContent ?? '',
+          unread: row.dataset.unread ?? '',
+        })),
+      });
+      return inspect();
+    }, BUNDLE_URL, lists);
+
+    assert.deepEqual(first, {
+      unread: '1',
+      rows: [{ sender: 'Bo', body: 'live LAN message', unread: 'true' }],
+    });
+
+    await page.reload();
+    const afterReload = await page.evaluate(async (bundleUrl, snapshot) => {
+      const { FriendsPanel } = await import(bundleUrl);
+      const root = document.querySelector('#friends');
+      new FriendsPanel(root, { room: async () => snapshot }, () => {});
+      await new Promise(resolve => setTimeout(resolve, 0));
+      return {
+        unread: root.querySelector('[data-friends-mail-count]')?.textContent ?? '',
+        rows: [...root.querySelectorAll('.friends-mail-row')].map(row => ({
+          sender: row.querySelector('b')?.textContent ?? '',
+          body: row.querySelector('p')?.textContent ?? '',
+          unread: row.dataset.unread ?? '',
+        })),
+      };
+    }, BUNDLE_URL, lists);
+
+    assert.deepEqual(afterReload, first, 'live messages and unread state survive a real page reload');
+  } finally {
+    await browser.close();
+  }
+});
+
 test('F9 Friends inbox persists unread state per claimed name and keeps read history', { timeout: 30_000 }, async t => {
   let browser;
   try {
