@@ -122,8 +122,8 @@ test('React owns the Controls route while the F9 help sheet keeps its inert sour
   assert.match(reactUi, /role="tab" aria-selected=\{state\.tab === 'pad'\}/);
   assert.match(reactUi, /role="tab" aria-selected=\{state\.tab === 'site'\}/);
   for (const hook of ['data-steer','data-level','data-size','data-menu-size']) assert.ok(html.includes(hook), hook);
-  assert.match(html, /role="tablist"/);
-  assert.match(html, /role="tabpanel"/);
+  assert.match(reactUi, /role="tablist"/);
+  assert.match(reactUi, /role="tabpanel"/);
   assert.equal((html.match(/data-pad-mount/g) || []).length, 1, 'controller SVG has a dedicated mount');
   assert.match(controls, /querySelector<HTMLElement>\('\[data-pad-mount\]'\)/);
   assert.match(wheel, /querySelector<HTMLElement>\('\[data-pad-mount\]'\)/);
