@@ -148,6 +148,7 @@ test('F9 Friends inbox keeps live LAN mail once across a real page reload', { ti
       const message = { op: 'mail', from: 'Bo', body: 'live LAN message', at: 3000 };
       panel.server(message);
       panel.server(message);
+      await page.waitForFunction(() => document.querySelector('[data-friends-note]')?.textContent?.includes('LocalDriver hesabı'));
       const inspect = () => ({
         unread: root.querySelector('[data-friends-mail-count]')?.textContent ?? '',
         rows: [...root.querySelectorAll('.friends-mail-row')].map(row => ({
@@ -173,7 +174,7 @@ test('F9 Friends inbox keeps live LAN mail once across a real page reload', { ti
       const { FriendsPanel } = await import(bundleUrl);
       const root = document.querySelector('#friends');
       new FriendsPanel(root, { room: async () => snapshot }, () => {});
-      await new Promise(resolve => setTimeout(resolve, 0));
+      await page.waitForFunction(() => document.querySelector('[data-friends-note]')?.textContent?.includes('LocalDriver hesabı'));
       return {
         unread: root.querySelector('[data-friends-mail-count]')?.textContent ?? '',
         rows: [...root.querySelectorAll('.friends-mail-row')].map(row => ({
