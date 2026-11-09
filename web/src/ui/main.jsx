@@ -2432,7 +2432,7 @@ function LanguagePickerReact() {
   return (
     <label className="trp-language-react">
       <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9M12 3C9.5 5.6 8.2 8.6 8.2 12s1.3 6.4 3.8 9"/></svg>
-      <select aria-label={t('Language')} value={value} onChange={event => void change(event.target.value)}>
+      <select aria-label={t('Language')} data-language-picker value={value} onChange={event => void change(event.target.value)}>
         {LANGUAGES.map(code => <option key={code} value={code} lang={code}>{NATIVE[code]}</option>)}
       </select>
     </label>
@@ -2622,7 +2622,7 @@ function App() {
             return (
               <button className={'trp-nav-link' + (selected ? ' is-active' : '')}
                 type="button" key={item.id} onClick={() => navigate(item.id)}
-                aria-current={selected ? 'page' : undefined} title={item.detail}>
+                aria-current={selected ? 'page' : undefined} data-page={item.id} title={item.detail}>
                 <Icon size={18} strokeWidth={1.8} />
                 <span className="trp-nav-copy"><strong data-i18n>{item.label}</strong><small data-i18n>{item.detail}</small></span>
                 {selected && <motion.span className="trp-nav-active" layoutId="trp-nav-active"
