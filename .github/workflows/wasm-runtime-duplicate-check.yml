@@ -1,0 +1,33 @@
+name: WASM Runtime Duplicate Symbol Check
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/wasm-runtime-duplicate-check.yml'
+      - 'web/build.sh'
+      - 'runtime/web/**'
+      - 'tools/check_runtime_source_ownership.py'
+      - 'web/tools/check-wasi-runtime.sh'
+
+permissions:
+  contents: read
+
+jobs:
+  wasi-runtime:
+    name: Verify single-owner WASI runtime objects
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Check WASI validation script syntax
+        run: bash -n web/tools/check-wasi-runtime.sh
+
+      - name: Reject duplicate RT and WEB source ownership
+        run: python3 tools/check_runtime_source_ownership.py
+
+      - name: Compile runtime files with WASI SDK 34
+        run: bash web/tools/check-wasi-runtime.sh
