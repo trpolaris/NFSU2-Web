@@ -1671,5 +1671,7 @@
   "The game continues running behind this menu.": "Spillet fortsætter med at køre bag denne menu.",
   "RETURN TO GAME": "TILBAGE TIL SPILLET",
   "Enable mod rim brands": "Aktivér modificerede fælgmærker",
-  "Adds compatible mod rim brands to Body Shop. Requires a compatible MODPACKS pack in the game folder. Off by default. Changes apply the next time you press Play.": "Føjer kompatible mod-fælgmærker til Body Shop. Kræver en kompatibel MODPACKS-pakke i spillets mappe. Deaktiveret som standard. Ændringerne gælder næste gang spillet startes."
+  "Adds compatible mod rim brands to Body Shop. Requires a compatible MODPACKS pack in the game folder. Off by default. Changes apply the next time you press Play.": "Føjer kompatible mod-fælgmærker til Body Shop. Kræver en kompatibel MODPACKS-pakke i spillets mappe. Deaktiveret som standard. Ændringerne gælder næste gang spillet startes.",
+  "Unique parts for every car": "Unikke dele til alle biler",
+  "Once Caleb is beaten, the shops sell the unique visual parts, wide body kits too, for every car in your career. Off: as in the original, each one only for the car you earned it with.": "Når Caleb er slået, sælger butikkerne de unikke visuelle dele, også widebody-sæt, til alle biler i din karriere. Fra: som i originalen, hver del kun til den bil, du vandt den med."
 }
