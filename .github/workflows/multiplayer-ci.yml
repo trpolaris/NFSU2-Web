@@ -119,7 +119,7 @@ jobs:
           cc -std=c11 -D_POSIX_C_SOURCE=200809L -Iruntime -fsyntax-only runtime/career.c
           cc -std=c11 -D_POSIX_C_SOURCE=200809L -Iruntime -fsyntax-only runtime/quickrace.c
           grep -Eq '^RT=.*[[:space:]]quickrace[[:space:]]' web/build.sh
-          grep -Eq '^RT=.*[[:space:]]travel[[:space:]]' web/build.sh
+          grep -Eq '^RT=.*[[:space:]]travel([[:space:]]|\")' web/build.sh
           grep -Eq '^CSRC=.*[[:space:]]quickrace[[:space:]]' link.sh
           grep -Eq '^CSRC=.*[[:space:]]roam_game[[:space:]]travel[[:space:]]' link.sh
           tools/genstamp.sh hooks | grep -q '0x004aa283'
