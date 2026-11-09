@@ -479,8 +479,8 @@ test('a saved USB pedal mapping is used only while that pedal controller is conn
 });
 
 test('separate USB pedals do not become the primary controller and drive the connected wheel', async () => {
-  const G2 = await load('web/src/input/gamepad.ts', '\\n// a wheel with its own USB pedals');
-  const P2 = await load('web/src/input/proto.ts', '\\n// a wheel with its own USB pedals');
+  const G2 = await load('web/src/input/gamepad.ts', '\n// a wheel with its own USB pedals');
+  const P2 = await load('web/src/input/proto.ts', '\n// a wheel with its own USB pedals');
   await withPads(async (pads) => {
     const buf = new SharedArrayBuffer(4096), h = new Int32Array(buf), f = new Float32Array(buf), logs = [];
     const pedals = fakePad('FANATEC ClubSport Pedals V3 (Vendor: 0eb7 Product: 183b)', 0, '', [0, 0, 0, 0], 0);
