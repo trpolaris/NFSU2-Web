@@ -36,7 +36,7 @@ INITIAL_MB="${INITIAL_MB:-1024}"
 MIN_MB="${MIN_MB:-704}"
 TARGET="--target=wasm32-wasip1-threads -pthread"
 FEAT="-msimd128 -mbulk-memory -mnontrapping-fptoint -mtail-call -mexception-handling -mllvm -wasm-enable-sjlj -mllvm -wasm-use-legacy-eh=false"
-DEFS="-D_WASI_EMULATED_MMAN -D_WASI_EMULATED_SIGNAL -D_WASI_EMULATED_PROCESS_CLOCKS"
+DEFS="-D_WASI_EMULATED_MMAN -D_WASI_EMULATED_SIGNAL -D_WASI_EMULATED_PROCESS_CLOCKS -D_WASI_EMULATED_GETPID"
 # -fno-delete-null-pointer-checks: guest address 0 is real wasm memory (cpu.h)
 CFLAGS="$TARGET $OPT $FEAT $DEFS -fno-delete-null-pointer-checks -include runtime/web/compat/wasm_plat.h -Iruntime/web/compat -Iruntime -Igen/all"
 # the lifted shards only: guest memory as an object of its own (cpu.h, NFSU2_GUEST_OBJ)
@@ -119,7 +119,7 @@ rm -f "$OUT/nfsu2.wasm"
   -Wl,--import-memory,--export-memory,--shared-memory,--max-memory=4294967296 \
   -Wl,--initial-memory=$(( MIN_MB * 1048576 )),--global-base=$GUEST_END \
   -Wl,-z,stack-size=$(( 8 * 1048576 )) -Wl,--no-stack-first \
-  -lsetjmp -lwasi-emulated-mman -lwasi-emulated-signal -lwasi-emulated-process-clocks 2>&1 | \
+  -lsetjmp -lwasi-emulated-mman -lwasi-emulated-signal -lwasi-emulated-process-clocks -lwasi-emulated-getpid 2>&1 | \
   { grep -v "^$" || true; } > "$OUT/link.log"
 if [ ! -f "$OUT/nfsu2.wasm" ]; then
   echo "link FAILED ($(grep -c "undefined symbol" "$OUT/link.log") undefined symbols):"; grep -E "error" "$OUT/link.log" | head -80; exit 1; fi
