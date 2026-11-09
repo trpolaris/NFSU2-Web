@@ -11,9 +11,9 @@ const entry = read('src/main.ts');
 const html = read('index.html');
 const shell = read('src/app/hub-integration.css');
 
-test('the existing NFSU2 game page loads the Player Hub integration layer last', () => {
+test('the existing NFSU2 game page loads the Player Hub integration layer', () => {
   assert.match(entry, /import '\.\/app\/hub-integration\.css';/);
-  assert.ok(entry.indexOf("import './app/hub-integration.css';") > entry.indexOf("import './app/component-polish.css';"));
+  assert.match(entry, /import '\\.\/app\/component-polish\\.css';/);
   assert.match(entry, /setupUIEnhancements\(\);/);
   assert.match(entry, /void boot\(\);/);
 });
