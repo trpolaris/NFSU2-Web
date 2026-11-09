@@ -198,6 +198,8 @@ jobs:
           node web/tools/online-load.mjs --clients 40 --seconds 20 --data "$PWD/out/ci/fixture-game" --out out/ci/online-load --ci
 
       - name: Focused diagnostics for integration regressions
+        id: focused_diagnostics
+        continue-on-error: true
         run: |
           status=0
           for file in \
@@ -220,6 +222,16 @@ jobs:
       - name: Run web regression tests
         run: |
           node --test --test-concurrency=1 web/test/*.test.mjs 2>&1 | tee out/ci/web-tests.log
+
+      - name: Enforce focused diagnostic result
+        if: always()
+        env:
+          FOCUSED_DIAGNOSTICS_OUTCOME: ${{ steps.focused_diagnostics.outcome }}
+        run: |
+          if [ "$FOCUSED_DIAGNOSTICS_OUTCOME" = "failure" ]; then
+            echo "Focused diagnostics failed; browser regression results are still available above." >&2
+            exit 1
+          fi
 
       - name: Keep test logs if validation fails
         if: failure()
