@@ -176,7 +176,11 @@ test('F9 Friends inbox keeps live LAN mail once across a real page reload', { ti
       const { FriendsPanel } = await import(bundleUrl);
       const root = document.querySelector('#friends');
       new FriendsPanel(root, { room: async () => snapshot }, () => {});
-      await new Promise(resolve => setTimeout(resolve, 0));
+      const deadline = performance.now() + 10_000;
+      while (!root.querySelector('[data-friends-note]')?.textContent?.includes(`${snapshot.me} hesabı`)) {
+        if (performance.now() >= deadline) throw new Error('Reloaded Friends snapshot did not establish the claimed player');
+        await new Promise(resolve => setTimeout(resolve, 10));
+      }
       return {
         unread: root.querySelector('[data-friends-mail-count]')?.textContent ?? '',
         rows: [...root.querySelectorAll('.friends-mail-row')].map(row => ({
