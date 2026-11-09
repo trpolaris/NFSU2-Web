@@ -69,6 +69,36 @@ jobs:
           sudo apt-get update
           sudo apt-get install --yes build-essential clang cmake pkg-config
 
+      - name: Check WASI runtime sources with production SDK and target flags
+        run: |
+          set -euo pipefail
+          sdk_dir="$RUNNER_TEMP/wasi-sdk-34.0-x86_64-linux"
+          archive="$RUNNER_TEMP/wasi-sdk-34.0-x86_64-linux.tar.gz"
+          if [[ ! -x "$sdk_dir/bin/clang" ]]; then
+            curl -fsSL --retry 3 --retry-all-errors \
+              https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-34/wasi-sdk-34.0-x86_64-linux.tar.gz \
+              -o "$archive"
+            tar -xzf "$archive" -C "$RUNNER_TEMP"
+          fi
+          WASI="$sdk_dir"
+          CC="$WASI/bin/clang"
+          "$CC" --version
+          # Keep this in lockstep with web/build.sh: real wasm32-wasip1-threads
+          # target, runtime compatibility headers, WASI emulation defines and
+          # production feature flags. The full game-module link still needs the
+          # user's own SPEED2.EXE to generate gen/all and gen/server.
+          WASI="$WASI" web/tools/aliasguard.sh
+          "$CC" --target=wasm32-wasip1-threads -pthread -O3 \
+            -msimd128 -mbulk-memory -mnontrapping-fptoint -mtail-call \
+            -mexception-handling -mllvm -wasm-enable-sjlj \
+            -mllvm -wasm-use-legacy-eh=false \
+            -D_WASI_EMULATED_MMAN -D_WASI_EMULATED_SIGNAL \
+            -D_WASI_EMULATED_PROCESS_CLOCKS -fno-delete-null-pointer-checks \
+            -include runtime/web/compat/wasm_plat.h \
+            -Iruntime/web/compat -Iruntime -Igen/all \
+            -Wno-unused-label -Wno-parentheses-equality \
+            -fsyntax-only runtime/com.c runtime/mpcredit.c runtime/mpcredit_store.c
+
       - name: Check MODPACKS builder and native runtime syntax
         run: |
           python3 -m py_compile tools/modpacks.py tools/vinylpacks.py tools/packcheck.py tools/test_packcheck.py
