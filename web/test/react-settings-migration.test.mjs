@@ -9,6 +9,7 @@ const read = file => fs.readFileSync(path.join(ROOT, file), 'utf8');
 const html = read('index.html');
 const shell = read('src/app/shell.ts');
 const service = read('src/app/settings-service.ts');
+const settingsStore = read('src/app/settings-store.ts');
 const saves = read('src/app/saves-ui.ts');
 const shots = read('src/app/shots.ts');
 const vault = read('src/app/vault-ui.ts');
@@ -40,7 +41,10 @@ test('Settings persistence and validation live in a DOM-free SettingsService', (
   }
   assert.doesNotMatch(service, /document\.|window\.|HTMLElement|querySelector|createElement|innerHTML|this\.root|this\.online|render\(/);
   assert.match(service, /readOnly\(\)/);
-  assert.match(service, /writeFile\(this\.deps\.saveDir, 'settings\.ini', next\)/);
+  assert.match(service, /import \{ SettingsFile \} from '\.\/settings-store'/);
+  assert.match(service, /await this\.deps\.file\.write\(next\)/);
+  assert.match(settingsStore, /await this\.io\.writeFile\(this\.dir\(\), FILE, text\)/);
+  assert.match(settingsStore, /this\.shown = this\.played = text/);
   assert.match(service, /export const PROFILE_SETTING_KEYS/);
 });
 
