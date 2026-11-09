@@ -19,6 +19,17 @@ export function trackRoom(base: number, key: number): number {
 }
 export function trackRooms(base: number): number[] { return TRACKS.map(s => trackRoom(base, s.key)); }
 
+/** A friend's world as its room hash names it: '' for the main world's city or tracks, its name only when
+ *  the hash matches that world, and undefined for a stale or mismatched room name. Older servers without at
+ *  leave their room name as received. */
+export function friendRoom(room: string | undefined, at: number | undefined): string | undefined {
+  if (typeof at !== 'number') return room;
+  if (at === 0 || trackRooms(0).includes(at)) return '';
+  if (room === undefined) return undefined;
+  const base = roomHash(room);
+  return base === at || trackRooms(base).includes(at) ? room : undefined;
+}
+
 /** The spot a friend is in: 1..9 for a known track; 0 for the city or an unknown/older server response. */
 export function friendSpot(room: string | undefined, at: number | undefined): number {
   if (typeof at !== 'number' || !Number.isInteger(at)) return 0;
