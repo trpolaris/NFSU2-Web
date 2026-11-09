@@ -88,6 +88,218 @@ jobs:
           # production feature flags. The full game-module link still needs the
           # user's own SPEED2.EXE to generate gen/all and gen/server.
           WASI="$WASI" web/tools/aliasguard.sh
+          # Every runtime/web/*.c is compiled by the WEB wildcard. Do not also
+          # list a web-only source in RT: that emits a second object with the
+          # same global symbols (e.g. sbrk, heap_break and memory_bytes).
+          python3 - <<'PY'
+          import pathlib
+          import re
+          script = pathlib.Path("web/build.sh").read_text(encoding="utf-8")
+          match = re.search(r'^RT="([^"]+)"            --target=wasm32-wasip1-threads -pthread -O3
+            -msimd128 -mbulk-memory -mnontrapping-fptoint -mtail-call
+            -mexception-handling -mllvm -wasm-enable-sjlj
+            -mllvm -wasm-use-legacy-eh=false
+            -D_WASI_EMULATED_MMAN -D_WASI_EMULATED_SIGNAL
+            -D_WASI_EMULATED_PROCESS_CLOCKS -fno-delete-null-pointer-checks
+            -include runtime/web/compat/wasm_plat.h
+            -Iruntime/web/compat -Iruntime -Igen/all
+            -Wno-unused-label -Wno-parentheses-equality
+            -DNFS_ENHANCED=0
+          )
+          for source in runtime/com.c runtime/mpcredit.c runtime/mpcredit_store.c runtime/web/sbrk.c; do
+            object="$RUNNER_TEMP/$(basename "${source%.c}").wasm.o"
+            echo "Compile $source -> $object"
+            "$CC" "${flags[@]}" -c "$source" -o "$object"
+          done
+
+      - name: Check MODPACKS builder and native runtime syntax
+        run: |
+          python3 -m py_compile tools/modpacks.py tools/vinylpacks.py tools/packcheck.py tools/test_packcheck.py
+          python3 -m py_compile tools/open_tunnel.py tests/tunnel_patch.py
+          python3 tests/tunnel_patch.py
+          python3 tools/modpacks.py --help > /dev/null
+          python3 tools/vinylpacks.py --help > /dev/null
+          cc -std=c11 -D_POSIX_C_SOURCE=200809L -Iruntime -fsyntax-only runtime/modpacks.c runtime/fileio.c runtime/vinylpacks.c runtime/garage.c runtime/overrides.c runtime/language.c runtime/specialties.c
+          cc -std=c11 -D_POSIX_C_SOURCE=200809L -Iruntime -fsyntax-only runtime/fileio.c
+          cc -std=c11 -D_POSIX_C_SOURCE=200809L -Iruntime -fsyntax-only runtime/roam_game.c runtime/racehorn.c runtime/roam.c runtime/travel.c
+          cc -std=c11 -D_POSIX_C_SOURCE=200809L -Iruntime -fsyntax-only runtime/career.c
+          cc -std=c11 -D_POSIX_C_SOURCE=200809L -Iruntime -fsyntax-only runtime/quickrace.c
+          grep -Eq '^RT=.*[[:space:]]quickrace[[:space:]]' web/build.sh
+          grep -Eq '^RT=.*[[:space:]]travel[[:space:]]' web/build.sh
+          grep -Eq '^CSRC=.*[[:space:]]quickrace[[:space:]]' link.sh
+          grep -Eq '^CSRC=.*[[:space:]]roam_game[[:space:]]travel[[:space:]]' link.sh
+          tools/genstamp.sh hooks | grep -q '0x004aa283'
+          grep -Eq '^CSRC=.*[[:space:]]hiddenraces[[:space:]].*[[:space:]]mpcredit_store[[:space:]]mpcredit[[:space:]]' link.sh
+          bash -n tests/run_suite.sh tests/checks/mpcreditpending.sh tests/checks/mpcreditrestore.sh
+          cc -std=gnu11 -D_POSIX_C_SOURCE=200809L -Iruntime -fsyntax-only runtime/com.c runtime/photo.c runtime/catchup.c runtime/hiddenraces.c runtime/mpcredit.c
+          # Compile the browser-only branches too: setting access and guest-memory helpers are WASM-specific.
+          cc -std=gnu11 -D__wasm__ -D_POSIX_C_SOURCE=200809L -Iruntime -Iruntime/web/compat -fsyntax-only runtime/com.c runtime/mpcredit.c runtime/mpcredit_store.c
+          cc -std=c11 -D_POSIX_C_SOURCE=200809L -Wall -Wextra -Werror -Iruntime tests/hiddenraces_unit.c -o /tmp/hiddenraces_unit
+          /tmp/hiddenraces_unit
+          cc -std=c11 -D_POSIX_C_SOURCE=200809L -Wall -Wextra -Werror -Iruntime tests/mpcredit_store_unit.c runtime/mpcredit_store.c -o /tmp/mpcredit_store_unit
+          /tmp/mpcredit_store_unit
+          cc -std=c11 -D_POSIX_C_SOURCE=200809L -Wall -Wextra -Werror -Iruntime tests/quickrace_unit.c -o /tmp/quickrace_unit
+          /tmp/quickrace_unit
+          cc -std=c11 -D_POSIX_C_SOURCE=200809L -Wall -Wextra -Werror -Iruntime tests/opentunnel_unit.c -o /tmp/opentunnel_unit
+          /tmp/opentunnel_unit unset
+          /tmp/opentunnel_unit off
+          /tmp/opentunnel_unit invalid
+          /tmp/opentunnel_unit incomplete
+          /tmp/opentunnel_unit empty
+          /tmp/opentunnel_unit on
+          cc -std=c11 -D_POSIX_C_SOURCE=200809L -Wall -Wextra -Wno-unused-function -Iruntime tests/catchup_unit.c -o /tmp/catchup_unit
+          stdbuf -oL -eL /tmp/catchup_unit
+
+      - name: Run x86 lifter ISA regressions
+        run: |
+          python3 -m venv .venv
+          .venv/bin/pip install 'capstone>=5.0.6,<6' 'pefile>=2023.2.7'
+          .venv/bin/python tools/isatest.py
+          cc -D_GNU_SOURCE -std=c11 -O2 -Iruntime gen/isatest.c runtime/mem.c -pthread -lm -o /tmp/isatest
+          /tmp/isatest
+
+      - name: Check multiplayer test-runner syntax
+        run: |
+          node --check web/tools/online-pair.mjs
+          node --check web/tools/roam-pair.mjs
+          node --check web/tools/drive-route.mjs
+
+      - name: Install web dependencies
+        working-directory: web
+        run: npm ci
+
+      - name: Check WebSocket handshake cancellation regression
+        run: node --test web/test/net-trouble.test.mjs
+
+      - name: Check TypeScript
+        working-directory: web
+        run: npm run check
+
+      - name: Build web application
+        working-directory: web
+        run: npm run build
+
+      - name: Verify Cargo.lock is current
+        run: cargo metadata --locked --format-version 1 --manifest-path web/server-rs/Cargo.toml > /dev/null
+
+      - name: Run Rust workspace tests
+        run: |
+          set -o pipefail
+          mkdir -p out/ci
+          cargo test --manifest-path web/server-rs/Cargo.toml --workspace 2>&1 | tee out/ci/rust-tests.log
+
+      - name: Format Rust workspace on integration pushes
+        if: github.event_name == 'push' && github.ref == 'refs/heads/integration/upstream-2026-11-06'
+        run: |
+          cargo fmt --manifest-path web/server-rs/Cargo.toml --all
+          if ! git diff --quiet -- web/server-rs; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add web/server-rs
+            git commit -m "style: format Rust workspace"
+            git push origin HEAD:refs/heads/integration/upstream-2026-11-06
+          fi
+
+      - name: Check Rust formatting
+        if: ${{ !cancelled() }}
+        run: cargo fmt --manifest-path web/server-rs/Cargo.toml --all -- --check
+
+      - name: Run Rust Clippy
+        if: ${{ !cancelled() }}
+        run: cargo clippy --manifest-path web/server-rs/Cargo.toml --workspace --all-targets -- -D warnings
+
+      - name: Test GPS distance HUD and unit conversion
+        run: |
+          cc -std=c11 -Wall -Wextra -Werror -Iruntime tests/gpsdistance_unit.c -o /tmp/gpsdistance_unit
+          /tmp/gpsdistance_unit
+          cc -std=c11 -D_POSIX_C_SOURCE=200809L -Wall -Wextra -Werror -Iruntime tests/gpsdistance_hud_unit.c -lm -o /tmp/gpsdistance_hud_unit
+          /tmp/gpsdistance_hud_unit
+          /tmp/gpsdistance_hud_unit unset
+          /tmp/gpsdistance_hud_unit off
+          /tmp/gpsdistance_hud_unit false
+
+      - name: Test Photo Mode continuous roll
+        run: |
+          cc -std=c11 -Wall -Wextra -Werror -Iruntime tests/photo_roll_unit.c -lm -o /tmp/photo_roll_unit
+          /tmp/photo_roll_unit
+
+      - name: Test Free Roam mailbox layout
+        run: |
+          cc -std=c11 -Wall -Wextra -Werror tests/net_mailbox_layout.c -o /tmp/net_mailbox_layout
+          /tmp/net_mailbox_layout
+
+      - name: Test Free Roam protocol core (MAPD, NEARREQ and compatibility)
+        run: |
+          cc -O1 -g -fsanitize=address,undefined -Iruntime tests/roam_unit.c runtime/roam_core.c runtime/roam_bsd.c -lm -o /tmp/roam_unit
+          /tmp/roam_unit 50000
+
+      - name: Build server binaries for Node integration tests
+        run: |
+          cargo build --manifest-path web/server-rs/Cargo.toml -p nfsu2-server -p nfsu2-roamload
+          mkdir -p out/web/server-rs
+          cp web/server-rs/target/debug/nfsu2-server out/web/server-rs/nfsu2-server
+
+      - name: Run synthetic Online protocol load and abuse smoke test
+        run: |
+          mkdir -p out/ci/fixture-game
+          printf 'MZ' > out/ci/fixture-game/SPEED2.EXE
+          node web/tools/online-load.mjs --clients 40 --seconds 20 --data "$PWD/out/ci/fixture-game" --out out/ci/online-load --ci
+
+      - name: Focused diagnostics for integration regressions
+        id: focused_diagnostics
+        continue-on-error: true
+        run: |
+          status=0
+          for file in \
+            web/test/page-lifecycle.test.mjs \
+            web/test/net-crews.test.mjs \
+            web/test/hub-shell-integration.test.mjs \
+            web/test/i18n.test.mjs \
+            web/test/log-english.test.mjs \
+            web/test/packs.test.mjs; do
+            node --test --test-reporter=tap "$file" || status=1
+          done
+          python3 -I tools/test_packcheck.py -v || status=1
+          node web/tools/i18n-keys.mjs --check || status=1
+          exit "$status"
+
+      - name: Install Chromium for browser-based tests
+        working-directory: web
+        run: npx playwright install --with-deps chromium
+
+      - name: Run web regression tests
+        run: |
+          set -o pipefail
+          node --test --test-concurrency=1 web/test/*.test.mjs 2>&1 | tee out/ci/web-tests.log
+
+      - name: Enforce focused diagnostic result
+        if: always()
+        env:
+          FOCUSED_DIAGNOSTICS_OUTCOME: ${{ steps.focused_diagnostics.outcome }}
+        run: |
+          if [ "$FOCUSED_DIAGNOSTICS_OUTCOME" = "failure" ]; then
+            echo "Focused diagnostics failed; browser regression results are still available above." >&2
+            exit 1
+          fi
+
+      - name: Keep test logs if validation fails
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: multiplayer-ci-failure-logs
+          path: out/ci/*.log
+          if-no-files-found: ignore
+          retention-days: 7
+, script, re.MULTILINE)
+          if not match:
+              raise SystemExit("web/build.sh: RT source list not found")
+          rt = set(match.group(1).split())
+          web = {p.stem for p in pathlib.Path("runtime/web").glob("*.c")}
+          duplicates = sorted(rt & web)
+          if duplicates:
+              raise SystemExit("Runtime sources compiled twice (RT and WEB): " + ", ".join(duplicates))
+          print(f"Runtime source ownership OK: {len(rt)} RT entries, {len(web)} web entries, no duplicate basenames")
+          PY
           flags=(
             --target=wasm32-wasip1-threads -pthread -O3
             -msimd128 -mbulk-memory -mnontrapping-fptoint -mtail-call
