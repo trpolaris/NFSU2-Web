@@ -188,7 +188,7 @@ test('F9 Friends inbox persists unread state per claimed name and keeps read his
     assert.deepEqual(result.afterReload, result.afterOneRead, 'delivered mail and its read state survive a page reload');
     assert.deepEqual(result.afterMarkAll, {
       unread: '0', mailboxHidden: false, markAllHidden: true,
-      rows: [{ sender: 'Bo', unread: 'false' }, { sender: 'Cy', unread: 'false' }],
+      rows: [{ sender: 'Cy', unread: 'false' }, { sender: 'Bo', unread: 'false' }],
     });
     assert.deepEqual(result.otherPlayer, {
       unread: '0', mailboxHidden: true, markAllHidden: true, rows: [],
