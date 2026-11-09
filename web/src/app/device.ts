@@ -50,7 +50,7 @@ export function noteGraphics(info: string | undefined) { graphics = info ?? ''; 
 export const fullScreenFails = (info = graphics): boolean => /^img-tec b-series/i.test(info);
 
 /** 4x MSAA breaks Chrome/Edge on AMD GCN-5 (Vega) and Qualcomm Adreno graphics; keep it off by default there. */
-export const fsaaFails = (info = graphics): boolean => /^(amd gcn-5|qualcomm)\\b/i.test(info);
+export const fsaaFails = (info = graphics): boolean => /^(amd gcn-5|qualcomm)\b/i.test(info);
 
 /** the render check's verdict on this phone: in this browser only, like the other device defaults (settings.ini,
  *  and with it the cloud saves, never has it) */
