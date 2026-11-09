@@ -147,8 +147,9 @@ test('typing @ in the FreeRoam composer suggests live server players and inserts
     if (candidate) candidate.click();
     const output = input.value;
     const expanded = input.getAttribute('aria-expanded');
+    const composerOpen = chat.chatHud.classList.contains('active');
     chat.stop();
-    return { suggestions, output, expanded, composerOpen: chat.chatHud.classList.contains('active'), composerOpened };
+    return { suggestions, output, expanded, composerOpen, composerOpened };
   });
   if (!result) return;
   assert.equal(result.composerOpened, true);
