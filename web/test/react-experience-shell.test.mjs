@@ -210,7 +210,7 @@ test('Free Roam and Online toggles are React-controlled through the DOM-free Set
   assert.match(gameEntry, /__trpSettingsBridge\?: TrpSettingsBridge/);
   assert.match(settingsRuntime, /__trpSettingsBridge:\s*\{/);
   assert.match(settingsRuntime, /current: \(key: string\) => settings\.current\(key\)/);
-  assert.match(settingsRuntime, /set: async \(key, value\) => \{ await settings\.set\(key, value\)/);
+  assert.match(settingsRuntime, /set: async \(key: string, value: string\) => \{ await settings\.set\(key, value\)/);
   assert.match(settingsRuntime, /readOnly: \(\) => !instance\.owner/);
   assert.match(settingsRuntime, /trp-settings-ready/);
   assert.match(settingsRuntime, /trp-settings-changed/);
@@ -241,8 +241,8 @@ test('React Online name and room editors reuse SettingsService normalization and
   assert.match(settingsUi, /async setValidated\(key: string, value: string \| null\)/);
   assert.match(settingsUi, /onlineName\(next\)/);
   assert.match(settingsUi, /checkSetting\(key, next\)/);
-  assert.match(shellCss, /data-key="roam_name"/);
-  assert.match(shellCss, /data-key="roam_room"/);
+  assert.match(shellCss, /\.trp-online-text-grid/);
+  assert.match(shellCss, /\.trp-online-text-card/);
 });
 
 

@@ -1291,3 +1291,55 @@
   .trp-friends-tools { grid-template-columns:1fr; }
   .trp-friends-dashboard-columns { grid-template-columns:1fr; }
 }
+
+
+/* Narrow viewport hardening: keep React-owned grids inside their route panels after localization. */
+.trp-online-settings-panel,
+.trp-online-settings-panel > *,
+.trp-online-settings-panel .trp-online-react-controls,
+.trp-online-settings-panel .trp-online-toggle-card,
+.trp-online-settings-panel .trp-online-text-grid,
+.trp-online-settings-panel .trp-online-text-card,
+.trp-online-settings-panel .trp-online-text-entry,
+.trp-online-settings-panel .trp-online-secondary-controls,
+.trp-online-settings-panel .trp-online-max-cars-card,
+.trp-vault-react,
+.trp-vault-react > *,
+.trp-vault-react-key-row,
+.trp-vault-react-key-form,
+.trp-vault-react-actions,
+.trp-controls-react-workbench,
+.trp-controls-react-tabs,
+.trp-controls-react-panel {
+  min-width:0;
+  max-width:100%;
+  box-sizing:border-box;
+}
+.trp-online-settings-panel .trp-online-react-controls,
+.trp-online-settings-panel .trp-online-text-grid,
+.trp-online-settings-panel .trp-online-secondary-controls,
+.trp-vault-react,
+.trp-vault-react-key-row,
+.trp-vault-react-key-form,
+.trp-vault-react-actions,
+.trp-controls-react-workbench,
+.trp-controls-react-tabs {
+  width:100%;
+}
+.trp-online-settings-panel .trp-online-toggle-card,
+.trp-online-settings-panel .trp-online-text-card,
+.trp-online-settings-panel .trp-online-max-cars-card {
+  width:100%;
+}
+.trp-vault-react-key-form { flex-basis:100%; }
+.trp-controls-react-tabs { padding-left:6px; }
+.trp-controls-react-tabs > button {
+  min-width:0;
+  width:100%;
+  max-width:100%;
+  box-sizing:border-box;
+}
+.trp-controls-react-tabs > button > span {
+  min-width:0;
+  overflow-wrap:anywhere;
+}

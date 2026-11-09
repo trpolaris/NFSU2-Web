@@ -1441,7 +1441,7 @@
   "Multiplayer race: {pos} place. Only a win counts in your career": "Multiplayer-Rennen: Platz {n}. Nur ein Sieg zählt in deiner Karriere",
   "Speed compared to your car": "Tempo im Vergleich zu deinem Auto",
   "Keep height": "Höhe halten",
-  "Mods": "Mods",
+  "Mods": "Modifikationen",
   "Changes apply the next time you press Play.": "Änderungen gelten, wenn du das nächste Mal auf „Spielen“ drückst.",
   "Decline": "Ablehnen",
   "Back to the city": "Zurück in die Stadt",
@@ -1449,7 +1449,7 @@
   "Quit without saving?": "Ohne Speichern beenden?",
   "To save, stop the car, press Esc and choose Save.": "Zum Speichern: Auto anhalten, Esc drücken und Speichern wählen.",
   "URL: Airport Circuit": "URL: Flughafen-Rundkurs",
-  "URL: Bayview Speedway": "URL: Bayview Speedway",
+  "URL: Bayview Speedway": "Strecke: Bayview Speedway",
   "Drift: Stadium": "Drift: Stadion",
   "Drift: Parkade": "Drift: Parkhaus",
   "Drag: Bayview Bridge": "Drag: Bayview-Brücke",
@@ -1665,5 +1665,9 @@
   "Travel to a race track's own free-roam map. Each spot has its own player room.": "Wechsle zur eigenen Free-Roam-Karte einer Rennstrecke. Jeder Ort hat einen eigenen Spielraum.",
   "06 / DRIVER CONTROLS": "06 / FAHRERSTEUERUNG",
   "CONTROLS": "STEUERUNG",
-  "Keyboard, controller and site controls.": "Tastatur-, Controller- und Website-Steuerung."
+  "Keyboard, controller and site controls.": "Tastatur-, Controller- und Website-Steuerung.",
+  "SESSION STATUS": "SITZUNGSSTATUS",
+  "GAME RUNNING": "SPIEL LÄUFT",
+  "The game continues running behind this menu.": "Das Spiel läuft hinter diesem Menü weiter.",
+  "RETURN TO GAME": "ZURÜCK ZUM SPIEL"
 }

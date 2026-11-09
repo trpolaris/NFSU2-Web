@@ -1472,7 +1472,7 @@
   "Quit without saving?": "Uscire senza salvare?",
   "To save, stop the car, press Esc and choose Save.": "Per salvare: ferma l'auto, premi Esc e scegli Salva.",
   "URL: Airport Circuit": "URL: Circuito dell'aeroporto",
-  "URL: Bayview Speedway": "URL: Bayview Speedway",
+  "URL: Bayview Speedway": "Pista: Bayview Speedway",
   "Drift: Stadium": "Dérapage: Stadio",
   "Drift: Parkade": "Dérapage: Parcheggio",
   "Drag: Bayview Bridge": "Sparo: Ponte di Bayview",
@@ -1688,5 +1688,9 @@
   "Travel to a race track's own free-roam map. Each spot has its own player room.": "Raggiungi la mappa Free Roam dedicata a una pista. Ogni punto ha la propria stanza di giocatori.",
   "06 / DRIVER CONTROLS": "06 / COMANDI PILOTA",
   "CONTROLS": "COMANDI",
-  "Keyboard, controller and site controls.": "Comandi da tastiera, controller e sito."
+  "Keyboard, controller and site controls.": "Comandi da tastiera, controller e sito.",
+  "SESSION STATUS": "STATO SESSIONE",
+  "GAME RUNNING": "GIOCO IN CORSO",
+  "The game continues running behind this menu.": "Il gioco continua a funzionare dietro questo menu.",
+  "RETURN TO GAME": "TORNA AL GIOCO"
 }

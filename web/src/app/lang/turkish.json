@@ -1588,17 +1588,17 @@
   "BAYVIEW / NIGHT DRIVER SYSTEM": "BAYVIEW / GECE SÜRÜCÜSÜ SİSTEMİ",
   "WEB EXPERIENCE": "WEB DENEYİMİ",
   "SAME-ORIGIN SERVICES": "AYNI KAYNAK HİZMETLERİ",
-  "OTURUM DURUMU": "OTURUM BİLGİSİ",
-  "OYUN AKTİF": "OYUN ÇALIŞIYOR",
-  "Oyun bu menünün arkasında çalışmaya devam ediyor.": "Oyun bu menünün arkasında açık kalır.",
   "Race tracks and player counts": "Yarış pistleri ve oyuncu sayıları",
   "Keyboard, controller and site": "Klavye, kontrolcü ve site",
-  "OYUNA DÖN": "OYUNA GERİ DÖN",
   "06 / FREE ROAM": "06 / SERBEST SÜRÜŞ",
   "Race tracks": "Yarış pistleri",
   "Travel to a race track's own free-roam map. Each spot has its own player room.": "Bir yarış pistinin Serbest Sürüş haritasına gidin. Her noktanın kendine ait oyuncu odası vardır.",
   "06 / DRIVER CONTROLS": "06 / SÜRÜCÜ KONTROLLERİ",
   "CONTROLS": "KONTROLLER",
   "Keyboard, controller and site controls.": "Klavye, kontrolcü ve site kontrolleri.",
-  "\"{name}\"": "“{name}”"
+  "\"{name}\"": "“{name}”",
+  "SESSION STATUS": "OTURUM BİLGİSİ",
+  "GAME RUNNING": "OYUN ÇALIŞIYOR",
+  "The game continues running behind this menu.": "Oyun bu menünün arkasında açık kalır.",
+  "RETURN TO GAME": "OYUNA GERİ DÖN"
 }

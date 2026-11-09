@@ -1688,5 +1688,9 @@
   "Travel to a race track's own free-roam map. Each spot has its own player room.": "Rejoignez la carte Free Roam propre à un circuit. Chaque lieu possède sa propre salle de joueurs.",
   "06 / DRIVER CONTROLS": "06 / COMMANDES DU PILOTE",
   "CONTROLS": "COMMANDES",
-  "Keyboard, controller and site controls.": "Commandes clavier, manette et site."
+  "Keyboard, controller and site controls.": "Commandes clavier, manette et site.",
+  "SESSION STATUS": "ÉTAT DE LA SESSION",
+  "GAME RUNNING": "JEU EN COURS",
+  "The game continues running behind this menu.": "Le jeu continue de fonctionner derrière ce menu.",
+  "RETURN TO GAME": "RETOUR AU JEU"
 }
