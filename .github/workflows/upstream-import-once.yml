@@ -11,13 +11,8 @@ permissions:
   contents: write
   actions: write
 
-concurrency:
-  group: upstream-import-once
-  cancel-in-progress: false
-
 jobs:
   import:
-    if: github.event.head_commit.message == 'chore: run upstream import'
     runs-on: ubuntu-latest
     steps:
       - name: Check out the integration branch
