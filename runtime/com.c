@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <strings.h>
+#include "web/compat/env_bool.h"
 #include <stdlib.h>
 #include <math.h>
 
@@ -784,19 +785,11 @@ static uint32_t g_bb_ms = 0, g_bb_msq = 0;
 /* The browser runtime receives settings as process environment variables.
  * Parse the boolean here rather than depending on the native bundle parser,
  * which is not compiled into the WASI target. */
-static int env_bool(const char *name, int fallback){
-    const char *value = getenv(name);
-    if (!value || !*value) return fallback;
-    if (!strcasecmp(value, "1") || !strcasecmp(value, "true") ||
-        !strcasecmp(value, "yes") || !strcasecmp(value, "on")) return 1;
-    if (!strcasecmp(value, "0") || !strcasecmp(value, "false") ||
-        !strcasecmp(value, "no") || !strcasecmp(value, "off")) return 0;
-    return fallback;
-}
+
 static int fsaa_offered(void){
 #ifdef __wasm__
     static int v = -1;
-    if (v < 0) v = env_bool("NFSU2_FSAA", 1);
+    if (v < 0) v = nfsu2_env_bool("NFSU2_FSAA", 1);
     return v;
 #else
     return 0;
