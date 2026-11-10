@@ -63,6 +63,7 @@ import { canPickMusic, pickMusic } from '../radio-folder';
 import { RadioLink } from './radio-link';
 import { LastfmApi, readSession, Scrobbler, scrobbleWhilePlaying } from './lastfm';
 import { LastfmRow } from './lastfm-ui';
+import { measureCountryRtt, countryFlag } from './country-rtt';
 import { FpsOverlay, FPS_MODES, type FpsMode } from './overlay';
 import { LobbyPanel } from './lobby';
 import { ICON as CHAT_ICON, QuickChat } from './quickchat';
@@ -2154,6 +2155,12 @@ export async function boot() {
   const scrobbler = new Scrobbler({ api: lastfmApi, folder: () => radio?.lastTrack ?? null, dropped: () => lastfmRow.dropped(), log: logLine });
   scrobbleWhilePlaying(radioPort, scrobbler, readSession);
   onLanguage(() => lastfmRow.render());
+  void measureCountryRtt().then(({ country, rttMs }) => {
+    const el = $('#country-rtt');
+    const who = country ? `${countryFlag(country)} ${country.toUpperCase()}` : t('Country unavailable');
+    el.textContent = `${who} · ${rttMs} ms HTTP RTT`;
+    el.hidden = false;
+  }).catch(e => logLine(`[network] country RTT unavailable: ${e}`));
   Object.assign(window, {
     __trpSettingsBridge: {
     current: (key: string) => settings.current(key),
