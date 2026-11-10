@@ -8137,3 +8137,9 @@ int roam_game_friend_car(uint32_t car){
     return 0;
 }
 #endif
+/* overrides.c: one rain phase for all clients in free-roam multiplayer.
+ * The city's own weather zones remain authoritative; only their clock is shared. */
+int roam_game_shared_weather(void){
+    return O.on && rd32(G_FLOW) == 6u && rd32(G_TRACK) % 1000u == 0u &&
+           !rd32(G_CAREER_RACE) && !(rd32(G_GAMEMODE) & 0x200u);
+}
