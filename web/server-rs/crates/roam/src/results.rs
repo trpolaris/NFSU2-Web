@@ -23,7 +23,6 @@
 use std::collections::HashMap;
 
 // (the limits the Online mode's race checks share: RACE_MPS, THIRD_SHARE, QUICK_WINS, JUMP_M, MODE_DRIFT)
-use nfsu2_anticheat::{JUMP_M, MODE_DRIFT, QUICK_WINS, Quickest, RACE_MPS, THIRD_SHARE, jump_seen};
 
 use crate::wire::{LOBBY_PLAYERS, RS_FINISHED, RS_OURS, RaceRes, ResRow};
 
