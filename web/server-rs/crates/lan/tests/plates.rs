@@ -32,7 +32,7 @@ fn hello(plate: &[u8]) -> Vec<u8> {
     if plate.is_empty() {
         datagram(0x0200, false, None)
     } else {
-        datagram(0x8200, true, Some(plate))
+        datagram(0x0A00, true, Some(plate))
     }
 }
 
