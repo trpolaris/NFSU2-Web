@@ -13,6 +13,7 @@ const DIST = 'dist', DEV = 'dist-dev';
 const opts = {
   entryPoints: {
     'main': 'src/main.ts',
+    'lastfm': 'src/lastfm-callback.ts',
     'ui/main': 'src/ui/main.jsx',
     'hub/main': 'src/hub/main.jsx',
     'hub/chat-window': 'src/hub/chat-window.jsx',
