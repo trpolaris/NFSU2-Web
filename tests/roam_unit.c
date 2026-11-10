@@ -1365,6 +1365,8 @@ static void t_crews(void){
     CHECK(!rc_plate_ok("123456789", 9), "plate longer than eight is refused by the shared validator");
     CHECK(rc_plate_ok("ABC12345", 8), "an eight-character plate is allowed");
     m.h.flags = RC_HF_CREW; m.u.hello.plate[0] = 0;
+    /* Keep the same one-entry seen list used to calculate the legacy frame size. */
+    m.u.hello.n_seen = 1; m.u.hello.seen[0] = 0x11111111u;
     n = rc_encode(&m, b, sizeof b);
     CHECK(n == base && rc_decode(b, n, &d) == RC_OK && !d.u.hello.plate[0], "legacy HELLO wire shape stays unchanged");
 
