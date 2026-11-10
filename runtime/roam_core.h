@@ -60,6 +60,9 @@
 #define RC_CFG_MAXFRAG   3
 #define RC_PART_SLOTS    170        /* RideInfo part slots */
 #define RC_CFG_TYPE_NAME 16
+#define RC_DMG_BYTES     11         /* one dent in RC_MSG_DENTS */
+#define RC_DMG_MAX       66         /* newest dents per update */
+#define RC_DMG_DEPTH     0.25f      /* depth unit, metres */
 #define RC_PERF_BYTES    52         /* car-look record extension 1 */
 #define RC_EXT_PERF      1
 #define RC_EXT_HORN      2          /* car-look record extension 2: the player's horn, 1 byte */
@@ -225,7 +228,9 @@ enum { RC_PLAT_MAC = 1, RC_PLAT_WIN = 2, RC_PLAT_TOOL = 3 };
  * the hub's PEERS (RC_HF_CREW above); a hub sends them to no other */
 #define RC_HF_HUBCREW    0x0400
 /* HELLO, core 9: a moderated license plate follows the crew list. */
-#define RC_HF_PLATE      0x0800
+#define RC_HF_PLATE      0x8000
+/* HELLO: this player shows friends' crash damage and receives RC_MSG_DENTS. */
+#define RC_HF_DENTS      0x4000
 #define RC_MARK_FRIEND   0x80       /* mutual friend bit in a hub PEERS crew mark */
 /* decoder results */
 enum { RC_OK = 0, RC_E_SHORT = -1, RC_E_MAGIC = -2, RC_E_VERSION = -3, RC_E_LENGTH = -4,
@@ -517,6 +522,7 @@ typedef struct {
     int      duels;                /* we take outrun challenges (HELLO says so: RC_HF_DUELS) */
     int      lobbies;              /* we take race lobbies (HELLO says so: RC_HF_LOBBY) */
     int      say;                  /* we take quick chat (HELLO says so: RC_HF_SAY) */
+     int      dents;                /* show friends' crash damage (HELLO says so: RC_HF_DENTS) */
 } rc_config;
 
 enum { RC_PS_FREE = 0, RC_PS_CANDIDATE = 1, RC_PS_HEARD = 2, RC_PS_EST = 3 };
