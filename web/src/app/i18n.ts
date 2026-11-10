@@ -14,7 +14,6 @@
 // touches nothing until called), so the pure modules (settings.ts) can use it under node.
 import { localStore, PAGE_LANGUAGE } from './prefs';
 
-import { localStore, PAGE_LANGUAGE } from './prefs';
 
 /** the game's languages (runtime/language.c), settings.ini language's values; english is the default */
 export const LANGUAGES = ['english', 'french', 'german', 'italian', 'spanish', 'dutch', 'swedish', 'danish', 'korean',
