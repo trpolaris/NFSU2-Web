@@ -37,6 +37,10 @@
  *    name text of a mod's brand, RIMS_BRAND_<name>, from the pack (the mod's
  *    English text) into the game's language table (language.c). */
 #include "cpu.h"
+#include "guest.h"
+#include "game.h"
+#include "setting.h"
+#include "stance.h"
 #include "modpacks_config.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -484,6 +488,17 @@ static uint32_t g_ride;                                  /* a ride of ours, for 
 static struct { uint32_t type, key[N_SLOTS]; } g_stock[16]; static int g_nstock;
 
 static int mod_key(uint32_t key){
+static int have_key(uint32_t key){ return mod_key(key) || (vinylpacks_key(key) && vinylpacks_have()); }
+/* A car type's info (0x610130's search, without the call): its CarTypeInfo,
+ * 0 none; -1 not known yet (no car types have been built). */
+int64_t modparts_cartype(uint32_t hash){
+    uint32_t types = MR32(G_CARTYPES);
+    if (!guest_ok_bytes(types, CARTYPES_N * CARTYPE_SZ)) return -1;
+    for (uint32_t i = 0; hash && i < CARTYPES_N; i++)
+        if (MR32(types + i * CARTYPE_SZ + 0xd0u) == hash) return (int64_t)(types + i * CARTYPE_SZ);
+    return 0;
+}
+
     if (!key || !g_grown) return 0;
     for (int i = 0; i < g.nparts; i++) if (g.p[i].key == key) return 1;
     return 0;
