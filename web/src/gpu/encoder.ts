@@ -30,6 +30,12 @@ import { dxt1HasPunch, dxt1ToAstc } from './astc';
 import type { GameMemory } from '../host/memory';
 import { HqSkins, type DataReader } from './hqskin';
 
+/** Apply the game's anisotropy request only to linear, mipmapped sampled textures, never render targets. */
+export function anisotropicSamplerKey(k: number, renderTarget: boolean): number {
+  const mn = k & 3, mg = (k >> 2) & 3, mp = (k >> 4) & 3, al = (k >> 12) & 7;
+  return !renderTarget && mn === 2 && mg === 2 && mp !== 0 && al !== 0 ? (k & ~3) | 3 : k;
+}
+
 export interface EncodeStats {
   draws: number; passes: number; skipped: number; encodeMs: number;
   /** the frame was drawn straight into the texture given to encodeFrame (no back buffer, no composite) */
@@ -460,7 +466,7 @@ export class Encoder {
   /** aniso: a sampler key with linear filters, mips and a MAXANISOTROPY above 1 on one of the game's own textures as
    *  anisotropic (D3DTEXF_ANISOTROPIC min filter: sampler() gives it the anisotropy asked) */
   private anisoKey(k: number, t: Tex): number {
-    return !t.rt && (k & 3) === 2 && ((k >> 2) & 3) === 2 && (k >> 4) & 3 && (k >> 12) & 7 ? (k & ~3) | 3 : k;
+    return anisotropicSamplerKey(k, t.rt);
   }
 
   private sampler(k: number): GPUSampler {
