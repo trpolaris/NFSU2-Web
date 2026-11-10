@@ -296,6 +296,8 @@ void dipad_created(uint32_t obj, uint32_t guid){
     Dev *d = dev_of(obj, 1);
     d->wheel = dipad_guid(guid) == 2;
     PadState s; gamepad_read(&s);
+    int split_menu_pad(PadState *);
+    split_menu_pad(&s);
     if (pad_log()) fprintf(stderr, "[pad] CreateDevice -> 0x%08x, the %s (%s)\n", obj, d->wheel ? "wheel" : "pad",
                            s.connected ? s.name : "no controller yet");
 }
@@ -1143,3 +1145,26 @@ void sub_00407750(CPU *c){
     }
     sub_00407750_orig(c);
 }
+
+
+#ifdef __wasm__
+/* Convert a local browser seat through the same DirectInput mapping as the
+ * main virtual pad. Each seat keeps its own POV and trigger edge history. */
+int dipad_local_state(unsigned seat, uint8_t out[0x110]){
+    static int pov[6], triggers[6][2];
+    if (seat >= 6) return 0;
+    PadState state;
+    int split_read_local(unsigned, PadState *);
+    if (!split_read_local(seat, &state)) { pov[seat] = 0; memset(triggers[seat], 0, sizeof triggers[seat]); return 0; }
+    Dev *source = 0;
+    for (int i = 0; i < 4; ++i) if (g_dev[i].obj && !g_dev[i].gone && !g_dev[i].wheel){ source = &g_dev[i]; break; }
+    if (!source) return 0;
+    Dev local = *source;
+    local.pov1 = pov[seat];
+    memcpy(local.trig, triggers[seat], sizeof local.trig);
+    fill_state(out, 0x110, &local, &state);
+    pov[seat] = local.pov1;
+    memcpy(triggers[seat], local.trig, sizeof local.trig);
+    return 1;
+}
+#endif
