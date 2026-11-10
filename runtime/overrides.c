@@ -1776,3 +1776,13 @@ void sub_00489ba0(CPU *restrict c){
     g_shrot_lifted++;
     sub_00489ba0_orig(c);
 }
+
+/* The render-list entry temporarily borrows the car's moderated plate texture. */
+void plates_model(uint32_t item, uint32_t keep[2]);
+void sub_005c5930_orig(CPU *c);
+void sub_005c5930(CPU *c){
+    uint32_t keep[2] = {0, 0};
+    plates_model(MR32(c->esp + 4u), keep);
+    sub_005c5930_orig(c);
+    if (keep[0]) MR32(keep[0]) = keep[1];
+}
