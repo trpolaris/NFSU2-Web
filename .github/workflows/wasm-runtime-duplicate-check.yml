@@ -7,11 +7,13 @@ on:
     paths:
       - '.github/workflows/wasm-runtime-duplicate-check.yml'
       - 'web/build.sh'
+      - 'runtime/com.c'
       - 'runtime/mprace.c'
       - 'runtime/mprace.h'
       - 'runtime/roam_game.c'
       - 'runtime/mpcredit_store.c'
       - 'runtime/web/**'
+      - 'tests/env_bool_unit.c'
       - 'tools/check_runtime_source_ownership.py'
       - 'web/tools/check-wasi-runtime.sh'
   pull_request:
@@ -20,11 +22,13 @@ on:
     paths:
       - '.github/workflows/wasm-runtime-duplicate-check.yml'
       - 'web/build.sh'
+      - 'runtime/com.c'
       - 'runtime/mprace.c'
       - 'runtime/mprace.h'
       - 'runtime/roam_game.c'
       - 'runtime/mpcredit_store.c'
       - 'runtime/web/**'
+      - 'tests/env_bool_unit.c'
       - 'tools/check_runtime_source_ownership.py'
       - 'web/tools/check-wasi-runtime.sh'
   workflow_dispatch:
@@ -46,6 +50,11 @@ jobs:
 
       - name: Reject duplicate RT and WEB source ownership
         run: python3 tools/check_runtime_source_ownership.py
+
+      - name: Test browser boolean environment parser
+        run: |
+          cc -std=c11 -D_POSIX_C_SOURCE=200809L -Wall -Wextra -Werror -Iruntime tests/env_bool_unit.c -o "$RUNNER_TEMP/env_bool_unit"
+          "$RUNNER_TEMP/env_bool_unit"
 
       - name: Compile runtime files with WASI SDK 34
         run: bash web/tools/check-wasi-runtime.sh
