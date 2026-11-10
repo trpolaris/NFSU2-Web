@@ -42,7 +42,25 @@ export class LastfmApi {
 }
 
 /** Last.fm's "allow access" page, which sends the player back to /lastfm.html with a token */
-export const authLink = (key: string, origin = location.origin) => `${AUTH_PAGE}?api_key=${encodeURIComponent(key)}&cb=${encodeURIComponent(`${origin}/lastfm.html`)}`;
+export const authLink = (key: string, origin = location.origin, state?: string) => {
+  const callback = `${origin}/lastfm.html${state ? `?state=${encodeURIComponent(state)}` : ''}`;
+  return `${AUTH_PAGE}?api_key=${encodeURIComponent(key)}&cb=${encodeURIComponent(callback)}`;
+};
+
+/** A random, unguessable per-connect value sent through Last.fm's callback URL. */
+export function newAuthState(source: Pick<Crypto, 'getRandomValues'> = crypto): string {
+  const bytes = source.getRandomValues(new Uint8Array(24));
+  return Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
+}
+
+const AUTH_STATE_TTL_MS = 10 * 60_000;
+/** Accept only the state belonging to the latest, still-valid Connect attempt on this origin. */
+export function authStateMatches(pending: unknown, returned: string | null, now = Date.now()): boolean {
+  if (!returned || !pending || typeof pending !== 'object') return false;
+  const p = pending as { state?: unknown; at?: unknown };
+  return typeof p.state === 'string' && p.state.length >= 32 && p.state === returned &&
+    typeof p.at === 'number' && Number.isFinite(p.at) && now >= p.at && now - p.at <= AUTH_STATE_TTL_MS;
+}
 
 /** a title without its artist in front ("Artist - Title"), as the game's plaque shows it (radio-tags.ts plaqueTags) */
 const ownTitle = (t: Lines) => t.artist && t.title.toLowerCase().startsWith(`${t.artist} - `.toLowerCase()) ? t.title.slice(t.artist.length + 3) : t.title;

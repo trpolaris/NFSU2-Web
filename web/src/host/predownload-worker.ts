@@ -14,11 +14,11 @@
 // stays: a stopped or failed download goes on from there the next time.
 import {
   BLOCK, CACHE_DIR, aheadFiles, blockCount, blockLen, blockRuns, dataUrl, manifestFiles, openCacheFile, putBlock, runUrl, scanCache,
-  type CacheFile, type DataFile, type Manifest,
+  type CacheFile, type DataFile, type Manifest, type Packs, NO_PACKS,
 } from './datacache';
 import { fmtBytes } from '../app/checks';
 
-export type ToPredownload = { t: 'start'; manifestUrl: string; dataBase: string; language: string; texpack: string; openTunnel?: boolean } | { t: 'stop' };
+export type ToPredownload = { t: 'start'; manifestUrl: string; dataBase: string; language: string; texpack: string; packs?: Packs; openTunnel?: boolean } | { t: 'stop' };
 export type FromPredownload =
   | { t: 'progress' | 'done'; have: number; total: number }
   | { t: 'stopped' } | { t: 'error'; msg: string };
@@ -43,12 +43,12 @@ class Retry extends Error {}
 
 function closeFile(cf: CacheFile | null) { if (cf) { cf.h.flush(); cf.h.close(); cf.haveH.flush(); cf.haveH.close(); } }
 
-async function download(cfg: { manifestUrl: string; dataBase: string; language: string; texpack: string; openTunnel?: boolean }): Promise<{ have: number; total: number } | null> {
+async function download(cfg: { manifestUrl: string; dataBase: string; language: string; texpack: string; packs?: Packs; openTunnel?: boolean }): Promise<{ have: number; total: number } | null> {
   const r = await fetch(cfg.manifestUrl, { cache: 'no-cache', signal: abort.signal });
   if (!r.ok) throw new Error(`the list of game files did not load (HTTP ${r.status})`);
   const m = await r.json() as Manifest;
   const served = blockRuns(m), runMax = served ? 1 : RUN;
-  const scan = await scanCache(aheadFiles(manifestFiles(m), cfg.language, cfg.texpack, cfg.openTunnel === true));
+  const scan = await scanCache(aheadFiles(manifestFiles(m), cfg.language, cfg.packs ?? { ...NO_PACKS, texpack: cfg.texpack }, cfg.openTunnel === true));
   const total = scan.total;
   let have = scan.have, shown = 0;
   const progress = (now = false) => {

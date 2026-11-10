@@ -10,7 +10,7 @@ import * as esbuild from 'esbuild';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const load = async f => await import('data:text/javascript;base64,' + Buffer.from(
   (await esbuild.build({ entryPoints: [path.join(ROOT, f)], bundle: true, format: 'esm', write: false })).outputFiles[0].text).toString('base64'));
-const { Scrobbler, authLink } = await load('web/src/app/lastfm.ts');
+const { Scrobbler, authLink, authStateMatches, newAuthState } = await load('web/src/app/lastfm.ts');
 
 const settle = async () => { for (let k = 0; k < 8; k++) await new Promise(r => setImmediate(r)); };
 const SESSION = { name: 'someone', sk: 'SK' };
@@ -117,6 +117,20 @@ test('a session key that stopped working: dropped, and nothing more is sent with
   assert.deepEqual(ops(t.calls), ['playing']);
 });
 
-test('the link to Last.fm\'s page names this server\'s key and its way back', () => {
+test('the link to Last.fm names this server and binds the callback to its Connect attempt', () => {
   assert.equal(authLink('K&1', 'https://nfsu2.example'), 'https://www.last.fm/api/auth/?api_key=K%261&cb=https%3A%2F%2Fnfsu2.example%2Flastfm.html');
+  assert.equal(authLink('K&1', 'https://nfsu2.example', 'abc123'),
+    'https://www.last.fm/api/auth/?api_key=K%261&cb=https%3A%2F%2Fnfsu2.example%2Flastfm.html%3Fstate%3Dabc123');
+});
+
+test('Last.fm callback accepts only a matching, unexpired Connect state', () => {
+  const pending = { state: 'a'.repeat(48), at: T0 };
+  assert.equal(authStateMatches(pending, pending.state, T0 + 1000), true);
+  assert.equal(authStateMatches(pending, 'b'.repeat(48), T0 + 1000), false);
+  assert.equal(authStateMatches(pending, null, T0 + 1000), false);
+  assert.equal(authStateMatches(pending, pending.state, T0 + 10 * 60_000 + 1), false);
+  assert.equal(authStateMatches(pending, pending.state, T0 - 1), false);
+  assert.equal(authStateMatches(null, pending.state, T0), false);
+  const generated = newAuthState({ getRandomValues: bytes => { bytes.fill(0x5a); return bytes; } });
+  assert.equal(generated, '5a'.repeat(24));
 });

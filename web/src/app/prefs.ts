@@ -89,6 +89,8 @@ export const LASTFM_SESSION = 'nfsu2.lastfm';
 export const LASTFM_QUEUE = 'nfsu2.lastfm.queue';
 /** what the callback page did last ({result: 'ok' | an error, at}) */
 export const LASTFM_RESULT = 'nfsu2.lastfm.result';
+/** one short-lived Connect attempt; never a Last.fm session key */
+export const LASTFM_STATE = 'nfsu2.lastfm.state';
 
 // photo mode (photo.ts)
 /** the panel's settings (as JSON) */

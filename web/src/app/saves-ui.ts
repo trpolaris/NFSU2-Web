@@ -379,7 +379,7 @@ export class SavesPanel {
     }
     if (this.deps.download.running) { this.showData(); return; }
     const current = ++this.counted;
-    const [keptBytes, data] = await Promise.all([cacheBytes(), gameDataKept(this.deps.download.language(), this.deps.download.texpack(), this.deps.download.openTunnel()).catch(() => null)]);
+    const [keptBytes, data] = await Promise.all([cacheBytes(), gameDataKept(this.deps.download.language(), this.deps.download.packs, this.deps.download.openTunnel()).catch(() => null)]);
     if (current !== this.counted) return;
     this.kept = keptBytes; this.data = data; this.showData();
   }

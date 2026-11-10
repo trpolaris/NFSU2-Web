@@ -173,6 +173,15 @@ export const KEYS: readonly KeyDef[] = [
   { key: 'mod_rims', env: 'NFSU2_MOD_RIMS', kind: 'bool', scope: 'web' },
   // Career unique visual rewards become available for every car after Caleb (runtime/uniques.c).
   { key: 'uniques', env: 'NFSU2_UNIQUES', kind: 'bool', scope: 'web' },
+  // EA Trax soundtrack selection; the preload follows the selected audio tree.
+  { key: 'songs', env: 'NFSU2_SONGS', kind: 'enum', vals: 'uncensored|original', scope: 'web' },
+  // Upstream gameplay mods: crash damage, vehicle stance and remote mod-part rendering.
+  { key: 'crash_damage', env: 'NFSU2_DAMAGE', kind: 'bool', scope: 'web' },
+  { key: 'stance', env: 'NFSU2_STANCE', kind: 'bool', scope: 'web' },
+  { key: 'others_mod_parts', env: 'NFSU2_OTHERS_MOD_PARTS', kind: 'enum', vals: 'shown|original', scope: 'web' },
+  // Optional audio/visual packs. Their source assets remain user-supplied.
+  { key: 'gearbox_whine', env: 'NFSU2_GEARBOX_WHINE', kind: 'bool', scope: 'web' },
+  { key: 'hq_vinyls', env: 'NFSU2_HQ_VINYLS', kind: 'bool', scope: 'web' },
   // the movies' subtitles (runtime/language.c).  Not in bundle.m's table either
   { key: 'subtitles', env: 'NFSU2_SUBTITLES', kind: 'bool', scope: 'web' },
   // the player's horn, which the others hear too (runtime/horn.c).  Not in bundle.m's table either: NFSU2_HORN there
@@ -299,6 +308,30 @@ export const TEMPLATE = `# NFSU2 settings, read at every launch.
 # to be sold for every career car. Off keeps the original per-car reward rule. Parts already bought stay
 # on their cars if this is turned off later. [NFSU2_UNIQUES]
 #uniques = off
+
+# EA Trax songs: uncensored = the restored soundtrack when installed; original = the game's own recordings
+# from PFDATA/ORIGINAL when present. [NFSU2_SONGS]
+#songs = uncensored
+
+# Damage on cars after collisions. This changes appearance, not handling. Requires the compatible MODPACKS/DAMAGE pack.
+# Off preserves the original game's behavior. [NFSU2_DAMAGE]
+#crash_damage = off
+
+# Per-car stance settings in the garage Body Shop. Other players see your configured stance when supported.
+# [NFSU2_STANCE]
+#stance = off
+
+# Remote players' modded visual parts: shown = use transmitted compatible mod-part appearance; original = stock look.
+# [NFSU2_OTHERS_MOD_PARTS]
+#others_mod_parts = shown
+
+# Engine/gearbox whine audio. Requires the three compatible MODPACKS/WHINE WAV files; downloads only when enabled.
+# [NFSU2_GEARBOX_WHINE]
+#gearbox_whine = off
+
+# Higher-resolution vehicle vinyls and doorlines. Requires the optional HQVINYLS assets supplied by the user.
+# [NFSU2_HQ_VINYLS]
+#hq_vinyls = off
 
 # Sound output.  [NOSOUND, inverted]
 #sound = on

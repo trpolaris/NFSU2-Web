@@ -80,3 +80,18 @@ test('tools/whinepack.py: the three sounds, checked', { skip: !havePython && 'no
     fs.rmSync(tmp, { recursive: true, force: true });
   }
 });
+
+test('the preload follows selected texture, original-song and runtime mod packs', () => {
+  const files = [
+    'MODPACKS/DAMAGE/dent.bin', 'MODPACKS/WHINE/car_whine.wav', 'HQVINYLS/skin.dds',
+    'PFDATA/song.viv', 'PFDATA/ORIGINAL/song.viv',
+    'TEXPACKS/hd.pak', 'TEXPACKS/hd.tracks', 'TEXPACKS/other.pak',
+    'TRACKS/L4RA.BUN',
+  ].map(p => ({ path: p, size: 10, mtime: 1 }));
+  const paths = packs => D.aheadFiles(files, 'english', packs).map(x => x.path.toLowerCase()).sort();
+  assert.deepEqual(paths({ texpack: '', songs: '', damage: false, whine: false }), ['pfdata/song.viv', 'tracks/l4ra.bun']);
+  assert.deepEqual(paths({ texpack: 'hd', songs: '', damage: true, whine: false }),
+    ['modpacks/damage/dent.bin', 'pfdata/song.viv', 'texpacks/hd.pak', 'texpacks/hd.tracks', 'tracks/l4ra.bun']);
+  assert.deepEqual(paths({ texpack: '', songs: 'original', damage: false, whine: true }),
+    ['modpacks/whine/car_whine.wav', 'pfdata/original/song.viv', 'tracks/l4ra.bun']);
+});

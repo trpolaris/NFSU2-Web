@@ -5,7 +5,7 @@
 // goes on after the game ends.
 
 import type { FromPredownload, ToPredownload } from '../host/predownload-worker';
-import { DATA_BASE, MANIFEST_URL, aheadFiles, languageMovies, manifestFiles, scanCache, type Manifest } from '../host/datacache';
+import { DATA_BASE, MANIFEST_URL, aheadFiles, languageMovies, manifestFiles, scanCache, NO_PACKS, type Manifest, type Packs } from '../host/datacache';
 
 export type DownloadState = 'idle' | 'running' | 'paused' | 'done' | 'error';
 export interface DownloadStatus {
@@ -29,10 +29,11 @@ export async function moviesKept(language: string, av1: boolean): Promise<boolea
 }
 
 /** How much of what the download fetches (all but the movies) this browser keeps: bytes in the cache, of their total. */
-export async function gameDataKept(language: string, texpack: string, openTunnel = false): Promise<{ have: number; total: number }> {
+export async function gameDataKept(language: string, packs: Packs | string, openTunnel = false): Promise<{ have: number; total: number }> {
   const r = await fetch(MANIFEST_URL, { cache: 'no-cache' });
   if (!r.ok) throw new Error(`HTTP ${r.status}`);
-  const s = await scanCache(aheadFiles(manifestFiles(await r.json() as Manifest), language, texpack, openTunnel));
+  const selected = typeof packs === 'string' ? { ...NO_PACKS, texpack: packs } : packs;
+  const s = await scanCache(aheadFiles(manifestFiles(await r.json() as Manifest), language, selected, openTunnel));
   return { have: s.have, total: s.total };
 }
 
@@ -45,7 +46,14 @@ export class Predownload {
   /** language: the game's language now (settings.ini): only its language pack is fetched; texpack: the texture
    *  pack picked ('' for none), the only one fetched */
   constructor(private onChange: (s: DownloadStatus) => void, private log: (line: string) => void, readonly language: () => string,
-              readonly texpack: () => string, readonly openTunnel: () => boolean = () => false) {}
+              readonly texpack: () => string, readonly openTunnel: () => boolean = () => false,
+              readonly songs: () => string = () => '', readonly damage: () => boolean = () => false,
+              readonly whine: () => boolean = () => false) {}
+
+  /** The packs that change which game data files are required. */
+  get packs(): Packs {
+    return { texpack: this.texpack(), songs: this.songs(), damage: this.damage(), whine: this.whine() };
+  }
 
   get running() { return this.w !== null; }
 
@@ -55,7 +63,7 @@ export class Predownload {
     this.samples = [];
     w.onmessage = (e: MessageEvent<FromPredownload>) => this.message(w, e.data);
     w.onerror = e => this.message(w, { t: 'error', msg: e.message || 'it stopped unexpectedly' });
-    w.postMessage({ t: 'start', manifestUrl: MANIFEST_URL, dataBase: DATA_BASE, language: this.language(), texpack: this.texpack(), openTunnel: this.openTunnel() } satisfies ToPredownload);
+    w.postMessage({ t: 'start', manifestUrl: MANIFEST_URL, dataBase: DATA_BASE, language: this.language(), texpack: this.texpack(), packs: this.packs, openTunnel: this.openTunnel() } satisfies ToPredownload);
     this.set({ state: 'running', have: 0, total: 0, rate: 0, error: undefined });     // counted again by the worker
     this.log('[app] predownload: started');
   }

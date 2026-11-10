@@ -4,7 +4,7 @@ use parking_lot::Mutex;
 
 const FRAME_HDR: usize = 16;
 const HF_CREW: u16 = 0x0200;
-const HF_PLATE: u16 = 0x0800;
+const HF_PLATE: u16 = 0x8000;
 const MAX_PEERS: usize = 32;
 const MAX_CREWS: usize = 4;
 const MAX_PLATE: usize = 8;
@@ -157,6 +157,7 @@ mod tests {
     #[test]
     fn plate_tail_can_be_removed_without_dropping_player() {
         let f = frame(b"AB123");
+        assert_eq!(u16::from_le_bytes([f[FRAME_HDR + 14], f[FRAME_HDR + 15]]) & HF_PLATE, 0x8000);
         let Some(Found::Plate { at, bytes, name }) = hello_plate(&f) else {
             panic!("valid plate");
         };

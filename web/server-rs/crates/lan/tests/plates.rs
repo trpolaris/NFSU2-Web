@@ -29,7 +29,7 @@ fn datagram(flags: u16, ext: bool, plate: Option<&[u8]>) -> Vec<u8> {
 }
 
 fn hello(plate: &[u8]) -> Vec<u8> {
-    if plate.is_empty() { datagram(0x0200, false, None) } else { datagram(0x0A00, true, Some(plate)) }
+    if plate.is_empty() { datagram(0x0200, false, None) } else { datagram(0x8200, true, Some(plate)) }
 }
 
 fn sanitized_extended_hello() -> Vec<u8> {
