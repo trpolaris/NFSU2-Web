@@ -1833,10 +1833,9 @@ async function menuAction(act: string) {
       log.add(`[app] solid cars ${solidCars ? 'on' : 'off'} (the page menu)`);
       break;
     }
-    case 'worlds': openWorlds(); break;
+    case 'worlds': selectMenuTab('worlds'); break;
     case 'tracks': openTracks(); break;
     case 'crews': openCrews(); break;
-    case 'tracks': openTracks(); break;
     case 'world-own-save': {
       const input = $<HTMLInputElement>('#menu-own-world');
       await switchMenuWorld(input.value);
