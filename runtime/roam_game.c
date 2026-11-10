@@ -93,6 +93,7 @@
 #include "roam_plat.h"
 #include "carsfx.h"
 #include "names.h"
+uint64_t carpaint_report(char *out, int cap, const char *arg);
 
 /* ---- game addresses (v1.2 NA) ------------------------------------------------ */
 /* multiplayer races from free roam (mp_*, mprace.c): not in the Windows plugin */
@@ -587,6 +588,8 @@ static int local_state(rc_state *s){
             s->slip[2 * w] = __builtin_isfinite(a) ? a : 0.f; s->slip[2 * w + 1] = __builtin_isfinite(b) ? b : 0.f;
             s->surf[w] = sf < N_SURF ? (uint8_t)sf : 0;
         }
+    /* Engine sound state, for remote players' audio. */
+    roam_game_engine_state(car, s);
     if (g_sync_paused > 1){ for (int i = 0; i < 3; i++){ s->v[i] = 0; s->w[i] = 0; } s->speed = 0; s->rpm = 0; for (int i = 0; i < 8; i++) s->slip[i] = 0; }
     for (int i = 0; i < 3; i++) if (!__builtin_isfinite(s->p[i]) || !__builtin_isfinite(s->v[i])) return 0;
     /* the stamp clock may run a little faster than the world (it is pulled
@@ -603,6 +606,25 @@ static int local_state(rc_state *s){
     if (__builtin_fabsf(s->p[2] - PARK_Z) < 100.f) return 0;
     return 1;
 }
+/* A slot keeps its friend's latest damage revision.  This Free Roam
+ * session has one peer table, so gi is the peer's index in g_s. */
+static void slot_damage(Slot *s, const rc_peer *p, int gi){
+    if (gi >= RC_TABLE){
+        int j = 0;
+        while (j < RC_TABLE && !(g_s.peer[j].state == RC_PS_EST && g_s.peer[j].id == p->id)) j++;
+        if (j == RC_TABLE) return;
+        p = &g_s.peer[j];
+        gi = j;
+    }
+    if (s->dmg_idx == gi && s->dmg_gen == p->dents_gen) return;
+    s->dmg_idx = gi;
+    s->dmg_gen = p->dents_gen;
+    s->dmg_epoch = p->dents_epoch;
+    s->dmg_first = p->dents_first;
+    s->dmg_n = p->dents_n;
+    memcpy(s->dmg, p->dent, (size_t)p->dents_n * RC_DMG_BYTES);
+}
+
 /* the car look: type name hash and one (slot, key, owner) per filled part
  * slot of the car's RideInfo */
 static int local_cfg(uint8_t *out, int cap, char *tname){
@@ -6871,7 +6893,7 @@ void roam_game_frame(CPU *c){
             /* the record only when a slot will need it */
             if (p->cfg_len && (slotted < 0 || g_sl[slotted].cfg_gen != p->cfg_gen)){
                 memcpy(v->cfg, p->cfg, (size_t)p->cfg_len); v->cfg_len = p->cfg_len; v->look = rc_fnv1a_bytes(p->cfg, (uint32_t)p->cfg_len); }
-            if (slotted >= 0) slot_damage(&g_sl[slotted], p, gi);   /* (its crash damage: damage_peers) */
+            if (slotted >= 0) slot_damage(&g_sl[slotted], p, i);   /* (its crash damage: damage_peers) */
             /* their horn: the record's (read once a record), the dual one without */
             if (g_phorn[i].id != p->id || g_phorn[i].gen != p->cfg_gen){
                 static rc_carcfg hc;
