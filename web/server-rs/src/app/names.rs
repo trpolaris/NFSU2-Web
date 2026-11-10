@@ -217,7 +217,7 @@ impl App {
     }
 
     /// a JSON answer (never cached)
-    async fn json(&self, q: &Request, s: &mut Response, code: u16, v: &Value) -> Res {
+    pub(super) async fn json(&self, q: &Request, s: &mut Response, code: u16, v: &Value) -> Res {
         let body = nfsu2_util::json::stringify(v);
         let mut h = self.headers(q, Cache::Store, true);
         h.set("content-type", "application/json");
