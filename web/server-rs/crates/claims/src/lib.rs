@@ -18,8 +18,8 @@
 //! Kept in <state>/names.json (the names, their owners' hashes, when they were made and last played), written whole
 //! to a temporary file of 0600, synced and renamed over the old one ([`Claims::save`]).
 
-use parking_lot::RwLock;
 use nfsu2_util::atomic_file::Options;
+use parking_lot::RwLock;
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
@@ -552,4 +552,3 @@ impl Claims {
         Ok(true)
     }
 }
-
