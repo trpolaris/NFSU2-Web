@@ -825,12 +825,17 @@ __attribute__((weak)) int roam_asipeer_cmd(CPU *c, const char *args, long *wait_
     fprintf(stderr, "[roam] asi: not in this build (ASIPEER=1 ./link.sh orig makes out/nfsu2_asipeer)\n"); return 1; }
 int roam_hook(CPU *c, uint32_t ip){
     int trafficcars_hook(CPU *, uint32_t);
+int splitscreen_hook(CPU *, uint32_t);
+int coop_hook(CPU *, uint32_t);
+void coop_frame(CPU *);
     int vinylcat_hook(CPU *, uint32_t);
+    if (splitscreen_hook(c, ip)) return 1;
+    if (coop_hook(c, ip)) return 1;
     if (trafficcars_hook(c, ip)) return 1;
     if (vinylcat_hook(c, ip)) return 1;
     if (travel_hook(c, ip)) return 1;
     switch (ip){
-    case HOOK_SITE(0x00581475): savegame_frame(); showoff_frame(c); visualrep_frame(); walls_frame(); cameras_frame(c); hiddenraces_frame(); reads_frame(c); language_texts_frame(c); sms_frame(c); carspot_frame(); mprace_frame(c); mpcredit_frame(c); if (!roam_asipeer_frame(c)) roam_game_frame(c); travel_frame(c); racehorn_frame(c); racenet_frame(c); optslider_frame(c); drift_frame(c); photo_frame(c); engage_frame(c); roam_frame(c); return 1;
+    case HOOK_SITE(0x00581475): coop_frame(c); savegame_frame(); showoff_frame(c); visualrep_frame(); walls_frame(); cameras_frame(c); hiddenraces_frame(); reads_frame(c); language_texts_frame(c); sms_frame(c); carspot_frame(); mprace_frame(c); mpcredit_frame(c); if (!roam_asipeer_frame(c)) roam_game_frame(c); travel_frame(c); racehorn_frame(c); racenet_frame(c); optslider_frame(c); drift_frame(c); photo_frame(c); engage_frame(c); roam_frame(c); return 1;
     /* Remove the Visual Rating meter from career shops when explicitly enabled. */
     case HOOK_SITE(0x00557ed0): visualrep_meter(c); return 1;
     /* Player::Update's HUD step (0x600590), behind its call of the HUD
