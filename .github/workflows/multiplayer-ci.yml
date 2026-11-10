@@ -241,6 +241,13 @@ jobs:
           cc -std=c11 -Wall -Wextra -Werror tests/net_mailbox_layout.c -o /tmp/net_mailbox_layout
           /tmp/net_mailbox_layout
 
+      - name: Test local split-screen layout and shared-weather gating
+        run: |
+          cc -std=c11 -Wall -Wextra -Werror -Iruntime tests/splitscreen_layout_unit.c -o /tmp/splitscreen_layout_unit
+          /tmp/splitscreen_layout_unit
+          cc -std=c11 -Wall -Wextra -Werror -Iruntime tests/roam_weather_unit.c -o /tmp/roam_weather_unit
+          /tmp/roam_weather_unit
+
       - name: Test Free Roam protocol core (MAPD, NEARREQ and compatibility)
         run: |
           cc -O1 -g -fsanitize=address,undefined -Iruntime tests/roam_unit.c runtime/roam_core.c runtime/roam_bsd.c -lm -o /tmp/roam_unit

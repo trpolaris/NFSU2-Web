@@ -89,6 +89,7 @@
 #include "roam_host.h"
 #endif
 #include "roam_core.h"
+#include "roam_weather.h"
 #include "roam_plat.h"
 #include "carsfx.h"
 #include "names.h"
@@ -8165,8 +8166,8 @@ int roam_game_friend_car(uint32_t car){
 /* overrides.c: one rain phase for all clients in free-roam multiplayer.
  * The city's own weather zones remain authoritative; only their clock is shared. */
 int roam_game_shared_weather(void){
-    return O.on && rd32(G_FLOW) == 6u && rd32(G_TRACK) % 1000u == 0u &&
-           !rd32(G_CAREER_RACE) && !(rd32(G_GAMEMODE) & 0x200u);
+    return roam_weather_should_share(O.on, rd32(G_FLOW), rd32(G_TRACK),
+                                     rd32(G_CAREER_RACE), rd32(G_GAMEMODE));
 }
 
 /* Local co-op (coop.c): create the second player's paint slot through the same game texture loader. */

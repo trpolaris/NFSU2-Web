@@ -91,6 +91,8 @@ if [ "$WHICH" != hd ]; then
   clang -O2 -ffp-contract=off -mmacosx-version-min=$MINOS -Iruntime -o out/roam_fakepeer tests/roam_fakepeer.c runtime/roam_core.c runtime/roam_bsd.c
   clang -O2 -ffp-contract=off -mmacosx-version-min=$MINOS -Iruntime -o out/roam_recv tests/roam_recv.c runtime/roam_core.c runtime/roam_bsd.c
   clang -O1 -ffp-contract=off -mmacosx-version-min=$MINOS -Iruntime -o out/plates_unit tests/plates_unit.c runtime/plate_image.c runtime/roam_core.c -lm
+  clang -O1 -mmacosx-version-min=$MINOS -Iruntime -o out/splitscreen_layout_unit tests/splitscreen_layout_unit.c
+  clang -O1 -mmacosx-version-min=$MINOS -Iruntime -o out/roam_weather_unit tests/roam_weather_unit.c
   # ASIPEER=1: also out/nfsu2_asipeer, a "virtual Windows friend" (the Windows
   # plugin out/win/dbg/NFSU2FreeRoam.asi under Unicorn, runtime/roam_asipeer.c;
   # test tooling) and the plugin's tests (tests/asi_harness.c,
