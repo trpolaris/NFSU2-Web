@@ -143,6 +143,9 @@ int career_fe_active(const char *name);
 #define G_MC_FROM       0x00836518u   /* package that asked, the crib's Return; 2 a switch to the next package, by name) */
 #define G_MC_NEXT       0x0083651cu
 #define G_LANSTATE      0x008500d0u   /* the LAN object's UI state: 2 the server list's, 0x11 idle, 0x12 busy */
+#define G_SRV_GLUE      0x0089cf48u   /* server.dll's glue object; restart request is +0x11B and its clock +0x114 */
+#define GLUE_REDO_ASKED 0x11bu
+#define GLUE_REDO_AT    0x114u
 #define FN_LANSTATE     0x005031b0u   /* thiscall 0x850080 (state) */
 #define G_NET           0x00850080u   /* the network race's settings */
 #define N_MAX           0x00u         /* byte: most players */
@@ -295,7 +298,7 @@ static void state_log(const char *where){
          * does not come back to its head (a free roam built as the LAN race whose start broke off hung in that walk) */
         fprintf(stderr, "[mprace] f=%ld subscriptions %s:", autotest_frame(), where);
         for (uint32_t p = 0; p < 2u; p++){
-            uint32_t h = 0x008655a0u + 0x1c8u * p, n = rd(h); int k = 0;
+            uint32_t h = 0x008655a0u + 0x1c8u * p, n = guest_rd32(h); int k = 0;
             fprintf(stderr, " port %u:", p);
             for (; n != h && k < 400; k++){
                 if (!guest_ok(n, 12)){ fprintf(stderr, " BAD %08x", n); break; }
@@ -971,6 +974,7 @@ static struct {
     char     joined[SER_HEATS][40];                 /* the joiner: the games it was in, by name */
     MpResult hres[MPRACE_RESULTS_MAX]; int nhres, hplace;   /* the last heat's own rows and our place there (the race's
                                                              * report to the server: a heat's times, not the points) */
+    MpResult hall[SER_HEATS][MPRACE_RESULTS_MAX]; int nhall[SER_HEATS]; /* results for each earlier heat */
     int      between;                               /* from the last heat's game room to the lobby, for the next game */
     int      alone;                                 /* the others quit mid-heat: the series is ours (quit_win) */
     char     step[48];
@@ -1324,7 +1328,7 @@ static void step_race(CPU *c, long f){
         fail(w);
         return;
     }
-    if (rd(G_DLG) && M.phase == MPR_LAN){
+    if (guest_rd32(G_DLG) && M.phase == MPR_LAN){
         /* a dialog on the way: "please wait" ones (no button, or "Looking for
          * LAN servers"' Cancel) go by themselves; the joiner's "reconnect?"
          * (the host's server not listening yet) is retried, 8 times at most;
@@ -1387,7 +1391,7 @@ static void step_race(CPU *c, long f){
     }
     if (on("UI_PC_LAN_ServerSelect.fng")){
         uint32_t ss = screen_of(VT_SERVERSEL);
-        if (!ss || rd(G_LANSTATE) != 2u || rd(ss + SS_LOOKING)) return;           /* the network not up, or still looking */
+        if (!ss || guest_rd32(G_LANSTATE) != 2u || guest_rd32(ss + SS_LOOKING)) return;           /* the network not up, or still looking */
         if (M.r.host){
             if (M.hosted) return;
             send_to(c, MSG_BUTTON1, S_SERVERSEL);                                   /* Host LAN Server */
@@ -1412,9 +1416,9 @@ static void step_race(CPU *c, long f){
         return;
     }
     if (on("UI_PC_LAN.fng")){
-        if (MR8(G_TXT_ON) != 1u || !rd(G_TXT_REC) || M.named) return;
+        if (MR8(G_TXT_ON) != 1u || !guest_rd32(G_TXT_REC) || M.named) return;
         gs(G_TXT_BUF, M.r.name, 13); MR32(G_TXT_LEN) = (uint32_t)strlen(M.r.name);
-        call(c, FN_TXT_ACCEPT, rd(G_TXT_REC), 0, 0);
+        call(c, FN_TXT_ACCEPT, guest_rd32(G_TXT_REC), 0, 0);
         M.named = 1; M.next = f + 30;
         mlog("the LAN name %s", M.r.name);
         return;
