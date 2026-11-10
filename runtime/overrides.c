@@ -439,6 +439,7 @@ static int force_rain(void){
  * The game's own Rain zones and thresholds still determine where it rains. */
 int roam_game_shared_weather(void);
 #define A_WORLD_T   0x007fb718u
+#define G_WORLDTIMER 0x0086518cu
 static float shared_weather_t(void){
     static uint32_t at = ~0u;
     static float t;
