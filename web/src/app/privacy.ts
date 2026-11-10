@@ -22,7 +22,6 @@ export type NameKind = 'you' | 'profile' | 'crew' | 'room' | 'player';
 const RANK: Record<NameKind, number> = { you: 0, profile: 1, crew: 2, room: 3, player: 4 };
 /** what the game prints for nobody in particular, and NAME, which hundreds of players keep as their name */
 const NOBODY = new Set(['Player', 'A player', 'a player', 'a friend', 'you', '?', 'NAME']);
-import { localStore, LOG_SALT } from './prefs';
 
 /** "[4!] " before a game thread's line */
 const THREAD = /^\[\d+!\] /;
