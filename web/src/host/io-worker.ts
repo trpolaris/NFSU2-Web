@@ -656,6 +656,41 @@ async function op(o: Op, a: bigint[]): Promise<number> {
   return E.NOSYS;
 }
 
+/** Page-side file reads for the renderer; exact ranges bypass block caching. */
+async function pageRead(m: ReadAsk): Promise<void> {
+  try {
+    const node = dataFile(m.path);
+    if (!node || node.dir) throw new Error('not in the game folder');
+    if (!Number.isSafeInteger(m.off) || !Number.isSafeInteger(m.len) || m.off < 0 || m.len < 0) throw new Error('invalid file range');
+    const end = Math.min(node.size, m.off + m.len);
+    if (!Number.isSafeInteger(end) || end < m.off) throw new Error('invalid file range');
+    const out = new Uint8Array(end - m.off);
+    if (out.length) {
+      if (m.exact) {
+        let answer: Uint8Array | null = null;
+        for (let attempt=1; attempt<=3; attempt++) {
+          const result = await fetchOnce(dataUrl(cfg.dataBase,node.path),m.off,end-m.off,true,false);
+          if (result instanceof Uint8Array) { answer=result; break; }
+          if (!result.again || attempt===3) throw new Error(result.why);
+          await new Promise(resolve=>setTimeout(resolve,500*attempt));
+        }
+        if (!answer) throw new Error('exact read failed');
+        out.set(answer);
+      } else {
+        const first=Math.floor(m.off/BLOCK), last=Math.floor((end-1)/BLOCK);
+        const blocks=await Promise.all(Array.from({length:last-first+1},(_,n)=>getBlock(node,first+n,P_GAME)));
+        for(let bi=first;bi<=last;bi++){
+          const block=blocks[bi-first], start=Math.max(m.off,bi*BLOCK), stop=Math.min(end,bi*BLOCK+block.length);
+          out.set(block.subarray(start-bi*BLOCK,stop-bi*BLOCK),start-m.off);
+        }
+      }
+    }
+    me.postMessage({t:'read',id:m.id,bytes:out} satisfies ReadAnswer,[out.buffer]);
+  } catch(error) {
+    me.postMessage({t:'read',id:m.id,error:error instanceof Error?error.message:String(error)} satisfies ReadAnswer);
+  }
+}
+
 // ------------------------------------------------------------- the loop ----
 // The doorbell wait has a timeout.  WebKit (Safari, and every browser on an iPhone) sometimes leaves a waitAsync
 // without one pending after its notify (it then comes back 'ok', the waiter already off the list) until something
@@ -685,7 +720,7 @@ async function serve() {
   }
 }
 
-onmessage = async (e: MessageEvent<Init | { t: 'save-ready' } | { t: 'give'; port: MessagePort; slot: number } | { t: 'give-page'; slot: number }>) => {onmessage = async (e: MessageEvent<Init | { t: 'save-ready' } | { t: 'give'; port: MessagePort; slot: number } | { t: 'give-page'; slot: number } | ReadAsk>) => {
+onmessage = async (e: MessageEvent<Init | { t: 'save-ready' } | { t: 'give'; port: MessagePort; slot: number } | { t: 'give-page'; slot: number } | ReadAsk>) => {
   if ('t' in e.data) {
     if (e.data.t === 'read') { void pageRead(e.data); return; }
     if (e.data.t === 'give') {
