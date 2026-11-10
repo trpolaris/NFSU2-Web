@@ -7656,8 +7656,7 @@ int roam_game_cmd(CPU *c, const char *args, long *wait_start){
             return 1;
         }
         char ln[600];
-        uint64_t bad = carpaint_report ? carpaint_report(ln, sizeof ln, a1) : 0;
-        if (!carpaint_report) snprintf(ln, sizeof ln, "not built in");
+        uint64_t bad = carpaint_report(ln, sizeof ln, a1);
         rlog("[roam] f=%ld mp paint: %s\n", f, ln);
         if (!strcasecmp(a1, "expect")) rlog("[expect] %s mp paint: %llu part draw(s) with another car's paint\n", bad ? "FAIL" : "ok",
                                             (unsigned long long)bad);
