@@ -1728,3 +1728,12 @@ void rc_shutdown(rc_session *s, uint8_t reason){
     if (s->conf.hub_ip){ rc_msg m; hdr(s, &m, RC_MSG_BYE); m.u.bye.reason = reason; tx_to(s, s->conf.hub_ip, s->conf.hub_port, &m); }
     s->closed = 1;
 }
+
+/* License plates: at most eight uppercase ASCII letters or digits. The separate
+ * names.h filter rejects text that reads as a slur before a plate is drawn. */
+int rc_plate_ok(const char *s, uint32_t n){
+    if (!s || n > RC_PLATE_MAX) return 0;
+    for (uint32_t i = 0; i < n; i++)
+        if (!((s[i] >= 'A' && s[i] <= 'Z') || (s[i] >= '0' && s[i] <= '9'))) return 0;
+    return 1;
+}
