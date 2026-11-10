@@ -239,6 +239,7 @@ keys as the Mac app. Each change is saved at once and applies the next time you 
   profile with its first 5 cars, driving the first one when yours was one of the other 5. A profile changed
   elsewhere (played in the PC game) loads here with its 5 too: the other 5 are kept aside in the profile's folder,
   as `GARAGE.OLD`.
+- **Unique parts for every car:** off by default. The outruns' unique visual rewards (wide body kits, hoods, spoilers, rims and vinyls) still go to the car you drove to each star, as in the original game. Once Caleb is beaten, turn this on in Settings → Game → More game settings to make the shops sell those parts for every car in your career. Parts already bought stay on their cars if you turn it off later. The unique performance parts remain one per stage.
 - **Power Units:** the game's Options, Gameplay (also in the pause menu's) has a row after Speedometer Units: the
   engine's power in bhp or kW wherever the game shows it (the dyno, the performance shop's parts), whatever the
   speedometer shows. Until you change it, it follows Speedometer Units, as in the original game (kW with km/h).
