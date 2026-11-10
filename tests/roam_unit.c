@@ -1362,8 +1362,8 @@ static void t_crews(void){
     strcpy(m.u.hello.plate, "N1GGER");
     n = rc_encode(&m, b, sizeof b);
     CHECK(n > 0 && rc_decode(b, n, &d) == RC_OK && !d.u.hello.plate[0], "offensive plate is blanked but the player remains");
-    strcpy(m.u.hello.plate, "123456789");
-    CHECK(rc_encode(&m, b, sizeof b) < 0, "plate longer than eight is refused");
+    CHECK(!rc_plate_ok("123456789", 9), "plate longer than eight is refused by the shared validator");
+    CHECK(rc_plate_ok("ABC12345", 8), "an eight-character plate is allowed");
     m.h.flags = RC_HF_CREW; m.u.hello.plate[0] = 0;
     n = rc_encode(&m, b, sizeof b);
     CHECK(n == base && rc_decode(b, n, &d) == RC_OK && !d.u.hello.plate[0], "legacy HELLO wire shape stays unchanged");
