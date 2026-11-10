@@ -1829,7 +1829,6 @@ int main(int argc, char **argv){
     t_duel();
     t_lobby();
     t_say();
-    t_dents();
     t_statex();
     t_crews();
     t_snapstates();
