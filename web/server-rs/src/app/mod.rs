@@ -22,8 +22,6 @@ mod lastfm;
 mod manifest;
 mod names;
 mod outbound;
-mod manifest;
-mod names;
 mod player_hub;
 mod pool;
 #[cfg(test)]
