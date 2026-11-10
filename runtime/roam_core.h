@@ -250,7 +250,7 @@ uint32_t rc_crc32(const uint8_t *p, uint32_t n);
 uint32_t rc_fnv1a(const char *s);           /* 0 for "" */
 uint32_t rc_room_hash(const char *s);
 int      rc_plate_ok(const char *s, uint32_t n);
-int rc_plate_ok(const char *s, uint32_t n);       /* room names -> room hash: capitals and spaces do not count (0: none) */
+
 uint32_t rc_fnv1a_bytes(const uint8_t *p, uint32_t n);
 uint32_t rc_fbits(float f);
 float    rc_bitsf(uint32_t u);

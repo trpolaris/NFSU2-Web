@@ -15,7 +15,7 @@
 #include <string.h>
 
 static int text_ok(const char *t, size_t n){
-    if (n < 1 || n > PLATE_TEXT_MAX) return 0;
+    if (!t || n < 1 || n > PLATE_TEXT_MAX) return 0;
     for (size_t i = 0; i < n; i++) if (!((t[i] >= 'A' && t[i] <= 'Z') || (t[i] >= '0' && t[i] <= '9'))) return 0;
     return 1;
 }
