@@ -297,6 +297,7 @@ int fileio_resolve_save_w(const char *win, char *out, size_t outsz){ return reso
 /* A profile the game saves, "<root>/NFS Underground 2/<NAME>/<NAME>" (any
  * case): garage.c keeps its slots 6-10 in a file beside it. */
 void garage_profile_written(const char *path);
+void savegame_profile_written(void);
 void garage_profile_deleted(const char *path);
 static int is_profile(const char *path){
     static const char dir[] = "NFS Underground 2";
@@ -953,7 +954,7 @@ int fileio_call(CPU *c, const char *n, uint32_t *out){
 #endif
         { if(f->fd>=0) close(f->fd); if(f->fd2>=0) close(f->fd2); }
         if(f->dir) closedir(f->dir);
-        if(f->wr){ if (f->fd >= 0 && is_profile(f->path)) garage_profile_written(f->path); g_open_wr--; }
+        if(f->wr){ if (f->fd >= 0 && is_profile(f->path)){ garage_profile_written(f->path); savegame_profile_written(); } g_open_wr--; }
         f->used=0; r=1;
     }
     else if (!strcmp(n,"GetFileAttributesA")){
