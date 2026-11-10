@@ -123,38 +123,10 @@ export async function askSpots(hashes: readonly number[], ms: number): Promise<M
 export function crewCounts(c: PlayerCounts, asked: readonly number[]): Map<number, number> {
   return byHash(c.crews, asked);
 }
-/** How many are in free roam in each world asked for (their rooms' hashes, 0 the main world, in the order asked), by
- *  hash; as crewCounts */
-export function worldCounts(c: PlayerCounts, asked: readonly number[]): Map<number, number> {
-  return byHash(c.rooms, asked);
-}
 function byHash(counts: number[] | undefined, asked: readonly number[]): Map<number, number> {
   const m = new Map<number, number>();
   if (Array.isArray(counts)) asked.forEach((h, i) => { const n = counts[i]; if (Number.isInteger(n) && n >= 0) m.set(h, n); });
   return m;
-}
-
-/** How many are in free roam in each of these worlds now (worldCounts; their hashes: worlds.ts worldRooms), asked once
- *  as askCrews asks: the page menu's World.  null: no answer within ms. */
-export async function askWorlds(rooms: readonly number[], ms: number): Promise<Map<number, number> | null> {
-  try {
-    const r = await fetch(`/players?rooms=${rooms.join(',')}`, { cache: 'no-store', signal: AbortSignal.timeout(ms) });
-    return r.ok ? worldCounts(await r.json() as PlayerCounts, rooms) : null;
-  } catch { return null; }
-}
-
-/** How many are at each of these race tracks' spots now (their rooms: tracks.ts trackRooms), by room, asked once as
- *  askWorlds asks: the page menu's Tracks.  A server of before this has no `spots` (and counted a world without its
- *  tracks): its `rooms`, then, 8 at a time.  null: no answer within ms. */
-export async function askSpots(rooms: readonly number[], ms: number): Promise<Map<number, number> | null> {
-  try {
-    const r = await fetch(`/players?spots=${rooms.join(',')}`, { cache: 'no-store', signal: AbortSignal.timeout(ms) });
-    if (!r.ok) return null;
-    const c = await r.json() as PlayerCounts;
-    if (Array.isArray(c.spots)) return byHash(c.spots, rooms);
-  } catch { return null; }
-  const parts = await Promise.all([askWorlds(rooms.slice(0, 8), ms), askWorlds(rooms.slice(8), ms)]);
-  return parts[0] ? new Map([...parts[0], ...(parts[1] ?? [])]) : null;
 }
 
 /** How many are in free roam in each of these crews now (crewCounts), asked once, whatever the page does, and
@@ -183,7 +155,7 @@ export function watchPlayers(show: (line: Msg, crews: Map<number, number>) => vo
     if (gone) return;
     const n = ++asked;
     try {
-      const worlds = rooms(), mine = crews().slice(0, 4);
+      const inRoom = room().trim(), worlds = inRoom ? [roomHash(inRoom)] : [], mine = crews().slice(0, 4);
       const q = [worlds.length ? `rooms=${worlds.join(',')}` : '', mine.length ? `crews=${mine.join(',')}` : ''].filter(Boolean).join('&');
       const r = await fetch(q ? `/players?${q}` : '/players', { cache: 'no-store', signal: AbortSignal.timeout(ms) });
       reached?.(r.status < 500);
