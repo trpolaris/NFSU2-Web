@@ -97,6 +97,7 @@
 #include "guest.h"
 #include "game.h"
 #include "coop.h"
+#include "splitscreen_mem.h"
 #include "kbd.h"
 #include <math.h>
 #include <stdatomic.h>

@@ -696,9 +696,7 @@ pub fn blocked_plate(plate: &str) -> bool {
         if *p == b"KKK" {
             return true;
         }
-        if *p == b"88"
-            && ((k > 0 && MARKS.contains(&parts[k - 1])) || (k + 1 < parts.len() && MARKS.contains(&parts[k + 1])))
-        {
+        if *p == b"88" && ((k > 0 && MARKS.contains(&parts[k - 1])) || (k + 1 < parts.len() && MARKS.contains(&parts[k + 1]))) {
             return true;
         }
     }
@@ -724,12 +722,11 @@ pub fn blocked_plate(plate: &str) -> bool {
         i += 1;
     }
 
-    const EDGE: &[&str] =
-        &["fag", "coon", "spic", "paki", "kike", "kyke", "gook", "chink", "dyke", "nig", "nigr", "neger", "pedo", "rtard"];
+    const EDGE: &[&str] = &["fag", "coon", "spic", "paki", "kike", "kyke", "gook", "chink", "dyke", "nig", "nigr", "neger", "pedo", "rtard"];
     const END_OK: &[&str] = &[
-        "rafag", "tafag", "racoon", "cocoon", "tycoon", "aspic", "ospic", "uspic", "papaki", "ipaki", "eepaki", "klike",
-        "akike", "ekike", "ikike", "okyke", "ergook", "achink", "uchink", "vandyke", "oldyke", "odyke", "knig", "midnig",
-        "ghtnig", "sehnig", "anig", "enig", "inig", "onig", "unig", "reneger", "torpedo", "speedo", "ipedo", "ppedo",
+        "rafag", "tafag", "racoon", "cocoon", "tycoon", "aspic", "ospic", "uspic", "papaki", "ipaki", "eepaki", "klike", "akike", "ekike",
+        "ikike", "okyke", "ergook", "achink", "uchink", "vandyke", "oldyke", "odyke", "knig", "midnig", "ghtnig", "sehnig", "anig", "enig",
+        "inig", "onig", "unig", "reneger", "torpedo", "speedo", "ipedo", "ppedo",
     ];
     const RESTS: &[&str] = &["boy", "boi", "lord", "king", "kid", "kill", "killer", "slayer", "hunter", "lover", "life"];
     const ANY: &[&str] = &["nggr", "jewgas", "jewsgas", "h8jew"];

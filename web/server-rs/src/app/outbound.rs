@@ -31,11 +31,6 @@ impl Https {
         self.post(url, "application/x-www-form-urlencoded", body).await
     }
 
-    /// JSON POSTed to `url` (Discord's webhook: autoban.rs), as `post_form`
-    pub async fn post_json(&self, url: &str, body: &str) -> Result<(u16, Vec<u8>), String> {
-        self.post(url, "application/json", body).await
-    }
-
     async fn post(&self, url: &str, content_type: &str, body: &str) -> Result<(u16, Vec<u8>), String> {
         let (tls, rest) = match url.split_once("://") {
             Some(("https", r)) => (true, r),

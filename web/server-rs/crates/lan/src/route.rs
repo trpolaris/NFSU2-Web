@@ -88,10 +88,19 @@ impl LanSwitch {
         let data = match plates::hello_plate(data) {
             Some(plates::Found::Plate { at, bytes }) => match plates::judge(&peer.plates, bytes, mono_ms() as i64) {
                 plates::Verdict::Go | plates::Verdict::New => data,
-                plates::Verdict::Last(last) => { fixed = plates::rewrite(data, at, Some(&last)).unwrap_or_else(|| data.clone()); &fixed }
-                plates::Verdict::Block => { fixed = plates::rewrite(data, at, None).unwrap_or_else(|| data.clone()); &fixed }
+                plates::Verdict::Last(last) => {
+                    fixed = plates::rewrite(data, at, Some(&last)).unwrap_or_else(|| data.clone());
+                    &fixed
+                }
+                plates::Verdict::Block => {
+                    fixed = plates::rewrite(data, at, None).unwrap_or_else(|| data.clone());
+                    &fixed
+                }
             },
-            Some(plates::Found::Broken { at }) => { fixed = plates::rewrite(data, at, None).unwrap_or_else(|| data.clone()); &fixed }
+            Some(plates::Found::Broken { at }) => {
+                fixed = plates::rewrite(data, at, None).unwrap_or_else(|| data.clone());
+                &fixed
+            }
             None => data,
         };
         let n = data.len();
