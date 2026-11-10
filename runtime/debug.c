@@ -1,5 +1,6 @@
 /* Debugging: guest watchpoint + instruction hooks */
 #include "cpu.h"
+#include "featurelist.h"
 #include <stdio.h>
 #include <pthread.h>
 #include <time.h>

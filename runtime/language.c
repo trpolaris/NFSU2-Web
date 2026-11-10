@@ -51,6 +51,8 @@
  * are VileStuff's English Subtitles Fixed (tools/langpacks.py --subs): whole,
  * and with who speaks them. */
 #include "cpu.h"
+#include "guest.h"
+#include "game.h"
 #include "widescreen.h"           /* HOOK_SITE */
 #include <stdio.h>
 #include <stdlib.h>
@@ -159,7 +161,7 @@ static uint32_t guest_new(CPU *c, uint32_t size){
     CPU save = *c;
     c->esp = (c->esp - 256u) & ~15u;
     PUSH32(size);
-    PUSH32(0x00581475u);                        /* the hook's return address: the callee's ret pops it */
+    PUSH32(GUEST_RET_MAINLOOP);                        /* the hook's return address: the callee's ret pops it */
     dispatch_indirect(c, FN_NEW);
     uint32_t r = c->eax;
     *c = save;

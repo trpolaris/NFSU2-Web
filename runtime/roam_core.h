@@ -258,6 +258,9 @@ float    rc_sqrtf(float x);
 /* printable ASCII, at most RC_NAME_MAX bytes, never empty and never one that
  * reads as a slur (names.h): "Player" then */
 void     rc_name_clean(char *dst, const char *src, uint32_t srclen);
+/* a license plate's text: n (at most RC_PLATE_MAX) capital letters A-Z and digits, none other (n 0: the game's own
+ * plate).  Whether it reads as a slur is names.h's name_blocked */
+int      rc_plate_ok(const char *s, uint32_t n);
 
 /* ---- messages -------------------------------------------------------------- */
 typedef struct {
@@ -362,6 +365,7 @@ typedef struct {
         rc_racerep racerep;
         struct { uint8_t phrase, seq; } say;
         rc_raceres raceres;
+        struct { uint8_t op, epoch, n; uint16_t rev, first; const uint8_t *data; } dents;   /* data: n x RC_DMG_BYTES (STATE) */
     } u;
 } rc_msg;
 
@@ -395,6 +399,10 @@ typedef struct {
     /* extension 3 (3 bytes): game-rated class and performance rating.
      * Remote rides lack the physics block needed to calculate these. */
     uint8_t  has_rating; int8_t rating_cls; uint16_t rating;
+    /* extension 4 (8 bytes): the car's stance as its player set it in the garage (stance.h's units: the cambers,
+     * front and rear, tenths of a degree, u8 each; the offsets, mm, int16 each; the tires' width, per cent, u8; a
+     * byte 0); a record without it: the car as the game draws it */
+    uint8_t  has_stance; uint8_t stance_fc, stance_rc, stance_tw; int16_t stance_fo, stance_ro;
 } rc_carcfg;
 int rc_carcfg_encode(const rc_carcfg *c, uint8_t *out, int cap);   /* bytes, or -1 */
 int rc_carcfg_decode(const uint8_t *p, int len, rc_carcfg *c);     /* RC_OK / RC_E_* */
@@ -547,6 +555,14 @@ typedef struct {
     int      cfg_len;  uint8_t cfg[RC_CFG_MAX];
     uint32_t cfg_gen;              /* +1 for every new complete record */
     uint16_t asm_rev;  uint16_t asm_total;  uint8_t asm_mask, asm_nfrag;  uint8_t asm_buf[RC_CFG_MAX];
+    /* crash damage (RC_MSG_DENTS) */
+    uint8_t  dents;                /* its HELLO says it shows friends' damage (RC_HF_DENTS): ours goes to it */
+    uint16_t dents_have;           /* ...the revision of ours it said it has (0: none) */
+    uint16_t dents_tx_rev;  uint8_t dents_tries;  int64_t dents_tx_us;   /* ours to it: the revision last sent, how often, when */
+    int64_t  dents_have_us;        /* our HAVE to it for a revision we had already: at most every T_DENTS_HAVE */
+    uint16_t dents_rev;            /* its car's damage as its last DENTS had it (0: none came): */
+    uint8_t  dents_epoch, dents_n;  uint16_t dents_first;  uint8_t dent[RC_DMG_MAX * RC_DMG_BYTES];
+    uint32_t dents_gen;            /* +1 for every new one */
     rc_interp mo;                  /* motion: jitter buffer and smoothing */
 } rc_peer;
 
@@ -612,6 +628,9 @@ typedef struct {
     struct { uint32_t from; uint8_t phrase, seq; } say_in[RC_SAY_INBOX];
     int       n_say_in;
     uint32_t  say_dropped;         /* the inbox was full */
+    /* our car's crash damage (rc_set_dents): its revision (0: none yet), epoch, first dent's number and dents */
+    uint16_t  dents_rev;  uint8_t dents_epoch, dents_n;  uint16_t dents_first;  uint8_t dent[RC_DMG_MAX * RC_DMG_BYTES];
+    uint32_t  dents_tx, dents_rx;  /* DENTS sent and taken (statistics) */
 } rc_session;
 
 void rc_session_init(rc_session *s, const rc_config *cfg, const rc_io *io);

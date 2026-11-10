@@ -260,7 +260,6 @@ fn cache_index(c: Cache) -> usize {
 }
 
 impl App {
-    #[allow(clippy::too_many_arguments)]
     pub fn new(
         o: Options,
         real_state: String,
@@ -395,7 +394,6 @@ impl App {
 
     /// a short text answer: the code, the text (a newline after it), headers besides the usual ones, the cache rule,
     /// and whether search engines are told to keep out
-    #[allow(clippy::too_many_arguments)]
     pub async fn plain(
         &self,
         q: &Request,

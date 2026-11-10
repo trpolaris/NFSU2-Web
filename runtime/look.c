@@ -106,13 +106,6 @@ static struct {
     uint8_t made[NCAM][CAM_TURNED];    /* and as turned */
 } L;
 
-static int ok(uint32_t a, uint32_t n){ return a && mem_is_committed(a) && mem_is_committed(a + n); }
-static uint32_t rd32(uint32_t a){ return ok(a, 3) ? MR32(a) : 0u; }
-static void cstr(uint32_t a, char *o, int n){
-    int i = 0;
-    for (; a && i + 1 < n && ok(a + (uint32_t)i, 0) && MR8(a + (uint32_t)i); i++) o[i] = (char)MR8(a + (uint32_t)i);
-    o[i] = 0;
-}
 static double now_s(void){ struct timespec ts; clock_gettime(CLOCK_MONOTONIC, &ts); return ts.tv_sec + ts.tv_nsec * 1e-9; }
 static float wrap(float a){
     while (a > PI_F) a -= 2.f * PI_F;
@@ -133,7 +126,7 @@ static uint32_t driving_car(void){
     if (!ok(car, CAR_POS + 12u) || !ok(mv, MV_TYPE + 4u) || MR32(mv + MV_TYPE) != MOVER_DRIVE) return 0;
     uint32_t hud = rd32(pl + PL_HUD), fe = rd32(G_FENG), mg = fe ? rd32(fe + 8u) : 0, top = mg ? rd32(mg + 0xe4u) : 0;
     char a[40], b[40];
-    cstr(top ? rd32(top + 0xcu) : 0, a, sizeof a); cstr(hud ? rd32(hud + 0x10u) : 0, b, sizeof b);
+    guest_read_str(top ? guest_rd32(top + 0xcu) : 0, a, sizeof a); guest_read_str(hud ? guest_rd32(hud + 0x10u) : 0, b, sizeof b);
     return a[0] && !strcasecmp(a, b) ? car : 0;
 }
 
@@ -194,7 +187,7 @@ static void turn_matrix(uint32_t cam){
 
 /* the camera at cam turned for the rest of the frame (once), its bytes kept for look_frame_end */
 static void turn_camera(uint32_t cam){
-    if (!ok(cam, CAM_TURNED) || L.n >= NCAM) return;
+    if (!guest_ok(cam, CAM_TURNED) || L.n >= NCAM) return;
     for (int i = 0; i < L.n; i++) if (L.cam[i] == cam) return;
     memcpy(L.keep[L.n], g_mem + cam, CAM_TURNED);
     turn_matrix(cam);
@@ -210,7 +203,7 @@ static void turn_camera(uint32_t cam){
 void look_frame_end(void){
     for (int i = 0; i < L.n; i++){
         uint32_t cam = L.cam[i];
-        if (!ok(cam, CAM_TURNED)) continue;
+        if (!guest_ok(cam, CAM_TURNED)) continue;
         if (!memcmp(g_mem + cam, L.made[i], CAM_TURNED)) memcpy(g_mem + cam, L.keep[i], CAM_TURNED);
         else if (pad_log()) fprintf(stderr, "[pad] the look's camera 0x%08x was written while turned: left as it is\n", cam);
     }
@@ -266,7 +259,7 @@ void look_view(uint32_t id, uint32_t cam){
         return;
     }
     float cx = MRF32(car + CAR_POS), cy = MRF32(car + CAR_POS + 4u);
-    if (ok(cam, CAM_POS + 12u)){
+    if (guest_ok(cam, CAM_POS + 12u)){
         float ex = MRF32(cam + CAM_POS), ey = MRF32(cam + CAM_POS + 4u);
         if (hypotf(ex - cx, ey - cy) < IN_CAR_M){ cx = ex; cy = ey; }
     }

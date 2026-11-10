@@ -447,6 +447,9 @@ static void hub_in(int from, const uint8_t *b, int len){
     else if (m.h.type == RC_MSG_BYE) g_hub_bye[from]++;
     else if (m.h.type == RC_MSG_LOBBY){ g_hub_lobby[from]++; g_hub_lobby_last[from] = m.u.lobby; }
 }
+/* the license plate of the first HELLO each node sent each other (t_flag), and how many it sent */
+static char g_first_plate[NN][NN][RC_PLATE_MAX + 1];
+static int g_hellos[NN][NN];
 static void net_send(void *u, uint32_t ip, uint16_t port, const uint8_t *buf, int len){
     if (ip == HUB_IP && port == HUB_PORT){ hub_in((int)(intptr_t)u, buf, len); return; }
     int from = (int)(intptr_t)u, to = node_of(ip, port);
@@ -1826,6 +1829,7 @@ int main(int argc, char **argv){
     t_duel();
     t_lobby();
     t_say();
+    t_dents();
     t_statex();
     t_crews();
     t_snapstates();

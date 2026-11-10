@@ -159,8 +159,13 @@ function profilesIn(files: FileIn[], skipped: string[]): Restore {
   const out: Restore = { kind: 'profiles', entries: [], profiles: [], skipped, refused: [], modded: [], edited: [] };
   const found = new Map<string, FileIn & { name: string; edited: boolean }>();
   const covers: (FileIn & { profile: string; cover: string })[] = [];
+  // the files a profile's folder has beside it (this page's: slots 6-10, the parts kept beside it), taken with it
+  const sides: (FileIn & { dir: string; name: string })[] = [];
+  const dirOf = (path: string) => lower(path.split('/').slice(0, -1).join('/'));
   for (const e of files) {
     const s = e.path.split('/'), file = s[s.length - 1], folder = s.length > 1 ? s[s.length - 2] : '';
+    const side = SIDE_FILES.find(n => lower(n) === lower(file));
+    if (side && s.length > 1) { sides.push({ ...e, dir: dirOf(e.path), name: side }); continue; }
     const c = coverOf(file);                            // named as its folder; "20CM" too, but no profile
     if (c) { covers.push({ ...e, ...c }); continue; }
     if (!isProfileFile(e.data)) { out.skipped.push(e.path); continue; }
@@ -169,12 +174,17 @@ function profilesIn(files: FileIn[], skipped: string[]): Restore {
     else if (found.has(lower(r.name))) out.skipped.push(e.path);          // a second copy of one
     else found.set(lower(r.name), { ...e, name: r.name, edited: r.edited });
   }
+  const took = new Set<FileIn>();
   for (const p of found.values()) {
     out.entries.push({ path: `${PROFILES_DIR}/${p.name}/${p.name}`, data: p.edited ? sealed(p.data) : p.data, mtime: p.mtime });
     out.profiles.push(p.name);
     if (p.edited) out.edited.push(p.name);
-    if (modCars(p.data)) out.modded.push(p.name);
+    // its folder's GARAGE.DAT and MODPARTS.DAT (a profile alone, at the zip's top or picked as a file: none)
+    const dir = p.path.includes('/') ? dirOf(p.path) : null, mine = sides.filter(f => dir !== null && f.dir === dir);
+    for (const f of mine) { out.entries.push({ path: `${PROFILES_DIR}/${p.name}/${f.name}`, data: f.data, mtime: f.mtime }); took.add(f); }
+    if (modCars(p.data) || garageModCars(mine.find(f => f.name === 'GARAGE.DAT')?.data)) out.modded.push(p.name);
   }
+  for (const f of sides) if (!took.has(f)) out.skipped.push(f.path);
   for (const c of covers) {
     const p = found.get(lower(c.profile));
     if (!p) { out.skipped.push(c.path); continue; }

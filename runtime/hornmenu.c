@@ -8,6 +8,7 @@
  * UI_Options.fng has the parts for an eighth slider, the pause menu's
  * UI_PauseOptions.fng all but the bar's, which are copies of the seventh's). */
 #include "cpu.h"
+#include "game.h"
 #include "horn.h"
 #include "optslider.h"
 #include "widescreen.h"           /* HOOK_SITE */

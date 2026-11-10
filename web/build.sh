@@ -99,6 +99,11 @@ for f in $WEB; do
   case "$f" in thread_exit) fl="$TARGET $OPT $FEAT" ;; *) fl="$CFLAGS -DNFS_ENHANCED=0" ;; esac
   "$CC" $fl -c -o "$OUT/rt/web_$f.o" "runtime/web/$f.c" & pids="$pids $!"
 done
+# C++ parts of the runtime (damagecore.cpp: the crash damage, the .asi's own code): libc++ without exceptions
+CXX="$WASI/bin/clang++"
+for f in damagecore; do
+  $CXX $TARGET $OPT $FEAT -std=c++17 -fno-exceptions -fno-rtti -fno-strict-aliasing -fno-delete-null-pointer-checks     -Iruntime -c -o "$OUT/rt/$f.o" "runtime/$f.cpp" & pids="$pids $!"
+done
 for p in $pids; do wait "$p" || { echo "runtime compile failed"; exit 1; }; done
 
 # ---- link ----

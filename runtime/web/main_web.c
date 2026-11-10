@@ -11,6 +11,7 @@
  * /save the save overlay (saves, registry, settings, logs). */
 #include "cpu.h"
 #include "decls.h"
+#include "featurelist.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>

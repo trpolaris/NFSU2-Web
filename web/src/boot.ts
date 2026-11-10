@@ -5,6 +5,8 @@
 
 import { lastLanguage } from './app/i18n';
 
+import { localStore, PAGE_LANGUAGE } from './app/prefs';
+
 declare const BOOT_TEXTS: Record<string, Record<string, string>>;
 
 const WAIT_MS = 15_000;

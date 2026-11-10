@@ -13,6 +13,7 @@
  * inserted into the lifter hook table by gen.sh.
  */
 #include "cpu.h"
+#include "game.h"
 #include "widescreen.h"           /* HOOK_SITE */
 #include <stdio.h>
 

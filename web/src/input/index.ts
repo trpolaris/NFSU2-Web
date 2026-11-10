@@ -454,6 +454,16 @@ export function attachInput(proc: GameProcess, element: HTMLElement, opts: Input
       push(IEV_TRAVEL_FRIEND, 0, 0, 0, [], nameHash | 0, spot);
       return true;
     },
+    travel(where) {
+      if (!h || !api.canQuit()) return false;
+      push(IEV_TRAVEL, where, 0, 0, [], 0, 0);
+      return true;
+    },
+    travelFriend(name, spot) {
+      if (!h || !api.canQuit()) return false;
+      push(IEV_TRAVEL, TRAVEL_FRIEND, 0, 0, [], name | 0, spot);
+      return true;
+    },
     async enterFullscreen() {
       try {
         if (document.fullscreenElement !== element) await element.requestFullscreen({ navigationUI: 'hide' });

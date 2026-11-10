@@ -90,6 +90,18 @@ test('names.mjs: the lists\' words, the ways round them, and not the other words
   assert.ok(!blockedName('xfagx') && blockedName('x_fag_x') && blockedName('xFagX'));
 });
 
+test('names.mjs: a plate reads as a name, and its own words, codes and the plates that are none', () => {
+  const up = w => w.toUpperCase();
+  // (not each word and each of rests: "PAKILORD" reads "pakiiord", and a word takes the run of a letter whole)
+  for (const w of PLATE.edge) for (const n of [w, 'BIG' + w, w + 'S', w + 'BOY']) assert.ok(blockedPlate(up(n)), n);
+  for (const r of PLATE.rests) assert.ok(r.length > 5 || blockedPlate(up('FAG' + r)), r);
+  for (const w of PLATE.anywhere) for (const n of [w, 'X' + w]) assert.ok(blockedPlate(up(n)), n);
+  for (const n of [...PLATE_BLOCKED, ...PLATE.alone]) assert.ok(blockedPlate(n), n);
+  for (const n of PLATE_ALLOWED) assert.ok(!blockedPlate(n), n);
+  // a plate's own rules are for plates: anything else reads as a name
+  assert.ok(!blockedPlate('bigfag') && !blockedPlate('BIGFAGBIGFAG') && blockedPlate('BIG FAG') && blockedPlate('n1gger'));
+});
+
 test('names.h has the lists of names.mjs', () => {
   const h = fs.readFileSync(path.join(REPO, 'runtime/names.h'), 'utf8');
   const list = k => [...new RegExp(`\\b${k}\\[\\] = \\{([^}]*)\\}`).exec(h)[1].matchAll(/"([^"]*)"/g)].map(m => m[1]);
@@ -103,9 +115,18 @@ test('names.h has the lists of names.mjs', () => {
   assert.deepEqual(list('hate_verbs'), [...HATE.verbs]);
   assert.deepEqual(list('hate_between'), [...HATE.between]);
   assert.deepEqual(list('hate_groups'), [...HATE.groups]);
+  assert.deepEqual(list('plate_edge'), [...PLATE.edge]);
+  assert.deepEqual(list('plate_end_ok'), [...PLATE.endOk]);
+  assert.deepEqual(list('plate_rests'), [...PLATE.rests]);
+  assert.deepEqual(list('plate_anywhere'), [...PLATE.anywhere]);
+  assert.deepEqual(list('plate_anywhere_ok'), [...PLATE.anywhereOk]);
+  assert.deepEqual(list('plate_alone'), [...PLATE.alone]);
+  assert.deepEqual(list('plate_marks'), [...PLATE.marks]);
+  assert.deepEqual(list('plate_numbers'), [...PLATE.numbers]);
 });
 
-test('names.h answers as names.mjs (25,000 ASCII names)', { skip: !haveClang && 'no clang' }, () => {
+/** names.h's answers (fn: name_blocked, name_plate_blocked) for each of lines, as '0' and '1' */
+function answersOfC(fn, lines) {
   const out = fs.mkdtempSync(path.join(OUT, 'names-c-'));
   try {
     const src = path.join(out, 'names_check.c'), bin = path.join(out, 'names_check');
@@ -114,7 +135,7 @@ test('names.h answers as names.mjs (25,000 ASCII names)', { skip: !haveClang && 
 #include "names.h"
 int main(void){
     char line[512];
-    while (fgets(line, sizeof line, stdin)){ line[strcspn(line, "\\n")] = 0; putchar('0' + name_blocked(line)); }
+    while (fgets(line, sizeof line, stdin)){ line[strcspn(line, "\\n")] = 0; putchar('0' + ${fn}(line)); }
     putchar('\\n');
     return 0;
 }
@@ -140,15 +161,41 @@ int main(void){
         }
         if (rnd(3) === 0) n += pick(['', ' ', '_', '42']);
       }
-      names.push(n.slice(0, 24));
+      if (rnd(3) === 0) n += pick(['', ' ', '_', '42']);
     }
-    for (let k = 0; k < 5000; k++) { let n = ''; for (let j = rnd(25); j > 0; j--) n += String.fromCharCode(32 + rnd(95)); names.push(n); }
-    const c = execFileSync(bin, { input: names.join('\n') + '\n', encoding: 'utf8', timeout: 120_000 }).trim();
-    assert.equal(c.length, names.length);
-    const js = names.map(n => (blockedName(n) ? '1' : '0')).join('');
-    const diff = names.filter((n, i) => c[i] !== js[i]);
-    assert.deepEqual(diff, [], 'names the two read differently');
-    const blocked = [...js].filter(x => x === '1').length;
-    assert.ok(blocked > 1000 && blocked < names.length - 1000, `both answers among the made-up names (${blocked} of ${names.length} blocked)`);
-  } finally { fs.rmSync(out, { recursive: true, force: true }); }
+    names.push(n.slice(0, 24));
+  }
+  for (let k = 0; k < 5000; k++) { let n = ''; for (let j = rnd(25); j > 0; j--) n += String.fromCharCode(32 + rnd(95)); names.push(n); }
+  const c = answersOfC('name_blocked', names);
+  assert.equal(c.length, names.length);
+  const js = names.map(n => (blockedName(n) ? '1' : '0')).join('');
+  const diff = names.filter((n, i) => c[i] !== js[i]);
+  assert.deepEqual(diff, [], 'names the two read differently');
+  const blocked = [...js].filter(x => x === '1').length;
+  assert.ok(blocked > 1000 && blocked < names.length - 1000, `both answers among the made-up names (${blocked} of ${names.length} blocked)`);
+});
+
+test('names.h answers plates as names.mjs (25,000 plates)', { skip: !haveClang && 'no clang' }, () => {
+  // the cases above, then plates made of the lists' pieces with digits for letters, and plain capitals and digits
+  let seed = 11;
+  const rnd = n => { seed = (seed * 1103515245 + 12345) >>> 0; return (seed >>> 8) % n; };
+  const pick = a => a[rnd(a.length)];
+  const pieces = [...PLATE.edge, ...PLATE.endOk, ...PLATE.rests, ...PLATE.anywhere, ...PLATE.anywhereOk, ...PLATE.alone,
+    ...PLATE.marks, ...PLATE.numbers, ...SLURS.whole, ...SLURS.edge, 'big', 'lil', 'x', 's', 'kkkk', 'night', 'mustafa', 'nigga',
+    '1488', '88', '14', '6', '9', '0', '1', '3', '4', '8', '42', '123', '1995'].map(w => w.toUpperCase());
+  const swap = { O: '0', I: '1', E: '3', A: '4', S: '5', T: '7', G: '69', B: '8' };
+  const plates = [...PLATE_BLOCKED, ...PLATE_ALLOWED, 'bigfag', 'BIG FAG', 'BIGFAGBIGFAG'];
+  for (let k = 0; k < 20000; k++) {
+    let n = '';
+    for (let j = 1 + rnd(3); j > 0; j--) for (const ch of pick(pieces)) n += rnd(8) === 0 && swap[ch] ? pick([...swap[ch]]) : ch;
+    plates.push(n.slice(0, 8));
+  }
+  const AZ09 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  for (let k = 0; k < 5000; k++) { let n = ''; for (let j = rnd(9); j > 0; j--) n += pick([...AZ09]); plates.push(n); }
+  const c = answersOfC('name_plate_blocked', plates);
+  assert.equal(c.length, plates.length);
+  const js = plates.map(n => (blockedPlate(n) ? '1' : '0')).join('');
+  assert.deepEqual(plates.filter((n, i) => c[i] !== js[i]), [], 'plates the two read differently');
+  const blocked = [...js].filter(x => x === '1').length;
+  assert.ok(blocked > 1000 && blocked < plates.length - 1000, `both answers among the made-up plates (${blocked} of ${plates.length} blocked)`);
 });

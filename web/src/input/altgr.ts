@@ -6,6 +6,7 @@
 // key (or the end of the wait) sends it first.  So on such a layout a Left Ctrl alone reaches the game up to WAIT_MS
 // later, and on other layouts nothing changes.  The first AltGr in a browser still shifts down once; localStorage keeps
 // what it showed.  Releases always go on: the game ignores the release of a key it does not hold.
+import { ALTGR_CTRL, localStore } from '../app/prefs';
 
 /** how long a Left Ctrl press waits for AltGr's Right Alt (Windows sends the two together; this is the margin) */
 export const WAIT_MS = 25;
@@ -16,6 +17,7 @@ const LEARN_MS = 50;
 const STORE_KEY = ALTGR_CTRL
 
 export interface AltGrKey { code: string; key: string; repeat: boolean }
+/** where what it learnt is kept (a test gives its own) */
 type Store = Pick<Storage, 'getItem' | 'setItem'>;
 
 function localStore(): Store {
@@ -33,8 +35,8 @@ export class AltGrCtrl {
 
   /** on: Windows (no other system sends AltGr as two keys) */
   constructor(private readonly on: boolean, private readonly log: (s: string) => void,
-              private readonly now: () => number = () => performance.now(), private readonly store: Store | null = localStore()) {
-    if (on) try { this.seen = store?.getItem(STORE_KEY) === '1'; } catch { /* no storage: learnt again in this tab */ }
+              private readonly now: () => number = () => performance.now(), private readonly store: Store | null = kept) {
+    if (on) try { this.seen = store?.getItem(ALTGR_CTRL) === '1'; } catch { /* no storage: learnt again in this tab */ }
   }
 
   /** a key's event on its way to the game: send goes now, a little later, or (AltGr's Left Ctrl) never */
@@ -52,7 +54,7 @@ export class AltGrCtrl {
     this.flush();
     if (altGr && !this.seen && this.now() - this.ctrlAt < LEARN_MS) {
       this.seen = true;
-      try { this.store?.setItem(STORE_KEY, '1'); } catch { /* kept for this tab only */ }
+      try { this.store?.setItem(ALTGR_CTRL, '1'); } catch { /* kept for this tab only */ }
       this.log('[keys] this browser sends AltGr as Left Ctrl and Right Alt: from now on a Left Ctrl right before Right Alt does not reach the game');
     }
     if (e.code === 'ControlLeft') {

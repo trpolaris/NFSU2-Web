@@ -1322,14 +1322,18 @@ try {
         pageTab: document.querySelector('#keys [aria-selected="true"]')?.dataset.tab, dupIds: ids.filter((id, i) => ids.indexOf(id) !== i) };
     });
     await shot(s, 'help-dialog-pad.png');
+    // Esc: back to the menu's list, on its Controls; again: the menu closes
+    await s.keyboard.press('Escape');
+    const helpBack = await s.evaluate(() => !!document.querySelector('#menu[open]') && !document.querySelector('#menu-main').hidden &&
+      document.activeElement?.dataset.act === 'help');
     await s.keyboard.press('Escape');
     await s.evaluate(() => window.__nfsu2.session?.terminate());
     await waitPhase(s, ['exited'], 30000);
     const inertAfter = await s.evaluate(() => document.querySelector('#app').inert);
     report('page', Object.values(gone).every(c => c === 404) && !pageAsked.some(u => /^\/(server-info|setup|ca\.crt)$/.test(u)) &&
       !a11y.unnamed.length && !a11y.undescribed.length && a11y.keys >= 10 && helpKeys === a11y.keys && !a11y.dialogsOpen && inert && !inertAfter &&
-      helpTabs.padShown && helpTabs.pageTab === 'keys' && !helpTabs.dupIds.length,
-      { gone, ...a11y, helpKeys, helpTabs, startPageInertWhilePlaying: inert, inertAfter });
+      helpTabs.padShown && helpTabs.pageTab === 'keys' && !helpTabs.dupIds.length && helpBack,
+      { gone, ...a11y, helpKeys, helpTabs, helpBack, startPageInertWhilePlaying: inert, inertAfter });
     await c2.close();
   }
 

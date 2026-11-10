@@ -103,6 +103,8 @@
 //!   pays for every snapshot too, so a slice near its limit gets fewer links before its players get them late.
 
 mod hub;
+// (made by tools/map_jumps.py: its rows as the tool writes them)
+#[rustfmt::skip]
 mod jumps;
 mod links;
 mod results;

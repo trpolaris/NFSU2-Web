@@ -749,7 +749,7 @@ fn race_cheats(game: &str, r: &RaceReport, names: &[String], players: &[Player],
 /// The `[cheat]` line of a race whose winner (the quickest finisher) took under FAR_AHEAD of the next finisher's time,
 /// with the winner's address for `nfsu2-server ctl kick|ban`; None for any other race
 fn far_ahead(game: &str, kind: u8, order: &[RacePlayer], players: &[Player]) -> Option<String> {
-    if kind == KIND_DRIFT {
+    if kind == MODE_DRIFT {
         return None;
     }
     let mut done: Vec<&RacePlayer> = order.iter().filter(|p| p.place != 0 && p.time > 0.0).collect();

@@ -9,6 +9,7 @@
  * seconds. This does not change normal transitions or multiplayer packets.
  */
 #include "cpu.h"
+#include "game.h"
 #include <stdio.h>
 #include <string.h>
 

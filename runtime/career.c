@@ -81,7 +81,6 @@ void autotest_tap(unsigned dik, long frames);
 #define FN_AUTOPILOT_ON  0x005fae20u  /* Player::AutoPilotOn(this) */
 #define FN_AUTOPILOT_OFF 0x005faf10u  /* Player::AutoPilotOff(this) */
 #define FN_SETINPUTMODE  0x00605c70u  /* Player::SetInputMode(this, mode) */
-#define MAINLOOP_RET     0x00581475u
 /* Race coordinator ([0x890118]): +0x00 RCSTATE (4 = race in progress, 7 =
  * post-race), +0x24 racer count, +0x30 racers (0x1F0 bytes each: +0x00 car,
  * +0x0A current position, +0x0C final position, +0x10 u16 completion type,
@@ -89,7 +88,6 @@ void autotest_tap(unsigned dik, long frames);
  * position.  FinishRacer(sortedIndex, position (0 = next free), flag,
  * completionType) at 0x606CB0 (thiscall, ret 0x10) is what the coordinator
  * itself calls when a racer crosses the line (0x608C48: (i, 0, 0, 1)). */
-#define G_RACE           0x00890118u
 #define FN_FINISHRACER   0x00606cb0u
 #define RCSTATE_RACING   4u
 #define RACING_CAR_NORMAL_COMPLETION 1u
@@ -105,9 +103,6 @@ void autotest_tap(unsigned dik, long frames);
  * Markers: PathsData (0x88F298) +0x434 count, +0x438 size, +0x43C blob of
  * variable-size records (+0 type, +4 x, +8 y, +0xC/+0x10 heading, +0x14 z
  * for event markers, +0x30 hash, +0x42 record size). */
-#define G_CAREER         0x0085ad40u
-#define G_RACES          0x008383e0u
-#define G_NRACES         0x008383e4u
 #define G_SHOPS          0x008383f0u
 #define G_NSHOPS         0x008383f4u
 #define G_STRPOOL        0x00838428u
@@ -148,20 +143,6 @@ static uint32_t x_expr(void){
 static uint32_t eval(const char *s){ xp = s; return x_expr(); }
 
 /* ---- guest calls ---------------------------------------------------------- */
-/* Call guest function fn with ecx and stack arguments.  Must run on the guest
- * thread at a point where the game can take a call (the main-loop hook).
- * The whole CPU state is restored, so it works for any calling convention. */
-static uint32_t guest_call(CPU *c, uint32_t fn, uint32_t ecx, int n, const uint32_t *arg){
-    CPU save = *c;
-    c->esp = (c->esp - 256u) & ~15u;
-    for (int i = n - 1; i >= 0; i--) PUSH32(arg[i]);
-    c->ecx = ecx;
-    PUSH32(MAINLOOP_RET);           /* the callee's ret pops it into eip */
-    dispatch_indirect(c, fn);
-    uint32_t r = c->eax;
-    *c = save;
-    return r;
-}
 
 #define QMAX 16
 typedef struct { char line[160]; } Job;
@@ -223,7 +204,7 @@ static void race_win(CPU *c){
           drift_lead((r - (race + 0x30u)) / 0x1f0u);
           fprintf(stderr, "[career] f=%ld racewin: drift, the other entries on the board put below 0\n", autotest_frame()); } }
     uint32_t a[4] = { i, 0, 0, RACING_CAR_NORMAL_COMPLETION };
-    guest_call(c, FN_FINISHRACER, race, 4, a);
+    gcall_main(c, FN_FINISHRACER, race, 4, a);
     fprintf(stderr, "[career] f=%ld racewin: player (racer %u of %u, was %u.) finished, position %u\n",
             autotest_frame(), i, MR32(race + 0x24u), MR8(r + 0xau), MR8(r + 0xcu));
 }
@@ -280,12 +261,10 @@ static void race_tick(CPU *c){
  * position of the player whose number is in +0xBF0); the coordinator then
  * calls FinishRacer with completion 6 (won) or 7 (lost) and
  * Career::OnOutrunFinish pays out.  `outrunwin` posts "player 1st". */
-#define G_RACETYPE       0x0089e7b0u   /* 7 = outrun */
-#define G_CARMGR         0x00890080u
 #define G_OUTRUN_STATE   (0x0085ef70u + 0x1ae8u)
 #define RACETYPE_OUTRUN  7u
 static uint32_t outrun_car(uint32_t k){   /* k = 0: the nearest one on the map */
-    uint32_t cm = MR32(G_CARMGR), best = 0, me = MR32(MR32(G_PLAYER1) + 4u);
+    uint32_t cm = MR32(G_WORLD), best = 0, me = MR32(MR32(G_PLAYER1) + 4u);
     if (!cm || !mem_is_committed(cm + 0x40) || !me) return 0;
     uint32_t lo = MR32(cm + 0x14u), hi = MR32(cm + 0x18u);
     float bd = 1e30f;
@@ -348,8 +327,8 @@ static void outrun_win(void){
  * GenericDialog_SMALL.fng are on these lists while GetTopPackage still names
  * the screen underneath. */
 static uint32_t fe_mgr(void){
-    if (!mem_is_committed(0x8384c4u)) return 0;
-    uint32_t fe = MR32(0x8384c4u);
+    if (!mem_is_committed(G_FENG)) return 0;
+    uint32_t fe = MR32(G_FENG);
     if (!fe || !mem_is_committed(fe + 11)) return 0;
     uint32_t mg = MR32(fe + 8u);
     return mg && mem_is_committed(mg + 0xf7u) ? mg : 0;
@@ -628,7 +607,7 @@ static double guest_call_st0(CPU *c, uint32_t fn, uint32_t ecx){
     CPU save = *c;
     c->esp = (c->esp - 256u) & ~15u;
     c->ecx = ecx;
-    PUSH32(MAINLOOP_RET);
+    PUSH32(GUEST_RET_MAINLOOP);
     dispatch_indirect(c, fn);
     double r = c->st[c->top & 7];
     *c = save;
@@ -732,7 +711,7 @@ static void bot_drive(long f){
     uint32_t m = marker_by_hash(MR32(B.show + 0x2cu)), car = player1_ok() ? MR32(MR32(G_PLAYER1) + 4u) : 0;
     if (!m || !car || !mem_is_committed(car + 0x440)){ drive_stop(); B.phase = BOT_IDLE; return; }
     float x = MRF32(car + 0x60u), y = MRF32(car + 0x64u), dx = MRF32(m + 4u) - x, dy = MRF32(m + 8u) - y;
-    float d = sqrtf(dx * dx + dy * dy), sp = MRF32(car + 0x430u);
+    float d = sqrtf(dx * dx + dy * dy), sp = MRF32(car + CAR_SPEED);
     float h = MR16(car + 0x40cu) / 65536.f * 6.2831853f;
     if (f - B.dv.t0 > 4800){
         fprintf(stderr, "[bot] f=%ld %s: drove for %ld frames, %.1f m short of the marker, no engage dialog, skipped\n",
@@ -937,16 +916,16 @@ static void run_job(CPU *c, const char *line){
             if (!strncasecmp(tok[i], "ecx=", 4)) ecx = eval(tok[i] + 4);
             else arg[na++] = eval(tok[i]);
         }
-        uint32_t r = guest_call(c, fn, ecx, na, arg);
+        uint32_t r = gcall_main(c, fn, ecx, na, arg);
         fprintf(stderr, "[career] f=%ld call 0x%08x(ecx=0x%08x, %d args) -> eax=0x%08x (%d)\n",
                 autotest_frame(), fn, ecx, na, r, (int)r);
     } else if (!strcasecmp(cmd, "autopilot")){
         if (!player1_ok()){ fprintf(stderr, "[career] autopilot: no player\n"); return; }
         uint32_t p = MR32(G_PLAYER1);
-        if (!strncasecmp(rest, "on", 2)) guest_call(c, FN_AUTOPILOT_ON, p, 0, 0);
+        if (!strncasecmp(rest, "on", 2)) gcall_main(c, FN_AUTOPILOT_ON, p, 0, 0);
         else {
-            guest_call(c, FN_AUTOPILOT_OFF, p, 0, 0);
-            uint32_t mode = 2; guest_call(c, FN_SETINPUTMODE, p, 1, &mode);
+            gcall_main(c, FN_AUTOPILOT_OFF, p, 0, 0);
+            uint32_t mode = 2; gcall_main(c, FN_SETINPUTMODE, p, 1, &mode);
         }
         fprintf(stderr, "[career] f=%ld autopilot %s\n", autotest_frame(), rest);
     } else if (!strcasecmp(cmd, "visual")){      /* the car's visual rating (with the tweak, its own) */
@@ -974,7 +953,7 @@ void look_frame_end(void);
 void sub_004022c0_orig(CPU *c);
 void sub_004022c0(CPU *c){
     if (MR32(c->esp) == LOOK_END_RET) look_frame_end();
-    else if (MR32(c->esp) == MAINLOOP_RET){
+    else if (MR32(c->esp) == GUEST_RET_MAINLOOP){
         if (!g_hooked) bot_init();
         g_hooked = 1;
         while (g_qh != g_qt){ Job *j = &g_q[g_qh]; g_qh = (g_qh + 1) % QMAX; run_job(c, j->line); }
@@ -1115,7 +1094,7 @@ int career_cmd(CPU *c, const char *line, long *wait_start){
         /* cargo K [BEHIND]: jump BEHIND m (default 12) behind the K-th car of
          * the car manager [0x890080] (+0x10 count, +0x1C car pointers; car
          * +0x60 position, +0x40C heading), e.g. to challenge an outrun tuner */
-        uint32_t cm = MR32(0x890080u), k = eval(a1), n = cm ? MR32(cm + 0x10u) : 0;
+        uint32_t cm = MR32(G_WORLD), k = eval(a1), n = cm ? MR32(cm + 0x10u) : 0;
         float back = a2[0] ? (float)atof(a2) : 12.f;
         if (!cm || k >= n || k >= 64){ fprintf(stderr, "[career] f=%ld cargo %u: no such car (%u)\n", f, k, n); return 1; }
         uint32_t car = MR32(cm + 0x1cu + 4u * k);

@@ -457,7 +457,7 @@
   "\"{value}\" is not a whole number in {vals}": "\"{value}\" är inte ett heltal i {vals}",
   "\"{value}\" is not a name (printable ASCII, at most 24 characters)": "\"{value}\" är inte ett namn (utskrivbar ASCII, högst 24 tecken)",
   "\"{value}\" is not a name (it reads as a slur)": "\"{value}\" är inte ett namn (det läses som ett glåpord)",
-  "\"{value}\" is not a room name (it reads as a slur)": "\"{value}\" är inte ett rumsnamn (det läses som ett glåpord)",
+  "\"{value}\" is not a world name (it reads as a slur)": "\"{value}\" är inte ett världsnamn (det läses som ett glåpord)",
   "\"{value}\": \"{bad}\" is not a.b.c.d or a.b.c.d:port (IPv4 numbers, no names)": "\"{value}\": \"{bad}\" är inte a.b.c.d eller a.b.c.d:port (IPv4-nummer, inga namn)",
   "\"{value}\" is not a numeric id": "\"{value}\" är inte ett numeriskt id",
   "\"{value}\" is not an asset key or URL (printable ASCII, no spaces)": "\"{value}\" är inte en resursnyckel eller URL (utskrivbar ASCII, inga mellanslag)",

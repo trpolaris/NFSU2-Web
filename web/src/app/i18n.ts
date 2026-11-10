@@ -10,8 +10,9 @@
 // Problems and errors carry a fixed code in every language (checks.ts, shell.ts), so a screenshot in any language
 // says which one it is; the log stays English.  web/test/i18n.test.mjs checks every file against the texts in use.
 //
-// This module touches the DOM only when called with it, and imports nothing, so the pure modules (settings.ts) can
-// use it under node.
+// This module touches the DOM and the browser's storage only when called with them, and imports only prefs.ts (which
+// touches nothing until called), so the pure modules (settings.ts) can use it under node.
+import { localStore, PAGE_LANGUAGE } from './prefs';
 
 import { localStore, PAGE_LANGUAGE } from './prefs';
 

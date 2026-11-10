@@ -21,7 +21,8 @@
 // --cars   the players' cars in turn (car type names, CarTypeInfo +0), or all: the game's 31 player cars, PEUGOT to
 //          IMPREZAWRX; without it every player drives --car.
 // --parts  the players' cars' parts instead of the stock ones, slot:key:owner in hex, comma-separated (or from a file): a
-//          record names every part (tests/scripts/roam_crowd_rims.parts: a 350Z with the rim shops' rims).
+//          record names every part (tests/scripts/roam_crowd_rims.parts: a 350Z with the rim shops' rims).  Several
+//          records, one a line in the file (or |-separated): the players take them in turn (roam_crowd_paint.parts).
 // --states the car states in each SNAP: 1 as the browsers send them (roam_web.c), 3 as a LAN does.
 // --crew   every player is in this crew (the Crews setting's one name): the hub links them to the players who share it
 //          first, wherever they are, and those see them in the crew's colour.

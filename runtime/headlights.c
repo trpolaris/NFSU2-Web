@@ -36,6 +36,7 @@
  *   the term), optionally :GAIN (0.6); the script command "headlights MODE"
  *   sets it for an A/B within one run. */
 #include "cpu.h"
+#include "game.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

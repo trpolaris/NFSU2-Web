@@ -797,9 +797,14 @@ export function checkSetting(key: string, val: string): Checked | Refused | null
       if (blockedName(val)) return refuse(N('"{value}" is not a name (it reads as a slur)'), val);
       break;
     }
+    case 'plate':
+      out = plateUpper(val);
+      if (!plateValid(out)) return refuse(N('"{value}" is not a license plate (letters A to Z and digits, at most 8)'), val);
+      if (blockedPlate(out)) return refuse(N('"{value}" is not a license plate (it reads as a slur)'), val);
+      break;
     case 'room':
       if (!valueOk('text', val)) return refuse(N('"{value}" is not {kind}'), val, { kind: KIND_TEXT.text! });
-      if (blockedName(val)) return refuse(N('"{value}" is not a room name (it reads as a slur)'), val);
+      if (blockedName(val)) return refuse(N('"{value}" is not a world name (it reads as a slur)'), val);
       break;
     case 'peers': {
       const bad = peersBad(val);
@@ -976,6 +981,55 @@ export function settingsPut(text: string | null, key: string, value: string | nu
     if (value === null) return text ?? TEMPLATE;   // nothing to reset
     if (lines.length && lines[lines.length - 1] === '') lines.splice(lines.length - 1, 0, nl); else lines.push(nl);
   }
+  return lines.join('\n');
+}
+
+/**
+ * settingsPut, and then the key's variable really is what the row asked for: a line that sets the same
+ * variable by its own name (NFSU2_ROAM = 1 for roam) and comes first would still win at Play (the first line
+ * that sets a variable does), so it goes too.  Lines are found by their line in the file, not by the pieces
+ * bundle.m reads a long line in (a long line before them shifted the piece numbers: the audit review's PAGE-2
+ * finding, which removed the wrong line).  removed: how many such lines went.
+ */
+export function putKey(text: string, key: string, value: string | null): { text: string; removed: number } {
+  let next = settingsPut(text, key, value), removed = 0;
+  const d = keyDef(key);
+  for (let i = 0; d && i < 64; i++) {
+    const by = resolveEnv(next, {}, {}).byEnv[d.env];
+    if (!by || keyDef(by.key)?.key === d.key) break;
+    const lines = next.split('\n'); lines.splice(by.phys - 1, 1); next = lines.join('\n'); removed++;
+  }
+  return { text: next, removed };
+}
+
+/** What "Reset all settings" keeps: the name, flag and license plate the other players know you by, your crews, and the
+ *  language (this page's too). */
+const RESET_KEEPS = ['roam_name', 'roam_flag', 'license_plate', 'roam_crew', 'roam_crew_colours', 'language'];
+
+/** "Reset all settings": the template, with the kept settings as the file has them (by their own key, also where
+ *  the file sets the variable by its name, if the key reads the value the same).  One the file does not set, or
+ *  refuses, is the default. */
+export function resetAll(text: string | null): string {
+  const r = resolveEnv(text, {}, {});
+  let next = TEMPLATE;
+  for (const key of RESET_KEEPS) {
+    const env = keyDef(key)!.env, v = r.env[env], c = checkSetting(key, v ?? '');
+    if (r.source[env] === 'settings.ini' && c?.ok && c.value === v) next = settingsPut(next, key, v);
+  }
+  return next;
+}
+
+/** A line the panel has no row for back to the default, by its line in the file (1-based): an option of the
+ *  template gets the template's commented-out line in its place, any other line (a variable by its own name, the
+ *  Mac app's options) goes. */
+export function resetLine(text: string, phys: number): string {
+  const lines = text.split('\n');
+  const l = (lines[phys - 1] ?? '').trim();
+  const eq = l.indexOf('=');
+  if (eq < 0 || l[0] === '#' || l[0] === ';') return text;          // not a setting's line: nothing to reset
+  const d = keyDef(l.slice(0, eq).trim());
+  if (d && DEFAULTS.has(d.key)) lines[phys - 1] = `#${d.key} = ${DEFAULTS.get(d.key)}`.replace(/ = $/, ' =');
+  else lines.splice(phys - 1, 1);
   return lines.join('\n');
 }
 

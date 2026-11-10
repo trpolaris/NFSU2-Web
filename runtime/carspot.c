@@ -9,6 +9,7 @@
  * same frame.
  */
 #include "cpu.h"
+#include "game.h"
 #include <stdio.h>
 
 #define G_CAREER        0x0085ad40u

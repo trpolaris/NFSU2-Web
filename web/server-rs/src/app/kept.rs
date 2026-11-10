@@ -32,6 +32,7 @@ use std::time::{Duration, Instant, SystemTime};
 use parking_lot::{Condvar, Mutex};
 use sha2::{Digest, Sha256};
 
+use nfsu2_util::atomic_file::Options;
 use nfsu2_util::cpu::{QuotaBusy, QuotaUse};
 use nfsu2_util::log;
 

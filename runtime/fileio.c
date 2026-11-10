@@ -393,7 +393,7 @@ static int gf_add(const char *win, const char *real, int64_t size){
     i = -i - 1;
     while (g_gf[i].win) i = (i + 1) & (GF_N - 1);
     if (!(g_gf[i].win = strdup(win)) || !(g_gf[i].real = strdup(real))){ free(g_gf[i].win); g_gf[i].win = 0; return -1; }
-    g_gf[i].size = size; g_gf[i].real2 = 0; g_gf_n++;
+    g_gf[i].size = size; g_gf[i].real2 = 0; g_gf[i].pk = 0; g_gf_n++;
     return i;
 }
 /* a kept descriptor of that file (the latest kept), or -1; *fd2 its vinyl pack's (or -1) */

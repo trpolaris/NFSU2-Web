@@ -1,7 +1,8 @@
 //! Token buckets and budgets.
 //!
-//! - [`Bucket`]: a token bucket (`rate` a second, a burst of two seconds' worth), with a `spend()` that may run into
-//!   a debt of one burst.  Not thread-safe by itself: the switch keeps each behind the lock of what owns it.
+//! - [`Bucket`]: a token bucket (`rate` a second, a burst of two seconds' worth or one of its own), with a `spend()`
+//!   that may run into a debt of one burst.  Not thread-safe by itself: the switch keeps each behind the lock of what
+//!   owns it.
 //! - [`Budget`]: what clients hold at once (per client, per site, in all, a free share for newcomers), thread-safe.
 //! - [`Rate`]: how often a client may do something (a bucket per client and per site), thread-safe.
 
@@ -11,8 +12,9 @@ use parking_lot::Mutex;
 
 use crate::clock::mono_ms;
 
-/// A token bucket: `rate` a second, at most `2 * rate` (two seconds' worth) stored, full at the start.
-/// Times are `mono_ms()` milliseconds; the `_at` forms take one the caller read once for several buckets.
+/// A token bucket: `rate` a second, at most `2 * rate` (two seconds' worth) stored, or `burst` (`with_burst_at`), full
+/// at the start.  Times are `mono_ms()` milliseconds; the `_at` forms take one the caller read once for several
+/// buckets, or one of its own clock.
 #[derive(Clone, Debug)]
 pub struct Bucket {
     pub rate: f64,
@@ -221,6 +223,16 @@ mod tests {
         assert!(b.has_at(100.0, 1.0));
         assert!(!b.spend_at(100.0, 100.0));
         assert_eq!(b.v, -20.0);
+    }
+
+    #[test]
+    fn a_bucket_of_its_own_burst() {
+        let mut b = Bucket::with_burst_at(2.0, 5.0, 0.0);
+        assert!(b.take_at(0.0, 5.0) && !b.take_at(0.0, 1.0));
+        assert_eq!(b.level_at(1000.0), 2.0);
+        assert_eq!(b.v, 0.0, "a look takes nothing and fills nothing");
+        assert_eq!(b.level_at(10_000.0), 5.0, "no more than the burst");
+        assert!(b.take_at(500.0, 1.0) && !b.take_at(500.0, 0.5));
     }
 
     #[test]

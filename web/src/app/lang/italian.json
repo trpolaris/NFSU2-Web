@@ -472,7 +472,7 @@
   "\"{value}\" is not a whole number in {vals}": "\"{value}\" non è un numero intero in {vals}",
   "\"{value}\" is not a name (printable ASCII, at most 24 characters)": "\"{value}\" non è un nome (ASCII stampabile, al massimo 24 caratteri)",
   "\"{value}\" is not a name (it reads as a slur)": "\"{value}\" non è un nome (sembra un insulto)",
-  "\"{value}\" is not a room name (it reads as a slur)": "\"{value}\" non è un nome di stanza (sembra un insulto)",
+  "\"{value}\" is not a world name (it reads as a slur)": "\"{value}\" non è un nome di mondo (sembra un insulto)",
   "\"{value}\": \"{bad}\" is not a.b.c.d or a.b.c.d:port (IPv4 numbers, no names)": "\"{value}\": \"{bad}\" non è a.b.c.d o a.b.c.d:porta (numeri IPv4, niente nomi)",
   "\"{value}\" is not a numeric id": "\"{value}\" non è un ID numerico",
   "\"{value}\" is not an asset key or URL (printable ASCII, no spaces)": "\"{value}\" non è una chiave di risorsa o un URL (ASCII stampabile, senza spazi)",

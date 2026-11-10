@@ -9,6 +9,7 @@ use std::collections::{HashMap, HashSet};
 use std::time::Instant;
 
 use bytes::{Bytes, BytesMut};
+use nfsu2_anticheat::{CAR_KMH, MODE_DRIFT};
 use nfsu2_util::json::num;
 use nfsu2_util::{js, vip_str};
 use serde_json::{Value, json};

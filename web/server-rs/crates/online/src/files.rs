@@ -1,6 +1,8 @@
-//! The files of the state folder (stats.json, buddies.json, races.json), written atomically: the folder made 0700 when it is
-//! missing (the Online audit's ONL-13), a temporary file of 0600 (`<file>.tmp-<pid>`), then a rename; a failure
-//! described in Node's words (its `e.message`: the console line quotes it, as the Node server's line did).
+//! The files of the state folder (stats.json, buddies.json, races.json), written atomically (`nfsu2_util::atomic_file`):
+//! the folder made 0700 when it is missing (the Online audit's ONL-13), a temporary file of 0600, then a rename; a
+//! failure described in Node's words (its `e.message`: the console line quotes it, as the Node server's line did).
+//! Not synced: the Online host's one thread writes them (the friends lists that changed every 10 s, the results every
+//! 30 s), and waiting on the disk there holds up every player's lobby.
 
 use std::io;
 

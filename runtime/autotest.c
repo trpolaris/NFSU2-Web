@@ -501,8 +501,8 @@ static int fe_is(const char *want){
     return 0;
 }
 const char *autotest_top_fng(void){
-    if (!mem_is_committed(0x8384c4u)) return 0;
-    uint32_t fe = MR32(0x8384c4u);
+    if (!mem_is_committed(G_FENG)) return 0;
+    uint32_t fe = MR32(G_FENG);
     if (!fe || !mem_is_committed(fe + 11)) return 0;
     uint32_t mg = MR32(fe + 8);                       /* GetTopPackage (0x50C8E0) */
     if (!mg || !mem_is_committed(mg + 0xe7)) return 0;
@@ -526,7 +526,7 @@ static uint32_t tr_rd(uint32_t a, int *ok){
     *ok = 0; return 0;
 }
 static uint32_t tr_racer(int want_human, int slot){
-    int ok = 1; uint32_t gs = tr_rd(0x890118u, &ok);
+    int ok = 1; uint32_t gs = tr_rd(G_RACE, &ok);
     if (!ok || !gs) return 0;
     uint32_t n = tr_rd(gs + 0x24u, &ok);
     if (!ok || n > 16) return 0;
@@ -984,7 +984,7 @@ static void status_line(double t, double tms, const char *label){
             label ? " " : "", label ? label : "", g_frame, tms / 1e3, dt > 0 ? nf / dt : 0.0,
             dt > 0 ? 100.0 * (cpu - g_st_cpu) / dt : 0.0,
             nf > 0 ? (gcpu - g_st_gcpu) / nf : 0.0,
-            mem_is_committed(0x8654a4u) ? MR32(0x8654a4u) : 0u, rss, ms);
+            mem_is_committed(G_FLOW) ? MR32(G_FLOW) : 0u, rss, ms);
     g_st_t = t; g_st_f = g_frame; g_st_cpu = cpu; g_st_gcpu = gcpu;
 }
 
@@ -1041,7 +1041,7 @@ void autotest_on_present(CPU *c){
     double tms = t - g_t0;
 
     if (g_fng_log == 2 && (g_frame == 400 || g_frame == 1500)){
-        uint32_t fe = mem_is_committed(0x8384c4u) ? MR32(0x8384c4u) : 0;
+        uint32_t fe = mem_is_committed(G_FENG) ? MR32(G_FENG) : 0;
         uint32_t mg = (fe && mem_is_committed(fe + 11)) ? MR32(fe + 8) : 0;
         uint32_t pk = (mg && mem_is_committed(mg + 0xe7)) ? MR32(mg + 0xe4) : 0;
         fprintf(stderr, "[fngdbg] f=%ld fe=%08x mgr=%08x info=%08x\n", g_frame, fe, mg, pk);
@@ -1060,7 +1060,7 @@ void autotest_on_present(CPU *c){
         const char *t = autotest_top_fng();
         if (t && strcmp(t, last)){ snprintf(last, sizeof last, "%s", t);
             fprintf(stderr, "[fng] f=%ld top package %s (flow=%u)\n", g_frame, t,
-                    mem_is_committed(0x8654a4u) ? MR32(0x8654a4u) : 0u); }
+                    mem_is_committed(G_FLOW) ? MR32(G_FLOW) : 0u); }
     }
     /* scheduled releases */
     for (int i = 0; i < g_nrel; ){

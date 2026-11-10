@@ -84,3 +84,17 @@ fn main() {
         .unwrap_or_else(|e| die(&format!("the runtime: {e}")));
     rt.block_on(app::run(o, cores));
 }
+
+#[cfg(test)]
+mod tests {
+    use super::checkout_of;
+    use std::path::Path;
+
+    #[test]
+    fn checkout_of_the_binary() {
+        assert_eq!(checkout_of(Path::new("/home/a/wt/x/out/web/server-rs/nfsu2-server")).as_deref(), Some("/home/a/wt/x"));
+        assert_eq!(checkout_of(Path::new("/home/a/wt/x/out/web/server-rs/target/release/nfsu2-server")), None);
+        assert_eq!(checkout_of(Path::new("/nfsu2-server")), None);
+        assert_eq!(checkout_of(Path::new("/x/myout/web/server-rs/nfsu2-server")), None);
+    }
+}

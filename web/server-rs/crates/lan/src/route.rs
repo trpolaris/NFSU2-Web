@@ -147,6 +147,36 @@ impl LanSwitch {
         all_paid
     }
 
+    /// A HELLO with a license plate from `peer` (plates.rs): the frame to send in its place (without its plate, or with
+    /// the player's last one), None to send it as it is; the `[plate]` line of a new one or of a slur
+    fn plate_fix(&self, peer: &Peer, data: &Bytes, p: plates::Found<'_>) -> Option<Bytes> {
+        if !plates::intact(data) {
+            return None; // (no game takes it)
+        }
+        let plates::Found::Plate { at, plate, name } = p else {
+            return plates::rewrite(data, None, None).map(Bytes::from);
+        };
+        let name: String = String::from_utf8_lossy(name).chars().map(|c| if c.is_control() { '?' } else { c }).collect();
+        let plate_s = std::str::from_utf8(plate).unwrap_or("");
+        match plates::judge(&peer.plates, plate, mono_ms() as i64) {
+            plates::Verdict::Go => None,
+            plates::Verdict::New => {
+                self.line(&format!("[plate] {} \"{name}\" {plate_s}", nfsu2_util::vip_str(peer.vip)));
+                None
+            }
+            plates::Verdict::Last(last) => plates::rewrite(data, Some(at), Some(&last)).map(Bytes::from),
+            plates::Verdict::Slur { tell } => {
+                if tell {
+                    self.line(&format!(
+                        "[plate] {} \"{name}\" {plate_s}: reads as a slur, dropped (its HELLOs go on without it)",
+                        nfsu2_util::vip_str(peer.vip)
+                    ));
+                }
+                plates::rewrite(data, Some(at), None).map(Bytes::from)
+            }
+        }
+    }
+
     /// one destination that was paid for: the trace, a host, or the browsers
     fn route_one(
         &self,
@@ -435,6 +465,7 @@ fn own(data: &Bytes, src: u32, dst: u32) -> Bytes {
 pub(crate) mod tests {
     use super::*;
     use crate::{AttachCtx, LanOptions};
+    use crate::{BASE, UDP_SET};
 
     /// a peer on the switch without a socket: its connection's queue only fills
     pub(crate) fn peer(sw: &Arc<LanSwitch>, group: &str) -> (Arc<Conn>, Arc<AttachCtx>, Arc<Peer>) {

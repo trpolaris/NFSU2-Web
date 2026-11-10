@@ -487,7 +487,7 @@ void sub_0060faa0_orig(CPU *c);
 void sub_0060faa0(CPU *c){
     static int ft = -1, done = 0; static long calls = 0;
     if (ft < 0){ const char *e = getenv("FORCETOD"); ft = e ? atoi(e) : 0; }
-    if (ft > 0 && !done && MR32(0x8654a4u) == 6u && MR32(0x8a1c78u) != 0u && ++calls >= ft &&
+    if (ft > 0 && !done && MR32(G_FLOW) == 6u && MR32(0x8a1c78u) != 0u && ++calls >= ft &&
         MR32(0x8a1c8cu) == 0u){
         static int st = -1;
         if (st < 0){ const char *e = getenv("FORCETOD_STATE"); st = e ? atoi(e) : 2; if (st < 1 || st > 4) st = 2; }
@@ -837,37 +837,45 @@ void sub_0050b410(CPU *c){
  * the game makes it for a new profile, and the records that leaves unused get
  * the index of none (-1, as their constructor 0x503A00 leaves it); the
  * profile keeps the table at its next save. */
-#define FECARS          0x0083ad90u
 #define FECARS_PLAYER   0xab4cu
 #define STOCK_N         48u
 #define STOCK_SZ        0x1cu
 #define CARTYPES_N      46u           /* the builder walks 0x189E0 bytes of CarTypeInfo */
 void sub_004df9c0_orig(CPU *c);
 void sub_00516500(CPU *c);
-void sub_004df9c0(CPU *c){
-    uint32_t who = MR32(c->ecx + 0xecu);
-    if (who < 2u){
-        uint32_t db = FECARS + who * FECARS_PLAYER, bad = STOCK_N;
-        for (uint32_t i = 0; i < STOCK_N && bad == STOCK_N; i++){
-            uint32_t r = db + i * STOCK_SZ;
-            if (MR32(r + 0x10u) && MR32(r + 0x18u) >= CARTYPES_N) bad = i;
-        }
-        if (bad < STOCK_N){
-            uint32_t r = db + bad * STOCK_SZ;
-            fprintf(stderr, "[cars] player %u's stock car %u (handle 0x%08x) has car type %u, none of the game's %u: "
-                    "the stock cars made again, as for a new profile\n", who, bad, MR32(r + 8u), MR32(r + 0x18u), CARTYPES_N);
-            CPU save = *c;
-            c->esp = (c->esp - 256u) & ~15u;
-            PUSH32(0u);                           /* its argument, not read */
-            c->ecx = db;
-            PUSH32(0x004df9c0u);                  /* the ret pops it into eip; the state is put back below */
-            sub_00516500(c);
-            *c = save;
-            for (uint32_t i = 0; i < STOCK_N; i++)
-                if (!MR32(db + i * STOCK_SZ + 0x10u)) MR32(db + i * STOCK_SZ + 0x18u) = 0xffffffffu;
-            fprintf(stderr, "[cars] %u stock cars\n", MR32(db + 0x540u));
-        }
+/* db's stock cars made again (as for a new profile) when one in use has a car type past the game's; lost: the handles
+ * of those (at most max), returns how many there were (0: none, nothing changed).  Here before a car list is made,
+ * and in garage.c as a profile's cars load (a Quick Race with such a car as its car, or any list of them, read past
+ * CarTypeInfo too, and the original game's car lot ends the same way: the profile has the game's own list again) */
+int cars_stock_fix(CPU *c, uint32_t db, uint32_t *lost, int max){
+    uint32_t bad = STOCK_N; int n = 0;
+    for (uint32_t i = 0; i < STOCK_N; i++){
+        uint32_t r = db + i * STOCK_SZ;
+        if (!MR32(r + 0x10u) || MR32(r + 0x18u) < CARTYPES_N) continue;
+        if (bad == STOCK_N) bad = i;
+        if (n < max) lost[n] = MR32(r + 8u);
+        n++;
     }
+    if (bad == STOCK_N) return 0;
+    uint32_t r = db + bad * STOCK_SZ;
+    fprintf(stderr, "[cars] %s's stock car %u (handle 0x%08x) has car type %u, none of the game's %u (%d such): "
+            "the stock cars made again, as for a new profile\n", db == G_FECARS ? "player 1" : "player 2", bad, MR32(r + 8u),
+            MR32(r + 0x18u), CARTYPES_N, n);
+    CPU save = *c;
+    c->esp = (c->esp - 256u) & ~15u;
+    PUSH32(0u);                           /* its argument, not read */
+    c->ecx = db;
+    PUSH32(0x004df9c0u);                  /* the ret pops it into eip; the state is put back below */
+    sub_00516500(c);
+    *c = save;
+    for (uint32_t i = 0; i < STOCK_N; i++)
+        if (!MR32(db + i * STOCK_SZ + 0x10u)) MR32(db + i * STOCK_SZ + 0x18u) = 0xffffffffu;
+    fprintf(stderr, "[cars] %u stock cars\n", MR32(db + 0x540u));
+    return n;
+}
+void sub_004df9c0(CPU *c){
+    uint32_t who = MR32(c->ecx + 0xecu), lost[1];
+    if (who < 2u) cars_stock_fix(c, G_FECARS + who * FECARS_PLAYER, lost, 0);
     sub_004df9c0_orig(c);
 }
 
@@ -948,7 +956,6 @@ void sub_00483e40(CPU *c){
  * waits (the reads serviced, 0x57EF60, until busy is clear).
  * NFSU2_TEST_LOADER_OVERLAP=1 (test aid): the game's way. */
 #define CARLOADER_BUSY  0x008a329cu
-#define CARTYPEINFO     0x008a1cccu   /* -> 46 x 0x890 bytes: +0 the name, +0xD0 the hash */
 uint32_t call_guest(CPU *c, uint32_t fn, int nargs, const uint32_t *args);   /* com.c */
 long autotest_frame(void);
 void sub_0061c600_orig(CPU *c);
@@ -962,7 +969,7 @@ void sub_0061c600(CPU *c){
         clock_gettime(CLOCK_MONOTONIC, &t0);
         while (MR32(CARLOADER_BUSY)) call_guest(c, 0x0057ef60u, 0, 0);
         clock_gettime(CLOCK_MONOTONIC, &t1);
-        uint32_t h = MR32(c->esp + 4u), t = MR32(CARTYPEINFO);
+        uint32_t h = MR32(c->esp + 4u), t = MR32(G_CARTYPES);
         char nm[16] = "?";
         for (uint32_t k = 0; t && k < 46u; k++)
             if (MR32(t + k * 0x890u + 0xd0u) == h){
@@ -1102,7 +1109,7 @@ static void texlist_add(uint32_t list, uint32_t at, uint32_t cnt, uint32_t h){
     MR32(list + at + 4u * n) = h; MR32(list + cnt) = n + 1u;
 }
 static void texlist_engine(uint32_t list, uint32_t ride){
-    uint32_t types = MR32(G_CARTYPES_TL), t = MR32(ride), a = types + t * 0x890u + 0x20u;
+    uint32_t types = MR32(G_CARTYPES), t = MR32(ride), a = types + t * 0x890u + 0x20u;
     if (!types || t >= 256u || !mem_is_committed(a + 0x20u)) return;
     char nm[40]; uint32_t i = 0;
     for (; i < 31u && MR8(a + i); i++) nm[i] = (char)MR8(a + i);
@@ -1118,7 +1125,8 @@ void sub_00631e20_orig(CPU *c);
 void sub_00631e20(CPU *c){
     static int full = -1;
     if (full < 0){ const char *e = getenv("NFSU2_TEST_TEXLIST_FULL"); full = e && *e == '1'; }
-    uint32_t esp0 = c->esp, list = MR32(esp0 + 4u), ride = MR32(esp0 + 8u), eng = roam_texlist_engine ? 1u : 0u;
+    uint32_t esp0 = c->esp, list = MR32(esp0 + 4u), ride = MR32(esp0 + 8u);
+    uint32_t eng = roam_texlist_engine || (damage_texlist_engine && damage_texlist_engine(ride)) ? 1u : 0u;
     uint32_t seen[56], off[56], offp[56]; int nd = 0, noff = 0;
     for (uint32_t z = 0; z < 7u; z++){
         if (!MR32(ride + RIDE_DECALZONES + 4u * z)) continue;
@@ -1162,6 +1170,67 @@ void sub_00631e20(CPU *c){
         if (n2 > TEXLIST_MAX) MR32(list + 0x22cu) = TEXLIST_MAX;
     }
     if (eng) texlist_engine(list, ride);
+}
+
+/* --- sub_00634800(): a car's drawing made from its ride, thiscall (render info)
+ * Among the rest it gives the car the nitrous purge of the purge kit in ride
+ * slot 0xA2 (NOS_PURGE: the shop's TYPE 1 .. 3 nozzles, and TYPE 2 and 3 in a
+ * colour, "TYPE 2 RED"): two lists of emitters, clones of the emitter
+ * library's (0x48B8B0) named by the kit's HOODEMITTER (render info +0x4C0,
+ * the effect kind 0xD of 0x615CC0) and WHEELEMITTER (+0x4C8, kind 0xE), each
+ * tinted by the kit's HOODHUE, HOODSAT, HOODLUM and TIREHUE, TIRESAT, TIRELUM
+ * (TYPE 2 RED: hue 0.33, saturation 1): 0x48B920 shifts the emitters' own
+ * colours by those into a colour entry (0x40 bytes) and points each emitter
+ * at it (+0x30).  The entries are 12 shared ones (0x8A3F60), one taken for
+ * each list (+0x2D49 the hood's, +0x2D4A the wheels', -1 none; 0x8A05D4 says
+ * which are taken, and the render info's destructor 0x634630 gives its two
+ * back).  With none free a list keeps no colour (+0x30 0): that car's purge
+ * comes out in the emitters' own white, whatever its kit, and six cars with a
+ * kit take all twelve.  In free roam the game's three outrun tuners' cars
+ * hold six of them from the start (their kits), so past the third other car
+ * with a kit every purge came out plain white: at a car meet nearly all
+ * (tests/scripts/roam_mp_purge_b.txt).  Here a list left without a colour
+ * gets one all the same: an entry kept here for that emitter and tint, made
+ * once by 0x48B920 and kept for the session (at most the 63 kits' two lists;
+ * operator new: the C library's heap, never reset), the twelve shared ones
+ * still taken first. */
+#define RI_PURGE_HOOD   0x4c0u        /* render info: the hood's purge emitters (a list: +0 the first, +4 the last) */
+#define RI_PURGE_COLOUR 0x2d49u       /* ...+0 the hood's shared colour, +1 the wheels' (int8, -1 none) */
+#define RIDE_NOS_PURGE  0x818u        /* RideInfo: ride slot 0xA2's part (+0x590 + 4 x 0xA2) */
+#define FN_PART_ATTR    0x0061b500u   /* thiscall CarPart (attribute's name hash, 0) -> its value (0: none) */
+#define FN_PURGE_TINT   0x0048b920u   /* cdecl (emitter list, colour entry, hue, saturation, luminance) */
+static uint32_t bstring_hash(const char *s){ uint32_t h = 0xffffffffu; for (; *s; s++) h = h * 33u + (uint8_t)*s; return h; }   /* 0x43DB50 */
+void sub_00634800_orig(CPU *c);
+void sub_00634800(CPU *c){
+    static struct { uint32_t emitters, h, s, l, entry; } kept[160];
+    static int nkept, logged;
+    uint32_t ri = c->ecx;
+    sub_00634800_orig(c);
+    uint32_t ride = guest_rd32(ri + 4u), part = ride && guest_ok(ride, RIDE_NOS_PURGE + 3u) ? MR32(ride + RIDE_NOS_PURGE) : 0;
+    if (!guest_ok(ri, RI_PURGE_COLOUR + 1u) || !guest_ok(part, 0xe)) return;
+    static const char *const attr[2][4] = { { "HOODEMITTER", "HOODHUE", "HOODSAT", "HOODLUM" },
+                                            { "WHEELEMITTER", "TIREHUE", "TIRESAT", "TIRELUM" } };
+    for (uint32_t l = 0; l < 2u; l++){
+        uint32_t head = ri + RI_PURGE_HOOD + 8u * l, first = MR32(head);
+        if ((int8_t)MR8(ri + RI_PURGE_COLOUR + l) >= 0 || !first || first == head || !guest_ok(first, 0x33)) continue;
+        if (MR32(first + 0x30u)) continue;                              /* (coloured already) */
+        uint32_t v[4];
+        for (int i = 0; i < 4; i++){ uint32_t a[2] = { bstring_hash(attr[l][i]), 0 }; v[i] = gcall(c, FN_PART_ATTR, part, 2, a); }
+        int k = 0;
+        while (k < nkept && !(kept[k].emitters == v[0] && kept[k].h == v[1] && kept[k].s == v[2] && kept[k].l == v[3])) k++;
+        if (k == nkept){
+            if (nkept == (int)(sizeof kept / sizeof kept[0])) continue;
+            uint32_t sz = 0x50u, mem = gcall(c, FN_NEW, 0, 1, &sz);
+            if (!mem) continue;
+            kept[k].emitters = v[0]; kept[k].h = v[1]; kept[k].s = v[2]; kept[k].l = v[3];
+            kept[k].entry = (mem + 15u) & ~15u;                         /* 16-aligned, as the shared ones */
+            nkept++;
+        }
+        uint32_t a[5] = { head, kept[k].entry, v[1], v[2], v[3] };
+        gcall(c, FN_PURGE_TINT, 0, 5, a);
+        if (logged++ < 8) fprintf(stderr, "[purge] f=%ld a car's purge (%s): the 12 shared colours taken, one of the %d kept here\n",
+                                  autotest_frame(), l ? "wheels" : "hood", nkept);
+    }
 }
 
 /* --- sub_00639f20(texture set): a ride's textures let go, thiscall, ret 4 --
@@ -1226,7 +1295,30 @@ void sub_00639f20(CPU *c){
  * memory, which overlaps the output, or would read or write past the
  * output's ends goes to the game's code from the start (each byte it writes
  * again is the same).  The other kinds: the game's.  NFSU2_JDLZ_VERIFY=1
- * (test aid): each block unpacked both ways, compared ("[jdlz] DIFFERS"). */
+ * (test aid): each block unpacked both ways, compared ("[jdlz] DIFFERS").
+ * A block of one of the packs (VINYLPACKS, MODPACKS, LANGPACKS: fileio.c
+ * keeps where their bytes went) never goes to the game's code: one the native
+ * unpacker refuses is logged ("[packs]": the pack file, where in it) and
+ * left out, its output zeroed and 0 returned, as the game does for a kind it
+ * does not know; a texture block of zeros has a TextureInfo of none (hash 0,
+ * an empty place: 0x494C10 finds and makes nothing), so the texture is
+ * missing.  The output's size is the caller's: the streamer's (0x48D090) its
+ * entry's (esi, +0xC: it allocates that and its alignment), the FE packs' and
+ * the bundles' (0x51BC81, 0x577E46) the block's own (+8).  The game's own
+ * blocks keep the game's code where the native unpacker does not take them:
+ * all of its texture packs' 2623 JDLZ blocks and its 3 JDLZ bundles unpack
+ * natively by these rules (tools/packcheck.py's copy of them), so only a
+ * block in memory that overlaps its output or is not all there goes to it.
+ * The native unpacker takes a JDLZ block only when its output comes out
+ * whole (all of the game's do).
+ * Every unpacker writes the size the block says (+8: JDLZ, RAWW, HUFF), and
+ * only the FE packs and the bundles (and split screen's copy) allocate that;
+ * the streamer allocates its entry's.  So a block from the streamer that says
+ * more than its entry is refused before any unpacker sees it, the same way,
+ * a pack's or the game's (the game's never do: its texture packs' 58637
+ * blocks all say their entry's size).  And a pack's block of a kind or
+ * version the game's dispatcher unpacks nothing of (its output left as the
+ * memory had it) is refused the same way. */
 #define JDLZ_TAG        0x5a4c444au
 #define RAWW_TAG        0x57574152u
 #define HUFF_TAG        0x46465548u
@@ -1238,7 +1330,7 @@ static int range_committed(uint32_t a, uint32_t n){
         if (!((g_cbits[pg >> 3] >> (pg & 7)) & 1)) return 0;
     return 1;
 }
-/* 1: unpacked into out; 0: not done (out may hold some of it) */
+/* 1: unpacked into out, all of it; 0: not done (out may hold some of it) */
 static int jdlz_native(uint32_t blk, uint32_t out){
     uint32_t size = MR32(blk + 8u), csize = MR32(blk + 0xcu);
     if (csize < 0x12u || !range_committed(blk, csize) || !range_committed(out, size)) return 0;
@@ -1411,7 +1503,6 @@ void sub_00574670(CPU *restrict c){
  * full.  NFSU2_PARTMEMO=0 (test aid): asked every time; 2: asked every time,
  * each kept answer checked against it ("[parts] DIFFERS"). */
 #define PARTMEMO_N      262144                  /* a power of two: 4 MB */
-#define G_CARPARTDB_OBJ 0x008a2b68u
 void sub_0061b980_orig(CPU *c);
 static struct { uint32_t key, prev, part; uint8_t type, slot, lvl, used; } g_pm[PARTMEMO_N];
 static uint32_t g_pm_n, g_pm_tabs[4];
@@ -1419,7 +1510,7 @@ static void newgetcarpart(CPU *restrict c){
     static int mode = -1;
     if (mode < 0){ const char *e = getenv("NFSU2_PARTMEMO"); mode = e && *e == '0' ? 0 : e && *e == '2' ? 2 : 1; }
     uint32_t e = c->esp, db = c->ecx;
-    if (!mode || db != G_CARPARTDB_OBJ || !mem_is_committed(e + 0x14u)){ sub_0061b980_orig(c); return; }
+    if (!mode || db != G_CARPARTDB || !mem_is_committed(e + 0x14u)){ sub_0061b980_orig(c); return; }
     uint32_t type = MR32(e + 4u), slot = MR32(e + 8u), key = MR32(e + 12u), prev = MR32(e + 16u), lvl = MR32(e + 20u);
     if (type > 0xffu || slot > 0xffu || (int32_t)lvl < -128 || (int32_t)lvl > 127){ sub_0061b980_orig(c); return; }
     uint32_t tabs[4] = { MR32(db), MR32(0x008a1cb8u), MR32(0x008a1cbcu), MR32(0x008a1cc8u) };   /* parts, owners, their count, attributes */

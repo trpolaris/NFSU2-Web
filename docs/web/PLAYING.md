@@ -251,6 +251,15 @@ keys as the Mac app. Each change is saved at once and applies the next time you 
   40 % to 100 % (the default): only the brightest parts come down, so dark streets stay as they are. Both change the
   picture as you move them, the menus and the HUD too, and stay with the game's options on this device (backups
   carry them, cloud saves do not). F12 screenshots keep the game's own colours.
+- **Anti-aliasing:** the game's own Full Scene Anti-Aliasing, in its Options, Display, Customize Display Settings
+  (also the pause menu's), drawn at 4 samples: smoother edges, for more of the graphics' work, so a slower computer
+  may lose frame rate with it. A new player on a computer starts with it on; a computer that played before is asked
+  once at Play ("Smoother edges?"). Phones are not offered it, tablets start with it off, and computers with AMD's
+  Vega (GCN-5) or Qualcomm graphics are not offered it (it lost their graphics). settings.ini `fsaa = off` greys the
+  option out.
+- **Anisotropic filtering:** roads, their lines and building fronts stay sharp at a distance and at an angle, which
+  the original game never had. On for computers, off on phones and tablets; settings.ini `anisotropic = off` turns it
+  off.
 - **Two tabs:** one browser runs one game at a time. A second tab shows "Open elsewhere" and its Settings are
   read only. It takes over when the first tab closes.
 
@@ -315,8 +324,10 @@ keys as the Mac app. Each change is saved at once and applies the next time you 
   are added beside the profiles in this browser, with their DVD and magazine covers; one of the same name is
   replaced, after asking. A profile saved by another version is left out, as the game would not load it. One
   changed by a save editor is restored with a warning: a value the game would not make itself may crash it or break
-  the career. One with cars a mod added is restored with a warning too: this game does not have those cars, and may
-  crash or show them wrong.
+  the career. One with cars a mod added is restored with a warning too: this game does not have those cars, so each
+  one shows here as a stock car (a Peugeot 206 with stock parts), and the save keeps the car as it is, for the modded
+  game, unless you change it here (parts, tuning, a trade). A profile folder's GARAGE.DAT and MODPARTS.DAT (slots 6-10,
+  the parts this game keeps beside a profile) come along from a zip of the folder.
 - **Backups are your safety net.** When the disk is nearly full, the browser may clear a site's storage unless it
   promised to keep it. Chrome decides that by itself, and the page cannot see how full the disk is, so it does not warn.
   Firefox asks by the address bar (the Saves section says so while it asks): allow it. Make a backup now and then,
@@ -496,9 +507,9 @@ Good to know:
   other names, and their minimap arrows and world-map markers (with their names beside them) are in the crew's colour.
   You can be in up to 4 crews; each has its own colour (cyan, magenta, violet, red unless you tap its dot to pick
   another), and the crew list shows how many of each are in free roam now (in the page menu, you count too once you
-  drive). A crew of more than 64 players in one room is too big to pair first: they see each other only nearby, and
+  drive). A crew of more than 64 players in one world is too big to pair first: they see each other only nearby, and
   the list says so (pick a less common name). Capitals and spaces don't count ("Blue Room" is "blueroom"); a name that
-  reads as a slur is no crew. Everyone else is still there, unlike a Room. Not private: anyone who types the same name
+  reads as a slur is no crew. Everyone else is still there, unlike a world. Not private: anyone who types the same name
   joins, but other players never learn your crews: the server tells each game which players near it share one. A
   player on an older version is in no crew.
 - **Rooms:** set the same "Room" to see only some of the players' cars. A room is a filter between players, not

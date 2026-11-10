@@ -49,3 +49,20 @@ test('catchup_unit: career rubberbanding follows the setting and leaves other ra
   for (const c of ['unset', 'bogus', 'case']) assert.ok(pass.includes(c), `case ${c} passed`);
   assert.match(out, /catchup unit tests: all passed/);
 });
+
+test('catchup_unit: the career\'s rubberbanding as the setting says, outside career races the game\'s own', { skip }, () => {
+  const { out, pass } = run('catchup_unit', ['-O1', '-g', '-Wall', '-Wextra', '-Wno-unused-function']);
+  for (const m of ['original', 'noboost', 'off'])
+    for (const c of ['no-race', 'behind', 'ahead', 'no-car']) assert.ok(pass.includes(`${m}-${c}`), `case ${m}-${c} passed`);
+  for (const c of ['unset', 'bogus', 'case']) assert.ok(pass.includes(c), `case ${c} passed`);
+  assert.match(out, /catchup unit tests: all passed/);
+});
+
+test('modparts_unit: what a profile never holds, kept beside it (MODPARTS.DAT), stances too', { skip, timeout: 120000 }, () => {
+  const { out } = run('modparts_unit', ['-O1', '-g', '-Wall', '-Wno-unused-function']);
+  const pass = [...out.matchAll(/^PASS (\S+)/mg)].map(m => m[1]);
+  for (const c of ['af-hide', 'af-back', 'trade', 'writefail', 'counter', 'deleted', 'modded-keys', 'stance-basic', 'stance-elsewhere', 'stance-replaced', 'stance-addon',
+    'stance-split', 'stance-noprofile', 'stance-deleted', 'stance-order', 'stance-changed', 'stance-later', 'stance-trade', 'stance-modrim',
+    'stance-reset-all']) assert.ok(pass.includes(c), `case ${c} passed`);
+  assert.match(out, /modparts_unit: passed/);
+});

@@ -38,6 +38,9 @@ PARTS.BIN (little-endian):
   strings  NUL-terminated; a part's strings are offsets into them, 0xFFFFFFFF none
 Every string a part names is an offset into strings; runtime/modpacks.c puts
 them into the part database's own string table.
+
+All of it is checked as the game reads it (tools/packcheck.py) before any of
+it is written; nothing is written when a file fails.
 """
 import argparse, os, struct, sys
 
@@ -45,6 +48,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from texpacks import bstring_hash, chunks, find, jdlz, tpks  # noqa: E402
 import packcheck  # noqa: E402
 from vinylpacks import read_tpk, splice, parse_tpk, jdlz_pack, jdlz_game, MAGIC, VERSION as VPAK_VERSION  # noqa: E402
+import packcheck  # noqa: E402
 
 PART_MAGIC, PART_VERSION = b'MPRT', 1
 PART_SZ = 4 + 4 + 4 + 4 + 4 + 4 + 32 + 4 + 64
@@ -377,7 +381,6 @@ def main():
     mem = find(a.game, 'GLOBAL/GlobalMemoryFile.bin')
     mcut, mhead, hit = unlisted(mem, [('CARS/WHEELS/TEXTURES.BIN', len(base))])
     if not hit: sys.exit(f'{mem}: CARS/WHEELS/TEXTURES.BIN is not in it (the game\'s is)')
-    os.makedirs(os.path.join(out, 'GLOBAL'), exist_ok=True)
     put('GLOBAL/GlobalMemoryFile.bin', struct.pack('<4s7I', MAGIC, VPAK_VERSION, os.path.getsize(mem), mcut, len(mhead), 0, 0, 0) + mhead)
     for brand, path in geo: put(f'CARS/WHEELS/GEOMETRY_{brand}.BIN', open(path, 'rb').read())
     body = bytearray(struct.pack('<4s7I', PART_MAGIC, PART_VERSION, len(mods), len(parts), len(texts), len(S.b), 0, 0))

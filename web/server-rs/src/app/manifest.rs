@@ -34,6 +34,7 @@ pub const GAME_ENTRIES: [&str; 21] = [
     "credits",
     "frontend",
     "global",
+    "hqvinyls",  // the HQ vinyls' pictures (tools/hqvinyls.py), if the folder has them
     "langpacks", // the language packs (tools/langpacks.py), if the folder has them
     "languages",
     "memcard",

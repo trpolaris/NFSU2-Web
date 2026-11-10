@@ -425,6 +425,7 @@ async function loadSettings(): Promise<string | null> {
   const text = await settingsFile.load(instance.owner);
   // who plays on this server, asked again with this file's room and crews (the first question went without them)
   players?.now();
+  evaluate();                           // (Ready's line: free roam with others on or off)
   return text;
 }
 /** this device's own defaults (a phone's: device.ts), below settings.ini and the page address */
@@ -526,7 +527,7 @@ async function askCloud() {
   log.add(`[app] cloud saves: ${on ? 'turned on' : 'not now'} (asked at Play)`);
   if (!on) return;
   const phrase = await enableCloud();
-  if (!phrase) return;
+  if (!phrase) return true;
   const claimed = name && info?.state === 'free' && !info.mine ? await claimQuietly(playDeps(), name, info, quietCheck) : null;
   await showPassphrase(phrase, claimed?.name ?? null);
 }
@@ -1092,6 +1093,7 @@ function openHelp() {
   const m = $<HTMLDialogElement>('#menu');
   if (!m.open) openMenu();
   const body = $('#help-body');
+  if (!$<HTMLDialogElement>('#menu').open) openMenu();
   if (!helpSheet) {
     const template = document.getElementById('controls-help-template') as HTMLTemplateElement | null;
     if (!template) throw new Error('Controls help template is missing');
@@ -1831,6 +1833,8 @@ async function menuAction(act: string) {
       log.add(`[app] solid cars ${solidCars ? 'on' : 'off'} (the page menu)`);
       break;
     }
+    case 'worlds': openWorlds(); break;
+    case 'tracks': openTracks(); break;
     case 'crews': openCrews(); break;
     case 'tracks': openTracks(); break;
     case 'world-own-save': {

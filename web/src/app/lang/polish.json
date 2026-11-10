@@ -487,7 +487,7 @@
   "\"{value}\" is not a whole number in {vals}": "„{value}” to nie liczba całkowita z zakresu {vals}",
   "\"{value}\" is not a name (printable ASCII, at most 24 characters)": "„{value}” to nie nazwa (drukowalne znaki ASCII, najwyżej 24)",
   "\"{value}\" is not a name (it reads as a slur)": "„{value}” to nie nazwa (brzmi jak obelga)",
-  "\"{value}\" is not a room name (it reads as a slur)": "„{value}” to nie nazwa pokoju (brzmi jak obelga)",
+  "\"{value}\" is not a world name (it reads as a slur)": "„{value}” to nie nazwa świata (brzmi jak obelga)",
   "\"{value}\": \"{bad}\" is not a.b.c.d or a.b.c.d:port (IPv4 numbers, no names)": "„{value}”: „{bad}” to nie a.b.c.d ani a.b.c.d:port (liczby IPv4, bez nazw)",
   "\"{value}\" is not a numeric id": "„{value}” to nie identyfikator liczbowy",
   "\"{value}\" is not an asset key or URL (printable ASCII, no spaces)": "„{value}” to nie klucz zasobu ani URL (drukowalne znaki ASCII, bez spacji)",

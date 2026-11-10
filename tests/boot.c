@@ -1,6 +1,7 @@
 /* A start from the entry point: how far does it get? */
 #include "cpu.h"
 #include "decls.h"
+#include "featurelist.h"
 #include <stdio.h>
 #include <string.h>
 #include <signal.h>
