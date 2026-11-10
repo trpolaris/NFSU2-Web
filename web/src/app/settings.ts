@@ -1047,8 +1047,13 @@ export function resetAll(text: string | null): string {
   const r = resolveEnv(text, {}, {});
   let next = TEMPLATE;
   for (const key of RESET_KEEPS) {
-    const env = keyDef(key)!.env, v = r.env[env], c = checkSetting(key, v ?? '');
-    if (r.source[env] === 'settings.ini' && c?.ok && c.value === v) next = settingsPut(next, key, v);
+    // A retained setting can be removed from this browser's table while an
+    // older reset list still names it.  Ignore that obsolete entry rather
+    // than dereferencing an absent KeyDef and aborting the whole reset.
+    const def = keyDef(key);
+    if (!def) continue;
+    const v = r.env[def.env], c = checkSetting(key, v ?? '');
+    if (r.source[def.env] === 'settings.ini' && c?.ok && c.value === v) next = settingsPut(next, key, v);
   }
   return next;
 }
