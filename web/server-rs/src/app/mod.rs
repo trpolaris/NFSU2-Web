@@ -719,6 +719,7 @@ impl App {
         let body = nfsu2_util::json::stringify(&serde_json::Value::Object(body));
         let mut h = self.headers(q, Cache::Store, true);
         h.set("content-type", "application/json");
+        h.set("cache-control", "no-store");
         h.set("content-length", body.len().to_string());
         s.head(200, h.0);
         if q.method != "HEAD" {
