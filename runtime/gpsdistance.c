@@ -6,6 +6,8 @@
  * looked up by name each frame, so no pointer outlives a HUD (shops, races,
  * pause). */
 #include "cpu.h"
+#include "game.h"
+#include "guest.h"
 #include "gpsdistance_format.h"
 #include <math.h>
 #include <stdio.h>
