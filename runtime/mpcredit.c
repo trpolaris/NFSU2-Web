@@ -156,6 +156,8 @@ int career_fe_active(const char *name);
 #define G_MOVIE_AT      0x0083856cu   /* ...the one playing */
 #define G_MOVIE_MODE    0x00838568u   /* what follows the movie screen (0x54AF80): 5 nothing */
 #define FN_FE_ADD       0x00555e80u   /* cdecl (package, 0): the package added, over the others */
+#define FN_FE_QUEUE     0x00555d00u   /* thiscall cFEng: queue a screen in front-end draw order */
+#define FN_FE_RUN       0x0052cdd0u   /* thiscall cFEng: run the queued screen */
 #define FN_MOVIE_PREP   0x0043b640u   /* thiscall 0x827E88: as 0x53D7A0 before its movie */
 #define MSG_CRIB_GO     0x451e768eu   /* to the crib: "Return to Explore Mode?" Yes (0x4AF360: the save, if any) */
 #define MSG_SAVE_WORLD  0x461a18eeu   /* to the crib from the memory card, its save over: on to the world (first) */
@@ -166,22 +168,6 @@ int career_fe_active(const char *name);
 #define RACE_LAST       0x04cce3e1u   /* S5_CIRCUIT_36, the career's last race (0x513A50: Scene15) */
 #define MSG_SIGN        0x4d504301u   /* our answers (not the game's messages: its screens ignore them) */
 #define MSG_NEXT        0x4d504302u
-
-/* The runtime uses committed guest pages directly; keep every host-side
- * guest read bounded and avoid dependencies on headers used by the native app. */
-static int guest_ok(uint32_t address, uint32_t bytes){
-    if (!address || !bytes) return 0;
-    uint64_t last = (uint64_t)address + (uint64_t)bytes - 1u;
-    if (last > UINT32_MAX) return 0;
-    uint32_t first_page = address >> 14;
-    uint32_t last_page = (uint32_t)last >> 14;
-    for (uint32_t page = first_page; page <= last_page; page++)
-        if (!mem_is_committed(page << 14)) return 0;
-    return 1;
-}
-static uint32_t guest_rd32(uint32_t address){
-    return guest_ok(address, sizeof(uint32_t)) ? MR32(address) : 0u;
-}
 
 /* Invoke a lifted game function from the main-loop hook, preserving the
  * caller's complete CPU state just as the other runtime subsystems do. */
