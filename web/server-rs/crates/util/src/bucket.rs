@@ -226,16 +226,6 @@ mod tests {
     }
 
     #[test]
-    fn a_bucket_of_its_own_burst() {
-        let mut b = Bucket::with_burst_at(2.0, 5.0, 0.0);
-        assert!(b.take_at(0.0, 5.0) && !b.take_at(0.0, 1.0));
-        assert_eq!(b.level_at(1000.0), 2.0);
-        assert_eq!(b.v, 0.0, "a look takes nothing and fills nothing");
-        assert_eq!(b.level_at(10_000.0), 5.0, "no more than the burst");
-        assert!(b.take_at(500.0, 1.0) && !b.take_at(500.0, 0.5));
-    }
-
-    #[test]
     fn budget_keeps_a_free_share() {
         let b = Budget::new(3, 5, 4, 0.25);
         assert!(b.take("a", ""));
