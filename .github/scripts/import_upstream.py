@@ -70,7 +70,7 @@ def main():
     if branch != BRANCH:
         raise SystemExit("Wrong branch; refusing to modify " + branch)
 
-    fetch = run(["git", "fetch", "--no-tags", "https://github.com/th0mk/nfsu2-web.git", "main"], check=True)
+    run(["git", "fetch", "--no-tags", "https://github.com/th0mk/nfsu2-web.git", "main"], check=True)
     upstream = git("rev-parse", "FETCH_HEAD", text=True).strip()
     if upstream != UPSTREAM_SHA:
         raise SystemExit("Upstream main changed: expected " + UPSTREAM_SHA + " got " + upstream)
@@ -144,8 +144,6 @@ def main():
             if had_conflict:
                 conflicts.append(path)
 
-    # Keep existing TRPOLARIS CI definitions, but allow this workflow to dispatch
-    # exact-HEAD validation after the import commit is pushed.
     workflow_paths = [
         ".github/workflows/multiplayer-ci.yml",
         ".github/workflows/wasm-runtime-duplicate-check.yml",
@@ -157,15 +155,14 @@ def main():
             skipped.append(name + " (not found for dispatch enablement)")
             continue
         content = p.read_text(encoding="utf-8")
-        if re.search(r"(?m)^\\s*workflow_dispatch\\s*:", content):
+        if re.search(r"(?m)^\s*workflow_dispatch\s*:", content):
             continue
-        updated, n = re.subn(r"(?m)^on:\\s*\\n", "on:\\n  workflow_dispatch:\\n", content, count=1)
+        updated, n = re.subn(r"(?m)^on:\s*\n", "on:\n  workflow_dispatch:\n", content, count=1)
         if n:
             p.write_text(updated, encoding="utf-8")
         else:
             skipped.append(name + " (could not add workflow_dispatch safely)")
 
-    # Ensure every Rust crate has canonical formatting after the merge.
     fmt = run(["cargo", "fmt", "--manifest-path", "web/server-rs/Cargo.toml", "--all"], check=False)
     if fmt.returncode:
         raise SystemExit(fmt.stderr.decode("utf-8", "replace"))
@@ -199,9 +196,8 @@ def main():
     report += ["- " + p for p in conflicts]
     report += ["", "## Skipped files", ""]
     report += ["- " + p for p in skipped]
-    REPORT.write_text("\\n".join(report) + "\\n", encoding="utf-8")
+    REPORT.write_text("\n".join(report) + "\n", encoding="utf-8")
 
-    # Remove the one-shot importer from the branch once it has run.
     for temp in [Path(".github/scripts/import_upstream.py"), Path(".github/workflows/upstream-import-once.yml")]:
         if temp.exists():
             temp.unlink()
@@ -221,18 +217,11 @@ def main():
     print("UPSTREAM_CONFLICTS_KEPT=" + str(len(conflicts)))
     print("UPSTREAM_SKIPPED_FILES=" + str(len(skipped)))
 
-    # GITHUB_TOKEN pushes do not emit another push event. Explicitly dispatch
-    # the repo's retained CI workflows against the new exact branch head.
     env = dict(os.environ)
     env["GH_TOKEN"] = os.environ["GITHUB_TOKEN"]
-    dispatch = [
-        "multiplayer-ci.yml",
-        "wasm-runtime-duplicate-check.yml",
-        "image-rs.yml",
-    ]
-    for workflow in dispatch:
-        r = run(["gh", "workflow", "run", workflow, "--ref", BRANCH], check=False)
-        print("DISPATCH_" + workflow + "=" + ("ok" if r.returncode == 0 else "failed: " + r.stderr.decode("utf-8", "replace")[:300]))
+    for workflow in ["multiplayer-ci.yml", "wasm-runtime-duplicate-check.yml", "image-rs.yml"]:
+        r = subprocess.run(["gh", "workflow", "run", workflow, "--ref", BRANCH], env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        print("DISPATCH_" + workflow + "=" + ("ok" if r.returncode == 0 else "failed: " + r.stderr[:300]))
 
 if __name__ == "__main__":
     main()
