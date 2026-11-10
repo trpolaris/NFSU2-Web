@@ -79,6 +79,37 @@ int language_no_profile(const char *name);   /* language.c */
 #define rh_carsfx_car(who, name, p, v, st) carsfx_car((who), (name), (p), (v), (st))
 #define rh_carsfx_end()  carsfx_end()
 #define rh_no_profile(n) language_no_profile(n)
+const char *plates_mine(void);
+void plates_friend(int k, uint32_t car, const char *text);
+void plates_forget(void);
+#define rh_plate_mine() plates_mine()
+#define rh_plate_car(k, car, text) plates_friend((k), (car), (text))
+#define rh_plates_forget() plates_forget()
+
+/* Free-roam travel state (travel.c). */
+uint32_t travel_room(void);
+#define rh_travel_room() travel_room()
+
+/* Crash damage bridge (damage.c; damage_none.c supplies native no-op stubs). */
+__attribute__((weak)) int damage_net_on(void);
+__attribute__((weak)) uint32_t damage_net_rev(void);
+__attribute__((weak)) int damage_net_mine(uint8_t *epoch, uint16_t *first, uint8_t *dents, int max);
+__attribute__((weak)) void damage_net_car(CPU *c, int k, uint32_t car, uint32_t peer,
+                                          uint8_t epoch, uint16_t first, int n, const uint8_t *dents);
+#define rh_damage_on() (damage_net_on ? damage_net_on() : 0)
+#define rh_damage_rev() (damage_net_rev ? damage_net_rev() : 0u)
+#define rh_damage_mine(e, f, d, m) (damage_net_mine ? damage_net_mine((e), (f), (d), (m)) : 0)
+#define rh_damage_car(c, k, car, peer, epoch, first, n, dents) do { \
+    if (damage_net_car) damage_net_car((c), (k), (car), (peer), (epoch), (first), (n), (dents)); \
+} while (0)
+
+/* Stance on our car and the cars shown for friends (stance.c). */
+int  stance_wire_mine(int16_t v[5]);
+void stance_wire_car(int k, uint32_t car, int has, const int16_t v[5]);
+void stance_forget(void);
+#define rh_stance_mine(v) stance_wire_mine(v)
+#define rh_stance_car(k, car, has, v) stance_wire_car((k), (car), (has), (v))
+#define rh_stance_forget() stance_forget()
 typedef FILE rh_file;
 #ifdef __wasm__
 /* The pose log (a test aid) in the browser: every stdio flush is a

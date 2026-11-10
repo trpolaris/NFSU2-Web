@@ -297,6 +297,7 @@ int fileio_resolve_save_w(const char *win, char *out, size_t outsz){ return reso
 /* A profile the game saves, "<root>/NFS Underground 2/<NAME>/<NAME>" (any
  * case): garage.c keeps its slots 6-10 in a file beside it. */
 void garage_profile_written(const char *path);
+void savegame_profile_written(void);
 void garage_profile_deleted(const char *path);
 static int is_profile(const char *path){
     static const char dir[] = "NFS Underground 2";
@@ -392,7 +393,7 @@ static int gf_add(const char *win, const char *real, int64_t size){
     i = -i - 1;
     while (g_gf[i].win) i = (i + 1) & (GF_N - 1);
     if (!(g_gf[i].win = strdup(win)) || !(g_gf[i].real = strdup(real))){ free(g_gf[i].win); g_gf[i].win = 0; return -1; }
-    g_gf[i].size = size; g_gf[i].real2 = 0; g_gf_n++;
+    g_gf[i].size = size; g_gf[i].real2 = 0; g_gf[i].pk = 0; g_gf_n++;
     return i;
 }
 /* a kept descriptor of that file (the latest kept), or -1; *fd2 its vinyl pack's (or -1) */
@@ -953,7 +954,7 @@ int fileio_call(CPU *c, const char *n, uint32_t *out){
 #endif
         { if(f->fd>=0) close(f->fd); if(f->fd2>=0) close(f->fd2); }
         if(f->dir) closedir(f->dir);
-        if(f->wr){ if (f->fd >= 0 && is_profile(f->path)) garage_profile_written(f->path); g_open_wr--; }
+        if(f->wr){ if (f->fd >= 0 && is_profile(f->path)){ garage_profile_written(f->path); savegame_profile_written(); } g_open_wr--; }
         f->used=0; r=1;
     }
     else if (!strcmp(n,"GetFileAttributesA")){

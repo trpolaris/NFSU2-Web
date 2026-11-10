@@ -41,6 +41,10 @@ export const E = {
   NAMETOOLONG: 37, NOENT: 44, NOSPC: 51, NOSYS: 52, NOTDIR: 54, NOTEMPTY: 55, NOTSUP: 58, PERM: 63, ROFS: 69, SPIPE: 70,
 } as const;
 
+/** The page asks the I/O worker for bytes of a game-folder file. */
+export interface ReadAsk { t: 'read'; id: number; path: string; off: number; len: number; exact?: boolean }
+export interface ReadAnswer { t: 'read'; id: number; bytes?: Uint8Array<ArrayBuffer>; error?: string }
+
 export interface BootConfig {
   args: string[];
   env: Record<string, string>;

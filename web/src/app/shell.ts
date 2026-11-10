@@ -33,12 +33,13 @@ import { deviceDefaults, deviceKind, isPhone, markTouch, noPinchZoom, noteGraphi
 import { deviceSeed, phoneUpgrade } from './phonegraphics';
 import { markPad, padPress, pageDialog } from './padnav';
 import { controlsSheet, controlsState as createControlsState, type ControlsSheet, type ControlsState, type Family, type Tab } from './controls';
+import { SiteKeysView, applySiteKeys, keyName, menuKeyOf, onSiteKeys, siteKey } from './sitekeys';
 import { askMotion, levelHorizon, menuSize, onLevelHorizon, onSteering, setLevelHorizon, setSteering, steering, STEERING, steeringName, touchSize, type Size, type Steering, TouchControls } from './touch';
 import { PAD_DRIVER_EVENT } from '../input/gamepad';
 import { TextField } from './textentry';
 import { PauseHint } from './pausehint';
 import { DriftPanel } from './drift';
-import { PhotoMode } from './photo';
+import { PhotoMode, photoMark } from './photo';
 import type { PadPage } from '../input/gamepad';
 import type { NetQueue, NetRemoved } from '../net';
 import { blockList, checkSetting, HOST_FIXED, pageOnly, resolveEnv, TEMPLATE, type Resolved } from './settings';
@@ -61,9 +62,13 @@ import { FriendPrompt } from './friend-prompt';
 import { Radio, MODES, radioWasOn, type Mode } from '../radio';
 import { canPickMusic, pickMusic } from '../radio-folder';
 import { RadioLink } from './radio-link';
+import { LastfmApi, readSession, Scrobbler, scrobbleWhilePlaying } from './lastfm';
+import { LastfmRow } from './lastfm-ui';
+import { measureCountryRtt, countryFlag } from './country-rtt';
 import { FpsOverlay, FPS_MODES, type FpsMode } from './overlay';
 import { LobbyPanel } from './lobby';
 import { ICON as CHAT_ICON, QuickChat } from './quickchat';
+import { bindUiSounds, uiSounds } from './ui-sound';
 import { groupsOf, phrasesOf } from './phrases';
 import { GameSession } from './game';
 import { AwayCheck, AWAY_LIMITS, type AwayLimits } from './away';
@@ -420,6 +425,7 @@ async function loadSettings(): Promise<string | null> {
   const text = await settingsFile.load(instance.owner);
   // who plays on this server, asked again with this file's room and crews (the first question went without them)
   players?.now();
+  evaluate();                           // (Ready's line: free roam with others on or off)
   return text;
 }
 /** this device's own defaults (a phone's: device.ts), below settings.ini and the page address */
@@ -521,7 +527,7 @@ async function askCloud() {
   log.add(`[app] cloud saves: ${on ? 'turned on' : 'not now'} (asked at Play)`);
   if (!on) return;
   const phrase = await enableCloud();
-  if (!phrase) return;
+  if (!phrase) return true;
   const claimed = name && info?.state === 'free' && !info.mine ? await claimQuietly(playDeps(), name, info, quietCheck) : null;
   await showPassphrase(phrase, claimed?.name ?? null);
 }
@@ -710,6 +716,7 @@ async function startGame() {
     NFSU2_WIDTH: String(size.w & ~1), NFSU2_HEIGHT: String(size.h & ~1), NFSU2_DISPLAY_HZ: String(displayHz),
   };
   const r = resolved(host);
+  applySiteKeys(r.env);
   if (r.env.NFSU2_ROAM === '1' && noGhost(r.env.NFSU2_ROAM_ROOM ?? '')) r.env.NFSU2_ROAM_COLLIDE = 'on';
   if (playAs) r.env.NFSU2_ROAM_NAME = playAs;
   // the names this game goes by, for the log as it leaves the browser (privacy.ts)
@@ -932,11 +939,12 @@ function toggleFullscreen() {
 /** how the page's menu opens here, for the hints: F9, the ☰ button on a touch screen, Home on a controller */
 function menuKey(): string {
   if (touchFirst()) return padSeen() ? t('the ☰ button or Home on the controller') : t('the ☰ button');
-  return padSeen() ? t('F9 or Home on the controller') : 'F9';
+  const key = keyName(siteKey('menu') ?? 'F9');
+  return padSeen() ? t('{key} or Home on the controller', { key }) : key;
 }
-/** "the menu (F9)", with what opens it here */
+/** the menu's current Site-controls key, and Home on a controller */
 function menuName(): string {
-  const key = touchFirst() ? '☰' : 'F9';
+  const key = touchFirst() ? '☰' : keyName(siteKey('menu') ?? 'F9');
   return padSeen() ? t('the menu ({key}, or Home on the controller)', { key }) : t('the menu ({key})', { key });
 }
 const cap = (s: string) => s[0].toUpperCase() + s.slice(1);
@@ -1079,16 +1087,33 @@ function pageToast(msg: string | Msg) {
 
 /** The Controls sheet in the F9 control deck, at the page's current tab and controller family. */
 let controlState: ControlsState, helpSheet: ControlsSheet | null = null;
+let siteKeysView: SiteKeysView | null = null;
+onSiteKeys(() => siteKeysView?.render());
 function openHelp() {
   const m = $<HTMLDialogElement>('#menu');
   if (!m.open) openMenu();
   const body = $('#help-body');
+  if (!$<HTMLDialogElement>('#menu').open) openMenu();
   if (!helpSheet) {
     const template = document.getElementById('controls-help-template') as HTMLTemplateElement | null;
     if (!template) throw new Error('Controls help template is missing');
     body.append(template.content.cloneNode(true));
     helpSheet = controlsSheet(body, 'help');
   }
+  if (!siteKeysView) {
+    siteKeysView = new SiteKeysView({
+      set: async (key, value) => {
+        await settings.set(key, value);
+        window.dispatchEvent(new Event('trp-settings-changed'));
+      },
+      current: key => settings.current(key),
+      readOnly: () => !instance.owner,
+      registry: () => readText(SAVE, 'registry.txt'),
+      ps: () => controlState.fam === 'ps',
+    });
+  }
+  const siteBox = body.querySelector<HTMLElement>('[data-site-keys-mount]');
+  siteKeysView.render(siteBox ?? undefined, !session && instance.owner);
   helpSheet.show(controlState.tab);
   helpSheet.family(controlState.fam);
   selectMenuTab('controls');
@@ -1337,11 +1362,11 @@ function toast(msg: string, ms: number) {
 
 /** F12 (photo.ts: photo mode's picture, or where it cannot open): the next frame the renderer draws, as a PNG beside the
  *  saves (Saves on the start page shows it) */
-async function screenshot() {
+async function screenshot(photo = false) {
   const r = session?.renderer;
   if (!r?.dump) { toast(t('No screenshot: the picture is not there yet.'), 2500); return; }
   try {
-    const png = await r.dump('screenshot');
+    const png = photo && r.photo ? await r.photo('screenshot', photoMark()) : await r.dump('screenshot');
     if (!png.size) throw new Error('the game ended first');
     const name = await saveScreenshot(SAVE, png);
     log.add(`[app] screenshot ${name}, ${fmtBytes(png.size)}`);
@@ -1355,7 +1380,7 @@ async function screenshot() {
 // ----------------------------------------------------------- page menu --
 function openMenu() {
   const m = $<HTMLDialogElement>('#menu');
-  if (m.open) { $<HTMLDialogElement>('#playlist').close(); m.close(); return; }                // (its Crews popup too: the menu's close)
+  if (m.open) { uiSounds.play('click'); $<HTMLDialogElement>('#playlist').close(); m.close(); return; }                // (its Crews popup too: the menu's close)
   const fsButton = m.querySelector<HTMLButtonElement>('[data-act="fullscreen"]')!;
   fsButton.textContent = isFullscreen() ? t('Leave full screen') : t('Full screen');
   fsButton.hidden = !canFullscreen() && fromHomeScreen();         // from an iPhone's Home Screen: already without bars
@@ -1373,6 +1398,8 @@ function openMenu() {
   m.querySelector<HTMLButtonElement>('[data-act="quit"]')!.textContent = quitLabel();
   showRadio(m);
   syncChatMenuAppearance();
+  syncMenuUiSounds();
+  uiSounds.play('click');
   const line = $('#menu-save');
   if (saved) line.textContent = t('Last saved at {when} ({name}).', { when: when(saved.at), name: saved.name });
   else {
@@ -1388,6 +1415,10 @@ function openMenu() {
     : activeTab === 'tracks' && !travelNow() ? 'multiplayer' : activeTab);
   m.showModal();
 }
+function syncMenuUiSounds() {
+  $<HTMLInputElement>('#menu-ui-sounds').checked = uiSounds.enabled;
+}
+
 /** Switch the F9 control deck between real, native game features. */
 function selectMenuTab(name: string) {
   const m = $<HTMLDialogElement>('#menu');
@@ -1802,8 +1833,9 @@ async function menuAction(act: string) {
       log.add(`[app] solid cars ${solidCars ? 'on' : 'off'} (the page menu)`);
       break;
     }
-    case 'crews': openCrews(); break;
+    case 'worlds': selectMenuTab('worlds'); break;
     case 'tracks': openTracks(); break;
+    case 'crews': openCrews(); break;
     case 'world-own-save': {
       const input = $<HTMLInputElement>('#menu-own-world');
       await switchMenuWorld(input.value);
@@ -2135,6 +2167,7 @@ export async function boot() {
   settings = new SettingsService({
     // another language or texture pack counts other files as the game data (its pack); a keyphrase sends the file
     file: settingsFile!, environment: ENVIRONMENT, defaults: DEVICE, onSaved: (_text, previous) => {
+      applySiteKeys(resolveEnv(_text, ENVIRONMENT, {}, DEVICE).env);
       const before = resolveEnv(previous, ENVIRONMENT, {}, DEVICE);
       const was = language(before) + '/' + texpack(before);
       if (language() + '/' + texpack() !== was) void saves.refresh();
@@ -2142,10 +2175,26 @@ export async function boot() {
       applyLanguage();
       window.dispatchEvent(new Event('trp-settings-changed'));
     },
-    onLoaded: () => { applyLanguage(); window.dispatchEvent(new Event('trp-settings-changed')); },
+    onLoaded: () => {
+      applySiteKeys(resolveEnv(settingsFile?.forGame ?? settingsFile?.text ?? null, ENVIRONMENT, {}, DEVICE).env);
+      applyLanguage();
+      window.dispatchEvent(new Event('trp-settings-changed'));
+    },
     // the tab that owns the saves is the one whose Play reads the file: another tab only looks
     readOnly: () => !instance.owner, say: pageToast, confirm: confirmBox,
   });
+  const lastfmApi = new LastfmApi();
+  const lastfmRow = new LastfmRow({ api: lastfmApi, log: logLine, say: pageToast });
+  $('#lastfm-slot').append(lastfmRow.el);
+  const scrobbler = new Scrobbler({ api: lastfmApi, folder: () => radio?.lastTrack ?? null, dropped: () => lastfmRow.dropped(), log: logLine });
+  scrobbleWhilePlaying(radioPort, scrobbler, readSession);
+  onLanguage(() => lastfmRow.render());
+  void measureCountryRtt().then(({ country, rttMs }) => {
+    const el = $('#country-rtt');
+    const who = country ? `${countryFlag(country)} ${country.toUpperCase()}` : t('Country unavailable');
+    el.textContent = `${who} · ${rttMs} ms HTTP RTT`;
+    el.hidden = false;
+  }).catch(e => logLine(`[network] country RTT unavailable: ${e}`));
   Object.assign(window, {
     __trpSettingsBridge: {
     current: (key: string) => settings.current(key),
@@ -2274,6 +2323,10 @@ export async function boot() {
   $('#menu-chat-position').addEventListener('change', updateChatMenuAppearance);
   $('#menu-chat-compact').addEventListener('change', updateChatMenuPreferences);
   $('#menu-chat-timestamp').addEventListener('change', updateChatMenuPreferences);
+  $('#menu-ui-sounds').addEventListener('change', e => {
+    uiSounds.setEnabled((e.target as HTMLInputElement).checked);
+  });
+  bindUiSounds();
   $('#playlist-body').addEventListener('change', setTrackMode);
   $('#playlist-shuffle').addEventListener('change', setShuffle);
   $('#menu').addEventListener('close', () => {
@@ -2288,17 +2341,22 @@ export async function boot() {
     if ($<HTMLDialogElement>('#menu').open) b.focus();
   });
 
-  // F8 / F9 belong to the page while the game runs (the game binds neither,
-  // Chrome reserves neither); caught first, so the game never sees them.  F12
-  // too: photo mode in the world, its picture while it is on, else the page's
-  // screenshot (not the game's, whose copy of the frame comes out black in
-  // this port, nor the browser's developer tools).
+  // The controls assigned in Controls, Site: the page consumes its own menu,
+  // photo, next-song and FPS shortcuts before the game receives them.
   window.addEventListener('keydown', e => {
-    if (session && (e.code === 'F8' || e.code === 'F9' || e.code === 'F12')) {
-      e.preventDefault(); e.stopImmediatePropagation();
-      if (e.repeat) return;
-      if (e.code === 'F8') toast(fpsLabel(fps.cycle()), 1500); else if (e.code === 'F9') openMenu(); else photo.f12();
-      return;
+    if (session) {
+      const action = menuKeyOf(e.code);
+      if (action) {
+        e.preventDefault(); e.stopImmediatePropagation();
+        if (e.repeat) return;
+        switch (action) {
+          case 'menu': openMenu(); break;
+          case 'photo': photo.f12(); break;
+          case 'song': radioPort()?.skip(); break;
+          case 'fps': toast(fpsLabel(fps.cycle()), 1500); break;
+        }
+        return;
+      }
     }
     // Enter plays only when nothing else has the focus (or Play itself does): a
     // focused link, button or field keeps its own Enter
@@ -2374,7 +2432,7 @@ export async function boot() {
     fullscreen: () => canFullscreen() || !fromHomeScreen(),
   });
   driftPanel = new DriftPanel($('#stage'), { toast, wide: () => hudWide, log: logLine });
-  photo = new PhotoMode($('#stage'), { shoot: screenshot, screenshot: () => void screenshot(), log: logLine });
+  photo = new PhotoMode($('#stage'), { shoot: () => screenshot(true), screenshot: () => void screenshot(), log: logLine });
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { void checkNewer(); vault.shown(); } });
   setInterval(() => { if (document.visibilityState === 'visible') void checkNewer(); }, NEWER_EVERY_MS);
 

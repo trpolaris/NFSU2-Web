@@ -160,7 +160,7 @@ function lintFiles() {
     for (const f of fs.readdirSync(path.join(ROOT, d))) {
       if (!/\.(c|m|h|inc)$/.test(f)) continue;
       // These modules contain intentional localized player-facing copy, not diagnostic log strings.
-      if (d === 'runtime' && ['sms.c', 'roam_game.c', 'mpcredit.c'].includes(f)) continue;
+      if (d === 'runtime' && ['sms.c', 'roam_game.c', 'mpcredit.c', 'coop.c', 'splitscreen.c'].includes(f)) continue;
       list.push(`${d}/${f}`);
     }
   }

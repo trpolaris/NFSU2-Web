@@ -6,10 +6,11 @@ import { CREW_MAX, checkCrew, crewsOf, crewsValue, freeColour, rgbsValue, type C
 import { onlineName } from './claim';
 import { DEFAULT_GROUPS, DEFAULT_PHRASES, groupsOf, PHRASES, phrasesOf, SLOTS } from './phrases';
 import { LANGUAGES, N, NATIVE, t, tn, tvars, type Language, type Msg } from './i18n';
+import { SITE_KEYS } from './sitekeys';
 
 
 /** Safe, allow-listed keys used by portable launcher profiles; never export unknown settings.ini lines. */
-export const PROFILE_SETTING_KEYS = ['render', 'fps', 'audio_latency', 'language', 'subtitles', 'sound', 'intro', 'gamepad', 'rumble', 'ui_textures', 'open_tunnel', 'show_hidden_races', 'catchup'] as const;
+export const PROFILE_SETTING_KEYS = ['render', 'fps', 'audio_latency', 'language', 'subtitles', 'sound', 'intro', 'gamepad', 'rumble', 'ui_textures', 'open_tunnel', 'show_hidden_races', 'catchup', 'license_plate'] as const;
 const PROFILE_SETTING_SET = new Set<string>(PROFILE_SETTING_KEYS);
 
 type Control =
@@ -46,6 +47,7 @@ const GROUPS: Group[] = [
   { title: N('Online'), more: N('More online settings'), status: true, own: true, items: [
     { key: 'roam', label: N('Free roam with others'), help: N('Everyone on this server who turns this on sees your car in career free roam, and you see theirs, with their names over them.'), c: { t: 'switch' } },
     { key: 'roam_name', label: N('Your name'), help: N('What other players see over your car in free roam and in the Online menu: 3 to 15 letters, digits, - or _. Empty uses your profile name.'), c: { t: 'text', placeholder: N('profile name') } },
+    { key: 'license_plate', label: N('License plate'), help: N('On your car, also for other players in free roam: up to 8 letters and digits.'), c: { t: 'text', placeholder: N('Original plate') } },
     { key: 'roam_crew', label: N('Crews'), help: N('Friends who type the same crew name always see each other in free roam, however far apart, with names and map arrows in the crew\'s colour. Up to 4 crews. Anyone who types the name joins.'), c: { t: 'crews', placeholder: N('Crew name') } },
     { key: 'horn', label: N('Your horn'), help: N('N or the controller\'s left stick click, in free roam and in races with other players.'), c: { t: 'select', opts: [
       ['dual', N('Dual tone')], ['single', N('Single tone')], ['truck', N('Air horn')], ['train', N('Train horn')], ['klaxon', N('Klaxon')],
@@ -65,6 +67,7 @@ const GROUPS: Group[] = [
     { key: 'autosave', label: N('Autosave'), help: N('Sets each profile\'s Save option in the game to Autosave once, so races, purchases and changes are saved without asking. Prompt or Off chosen afterwards in the game\'s Options, Gameplay stays.'), c: { t: 'switch' } },
     { key: 'gps_distance', label: N('GPS distance'), help: N('Shows a straight-line distance to your GPS destination beneath the arrow, using Speedometer Units. Hidden while GPS has no active route.'), c: { t: 'switch' }, more: true },
     { key: 'show_hidden_races', label: N('Show hidden races'), help: N('Shows the career races the game normally hides on the map. Changes only in-memory tables; does not write to career save files.'), c: { t: 'switch' }, more: true },
+    { key: 'uniques', label: N('Unique parts for every car'), help: N('Once Caleb is beaten, the shops sell the unique visual parts, wide body kits too, for every car in your career. Off: as in the original, each one only for the car you earned it with.'), c: { t: 'switch' }, more: true },
     { key: 'catchup', label: N('Rubberbanding'), help: N('Career opponents ahead of you wait for you, ones behind get more power and grip. No boost: they still wait, but never beat their own pace. Off: neither, as Quick Race with Catch Up off.'), c: { t: 'seg', opts: [['original', N('Original')], ['noboost', N('No boost')], ['off', N('Off')]] }, more: true },
     { key: 'intro', label: N('Startup movies'), help: N('The EA and THX logos, the PSA and the intro. Skippable: Enter, Esc, Space, a left click, or A, B or Start ends each one. Original: as in the game, where only the intro ends early.'), c: { t: 'seg', opts: [['skippable', N('Skippable')], ['original', N('Original')], ['off', N('Off')]] }, more: true },
     { key: 'sound', label: N('Sound'), help: N('All sound output.'), c: { t: 'switch' }, more: true },
@@ -103,6 +106,7 @@ const GROUPS: Group[] = [
  *  settings in this file"): the Crews row's colours */
 const COMPANION: Record<string, string> = { roam_crew: 'roam_crew_colours', quick_chat_phrases: 'quick_chat_groups' };
 const COMPANIONS = new Set(Object.values(COMPANION));
+const SITE_SETTING_KEYS = new Set(SITE_KEYS);
 /** Every key the panel shows (the check in app-test.mjs compares this with the template). */
 export const PANEL_KEYS = [...GROUPS.flatMap(g => g.items.map(i => i.key)), ...COMPANIONS];
 const ITEMS = new Map(GROUPS.flatMap(g => g.items.map(i => [i.key, i] as const)));
@@ -149,7 +153,7 @@ export function putKey(text: string, key: string, value: string | null): { text:
 
 /** What "Reset all settings" keeps: the name the other players know you by, your crews, and the language (this
  *  page's too). */
-const RESET_KEEPS = ['roam_name', 'roam_crew', 'roam_crew_colours', 'language'];
+const RESET_KEEPS = ['roam_name', 'license_plate', 'roam_crew', 'roam_crew_colours', 'language'];
 
 /** "Reset all settings": the template, with the kept settings as the file has them (by their own key, also where
  *  the file sets the variable by its name, if the key reads the value the same).  One the file does not set, or
@@ -259,7 +263,7 @@ export class SettingsService {
   rawSnapshot() {
     if (!this.fileOnly) return { ready: false, readOnly: true, text: this.text ?? TEMPLATE, canResetAll: false, other: [] };
     const unshown = Object.entries(this.fileOnly.file)
-      .filter(([key, field]) => !ITEMS.has(key) && !COMPANIONS.has(key) && field.raw !== '')
+      .filter(([key, field]) => !ITEMS.has(key) && !COMPANIONS.has(key) && !SITE_SETTING_KEYS.has(key) && field.raw !== '')
       .map(([key, field]) => ({ phys: field.phys, key, env: key, value: field.raw, refused: field.refused, why: field.why }));
     const other = [...this.fileOnly.other, ...unshown].sort((a, b) => a.phys - b.phys).map(item => ({
       line: item.phys,
@@ -363,7 +367,7 @@ export class SettingsService {
 
   /** React text fields reuse the same validation and normalization as the original setting rows. */
   async setValidated(key: string, value: string | null) {
-    if (!['roam_name', 'roam_room', 'roam_block', 'roam_max_cars'].includes(key)) throw new Error('Unsupported React settings field');
+    if (!['roam_name', 'license_plate', 'roam_room', 'roam_block', 'roam_max_cars'].includes(key)) throw new Error('Unsupported React settings field');
     if (this.ro()) { this.deps.say?.(t(READ_ONLY)); return; }
     let next = value?.trim() ?? '';
     if (key === 'roam_name' && next) next = onlineName(next) ?? next;
@@ -373,7 +377,7 @@ export class SettingsService {
     if (checked && !checked.ok) {
       throw new Error(t('Not saved: {key} = {why}.', { key, why: tvars(checked.why, checked.v) }));
     }
-    await this.put(key, next);
+    await this.put(key, checked && checked.ok ? checked.value : next);
   }
 
 

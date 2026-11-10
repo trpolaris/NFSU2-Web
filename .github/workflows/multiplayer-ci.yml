@@ -105,6 +105,11 @@ jobs:
             echo "Compile $source -> $object"
             "$CC" "${flags[@]}" -c "$source" -o "$object"
           done
+          # Run the same license-plate texture and Free Roam HELLO tests as native, on the production WASI target.
+          "$CC" "${flags[@]}" tests/plates_unit.c runtime/plate_image.c runtime/roam_core.c -lm \
+            -Wl,--import-memory,--export-memory,--shared-memory,--initial-memory=67108864,--max-memory=268435456 \
+            -Wl,-z,stack-size=8388608 -o "$RUNNER_TEMP/plates_unit.wasm"
+          node web/test/wasi-run.mjs "$RUNNER_TEMP/plates_unit.wasm"
 
       - name: Link-check WASI compatibility and mprace API
         run: bash web/tools/check-wasi-runtime.sh
@@ -146,6 +151,15 @@ jobs:
           /tmp/opentunnel_unit on
           cc -std=c11 -D_POSIX_C_SOURCE=200809L -Wall -Wextra -Werror -Iruntime tests/modpacks_switch_unit.c -o /tmp/modpacks_switch_unit
           /tmp/modpacks_switch_unit
+          # Career unique visual parts: original unlock remains the default; only this predicate is widened.
+          cc -std=gnu11 -D_POSIX_C_SOURCE=200809L -Iruntime -fsyntax-only runtime/uniques.c
+          cc -std=c11 -Wall -Wextra -Werror -DUNIQUES_UNIT -Iruntime tests/uniques_unit.c runtime/uniques.c -o /tmp/uniques_unit
+          /tmp/uniques_unit
+          cc -std=c11 -Wall -Wextra -Werror -Iruntime tests/uniques_memory_unit.c runtime/uniques.c -o /tmp/uniques_memory_unit
+          /tmp/uniques_memory_unit
+          grep -Eq '(^|,)515500(,|$)' <(tools/genstamp.sh overrides)
+          grep -Eq '^RT=.*[[:space:]]uniques([[:space:]]|")' web/build.sh
+          grep -Eq '^CSRC=.*[[:space:]]uniques([[:space:]]|")' link.sh
           cc -std=c11 -D_POSIX_C_SOURCE=200809L -Wall -Wextra -Wno-unused-function -Iruntime tests/catchup_unit.c -o /tmp/catchup_unit
           stdbuf -oL -eL /tmp/catchup_unit
 
@@ -227,10 +241,22 @@ jobs:
           cc -std=c11 -Wall -Wextra -Werror tests/net_mailbox_layout.c -o /tmp/net_mailbox_layout
           /tmp/net_mailbox_layout
 
+      - name: Test local split-screen layout and shared-weather gating
+        run: |
+          cc -std=c11 -Wall -Wextra -Werror -Iruntime tests/splitscreen_layout_unit.c -o /tmp/splitscreen_layout_unit
+          /tmp/splitscreen_layout_unit
+          cc -std=c11 -Wall -Wextra -Werror -Iruntime tests/roam_weather_unit.c -o /tmp/roam_weather_unit
+          /tmp/roam_weather_unit
+
       - name: Test Free Roam protocol core (MAPD, NEARREQ and compatibility)
         run: |
           cc -O1 -g -fsanitize=address,undefined -Iruntime tests/roam_unit.c runtime/roam_core.c runtime/roam_bsd.c -lm -o /tmp/roam_unit
           /tmp/roam_unit 50000
+
+      - name: Test custom license plate rendering and HELLO protocol
+        run: |
+          cc -O1 -g -fsanitize=address,undefined -Iruntime tests/plates_unit.c runtime/plate_image.c runtime/roam_core.c -lm -o /tmp/plates_unit
+          /tmp/plates_unit
 
       - name: Build server binaries for Node integration tests
         run: |

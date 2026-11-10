@@ -256,7 +256,7 @@ test('React Online room field matches the settings schema text limit', () => {
 
 
 test('React Online owns ghost mode, quick chat, blocked players and the visible car limit', () => {
-  for (const token of ['roam_collide', 'quick_chat', 'roam_max_cars', 'roam_block']) {
+  for (const token of ['roam_name', 'roam_room', 'roam_collide', 'quick_chat', 'roam_max_cars', 'roam_block']) {
     assert.ok(app.includes(token), token + ' is exposed in the React Online route');
     assert.ok(settingsUi.includes("key: '" + token + "'"), token + ' is part of the SettingsService catalogue');
   }
@@ -264,7 +264,6 @@ test('React Online owns ghost mode, quick chat, blocked players and the visible 
   assert.match(app, /update\('roam_collide', !event\.target\.checked\)/);
   assert.match(app, /saveValidated\('roam_max_cars', event\.target\.value\)/);
   assert.match(app, /saveText\('roam_block'\)/);
-  assert.match(settingsUi, /'roam_name', 'roam_room', 'roam_block', 'roam_max_cars'/);
 });
 
 

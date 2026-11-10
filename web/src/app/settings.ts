@@ -14,10 +14,11 @@
 // noted and ignored, so a typo never silently selects something else.
 //
 // This module is pure (no DOM, no OPFS) so it can be checked under node.
-import { blockedName } from './names.mjs';
+import { blockedName, blockedPlate } from './names.mjs';
 import { onlineName } from './claim';
 import { crewsOk, rgbsOk } from './crews';
 import { groupsOk, phrasesOk } from './phrases';
+import { plateUpper, plateValid } from './plates';
 import { fill, LANGUAGES, N, type Vars } from './i18n';
 export { LANGUAGES };
 
@@ -26,7 +27,7 @@ export { LANGUAGES };
  *  (names.mjs, as a player's name). */
 export type Kind = 'raw' | 'bool' | 'boolInv' | 'enum' | 'num' | 'id' | 'token' | 'int' | 'name' | 'peers'
   | 'path' | 'text' | 'room' | 'wxh' | 'fixes' | 'ifname' | 'ipv4' | 'mac' | 'host' | 'parts' | 'dump' | 'crews' | 'rgbs'
-  | 'phrases' | 'sayGroups' | 'names';
+  | 'phrases' | 'sayGroups' | 'names' | 'plate';
 
 export interface KeyDef {
   key: string;
@@ -158,6 +159,10 @@ export const KEYS: readonly KeyDef[] = [
   { key: 'language', env: 'NFSU2_LANGUAGE', kind: 'enum', vals: LANGUAGES.join('|'), scope: 'web' },
   // Show the career races normally hidden on the map (runtime/hiddenraces.c).
   { key: 'show_hidden_races', env: 'NFSU2_SHOW_HIDDEN_RACES', kind: 'bool', scope: 'web' },
+  // Opt-in removal of the career DVD cover event's visual-rating requirement.
+  { key: 'visual_rep_remover', env: 'NFSU2_VISUAL_REP_REMOVER', kind: 'bool', scope: 'web' },
+  // Custom plate text is moderated by runtime/names.h before it is rendered.
+  { key: 'license_plate', env: 'NFSU2_LICENSE_PLATE', kind: 'plate', scope: 'web' },
   // GPS distance beneath the native direction arrow (runtime/gpsdistance.c).
   { key: 'gps_distance', env: 'NFSU2_GPS_DISTANCE', kind: 'bool', scope: 'web' },
   // Career rubberbanding: original, noboost (no boost beyond an AI's own pace) or off.
@@ -166,6 +171,8 @@ export const KEYS: readonly KeyDef[] = [
   { key: 'open_tunnel', env: 'NFSU2_OPEN_TUNNEL', kind: 'bool', scope: 'web' },
   // Community rim packs: explicit opt-in, off by default (runtime/modpacks.c).
   { key: 'mod_rims', env: 'NFSU2_MOD_RIMS', kind: 'bool', scope: 'web' },
+  // Career unique visual rewards become available for every car after Caleb (runtime/uniques.c).
+  { key: 'uniques', env: 'NFSU2_UNIQUES', kind: 'bool', scope: 'web' },
   // the movies' subtitles (runtime/language.c).  Not in bundle.m's table either
   { key: 'subtitles', env: 'NFSU2_SUBTITLES', kind: 'bool', scope: 'web' },
   // the player's horn, which the others hear too (runtime/horn.c).  Not in bundle.m's table either: NFSU2_HORN there
@@ -176,6 +183,26 @@ export const KEYS: readonly KeyDef[] = [
   // the players this one blocks in free roam, by name (the page's hello to the server: net/index.ts).  Not in bundle.m's
   // table: the Mac's free roam has no hub
   { key: 'roam_block', env: 'NFSU2_ROAM_BLOCK', kind: 'names', ic: true, scope: 'web' },
+  // Browser and game site controls (sitekeys.ts). These are local to this browser/device.
+  { key: 'key_drift', env: 'NFSU2_KEY_DRIFT', kind: 'raw', scope: 'web', device: true },
+  { key: 'key_showoff', env: 'NFSU2_KEY_SHOWOFF', kind: 'raw', scope: 'web', device: true },
+  { key: 'key_horn', env: 'NFSU2_KEY_HORN', kind: 'raw', scope: 'web', device: true },
+  { key: 'key_lights', env: 'NFSU2_KEY_LIGHTS', kind: 'raw', scope: 'web', device: true },
+  { key: 'key_message', env: 'NFSU2_KEY_MESSAGE', kind: 'raw', scope: 'web', device: true },
+  { key: 'key_friend', env: 'NFSU2_KEY_FRIEND', kind: 'raw', scope: 'web', device: true },
+  { key: 'key_lobby', env: 'NFSU2_KEY_LOBBY', kind: 'raw', scope: 'web', device: true },
+  { key: 'key_lobby_new', env: 'NFSU2_KEY_LOBBY_NEW', kind: 'raw', scope: 'web', device: true },
+  { key: 'key_lobby_private', env: 'NFSU2_KEY_LOBBY_PRIVATE', kind: 'raw', scope: 'web', device: true },
+  { key: 'key_lobby_invite', env: 'NFSU2_KEY_LOBBY_INVITE', kind: 'raw', scope: 'web', device: true },
+  { key: 'key_photo', env: 'NFSU2_KEY_PHOTO', kind: 'raw', scope: 'web', device: true },
+  { key: 'key_hud', env: 'NFSU2_KEY_HUD', kind: 'raw', scope: 'web', device: true },
+  { key: 'key_menu', env: 'NFSU2_KEY_MENU', kind: 'raw', scope: 'web', device: true },
+  { key: 'key_song', env: 'NFSU2_KEY_SONG', kind: 'raw', scope: 'web', device: true },
+  { key: 'key_fps', env: 'NFSU2_KEY_FPS', kind: 'raw', scope: 'web', device: true },
+  { key: 'button_hold', env: 'NFSU2_BUTTON_HOLD', kind: 'raw', scope: 'web', device: true },
+  { key: 'button_horn', env: 'NFSU2_BUTTON_HORN', kind: 'raw', scope: 'web', device: true },
+  { key: 'button_chat', env: 'NFSU2_BUTTON_CHAT', kind: 'raw', scope: 'web', device: true },
+  { key: 'button_look', env: 'NFSU2_BUTTON_LOOK', kind: 'raw', scope: 'web', device: true },
 ];
 
 /** strcasecmp's and toupper's folding: ASCII letters only (String.toLowerCase would also fold the Kelvin sign to 'k') */
@@ -245,6 +272,14 @@ export const TEMPLATE = `# NFSU2 settings, read at every launch.
 # Show all career races the game normally hides. Does not alter profile progress. [NFSU2_SHOW_HIDDEN_RACES]
 #show_hidden_races = off
 
+# Remove the car's visual-rating requirement for career DVD cover events.
+# Off by default. [NFSU2_VISUAL_REP_REMOVER]
+#visual_rep_remover = off
+
+# Personal license plate: up to eight uppercase letters and digits. Blocked words are rejected.
+# Leave empty to use the game's original plate. [NFSU2_LICENSE_PLATE]
+#license_plate =
+
 #gps_distance = off
 
 # Career rubberbanding: original preserves the game's behaviour; noboost keeps the waiting
@@ -259,6 +294,11 @@ export const TEMPLATE = `# NFSU2 settings, read at every launch.
 # Optional community rim brands from MODPACKS/ (e.g. Blitz). Requires a compatible pack built from separately
 # obtained mod and game assets. Off by default. [NFSU2_MOD_RIMS]
 #mod_rims = off
+
+# After Caleb, allow unique visual outrun rewards (wide body kits, hoods, spoilers, rims and vinyls)
+# to be sold for every career car. Off keeps the original per-car reward rule. Parts already bought stay
+# on their cars if this is turned off later. [NFSU2_UNIQUES]
+#uniques = off
 
 # Sound output.  [NOSOUND, inverted]
 #sound = on
@@ -480,6 +520,30 @@ export const TEMPLATE = `# NFSU2 settings, read at every launch.
 # game's own is 11000; a value at or below it is ignored, as it would leave
 # no room for them).  [NFSU2_ROAM_CARPOOL_KB]
 #roam_carpool_kb = 48000
+
+# Site controls, set in Controls / Site in this browser (not shared with another device).
+# Keyboard values are KeyboardEvent.code names; "off" disables a control where allowed.
+# The defaults are the page's built-in keys and controller buttons.
+#key_drift = KeyX
+#key_showoff = KeyO
+#key_horn = KeyN
+#key_lights = KeyG
+#key_message = KeyI
+#key_friend = KeyF
+#key_lobby = KeyE
+#key_lobby_new = KeyB
+#key_lobby_private = KeyV
+#key_lobby_invite = KeyZ
+#key_photo = F12
+#key_hud = F10
+#key_menu = F9
+#key_song = F7
+#key_fps = F8
+#button_hold = ddown
+#button_horn = ls
+#button_chat = rs
+#button_look = auto
+
 `;
 
 /** The template's default for a key ("#key = value"), '' if the template leaves it empty or does not list it. */
@@ -734,9 +798,14 @@ export function checkSetting(key: string, val: string): Checked | Refused | null
       if (blockedName(val)) return refuse(N('"{value}" is not a name (it reads as a slur)'), val);
       break;
     }
+    case 'plate':
+      out = plateUpper(val);
+      if (!plateValid(out)) return refuse(N('"{value}" is not a license plate (letters A to Z and digits, at most 8)'), val);
+      if (blockedPlate(out)) return refuse(N('"{value}" is not a license plate (it reads as a slur)'), val);
+      break;
     case 'room':
       if (!valueOk('text', val)) return refuse(N('"{value}" is not {kind}'), val, { kind: KIND_TEXT.text! });
-      if (blockedName(val)) return refuse(N('"{value}" is not a room name (it reads as a slur)'), val);
+      if (blockedName(val)) return refuse(N('"{value}" is not a world name (it reads as a slur)'), val);
       break;
     case 'peers': {
       const bad = peersBad(val);
@@ -745,6 +814,11 @@ export function checkSetting(key: string, val: string): Checked | Refused | null
     }
     case 'id': if (!(val.length < 32 && /^[0-9]+$/.test(val))) return refuse(N('"{value}" is not a numeric id'), val); break;
     case 'token': if (!(val.length < 300 && /^[!-~]+$/.test(val))) return refuse(N('"{value}" is not an asset key or URL (printable ASCII, no spaces)'), val); break;
+    case 'plate':
+      out = val.trim().toUpperCase();
+      if (!/^[A-Z0-9]{1,8}$/.test(out)) return refuse(N('"{value}" is not a license plate (1 to 8 letters and digits)'), val);
+      if (blockedPlate(out)) return refuse(N('"{value}" is not a license plate (it reads as a slur)'), val);
+      break;
     case 'raw': break;
     default:
       if (!valueOk(kind, val)) return refuse(N('"{value}" is not {kind}'), val, { kind: KIND_TEXT[kind]! });
@@ -908,6 +982,55 @@ export function settingsPut(text: string | null, key: string, value: string | nu
     if (value === null) return text ?? TEMPLATE;   // nothing to reset
     if (lines.length && lines[lines.length - 1] === '') lines.splice(lines.length - 1, 0, nl); else lines.push(nl);
   }
+  return lines.join('\n');
+}
+
+/**
+ * settingsPut, and then the key's variable really is what the row asked for: a line that sets the same
+ * variable by its own name (NFSU2_ROAM = 1 for roam) and comes first would still win at Play (the first line
+ * that sets a variable does), so it goes too.  Lines are found by their line in the file, not by the pieces
+ * bundle.m reads a long line in (a long line before them shifted the piece numbers: the audit review's PAGE-2
+ * finding, which removed the wrong line).  removed: how many such lines went.
+ */
+export function putKey(text: string, key: string, value: string | null): { text: string; removed: number } {
+  let next = settingsPut(text, key, value), removed = 0;
+  const d = keyDef(key);
+  for (let i = 0; d && i < 64; i++) {
+    const by = resolveEnv(next, {}, {}).byEnv[d.env];
+    if (!by || keyDef(by.key)?.key === d.key) break;
+    const lines = next.split('\n'); lines.splice(by.phys - 1, 1); next = lines.join('\n'); removed++;
+  }
+  return { text: next, removed };
+}
+
+/** What "Reset all settings" keeps: the name, flag and license plate the other players know you by, your crews, and the
+ *  language (this page's too). */
+const RESET_KEEPS = ['roam_name', 'roam_flag', 'license_plate', 'roam_crew', 'roam_crew_colours', 'language'];
+
+/** "Reset all settings": the template, with the kept settings as the file has them (by their own key, also where
+ *  the file sets the variable by its name, if the key reads the value the same).  One the file does not set, or
+ *  refuses, is the default. */
+export function resetAll(text: string | null): string {
+  const r = resolveEnv(text, {}, {});
+  let next = TEMPLATE;
+  for (const key of RESET_KEEPS) {
+    const env = keyDef(key)!.env, v = r.env[env], c = checkSetting(key, v ?? '');
+    if (r.source[env] === 'settings.ini' && c?.ok && c.value === v) next = settingsPut(next, key, v);
+  }
+  return next;
+}
+
+/** A line the panel has no row for back to the default, by its line in the file (1-based): an option of the
+ *  template gets the template's commented-out line in its place, any other line (a variable by its own name, the
+ *  Mac app's options) goes. */
+export function resetLine(text: string, phys: number): string {
+  const lines = text.split('\n');
+  const l = (lines[phys - 1] ?? '').trim();
+  const eq = l.indexOf('=');
+  if (eq < 0 || l[0] === '#' || l[0] === ';') return text;          // not a setting's line: nothing to reset
+  const d = keyDef(l.slice(0, eq).trim());
+  if (d && DEFAULTS.has(d.key)) lines[phys - 1] = `#${d.key} = ${DEFAULTS.get(d.key)}`.replace(/ = $/, ' =');
+  else lines.splice(phys - 1, 1);
   return lines.join('\n');
 }
 

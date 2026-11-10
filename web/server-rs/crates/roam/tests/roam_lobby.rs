@@ -316,7 +316,6 @@ fn a_lobbys_host_is_linked_with_its_players_and_the_ones_at_its_start_first() {
 
 /// a RACEREP datagram as roam_core.c lays it out: lobby, race; mode, laps, track; place, players, flags, type, class,
 /// 3 zero bytes; rating, field, factor, kW, kg, km/h, time; the name in 16 bytes
-#[allow(clippy::too_many_arguments)]
 fn racerep(sender: u32, lobby: u32, place: u8, players: u8, flags: u8, rating: f32, name: &[u8], payload_len: usize) -> Vec<u8> {
     let mut p = vec![0u8; payload_len];
     p[0..4].copy_from_slice(&lobby.to_le_bytes());

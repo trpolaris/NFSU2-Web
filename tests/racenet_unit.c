@@ -88,12 +88,12 @@ void dispatch_indirect(CPU *c, uint32_t addr){
 #define STACK  0x00130000u
 static CPU g_c;
 static void race_setup(void){
-    uint32_t g[] = { G_FLOW, G_NETMODE, G_NET_HOST, G_WORLD, G_PLAYER1, G_WORLDDT, G_RACE, G_WORLDTIME, G_NETPLAYERS,
+    uint32_t g[] = { G_FLOW, G_GAMEMODE, G_NET_HOST, G_WORLD, G_PLAYER1, G_WORLDDT, G_RACE, G_WORLDTIMER, G_NETPLAYERS,
                      G_MYSLOT, G_HOSTSLOT, G_SLOTBITS, G_SLOTMIN };
     for (unsigned i = 0; i < sizeof g / sizeof g[0]; i++) commit(g[i], 32);
     commit(W, 0x100); commit(CAR_A, 0xa00); commit(CAR_ME, 0xa00); commit(PL, 16); commit(RC, 0xc00);
     commit(STACK - 0x4000u, 0x8000u);
-    MR32(G_FLOW) = 6; MR32(G_NETMODE) = 8; MR32(G_NET_HOST) = 0;
+    MR32(G_FLOW) = 6; MR32(G_GAMEMODE) = 8; MR32(G_NET_HOST) = 0;
     MR32(G_WORLD) = W; MR32(W) = CAR_A; MR32(CAR_A) = CAR_ME; MR32(CAR_ME) = W;
     MR32(G_PLAYER1) = PL; MR32(PL + 4u) = CAR_ME;
     MR32(G_RACE) = RC; MR32(RC) = RC_RACING; MR32(RC + 0x24u) = 0;
@@ -102,7 +102,7 @@ static void race_setup(void){
     MR16(CAR_A + 0xau) = 0xffffu; MR16(CAR_ME + 0xau) = 0xffffu;
     g_c.esp = STACK;
 }
-static void frame(void){ racenet_frame(&g_c); g_fake_ns += 20000000u; MR32(G_WORLDTIME) += 80u; }
+static void frame(void){ racenet_frame(&g_c); g_fake_ns += 20000000u; MR32(G_WORLDTIMER) += 80u; }
 /* a car state message: kind 2, then at bit 40 the slot in 3 bits */
 static int carspam(uint8_t *m, uint32_t slot, int len){
     memset(m, 0, CS_HDR + (size_t)len);

@@ -447,6 +447,9 @@ static void hub_in(int from, const uint8_t *b, int len){
     else if (m.h.type == RC_MSG_BYE) g_hub_bye[from]++;
     else if (m.h.type == RC_MSG_LOBBY){ g_hub_lobby[from]++; g_hub_lobby_last[from] = m.u.lobby; }
 }
+/* the license plate of the first HELLO each node sent each other (t_flag), and how many it sent */
+static char g_first_plate[NN][NN][RC_PLATE_MAX + 1];
+static int g_hellos[NN][NN];
 static void net_send(void *u, uint32_t ip, uint16_t port, const uint8_t *buf, int len){
     if (ip == HUB_IP && port == HUB_PORT){ hub_in((int)(intptr_t)u, buf, len); return; }
     int from = (int)(intptr_t)u, to = node_of(ip, port);
@@ -1352,6 +1355,24 @@ static void t_crews(void){
     c = rc_crc32(lb, (uint32_t)n - 4); for (int k = 0; k < 4; k++) lb[n - 4 + k] = (uint8_t)(c >> (8 * k));
     CHECK(rc_decode(lb, n, &d) == RC_E_FIELD, "a crew 0 heard is bad");
     m.h.flags = 0; CHECK(rc_encode(&m, b, sizeof b) < 0, "crews without the flag are not sent");
+
+    /* Optional license plate tail; legacy HELLO wire shape remains unchanged. */
+    memset(&m, 0, sizeof m);
+    m.h.type = RC_MSG_HELLO; m.h.sender = 7; m.h.flags = RC_HF_CREW | RC_HF_PLATE;
+    strcpy(m.u.hello.name, "Ann"); strcpy(m.u.hello.plate, "AB123");
+    n = rc_encode(&m, b, sizeof b);
+    CHECK(n > 0 && rc_decode(b, n, &d) == RC_OK && !strcmp(d.u.hello.plate, "AB123"), "HELLO plate tail round trip");
+    strcpy(m.u.hello.plate, "N1GGER");
+    n = rc_encode(&m, b, sizeof b);
+    CHECK(n > 0 && rc_decode(b, n, &d) == RC_OK && !d.u.hello.plate[0], "offensive plate is blanked but the player remains");
+    CHECK(!rc_plate_ok("123456789", 9), "plate longer than eight is refused by the shared validator");
+    CHECK(rc_plate_ok("ABC12345", 8), "an eight-character plate is allowed");
+    m.h.flags = RC_HF_CREW; m.u.hello.plate[0] = 0;
+    /* Restore the four-character name used when calculating the legacy frame size. */
+    strcpy(m.u.hello.name, "Thom");
+    m.u.hello.n_seen = 1; m.u.hello.seen[0] = 0x11111111u;
+    n = rc_encode(&m, b, sizeof b);
+    CHECK(n == base && rc_decode(b, n, &d) == RC_OK && !d.u.hello.plate[0], "legacy HELLO wire shape stays unchanged");
 
     /* the hub's PEERS with crew marks (RC_HF_CREW on a PEERS): the receiver's crews, then a byte per entry */
     memset(&m, 0, sizeof m); m.h.type = RC_MSG_PEERS; m.h.sender = 0xB0B; m.h.flags = RC_HF_CREW;

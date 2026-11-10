@@ -359,6 +359,9 @@ pub async fn run(o: Options, cores: usize) {
             loop {
                 every.tick().await;
                 app.lan_opens.prune();
+                if let Some(l) = &app.lastfm {
+                    l.prune();
+                }
                 if let Some(f) = &app.friends {
                     f.prune();
                 }

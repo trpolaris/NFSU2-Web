@@ -1,0 +1,340 @@
+# Upstream sync report — 9 November 2026
+
+- Upstream: th0mk/nfsu2-web
+- Exact upstream commit: 9e0230212776f6c9a4d0db30c1963e9730138553
+- Previous integrated upstream snapshot: 9a9254560a8a36a1d3dcfd19fd245281e56009f3
+- Target branch: feat/remaining-runtime-features-2026-11
+- Policy: three-way merge; conflicting hunks keep the TRPOLARIS version.
+- Retained TRPOLARIS CI workflows; upstream workflow files and Discord bot were not imported.
+
+## Summary
+
+- New files imported: 96
+- Existing files merged: 145
+- Files with overlapping hunks kept on TRPOLARIS side: 0
+- Upstream deletions applied where the fork was unchanged: 0
+- Files skipped or retained unchanged: 71
+
+## New files
+
+- licenses/UG2WhineGen.txt
+- runtime/carpaint.c
+- runtime/damage.c
+- runtime/damage/Dent.h
+- runtime/damage/Tessellate.h
+- runtime/damage_none.c
+- runtime/damagecore.cpp
+- runtime/dyno.c
+- runtime/features.c
+- runtime/hqvinyls.c
+- runtime/stance.c
+- runtime/stance.h
+- runtime/whine.c
+- runtime/whine.h
+- tests/modparts_unit.c
+- tests/scripts/cameras_after_drift_race.txt
+- tests/scripts/cameras_after_races.txt
+- tests/scripts/cameras_quickrace_drift.txt
+- tests/scripts/career_addon_car.txt
+- tests/scripts/career_addon_exits.txt
+- tests/scripts/career_addon_lot.txt
+- tests/scripts/career_addon_play.txt
+- tests/scripts/career_addon_trade.txt
+- tests/scripts/career_addon_tuned.txt
+- tests/scripts/career_af28_buy.txt
+- tests/scripts/career_save_vinyl.txt
+- tests/scripts/catchup_drive.txt
+- tests/scripts/catchup_park.txt
+- tests/scripts/catchup_quickrace.txt
+- tests/scripts/catchup_replay.txt
+- tests/scripts/damage_crowd.txt
+- tests/scripts/damage_quickrace_quit.txt
+- tests/scripts/damage_roam_a.txt
+- tests/scripts/damage_roam_b.txt
+- tests/scripts/damage_roam_visit.txt
+- tests/scripts/dyno_setups.txt
+- tests/scripts/hqvinyls_crowd.txt
+- tests/scripts/hqvinyls_shop.txt
+- tests/scripts/license_plate_crowd.txt
+- tests/scripts/license_plate_fe.txt
+- tests/scripts/license_plate_many.txt
+- tests/scripts/license_plate_pair_a.txt
+- tests/scripts/license_plate_pair_b.txt
+- tests/scripts/license_plate_race_a.txt
+- tests/scripts/license_plate_slur.txt
+- tests/scripts/menu_controls.txt
+- tests/scripts/mpcredit_movie.txt
+- tests/scripts/mprace_engines_a.txt
+- tests/scripts/mprace_engines_b.txt
+- tests/scripts/mprace_heats_slow_a.txt
+- tests/scripts/mprace_redo_a.txt
+- tests/scripts/mprace_redo_b.txt
+- tests/scripts/roam_crowd_paint.parts
+- tests/scripts/roam_crowd_paint.txt
+- tests/scripts/roam_crowd_purge.parts
+- tests/scripts/roam_minimap_filter.txt
+- tests/scripts/roam_mp_purge_a.txt
+- tests/scripts/roam_mp_purge_b.txt
+- tests/scripts/roam_worlds.txt
+- tests/scripts/showoff_eagl_heap.txt
+- tests/scripts/stance_career.txt
+- tests/scripts/stance_career_load.txt
+- tests/scripts/stance_menu.txt
+- tests/scripts/stance_pair_a.txt
+- tests/scripts/stance_pair_b.txt
+- tests/scripts/travel_disk_a.txt
+- tests/scripts/travel_disk_b.txt
+- tests/scripts/travel_friend_a.txt
+- tests/scripts/travel_friend_b.txt
+- tests/scripts/travel_noevent.txt
+- tests/scripts/travel_outrun_a.txt
+- tests/scripts/travel_outrun_b.txt
+- tests/scripts/travel_pair_a.txt
+- tests/scripts/travel_pair_b.txt
+- tests/scripts/travel_save.txt
+- tests/scripts/travel_tracks.txt
+- tests/scripts/travel_tuners.txt
+- tests/scripts/whine_drive.txt
+- tests/scripts/whine_engine.txt
+- tests/web/scripts/damage_quickrace.txt
+- tests/web/scripts/fsaa_pics.txt
+- tests/web/scripts/split_plates_two.txt
+- tests/web/scripts/whine_split.txt
+- tests/web/seed/registry_perf4_fsaa.txt
+- tools/addoncar_seed.py
+- tools/damage/scratches.tpk
+- tools/damagepack.py
+- tools/fsaapics.py
+- tools/hqvinyls.py
+- tools/whinepack.py
+- web/server-rs/crates/anticheat/Cargo.toml
+- web/server-rs/crates/anticheat/src/lib.rs
+- web/src/app/compare.ts
+- web/src/app/plates.ts
+- web/test/plates.test.mjs
+- web/test/whine.test.mjs
+
+## Merged files
+
+- .gitignore
+- docs/web/PLAYING.md
+- runtime/audio.m
+- runtime/autotest.c
+- runtime/career.c
+- runtime/carsfx.c
+- runtime/carspot.c
+- runtime/com.c
+- runtime/debug.c
+- runtime/dinput_pad.c
+- runtime/discord.c
+- runtime/drift.c
+- runtime/engage.c
+- runtime/fileio.c
+- runtime/framerate.c
+- runtime/garage.c
+- runtime/gpsdistance.c
+- runtime/headlights.c
+- runtime/heap.c
+- runtime/hiddenraces.c
+- runtime/hornmenu.c
+- runtime/intro.c
+- runtime/language.c
+- runtime/lobbyclick.c
+- runtime/look.c
+- runtime/menusize.c
+- runtime/metal.m
+- runtime/modpacks.c
+- runtime/mpcredit.c
+- runtime/mprace.c
+- runtime/mprace.h
+- runtime/online.c
+- runtime/optslider.c
+- runtime/optslider.h
+- runtime/overrides.c
+- runtime/powerunits.c
+- runtime/quickrace.c
+- runtime/racehorn.c
+- runtime/racenet.c
+- runtime/roam.c
+- runtime/roam_core.c
+- runtime/roam_core.h
+- runtime/roam_game.c
+- runtime/sms.c
+- runtime/specialties.c
+- runtime/texrep.m
+- runtime/tonemenu.c
+- runtime/tunegraph.c
+- runtime/vinylpacks.c
+- runtime/watchdog.c
+- runtime/web/audio_web.c
+- runtime/web/gcpu.c
+- runtime/web/main_web.c
+- runtime/win32.c
+- tests/boot.c
+- tests/discord_unit.c
+- tests/racenet_unit.c
+- tests/roam_crowd.c
+- tests/roam_unit.c
+- tools/langpacks.py
+- tools/lift.py
+- tools/modpacks.py
+- tools/texpacks.py
+- tools/vinylpacks.py
+- web/build.sh
+- web/deploy/README.md
+- web/server-rs/Cargo.lock
+- web/server-rs/Cargo.toml
+- web/server-rs/crates/bans/Cargo.toml
+- web/server-rs/crates/claims/Cargo.toml
+- web/server-rs/crates/claims/src/lib.rs
+- web/server-rs/crates/headers/Cargo.toml
+- web/server-rs/crates/http/Cargo.toml
+- web/server-rs/crates/lan/Cargo.toml
+- web/server-rs/crates/lan/src/route.rs
+- web/server-rs/crates/names/Cargo.toml
+- web/server-rs/crates/names/src/cross_check.rs
+- web/server-rs/crates/online/Cargo.toml
+- web/server-rs/crates/online/src/buddy.rs
+- web/server-rs/crates/online/src/files.rs
+- web/server-rs/crates/online/src/lib.rs
+- web/server-rs/crates/online/src/lobby.rs
+- web/server-rs/crates/online/src/races.rs
+- web/server-rs/crates/online/src/stats.rs
+- web/server-rs/crates/online/src/vhost.rs
+- web/server-rs/crates/roam/Cargo.toml
+- web/server-rs/crates/roam/src/hub.rs
+- web/server-rs/crates/roam/src/lib.rs
+- web/server-rs/crates/roam/src/results.rs
+- web/server-rs/crates/roam/tests/bench.rs
+- web/server-rs/crates/roam/tests/hypot.rs
+- web/server-rs/crates/roam/tests/roam_lobby.rs
+- web/server-rs/crates/roamload/Cargo.toml
+- web/server-rs/crates/roamload/src/main.rs
+- web/server-rs/crates/util/Cargo.toml
+- web/server-rs/crates/util/src/bucket.rs
+- web/server-rs/crates/vault/Cargo.toml
+- web/server-rs/crates/ws/Cargo.toml
+- web/server-rs/src/app/blocks.rs
+- web/server-rs/src/app/kept.rs
+- web/server-rs/src/app/manifest.rs
+- web/server-rs/src/app/mod.rs
+- web/server-rs/src/app/route_tests.rs
+- web/server-rs/src/main.rs
+- web/server-rs/tests/common/mod.rs
+- web/src/app/i18n.ts
+- web/src/app/lang/chinese.json
+- web/src/app/lang/danish.json
+- web/src/app/lang/dutch.json
+- web/src/app/lang/french.json
+- web/src/app/lang/german.json
+- web/src/app/lang/italian.json
+- web/src/app/lang/japanese.json
+- web/src/app/lang/korean.json
+- web/src/app/lang/polish.json
+- web/src/app/lang/portuguese.json
+- web/src/app/lang/russian.json
+- web/src/app/lang/spanish.json
+- web/src/app/lang/swedish.json
+- web/src/app/lang/thai.json
+- web/src/app/phonegraphics.ts
+- web/src/app/players.ts
+- web/src/app/privacy.ts
+- web/src/app/profile.ts
+- web/src/app/saves-ui.ts
+- web/src/app/settings.ts
+- web/src/app/shell.ts
+- web/src/app/vault.ts
+- web/src/boot.ts
+- web/src/host/datacache.ts
+- web/src/input/altgr.ts
+- web/src/input/index.ts
+- web/test/crews.test.mjs
+- web/test/hidpad.test.mjs
+- web/test/names.test.mjs
+- web/test/page-audit.test.mjs
+- web/test/pcsave.test.mjs
+- web/test/phonegraphics.test.mjs
+- web/test/runtime-unit.test.mjs
+- web/test/settings-reset.test.mjs
+- web/test/vault.test.mjs
+- web/tools/app-test.mjs
+- web/tools/roam-crowd.mjs
+- web/tools/roam-pair.mjs
+- web/tools/run-suite.mjs
+
+## Conflicting files (TRPOLARIS hunks retained)
+
+
+## Skipped files
+
+- .github/workflows/tests.yml
+- AGENTS.md
+- CHANGELOG.md
+- CLAUDE.md
+- README.md
+- discord-bot/README.md
+- discord-bot/bot.mjs
+- discord-bot/faq.md
+- discord-bot/fixes.mjs
+- discord-bot/general.mjs
+- discord-bot/help.mjs
+- discord-bot/investigate.mjs
+- discord-bot/knowledge.md
+- discord-bot/logs.mjs
+- discord-bot/repo.mjs
+- discord-bot/spend.mjs
+- discord-bot/system.md
+- discord-bot/tools.mjs
+- runtime/catchup.c (existing TRPOLARIS file kept)
+- runtime/featurelist.h (existing TRPOLARIS file kept)
+- runtime/game.h (existing TRPOLARIS file kept)
+- runtime/guest.h (existing TRPOLARIS file kept)
+- runtime/lightkey.c (not a safe text merge)
+- runtime/plate_image.c (existing TRPOLARIS file kept)
+- runtime/plate_image.h (existing TRPOLARIS file kept)
+- runtime/plates.c (existing TRPOLARIS file kept)
+- runtime/racecars.c (not a safe text merge)
+- runtime/setting.h (existing TRPOLARIS file kept)
+- runtime/shownames.c (not a safe text merge)
+- runtime/travel.c (existing TRPOLARIS file kept)
+- tests/catchup_unit.c (existing TRPOLARIS file kept)
+- tests/plates_unit.c (existing TRPOLARIS file kept)
+- tests/racecars_unit.c (not a safe text merge)
+- tests/scripts/options_fsaa.txt (existing TRPOLARIS file kept)
+- tools/packcheck.py (existing TRPOLARIS file kept)
+- tools/test_packcheck.py (existing TRPOLARIS file kept)
+- web/server-rs/crates/bans/src/tests.rs (not a safe text merge)
+- web/server-rs/crates/lan/src/mix.rs (not a safe text merge)
+- web/server-rs/crates/lan/src/plates.rs (existing TRPOLARIS file kept)
+- web/server-rs/crates/lan/tests/plates.rs (existing TRPOLARIS file kept)
+- web/server-rs/crates/roam/tests/meet.rs (not a safe text merge)
+- web/server-rs/crates/roam/tests/roam_meets.rs (not a safe text merge)
+- web/server-rs/crates/roam/tests/roam_names.rs (not a safe text merge)
+- web/server-rs/crates/util/src/atomic_file.rs (existing TRPOLARIS file kept)
+- web/server-rs/crates/util/src/logfile.rs (not a safe text merge)
+- web/server-rs/src/app/days.rs (not a safe text merge)
+- web/src/app/changelog.ts (not a safe text merge)
+- web/src/app/invite.ts (not a safe text merge)
+- web/src/app/lang/czech.json (not a safe text merge)
+- web/src/app/lang/greek.json (not a safe text merge)
+- web/src/app/lang/hungarian.json (not a safe text merge)
+- web/src/app/lang/slovak.json (not a safe text merge)
+- web/src/app/lang/ukrainian.json (not a safe text merge)
+- web/src/app/messages.ts (not a safe text merge)
+- web/src/app/mods-ui.ts (not a safe text merge)
+- web/src/app/mods.ts (not a safe text merge)
+- web/src/app/prefs.ts (existing TRPOLARIS file kept)
+- web/src/app/settings-store.ts (existing TRPOLARIS file kept)
+- web/src/app/tabs.ts (not a safe text merge)
+- web/src/app/tracks.ts (existing TRPOLARIS file kept)
+- web/src/app/worlds.ts (existing TRPOLARIS file kept)
+- web/src/dom-extras.d.ts (existing TRPOLARIS file kept)
+- web/src/gpu/hqskin.ts (existing TRPOLARIS file kept)
+- web/src/net/worker.ts (not a safe text merge)
+- web/test/friends.test.mjs (not a safe text merge)
+- web/test/mods.test.mjs (not a safe text merge)
+- web/test/packs.test.mjs (existing TRPOLARIS file kept)
+- web/test/prefs.test.mjs (existing TRPOLARIS file kept)
+- web/test/texpacks.test.mjs (not a safe text merge)
+- web/test/tracks.test.mjs (existing TRPOLARIS file kept)
+- web/test/worlds.test.mjs (existing TRPOLARIS file kept)

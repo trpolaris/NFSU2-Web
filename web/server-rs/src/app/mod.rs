@@ -18,8 +18,10 @@ mod files;
 mod friends;
 mod kept;
 mod lan;
+mod lastfm;
 mod manifest;
 mod names;
+mod outbound;
 mod player_hub;
 mod pool;
 #[cfg(test)]
@@ -236,6 +238,8 @@ pub struct App {
     pub vault: Option<vault::VaultRoute>,
     /// claimed names (/names), none without keyphrase saves
     pub names: Option<names::NamesRoute>,
+    /// Last.fm scrobbles (/lastfm), none without the API account's key and secret
+    pub lastfm: Option<lastfm::Lastfm>,
     /// the start page's friends endpoint, backed by Online's EA Messenger lists
     friends: Option<friends::FriendsRoute>,
     /// the operator's bans (the control socket: control.rs), checked at /lan
@@ -256,7 +260,6 @@ fn cache_index(c: Cache) -> usize {
 }
 
 impl App {
-    #[allow(clippy::too_many_arguments)]
     pub fn new(
         o: Options,
         real_state: String,
@@ -365,6 +368,7 @@ impl App {
             roam,
             vault: vault.map(vault::VaultRoute::new),
             names,
+            lastfm: lastfm::Lastfm::from_env(),
             friends,
             bans,
             hub,
@@ -390,7 +394,6 @@ impl App {
 
     /// a short text answer: the code, the text (a newline after it), headers besides the usual ones, the cache rule,
     /// and whether search engines are told to keep out
-    #[allow(clippy::too_many_arguments)]
     pub async fn plain(
         &self,
         q: &Request,
@@ -575,6 +578,12 @@ impl App {
                 None => self.not_found(q, s).await,
             };
         }
+        if p == "/lastfm" {
+            return self.lastfm(q, s, &u).await;
+        }
+        if p == "/country" {
+            return self.send_country(q, s).await;
+        }
         if q.method != "GET" && q.method != "HEAD" {
             return self
                 .plain(q, s, 405, "Method not allowed", &[("allow", "GET, HEAD"), ("connection", "close")], Cache::Store, true)
@@ -698,6 +707,23 @@ impl App {
     /// each of the Crews setting's words, decimal; the first 4 that are numbers and not 0, the rest left out) adds
     /// crews: how many of roam are in each of those crews, in any room, in that order (with --roam-hub on, and one of
     /// them at least); counts are from the hub's last tick (nothing waits for its thread)
+    /// /country: the country code supplied by a trusted edge proxy, and never by the browser itself.
+    async fn send_country(&self, q: &Request, s: &mut Response) -> Res {
+        let country = nfsu2_headers::client_country(q, &self.o.trust).map(|c| String::from_utf8_lossy(&c).to_ascii_lowercase());
+        let mut body = serde_json::Map::new();
+        body.insert("country".into(), country.map_or(serde_json::Value::Null, serde_json::Value::from));
+        let body = nfsu2_util::json::stringify(&serde_json::Value::Object(body));
+        let mut h = self.headers(q, Cache::Store, true);
+        h.set("content-type", "application/json");
+        h.set("cache-control", "no-store");
+        h.set("content-length", body.len().to_string());
+        s.head(200, h.0);
+        if q.method != "HEAD" {
+            send(s, body.as_bytes()).await?;
+        }
+        finish(s).await
+    }
+
     async fn send_players(&self, q: &Request, s: &mut Response, u: &url::Url) -> Res {
         let info = match &self.online {
             Some(h) => {

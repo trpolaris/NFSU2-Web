@@ -79,6 +79,9 @@ Rerunning it copies only what changed.  Prints what each pack holds.
 """
 import argparse, filecmp, gzip, os, re, shutil, struct, sys
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import packcheck  # noqa: E402
+
 LANGS = ['french', 'german', 'italian', 'spanish', 'dutch', 'swedish', 'danish',
          'korean', 'chinese', 'japanese', 'russian', 'thai']
 # the dubs: Lang/Movies/<dir> and Lang/Sdata/sdat<dir lower-cased>.viv
@@ -175,6 +178,13 @@ class Pack:
     def target(self, rel):
         return os.path.join(self.root, game_name(self.game, rel))
 
+    def check(self, rel, data=None, src=None):
+        """stops before a file the game would read wrong is written (tools/packcheck.py)"""
+        if not rel.lower().endswith(packcheck.CHUNKED): return
+        key = f'LANGPACKS/{os.path.basename(self.root)}/{game_name(self.game, rel)}'
+        bad = packcheck.check(self.game, {key: data if data is not None else src})
+        if bad: sys.exit(f'{key}: not written, tools/packcheck.py says: ' + '; '.join(why for _, why in bad))
+
     def same_as_game(self, rel, data=None, src=None):
         g = find(self.game, rel)
         if not g or os.path.getsize(g) != (len(data) if data is not None else os.path.getsize(src)): return False
@@ -184,6 +194,7 @@ class Pack:
     def add_file(self, src, rel):
         if self.same_as_game(rel, src=src): return
         dst = self.target(rel)
+        self.check(rel, src=src)
         if not (os.path.exists(dst) and filecmp.cmp(src, dst, shallow=False)):
             os.makedirs(os.path.dirname(dst), exist_ok=True); shutil.copyfile(src, dst)
         self.files += 1; self.bytes += os.path.getsize(dst); self.made.add(dst)
@@ -191,6 +202,7 @@ class Pack:
     def add_data(self, data, rel):
         if self.same_as_game(rel, data=data): return
         dst = self.target(rel)
+        self.check(rel, data=data)
         if not (os.path.exists(dst) and os.path.getsize(dst) == len(data) and open(dst, 'rb').read() == data):
             os.makedirs(os.path.dirname(dst), exist_ok=True)
             with open(dst, 'wb') as f: f.write(data)

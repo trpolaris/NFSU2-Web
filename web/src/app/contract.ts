@@ -4,6 +4,7 @@
 // shapes.  See web/src/host/abi.ts for the shared-memory side (nfsu2_register
 // kinds).
 import type { GameProcess } from '../host/process';
+import type { PhotoLook } from '../gpu/photo-picture';
 import type { PadPage, TouchPad } from '../input/gamepad';
 import type { TextEntry } from '../input/index';
 import type { NetQueue, NetRemoved } from '../net';
@@ -97,7 +98,10 @@ export interface RendererSubsystem extends Subsystem {
   /** the game's image inside the canvas, in canvas pixels */
   imageRect(): { x: number; y: number; w: number; h: number };
   /** tests: the next frame as PNG (also uploaded as <name>.png with RendererOptions.artifacts) */
-  dump?(name: string): Promise<Blob>;
+  dump?(name: string, mark?: boolean): Promise<Blob>;
+  photo?(name: string, mark?: boolean): Promise<Blob>;
+  photoLook?(look: PhotoLook): void;
+  photoProgress?(): { n: number; target: number };
   /** each frame's time from its submit until the GPU had done it, ms, since the last call (rendercheck.ts) */
   doneMs?(): number[];
   /** the game's textures on the GPU now, bytes, those unpacked from DXT and those DXT1 as ASTC (the log's copy,

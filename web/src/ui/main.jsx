@@ -270,7 +270,7 @@ function OnlineReactControls() {
   const statusRoot = useRef(null);
   const claimHostRef = useRef(null);
   const [values, setValues] = useState({ roam: 'off', online: 'off', roam_collide: 'off', quick_chat: 'off', roam_max_cars: '32' });
-  const [textValues, setTextValues] = useState({ roam_name: '', roam_room: '', roam_block: '' });
+  const [textValues, setTextValues] = useState({ roam_name: '', license_plate: '', roam_room: '', roam_block: '' });
   const [worldCounts, setWorldCounts] = useState(new Map());
   const [ownWorldOpen, setOwnWorldOpen] = useState(false);
   const [ownWorldDraft, setOwnWorldDraft] = useState('');
@@ -302,8 +302,8 @@ function OnlineReactControls() {
         roam_max_cars: bridge.current('roam_max_cars'),
       });
       const nextTextValues = {
-        roam_name: bridge.current('roam_name'), roam_room: bridge.current('roam_room'),
-        roam_block: bridge.current('roam_block'),
+        roam_name: bridge.current('roam_name'), license_plate: bridge.current('license_plate'),
+        roam_room: bridge.current('roam_room'), roam_block: bridge.current('roam_block'),
       };
       setTextValues(nextTextValues);
       const customWorld = isOwn(nextTextValues.roam_room);
@@ -617,6 +617,19 @@ function OnlineReactControls() {
           {nameClaim.claimVisible && <button type="button" className="trp-online-name-claim-button" disabled={nameClaim.claimDisabled || busy !== ''} onClick={() => void window.__trpNameRowBridge?.claim()}>{nameClaim.claimLabel}</button>}
           <div className="trp-online-name-claim-widget" ref={claimHostRef} />
         </div>
+        <label className="trp-online-text-card">
+          <span className="trp-online-text-label" data-i18n>License plate</span>
+          <span className="trp-online-text-help" data-i18n>On your car, also for other players in free roam: up to 8 letters and digits.</span>
+          <span className="trp-online-text-entry">
+            <input type="text" maxLength={8} autoComplete="off" autoCapitalize="characters" spellCheck={false}
+              aria-label="License plate" placeholder="Original plate" value={textValues.license_plate}
+              disabled={!ready || readOnly || !!busy}
+              onChange={event => setTextValues(current => ({ ...current, license_plate: event.target.value.toUpperCase() }))}
+              onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); void saveValidated('license_plate', textValues.license_plate); } }} />
+            <button type="button" disabled={!ready || readOnly || !!busy}
+              onClick={() => void saveValidated('license_plate', textValues.license_plate)} data-i18n>Save</button>
+          </span>
+        </label>
         <label className="trp-online-text-card">
           <span className="trp-online-text-label" data-i18n>World</span>
           <span className="trp-online-text-help" data-i18n>Choose the main world, a quieter public world, or give your own world a name.</span>

@@ -5,21 +5,18 @@
 import type { Lines, Place, RadioLink } from './app/radio-link';
 import { keptFolder, keepFolder, reopenFolder, sortedTracks, subfolderOf, type Folder, type Picked } from './radio-folder';
 import { plaqueTags, tagsOf } from './radio-tags';
-
 import { localStore, RADIO_MODES, RADIO_NEXT, RADIO_ON, RADIO_SHUFFLE } from './app/prefs';
 
 export type Mode = 'menu' | 'racing' | 'all' | 'off';
 export const MODES: readonly Mode[] = ['menu', 'racing', 'all', 'off'];
 export type PickFolder = () => Promise<Picked | null>;
-export const radioWasOn = () => { try { return localStore.get(RADIO_ON) === '1'; } catch { return false; } };
-const keepRadioOn = (on: boolean) => { try { localStore.set(RADIO_ON, on ? '1' : '0'); } catch { /* a private window keeps nothing */ } };
-const readShuffle = () => { try { return localStore.get(RADIO_SHUFFLE) === '1'; } catch { return false; } };
-const readNext = (): unknown[] => { try { const kept = localStore.getJSON(RADIO_NEXT); return Array.isArray(kept) ? kept : []; } catch { return []; } };
+export const radioWasOn = () => localStore.get(RADIO_ON) === '1';
+const keepRadioOn = (on: boolean) => localStore.set(RADIO_ON, on ? '1' : '0');
+const readShuffle = () => localStore.get(RADIO_SHUFFLE) === '1';
+const readNext = (): unknown[] => { const kept = localStore.getJSON(RADIO_NEXT); return Array.isArray(kept) ? kept : []; };
 const readModes = (): Map<string, Mode> => {
-  try {
-    const kept = Object.entries(localStore.getJSON(RADIO_MODES) ?? {});
-    return new Map(kept.filter(([, m]) => m !== 'all' && MODES.includes(m as Mode)) as [string, Mode][]);
-  } catch { return new Map(); }
+  const kept = Object.entries(localStore.getJSON(RADIO_MODES) ?? {});
+  return new Map(kept.filter(([, m]) => m !== 'all' && MODES.includes(m as Mode)) as [string, Mode][]);
 };
 
 const RATE = 44100, CHUNK = 1 << 15, STEP_MS = 50, TAGS_KEPT = 16;   // the game mixer's rate; frames handed over at a time
@@ -45,8 +42,9 @@ export class Radio {
   private last: Pair = [-1, -1];          // per place: the track chosen last, which Shuffle does not repeat at once
   private shuffled = readShuffle();
   private offered: Pair = [-1, -1];       // per place: the track whose tags the game was shown
-  private tags = new Map<number, Promise<Lines>>();
+  private tags = new Map<number, { own: Promise<Lines>; plaque: Promise<Lines> }>();   // per track: its tags as read, and as the plaque shows them
   private playing: { index: number; place: Place } | null = null;
+  private track: { tags: Promise<Lines>; plaque: Promise<Lines>; seconds: number } | null = null;
   private restored: Promise<void>;        // settles when the remembered folder is read, or is known to need a click
 
   constructor(private port: () => RadioLink | null, private log: (line: string) => void = () => {}) { this.restored = this.restore(); }
@@ -56,16 +54,19 @@ export class Radio {
   /** The tracks as paths in the folder ("a.mp3", "Album/a.mp3") in playlist order; the same array until another folder is chosen. */
   get trackPaths() { return this.paths; }
   get shuffle() { return this.shuffled; }
+  /** The track served last (Last.fm's scrobbles, lastfm.ts): its own tags, the lines the game's plaque shows of them (the runtime's
+   *  song_text), its length in seconds. */
+  get lastTrack() { return this.track; }
   mode(name: string): Mode { return this.modes.get(name) ?? 'all'; }
   private suits(name: string, place: Place) { const m = this.mode(name); return m === 'all' || m === (place ? 'racing' : 'menu'); }
-  private saveModes() { try { localStore.setJSON(RADIO_MODES, Object.fromEntries(this.modes)); } catch { /* a private window keeps nothing */ } }
+  private saveModes() { localStore.setJSON(RADIO_MODES, Object.fromEntries(this.modes)); }
   private fail = (e: unknown) => this.stop(`error: ${e}`);
 
   /** Shuffle on: the next track of a place is any that suits it but the last one; off: the queue goes on from where it stood. */
   setShuffle(on: boolean) {
     if (on === this.shuffled) return;
     this.shuffled = on;
-    try { localStore.set(RADIO_SHUFFLE, on ? '1' : '0'); } catch { /* a private window keeps nothing */ }
+    localStore.set(RADIO_SHUFFLE, on ? '1' : '0');
     this.log(`player sets shuffle ${on ? 'on' : 'off'}`);
     if (this.on) void this.offer().catch(this.fail);
   }
@@ -142,7 +143,7 @@ export class Radio {
 
   private keepNext() {
     const n = this.paths.length;
-    try { localStore.setJSON(RADIO_NEXT, this.next.map(i => this.paths[i % n])); } catch { /* a private window keeps nothing */ }
+    localStore.setJSON(RADIO_NEXT, this.next.map(i => this.paths[i % n]));
   }
 
   /** The next track of the place from where its queue stands, the first whose mode suits it; with Shuffle any that suits it but the last (-1: none). */
@@ -164,17 +165,18 @@ export class Radio {
   private async offer(epoch = this.epoch) {
     const link = this.port(), files = this.files, picks: Pair = [this.choose(0), this.choose(1)];
     if (!link) return;
-    const lines = await Promise.all(picks.map(i => i < 0 ? null : this.tagsFor(files, i)));
+    const lines = await Promise.all(picks.map(i => i < 0 ? null : this.tagsFor(files, i).plaque));
     if (epoch !== this.epoch || files !== this.files) return;
     this.offered = picks;
     link.setPlaces([lines[0], lines[1]]);
   }
 
-  private tagsFor(files: FileSystemFileHandle[], i: number): Promise<Lines> {
+  private tagsFor(files: FileSystemFileHandle[], i: number) {
     let t = this.tags.get(i);
     if (!t) {
       if (this.tags.size >= TAGS_KEPT) this.tags.clear();
-      t = tagsOf(files[i]).then(l => plaqueTags(l, subfolderOf(this.paths[i]) || this.name));
+      const own = tagsOf(files[i]);
+      t = { own, plaque: own.then(l => plaqueTags(l, subfolderOf(this.paths[i]) || this.name)) };
       this.tags.set(i, t);
     }
     return t;
@@ -245,6 +247,8 @@ export class Radio {
       if (left.length > MAX_FRAMES) throw new Error('longer than 15 minutes');
     } catch (e) { this.log(skipLine(i, e)); return 'skipped'; }
     this.song = { left, right, at: 0 };
+    const t = this.tagsFor(this.files, i);
+    this.track = { tags: t.own, plaque: t.plaque, seconds: left.length / RATE };
     if (!link.serve(seq, left.length)) throw new Error('the game has no rings for the sound');
     try { this.feed(link); } catch (e) { this.song = null; this.log(skipLine(i, e)); this.bad++; return 'ring'; }
     return 'played';

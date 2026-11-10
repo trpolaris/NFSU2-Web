@@ -16,18 +16,17 @@
 //!   keyphrase deleted from the cloud lets its names go ([`Claims::release`]).
 //!
 //! Kept in <state>/names.json (the names, their owners' hashes, when they were made and last played), written whole
-//! to a temporary file of 0600 and renamed over the old one ([`Claims::save`]).
-
-use std::collections::HashMap;
-use std::fmt::Write as _;
-use std::path::{Path, PathBuf};
-use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+//! to a temporary file of 0600, synced and renamed over the old one ([`Claims::save`]).
 
 use nfsu2_util::atomic_file::Options;
 use parking_lot::RwLock;
 use serde_json::Value;
 use sha2::{Digest, Sha256};
+use std::collections::HashMap;
+use std::fmt::Write as _;
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
 #[cfg(test)]
 mod tests;
@@ -545,12 +544,11 @@ impl Claims {
             return Ok(false);
         }
         let body = self.serialize(now);
-        write_atomic(path, body.as_bytes()).inspect_err(|_| self.dirty.store(true, Ordering::Relaxed))?;
+        Options::new()
+            .make_folder()
+            .write(path, body.as_bytes())
+            .map_err(|e| e.to_string())
+            .inspect_err(|_| self.dirty.store(true, Ordering::Relaxed))?;
         Ok(true)
     }
-}
-
-/// names.json is replaced as one private, synced file; a failed write leaves the prior copy intact.
-fn write_atomic(file: &Path, body: &[u8]) -> Result<(), String> {
-    Options::new().make_folder().write(file, body).map_err(|e| e.to_string())
 }

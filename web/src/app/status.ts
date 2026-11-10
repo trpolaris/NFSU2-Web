@@ -1,11 +1,12 @@
 // Reader for HOST_KIND_STATUS (runtime/web/status_proto.h): a table of named
 // counters the runtime publishes in shared memory.  A sequence lock keeps a
 // copy consistent: the copy counts only if seq was even and unchanged.
-
 import type { GameMemory } from '../host/memory';
 
 export const HOST_STATUS_MAGIC = 0x31545453;
-const MAX = 32, NAME = 16, ITEM = 24, HEAD = 16;
+// (MAX is the runtime's HOST_STATUS_MAX: a game of another build has its radio's words elsewhere, which radio-link.ts
+// checks, and at most MAX names, which this reads)
+const MAX = 48, NAME = 16, ITEM = 24, HEAD = 16;
 
 export class StatusReader {
   private td = new TextDecoder();

@@ -3,7 +3,7 @@
 // graphics and device, the game's version, the settings, the timings, and what each player did.
 //  - Names: the player's own (Your name, and the LAN and Online names the game takes from it or from the profile)
 //    become "you"; profiles "profile-…", crews "crew-…", rooms "room-…", other players "player-…".  The part after
-//    the dash is made from the name and a number this browser keeps to itself (SALT_KEY): a name has the same
+//    the dash is made from the name and a number this browser keeps to itself (LOG_SALT): a name has the same
 //    stand-in all through a file and in every log of this browser, and nobody can turn it back into the name.
 //  - Virtual LAN addresses (10.77.x.x): ours "vlan-you", others "vlan-…"; any other IPv4 address "ip-…"; the
 //    virtual adapters' host names and hardware addresses, made from the addresses, lose their numbers.
@@ -15,13 +15,13 @@
 // only where it stands as a name, between the words that frame names in these lines (PRE, POST); any other name
 // wherever it stands, so a line nobody thought of does not give it away.
 import { crewList } from './crews';
+import { localStore, LOG_SALT } from './prefs';
 
 export type NameKind = 'you' | 'profile' | 'crew' | 'room' | 'player';
 /** a name known as two kinds keeps the first of these */
 const RANK: Record<NameKind, number> = { you: 0, profile: 1, crew: 2, room: 3, player: 4 };
 /** what the game prints for nobody in particular, and NAME, which hundreds of players keep as their name */
 const NOBODY = new Set(['Player', 'A player', 'a player', 'a friend', 'you', '?', 'NAME']);
-import { localStore, LOG_SALT } from './prefs';
 
 /** "[4!] " before a game thread's line */
 const THREAD = /^\[\d+!\] /;

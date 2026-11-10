@@ -32,7 +32,9 @@ The game reads it as: head, then the game file from byte `cut` to its end (base
 size), then tail.  The head is the game file's TPK header with the new
 textures' entries in its two tables (sorted by hash, as the game's) and every
 size and offset moved to fit; the tail holds the new textures' blobs.  The
-runtime uses a pack only when the game file is base size bytes long.
+runtime uses a pack only when the game file is base size bytes long.  Each
+pack is checked as the game reads it (tools/packcheck.py) before it is
+written; one that fails is not written, and the exit status is 1.
 """
 import argparse, os, struct, sys
 from collections import Counter
@@ -41,6 +43,7 @@ from multiprocessing import Pool
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import packcheck  # noqa: E402
 from texpacks import bstring_hash, chunks, find, jdlz  # noqa: E402
+import packcheck  # noqa: E402
 
 VINYLS = [f'ART_F_{k}' for k in range(28, 35)]       # the Sha_Do vinyls, as the part database names them
 MAGIC, VERSION = b'VPAK', 1

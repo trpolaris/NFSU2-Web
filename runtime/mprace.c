@@ -87,6 +87,8 @@
  *  - A dialog: its handle [0x838974] (0 none), its text 0x838640.
  */
 #include "cpu.h"
+#include "guest.h"
+#include "game.h"
 #include "mprace.h"
 #include "mpcredit.h"
 #include <math.h>
@@ -100,14 +102,8 @@ long autotest_frame(void);
 const char *autotest_top_fng(void);
 void autotest_tap(unsigned dik, long frames);
 int career_fe_active(const char *name);
-void dispatch_indirect(CPU *c, uint32_t addr);
 
-#define G_FLOW          0x008654a4u   /* GameFlowManager state: 3 front end, 6 world */
-#define G_GAMEMODE      0x00850078u   /* 1 career, 2 main menu, 0x200 LAN */
-#define G_CAREER        0x0085ad40u
 #define C_BANK          0x7134u       /* Career: the bank */
-#define G_CAREER_CAR    0x00863480u   /* the career car's handle (CAREER_SLOT_n) */
-#define G_QR_CAR        0x0083aab8u   /* player 1's quick-race / network car handle */
 #define G_QR_CARCAT     0x0083aac0u   /* its car select's category: 4 Career */
 #define G_RACECO        0x008900d8u   /* the race coordinator: +0 its state (4 racing, 6 paused) */
 #define G_PLAYER1       0x008900acu
@@ -131,10 +127,7 @@ void dispatch_indirect(CPU *c, uint32_t addr);
 #define LAN_PORT        9900u
 #define G_TXT_BUF       0x0083a8b0u   /* the text entry: buffer, length, active, record */
 #define G_TXT_LEN       0x0083a9b0u
-#define G_TXT_ON        0x0083a9c0u   /* byte: the text entry is up */
-#define G_TXT_REC       0x0083a9c4u
 #define FN_TXT_ACCEPT   0x0054c7f0u   /* thiscall record: Accept */
-#define G_DLG           0x00838974u   /* the dialog's handle, 0 none */
 #define G_DLG_TEXT      0x00838640u   /* its info, copied: the text */
 #define G_DLG_MSG1      0x00838944u   /* the left button's message */
 #define G_DLG_MSG2      0x0083894cu   /* the right one's */
@@ -150,6 +143,9 @@ void dispatch_indirect(CPU *c, uint32_t addr);
 #define G_MC_FROM       0x00836518u   /* package that asked, the crib's Return; 2 a switch to the next package, by name) */
 #define G_MC_NEXT       0x0083651cu
 #define G_LANSTATE      0x008500d0u   /* the LAN object's UI state: 2 the server list's, 0x11 idle, 0x12 busy */
+#define G_SRV_GLUE      0x0089cf48u   /* server.dll's glue object; restart request is +0x11B and its clock +0x114 */
+#define GLUE_REDO_ASKED 0x11bu
+#define GLUE_REDO_AT    0x114u
 #define FN_LANSTATE     0x005031b0u   /* thiscall 0x850080 (state) */
 #define G_NET           0x00850080u   /* the network race's settings */
 #define N_MAX           0x00u         /* byte: most players */
@@ -183,12 +179,9 @@ void dispatch_indirect(CPU *c, uint32_t addr);
 #define G_START_CLR     0x00838528u   /* byte */
 #define G_RESULTS       0x00851044u   /* the results' rows (entry*: +4 the car's id, +8 completion), [0x85105C] of them */
 #define G_RESULTS_N     0x0085105cu
-#define G_NETPLAYERS    0x0089cf50u   /* the network race's players by car id (0x5F0220): each +0x12 its LAN name (0x5F0230) */
-#define G_TICKER        0x008651acu   /* the game's clock: 4000 a second */
 #define SS_LOOKING      0x904u        /* ServerSelect: its "Looking for LAN servers" dialog, 0 when gone */
 #define SS_LIST         0x908u        /* ...the servers found: node +0 next, +0x18 address (host order) */
 #define VT_SERVERSEL    0x00796420u
-#define G_FEMGR         0x008637b4u   /* the FE manager's screens: n = [it]; until n == it: screen [n - 4 + 0x14], n = [n] */
 #define S_MAIN          0x0078f530u   /* "UI_Main.fng" in the exe */
 #define S_SERVERSEL     0x00790428u   /* "UI_PC_LAN_ServerSelect.fng" */
 #define S_LANNAME       0x0079909cu   /* "UI_PC_LAN.fng" */
@@ -204,8 +197,6 @@ void dispatch_indirect(CPU *c, uint32_t addr);
 #define SETTLE          20
 #define RETAP           90
 #define MP_PRIZE_N      4             /* 1st to 4th get prize money; 5th and 6th nothing */
-#define G_RACES         0x008383e0u   /* the career's race table ([0x8383E4] races of 0x88 bytes: +0xD SUV, +0xF type, */
-#define G_NRACES        0x008383e4u   /* +0x30 the prize, +0x34 kind (3 normal), +0x37 stage) */
 #define C_STAGE         0x7af8u       /* Career: the current stage */
 
 enum { G_RACE_GOAL = 1, G_CAREER_GOAL = 2 };
@@ -227,6 +218,9 @@ static struct {
     int      quit_race, fee;                       /* the player quit the race (its pause menu); the fee the bank paid */
     int      paused, quit, lan, hosted, named, carset, created, settings, joined, started, left, career, resumed, crib_go, ndlg, host_gone;
     int      logged_place, perf_logged;
+    int      unloaded, again, redo_asked;          /* the results' world went (race_again); the races restarted so far;
+                                                    * the host's Restart asked on these results (logged) */
+    uint32_t race_dlg;                             /* the game's dialog in the race last logged */
     CarPerf  rep_car;                              /* the race's report: our car as rated in the race, the race's cars, */
     int      rep_cars, rep_mode, rep_track, rep_laps;   /* the network race's type, track and laps, */
     float    rep_field;                            /* the cars' average rating */
@@ -248,18 +242,9 @@ static void clk_step(void){
     g_clk_us += d > 100000u ? 100000u : d; g_clk_last = us;
 }
 static long clk(void){ return (long)(g_clk_us / 16667u); }
-static int okm(uint32_t a, uint32_t n){ return a && mem_is_committed(a) && mem_is_committed(a + n); }
-static uint32_t rd(uint32_t a){ return okm(a, 3) ? MR32(a) : 0; }
+/* a guest function with ecx and stack arguments from the main-loop hook, 512 bytes below its stack (guest.h) */
 static uint32_t call(CPU *c, uint32_t fn, uint32_t ecx, int n, const uint32_t *arg){
-    CPU save = *c;
-    c->esp = (c->esp - 512u) & ~15u;
-    for (int i = n - 1; i >= 0; i--) PUSH32(arg[i]);
-    c->ecx = ecx;
-    PUSH32(HOOK_MAINLOOP);
-    dispatch_indirect(c, fn);
-    uint32_t r = c->eax;
-    *c = save;
-    return r;
+    return guest_call_ex(c, fn, ecx, c->edx, n, arg, GUEST_RET_MAINLOOP, 512u);
 }
 static void gs(uint32_t a, const char *s, uint32_t cap){
     uint32_t i = 0;
@@ -300,28 +285,25 @@ static int keys_run(long f){
     M.key_at = f + 20;
     return 1;
 }
-#define G_NET_HOST      0x00866a14u   /* the network race's host state, > 0 in one (framerate.c) */
-#define G_NET_CLIENT    0x008669f4u   /* ... its client state */
-#define G_CAREER_RACE   0x00863470u   /* Career +0x8730: the career race being run (0 free roam) */
 static void state_log(const char *where){
     fprintf(stderr, "[mprace] f=%ld state %s: mode 0x%x, race type %u, net host %d client %d, LAN mode %u, career race %08x, coordinator %u\n",
-            autotest_frame(), where, rd(G_GAMEMODE), rd(G_RACETYPE), (int32_t)rd(G_NET_HOST), (int32_t)rd(G_NET_CLIENT),
-            rd(G_NET + N_MODE), rd(G_CAREER_RACE), rd(rd(G_RACECO)));
+            autotest_frame(), where, guest_rd32(G_GAMEMODE), guest_rd32(G_RACETYPE), (int32_t)guest_rd32(G_NET_HOST), (int32_t)guest_rd32(G_NET_CLIENT),
+            guest_rd32(G_NET + N_MODE), guest_rd32(G_CAREER_RACE), guest_rd32(guest_rd32(G_RACECO)));
     if (getenv("NFSU2_MPRACE_TEST_PARAMS")){                       /* (test aid) the race's parameters 0x89E7A0, as words */
         fprintf(stderr, "[mprace] f=%ld params %s:", autotest_frame(), where);
-        for (uint32_t i = 0; i < 0x80u; i += 4u) fprintf(stderr, "%s%08x", i % 32u ? " " : "  ", rd(0x0089e7a0u + i));
+        for (uint32_t i = 0; i < 0x80u; i += 4u) fprintf(stderr, "%s%08x", i % 32u ? " " : "  ", guest_rd32(G_RACEPARAMS + i));
         fputc('\n', stderr);
         /* ...and the input actions' subscriptions of the two ports (0x579410: a ring at 0x8655A0 + 0x1C8 port, node
          * +0 next, +8 the action; 0x579550 makes ports 0 and 1), each as many nodes as it holds or LOOP when its walk
          * does not come back to its head (a free roam built as the LAN race whose start broke off hung in that walk) */
         fprintf(stderr, "[mprace] f=%ld subscriptions %s:", autotest_frame(), where);
         for (uint32_t p = 0; p < 2u; p++){
-            uint32_t h = 0x008655a0u + 0x1c8u * p, n = rd(h); int k = 0;
+            uint32_t h = 0x008655a0u + 0x1c8u * p, n = guest_rd32(h); int k = 0;
             fprintf(stderr, " port %u:", p);
             for (; n != h && k < 400; k++){
-                if (!okm(n, 12)){ fprintf(stderr, " BAD %08x", n); break; }
-                if (k < 24) fprintf(stderr, " %x", rd(n + 8u));
-                n = rd(n);
+                if (!guest_ok(n, 12)){ fprintf(stderr, " BAD %08x", n); break; }
+                if (k < 24) fprintf(stderr, " %x", guest_rd32(n + 8u));
+                n = guest_rd32(n);
             }
             fprintf(stderr, "%s (%d)", k >= 400 ? " LOOP" : "", k);
         }
@@ -330,6 +312,7 @@ static void state_log(const char *where){
 }
 static void mlog(const char *fmt, const char *a){ fprintf(stderr, "[mprace] f=%ld ", autotest_frame()); fprintf(stderr, fmt, a); fputc('\n', stderr); }
 static int series_cut(const char *why);
+static int restart_asked(void);
 static void fail(const char *why){
     if (M.goal == G_CAREER_GOAL) return;
     if (series_cut(why)) return;                       /* (a URL race's heats broken off after one: not finished) */
@@ -388,19 +371,17 @@ static void to_phase(int ph){
 #define FN_PI_BUILD     0x005b4dc0u   /* thiscall info (mode 0, 1, 1): the copy, the push table, rating and class */
 #define FN_PI_PARTS     0x005a64a0u   /* thiscall info +0x2E0 (level, category or -1) */
 #define PI_STEP         1.3410819f    /* 0x7A1A80: 3 mph */
-#define G_CARTYPES      0x008a1cccu   /* CarTypeInfo[] */
 #define G_CATCHUP       0x0089e7f8u   /* the race option Catch Up (with two player cars 0x5F6740 sets vehicle +0x468
                                        * from their gap: their torque, governor and grip) */
-#define G_RACESTATUS    0x00890118u   /* GRaceStatus: +0x24 racers, +0xBD0 their entries (+0 the car) */
 #define CARTYPE_SIZE    0x890u
 #define N_PLAYER_TYPES  31            /* CarTypeInfo 0..30: the player's cars; then traffic */
 static uint32_t perf_info(uint32_t car){
-    uint32_t r = okm(car, 0x14) ? rd(car + 0x10u) : 0;
-    return r && okm(r + 0x10u, PI_PUSH + 0x14u) ? r + 0x10u : 0;
+    uint32_t r = guest_ok(car, 0x14) ? guest_rd32(car + 0x10u) : 0;
+    return r && guest_ok(r + 0x10u, PI_PUSH + 0x14u) ? r + 0x10u : 0;
 }
 static float push_at(uint32_t t, float v){                               /* 0x5764D0 */
-    int n = (int)rd(t); uint32_t vals = rd(t + 0x10u);
-    if (n < 1 || n > 4096 || !okm(vals, 4u * (uint32_t)n)) return 0.f;
+    int n = (int)guest_rd32(t); uint32_t vals = guest_rd32(t + 0x10u);
+    if (n < 1 || n > 4096 || !guest_ok(vals, 4u * (uint32_t)n)) return 0.f;
     float x = (v - MRF32(t + 4u)) * MRF32(t + 0xcu);
     int i = (int)x;
     if (i < 0 || x <= 0.f) return MRF32(vals);
@@ -410,10 +391,10 @@ static float push_at(uint32_t t, float v){                               /* 0x57
 }
 int mprace_car_perf(uint32_t car, CarPerf *p){
     memset(p, 0, sizeof *p); p->cls = -1; p->type = -1;
-    uint32_t pi = perf_info(car), types = rd(G_CARTYPES);
+    uint32_t pi = perf_info(car), types = guest_rd32(G_CARTYPES);
     if (!pi) return 0;
-    p->type = (int)rd(pi + PI_TYPE);
-    if (types && p->type >= 0 && p->type < 64 && okm(types + CARTYPE_SIZE * (uint32_t)p->type, 0x40)){
+    p->type = (int)guest_rd32(pi + PI_TYPE);
+    if (types && p->type >= 0 && p->type < 64 && guest_ok(types + CARTYPE_SIZE * (uint32_t)p->type, 0x40)){
         uint32_t nm = types + CARTYPE_SIZE * (uint32_t)p->type;
         int k = 0; for (; k < (int)sizeof p->name - 1 && MR8(nm + (uint32_t)k); k++) p->name[k] = (char)MR8(nm + (uint32_t)k);
         p->name[k] = 0;
@@ -492,7 +473,8 @@ int mprace_speed_limit(uint32_t car, float mph){
  * car's info built again in the race gets the same again (balance_hold).
  * Only in the race types that the rating decides (drag, sprint,
  * circuit, URL): in Street X and drift races the better-rated cars placed
- * like the others (the live server's lines of 2026-10-23).
+ * like the others (the live server's lines of 2026-10-23).  A Corolla's
+ * rating counts MPRACE_COROLLA_WEIGHT times there, drags aside (mprace.h).
  * NFSU2_MPRACE_BALANCE (a test aid): "UP,DOWN,SHARE,CLOSE,CLOSE_DRAG" instead, 0 none. */
 static float rating_at(uint32_t pi, float f){
     uint32_t t = pi + PI_PUSH; float m = MRF32(pi + PI_MASS), k = MRF32(pi + PI_DRAG), sum = 0.f;
@@ -542,11 +524,11 @@ static float balance_factor(uint32_t pi, float target, float lo, float hi){
  * 1 when there are racers and all are rated */
 #define RACE_CARS_MAX 8
 static int race_cars(uint32_t *car, uint32_t *pi, int *n){
-    uint32_t gs = rd(G_RACESTATUS), cnt = gs ? rd(gs + 0x24u) : 0; int all = 1;
+    uint32_t gs = guest_rd32(G_RACE), cnt = gs ? guest_rd32(gs + 0x24u) : 0; int all = 1;
     *n = 0;
     if (!cnt || cnt > RACE_CARS_MAX) return 0;
     for (uint32_t i = 0; i < cnt; i++){
-        car[i] = rd(rd(gs + 0xbd0u + 4u * i)); pi[i] = perf_info(car[i]);
+        car[i] = guest_rd32(guest_rd32(gs + 0xbd0u + 4u * i)); pi[i] = perf_info(car[i]);
         if (pi[i] && (int8_t)MR8(pi[i] + PI_CLASS) < 0) pi[i] = 0;
         if (!pi[i]) all = 0;
     }
@@ -571,14 +553,14 @@ static void balance_apply(int i){
  * on the way back: error 134, 2026-10-26) */
 static void balance_hold(long f){
     if (!g_bal.n || f < g_bal.check_at) return;
-    if (rd(G_FLOW) != 6u || !(rd(G_GAMEMODE) & 0x200u)){ g_bal.n = 0; mlog("balance: the race's world is gone, its cars let go%s", ""); return; }
+    if (guest_rd32(G_FLOW) != 6u || !(guest_rd32(G_GAMEMODE) & 0x200u)){ g_bal.n = 0; mlog("balance: the race's world is gone, its cars let go%s", ""); return; }
     g_bal.check_at = f + 60;
     uint32_t car[RACE_CARS_MAX], pis[RACE_CARS_MAX]; int n;
     race_cars(car, pis, &n);
     for (int i = 0; i < g_bal.n; i++){
         int in = 0;
         for (int k = 0; k < n; k++) in |= car[k] == g_bal.car[i];
-        uint32_t pi = in && rd(g_bal.car[i]) == g_bal.vt[i] ? perf_info(g_bal.car[i]) : 0;
+        uint32_t pi = in && guest_rd32(g_bal.car[i]) == g_bal.vt[i] ? perf_info(g_bal.car[i]) : 0;
         if (!pi || (MRF32(pi + PI_TORQUE) == g_bal.t0[i] && MRF32(pi + PI_LIMIT_MPH) == 0.f)) continue;
         fprintf(stderr, "[mprace] f=%ld balance: racer %d's car was built again (curve %.4f, not %.4f): power x%.3f again\n", autotest_frame(), i,
                 (double)MRF32(pi + PI_TORQUE), (double)g_bal.t0[i], (double)g_bal.f[i]);
@@ -588,17 +570,29 @@ static void balance_hold(long f){
 /* the race types the rating decides: the network race's mode (circuit 0, sprint 1, drag 2, drift 3, URL 4,
  * Street X 10) */
 static int balanced_mode(int mode){ return mode == 0 || mode == 1 || mode == 2 || mode == 4; }
+float mprace_rating_weight(const char *type_name, int net_mode){
+    return balanced_mode(net_mode) && net_mode != 2 && type_name && !strcmp(type_name, "COROLLA") ? MPRACE_COROLLA_WEIGHT : 1.f;
+}
+/* the weight of the car whose physics info this is (its type's name, CarTypeInfo +0) */
+static float rating_weight(uint32_t pi, int mode){
+    uint32_t types = guest_rd32(G_CARTYPES), t = guest_rd32(pi + PI_TYPE);
+    if (!types || t >= 64u || !guest_ok(types + CARTYPE_SIZE * t, 0x20)) return 1.f;
+    char nm[0x20]; guest_read_str(types + CARTYPE_SIZE * t, nm, sizeof nm);
+    return mprace_rating_weight(nm, mode);
+}
 /* (our car's power factor, for the race's report: 1 when none changed) */
 static float balance_race(uint32_t ours, int mode){
-    uint32_t car[RACE_CARS_MAX], pi[RACE_CARS_MAX]; int n; float r[RACE_CARS_MAX], logs = 0.f, best = 0.f, our_f = 1.f; int k = 0;
+    uint32_t car[RACE_CARS_MAX], pi[RACE_CARS_MAX]; int n; float r[RACE_CARS_MAX], w[RACE_CARS_MAX], logs = 0.f, best = 0.f, our_f = 1.f; int k = 0;
     Balance b = balance_conf();
     g_bal.n = 0;
     race_cars(car, pi, &n);
+    /* (the target from the ratings as counted, r w; each car's goal in its own rating's terms) */
     for (int i = 0; i < n; i++){
         r[i] = pi[i] ? MRF32(pi[i] + PI_RATING) : 0.f;
-        if (r[i] > 0.f){ logs += logf(r[i]); k++; if (r[i] > best) best = r[i]; }
+        w[i] = pi[i] ? rating_weight(pi[i], mode) : 1.f;
+        if (r[i] > 0.f){ float e = r[i] * w[i]; logs += logf(e); k++; if (e > best) best = e; }
     }
-    fprintf(stderr, "[mprace] f=%ld the race's Catch Up option: %u\n", autotest_frame(), rd(G_CATCHUP));
+    fprintf(stderr, "[mprace] f=%ld the race's Catch Up option: %u\n", autotest_frame(), guest_rd32(G_CATCHUP));
     const char *no = !b.on ? "off" : !balanced_mode(mode) ? "not in this race type" : k < 2 ? "fewer than 2 rated cars" : 0;
     if (no){ fprintf(stderr, "[mprace] f=%ld balance: %s\n", autotest_frame(), no); return 1.f; }
     float target = expf((1.f - b.share) * logs / (float)k + b.share * logf(best)), close = mode == 2 ? b.close_drag : b.close;
@@ -611,7 +605,7 @@ static float balance_race(uint32_t ours, int mode){
          * be the game's rating: in a drag race every car has 95 % of its mass, and the push and drag per kg are
          * 1/0.95 of the rating's (the live races of 2026-10-23: every drag car's power 0.957 of what it should have
          * been), so each car's goal is put in its own sum's terms) */
-        float goal = r[i] * powf(target / r[i], close), was = rating_at(pi[i], 1.f), want = was > 0.f ? goal * was / r[i] : goal;
+        float goal = r[i] * powf(target / (r[i] * w[i]), close), was = rating_at(pi[i], 1.f), want = was > 0.f ? goal * was / r[i] : goal;
         float f = balance_factor(pi[i], want, 1.f - b.down, 1.f + b.up), now = was > 0.f ? rating_at(pi[i], f) * r[i] / was : 0.f;
         float lim = MRF32(pi[i] + PI_LIMIT_MPH), n2o = MRF32(pi[i] + PI_NITROUS);
         int j = g_bal.n++;
@@ -619,8 +613,9 @@ static float balance_race(uint32_t ours, int mode){
         balance_apply(j);
         if (car[i] == ours) our_f = f;
         CarPerf p; mprace_car_perf(car[i], &p);
-        fprintf(stderr, "[mprace]   racer %d%s: %s rated %.1f (%.1f by the sum), its goal %.1f -> power x%.3f, %.0f kW, rated %.1f; governor %.0f mph "
-                "-> none, nitrous %.3f -> %.3f kN m\n", i, car[i] == ours ? " (ours)" : "", p.name, (double)r[i], (double)was, (double)goal,
+        fprintf(stderr, "[mprace]   racer %d%s: %s rated %.1f (%.1f by the sum, counted x%.2f), its goal %.1f -> power x%.3f, %.0f kW, rated %.1f; "
+                "governor %.0f mph -> none, nitrous %.3f -> %.3f kN m\n", i, car[i] == ours ? " (ours)" : "", p.name, (double)r[i], (double)was,
+                (double)w[i], (double)goal,
                 (double)f, (double)(p.power / 1000.f), (double)now, (double)lim, (double)n2o, (double)MRF32(pi[i] + PI_NITROUS));
     }
     g_bal.check_at = clk() + 60;                                               /* (balance_hold's clock) */
@@ -649,8 +644,8 @@ static void perf_table(const char *who, uint32_t car){
     uint32_t pi = perf_info(car), t = pi + PI_PUSH;
     if (!pi) return;
     CarPerf p; mprace_car_perf(car, &p);
-    int n = (int)rd(t); uint32_t vals = rd(t + 0x10u);
-    if (n < 1 || n > 4096 || !okm(vals, 4u * (uint32_t)n)) n = 0;
+    int n = (int)guest_rd32(t); uint32_t vals = guest_rd32(t + 0x10u);
+    if (n < 1 || n > 4096 || !guest_ok(vals, 4u * (uint32_t)n)) n = 0;
     fprintf(stderr, "[mprace] perf table %s: %s type %d rating %.3f mass %.4f drag %.6f limit %.2f rpm %.0f %.0f %.0f torque",
             who, p.name, p.type, (double)p.rating, (double)MRF32(pi + PI_MASS), (double)MRF32(pi + PI_DRAG),
             (double)MRF32(pi + PI_LIMIT_MPH), (double)MRF32(pi + PI_RPM_IDLE), (double)MRF32(pi + 0x224u), (double)p.rpm_max);
@@ -664,10 +659,10 @@ static void perf_table(const char *who, uint32_t car){
     fputc('\n', stderr);
 }
 void mprace_perf_survey(CPU *c, uint32_t car){
-    uint32_t pi = perf_info(car), types = rd(G_CARTYPES);
+    uint32_t pi = perf_info(car), types = guest_rd32(G_CARTYPES);
     if (!pi || !types){ fprintf(stderr, "[mprace] perf survey: the car has no physics info\n"); return; }
     perf_table("own", car);
-    uint8_t parts[PI_PARTS_SIZE]; uint32_t type = rd(pi + PI_TYPE);
+    uint8_t parts[PI_PARTS_SIZE]; uint32_t type = guest_rd32(pi + PI_TYPE);
     for (uint32_t i = 0; i < PI_PARTS_SIZE; i++) parts[i] = MR8(pi + PI_PARTS + i);
     for (int t = 0; t < N_PLAYER_TYPES; t++){
         for (int lv = 0; lv <= 3; lv += 3){
@@ -698,9 +693,8 @@ void mprace_perf_survey(CPU *c, uint32_t car){
  * them until the player has a car of their own: a new career's is "CAREER_0"
  * (0x532830), the prologue's 350Z, until the first car is bought (then
  * CAREER_SLOT_n; slots 6-10 are garage.c's, beside the table). */
-#define G_FECARS        0x0083ad90u
 uint32_t garage_find(uint32_t db, uint32_t h);
-int mprace_car_ok(void){ return garage_find(G_FECARS, rd(G_CAREER_CAR)) != 0; }
+int mprace_car_ok(void){ return garage_find(G_FECARS, guest_rd32(G_CAREER_CAR)) != 0; }
 
 /* UI_Pause's messages: in the race, the one that ends it by Quit's Yes (at
  * once, or held back until the screen's next 0xE1FDE1D1) is the player
@@ -712,7 +706,7 @@ static void quit_tell(void);
 static void pause_msg(CPU *c){
     uint32_t m = MR32(c->esp + 4u);
     if (M.phase == MPR_RACE && !M.results_at && !M.quit_race
-        && (m == MSG_QUIT_YES || (m == MSG_PAUSE_LATER && rd(c->ecx + PAUSE_HELD) == MSG_QUIT_YES))){
+        && (m == MSG_QUIT_YES || (m == MSG_PAUSE_LATER && guest_rd32(c->ecx + PAUSE_HELD) == MSG_QUIT_YES))){
         M.quit_race = 1;
         mlog("the player quits the race (its pause menu's Quit%s)", m == MSG_QUIT_YES ? "" : ", held back");
         quit_tell();                                                     /* (the others: before the race is torn down) */
@@ -731,8 +725,8 @@ static void pause_msg(CPU *c){
 /* the prize of the career's normal races of the player's stage (the least of them; the stage below for a stage with
  * none, as after the last), 0: none known */
 static int stage_prize(void){
-    uint32_t tab = rd(G_RACES), n = rd(G_NRACES), st = rd(G_CAREER + C_STAGE);
-    if (!tab || n > 1024 || !okm(tab, n * 0x88u)) return 0;
+    uint32_t tab = guest_rd32(G_RACES), n = guest_rd32(G_NRACES), st = guest_rd32(G_CAREER + C_STAGE);
+    if (!tab || n > 1024 || !guest_ok(tab, n * 0x88u)) return 0;
     for (uint32_t s = st > 9 ? 9 : st; s >= 1; s--){
         uint32_t best = 0;
         for (uint32_t i = 0; i < n; i++){
@@ -785,17 +779,18 @@ const char *mprace_winner(void){ return M.winner; }
 
 static void series_init(void);
 static void quit_reset(void);
+static void race_again_init(void);
 int mprace_start(const MpRace *r){
     static int patched;
     if (M.phase != MPR_IDLE && M.phase != MPR_DONE && M.phase != MPR_FAILED) return 0;
-    if (rd(G_FLOW) != 6u || !(rd(G_GAMEMODE) & 1u)) return 0;
+    if (guest_rd32(G_FLOW) != 6u || !(guest_rd32(G_GAMEMODE) & 1u)) return 0;
     if (!mprace_car_ok()){
         fprintf(stderr, "[mprace] f=%ld start: the career car 0x%08x is none of the game's cars (no car of its own yet): not going\n",
-                autotest_frame(), rd(G_CAREER_CAR));
+                autotest_frame(), guest_rd32(G_CAREER_CAR));
         return 0;
     }
     if (!patched){ dispatch_patch(FN_PAUSE_MSG, pause_msg); patched = 1; }
-    memset(&M, 0, sizeof M); memset(&g_bal, 0, sizeof g_bal);
+    memset(&M, 0, sizeof M); memset(&g_bal, 0, sizeof g_bal); race_again_init();
     M.r = *r; M.goal = G_RACE_GOAL; M.frame0 = autotest_frame();
     if (M.r.heats < 1) M.r.heats = 1;
     if (M.r.nfriends < 0 || M.r.nfriends > 6) M.r.nfriends = 0;
@@ -810,7 +805,7 @@ int mprace_start(const MpRace *r){
             M.r.credit ? "counts in the career" : "does not count in the career", M.prizes[0], M.prizes[1], M.prizes[2], M.prizes[3]);
     for (int i = 0; i < M.r.nfriends; i++) fprintf(stderr, " %s", M.r.friends[i]);
     fprintf(stderr, "%s\n", M.r.nfriends ? "" : " none");
-    { uint32_t pl = rd(G_PLAYER1); mprace_perf_log("our car in free roam", pl ? rd(pl + 4u) : 0); }
+    { uint32_t pl = guest_rd32(G_PLAYER1); mprace_perf_log("our car in free roam", pl ? guest_rd32(pl + 4u) : 0); }
     return 1;
 }
 int mprace_phase(void){ return M.phase; }
@@ -858,7 +853,7 @@ static void pay(CPU *c, int in_roam, const char *where){
             MpCredit cr; int career = mpcredit_last(&cr) && cr.race == M.r.credit ? cr.prize : -1;
             int top = career >= 0 && M.prize > career ? M.prize - career : 0;
             if (top > 0){
-                uint32_t b = rd(G_CAREER + C_BANK);
+                uint32_t b = guest_rd32(G_CAREER + C_BANK);
                 MR32(G_CAREER + C_BANK) = b + (uint32_t)top;
                 fprintf(stderr, "[mprace] f=%ld the place's prize money is more than the career's ($%d, $%d): $%d more ($%u -> $%u)\n",
                         autotest_frame(), M.prize, career, top, b, b + (uint32_t)top);
@@ -867,7 +862,7 @@ static void pay(CPU *c, int in_roam, const char *where){
             return;
         }
     }
-    uint32_t b = rd(G_CAREER + C_BANK);
+    uint32_t b = guest_rd32(G_CAREER + C_BANK);
     if (M.prize > 0){
         MR32(G_CAREER + C_BANK) = b + (uint32_t)M.prize;
         fprintf(stderr, "[mprace] f=%ld the prize: $%d into the bank ($%u -> $%u)%s\n", autotest_frame(), M.prize, b, b + (uint32_t)M.prize, where);
@@ -890,8 +885,8 @@ int mprace_covered(void){ return (M.phase == MPR_OUT || M.phase == MPR_LAN || (M
 const char *mprace_step(void){ return M.step ? M.step : ""; }
 
 static uint32_t screen_of(uint32_t vt){
-    uint32_t n = rd(G_FEMGR);
-    for (int k = 0; n && n != G_FEMGR && k < 256; k++, n = rd(n)){ uint32_t sc = rd(n - 4u + 0x14u); if (okm(sc, 0x920) && MR32(sc) == vt) return sc; }
+    uint32_t n = guest_rd32(G_FEMGR);
+    for (int k = 0; n && n != G_FEMGR && k < 256; k++, n = guest_rd32(n)){ uint32_t sc = guest_rd32(n - 4u + 0x14u); if (guest_ok(sc, 0x920) && MR32(sc) == vt) return sc; }
     return 0;
 }
 /* our place from the race's results as last read (results_read: the local human's car by its id): 1 + the racers
@@ -904,19 +899,19 @@ static int results_place(void){
     return 0;
 }
 /* The results' rows (0x515DB0 fills them, from the network race's record of each car where it has one), in their
- * order: +4 the car's id, +8 1, +0xC its time (G_TICKER's units), +0xC8 how far it came (laps), +0x104 a drift's
+ * order: +4 the car's id, +8 1, +0xC its time (G_REALTIMER's units), +0xC8 how far it came (laps), +0x104 a drift's
  * points, +0x10C its top speed and +0x110 its average speed (m/s: what an online race's report sends of them,
  * 0x5FE8D0; so the way it drove is its average times its time).  +8 is 1 for every racer, the ones still on the way
  * when the race ended too (30 s after the first was over the line: a player who stood still had a time and 2nd
  * place), so a racer finished where it came as many whole laps as the farthest (not the race's laps: a downhill drift
  * is one run of a 2-lap network race).  Into M.res; log: each in the log too */
 static void results_read(int log){
-    uint32_t pl = rd(G_PLAYER1), car = pl ? rd(pl + 4u) : 0, n = rd(G_RESULTS_N), e[MPRACE_RESULTS_MAX];
-    int ours = okm(car, 0xc) ? (int)(uint16_t)MR16(car + 0xau) : -1, drift = rd(G_NET + N_MODE) == 3u, ne = 0;
+    uint32_t pl = guest_rd32(G_PLAYER1), car = pl ? guest_rd32(pl + 4u) : 0, n = guest_rd32(G_RESULTS_N), e[MPRACE_RESULTS_MAX];
+    int ours = guest_ok(car, 0xc) ? (int)(uint16_t)MR16(car + 0xau) : -1, drift = guest_rd32(G_NET + N_MODE) == 3u, ne = 0;
     float far = 0.f;
     for (uint32_t k = 0; k < n && ne < MPRACE_RESULTS_MAX; k++){
-        uint32_t x = rd(G_RESULTS + 4u * k);
-        if (!okm(x, 0x224)) continue;
+        uint32_t x = guest_rd32(G_RESULTS + 4u * k);
+        if (!guest_ok(x, 0x224)) continue;
         e[ne++] = x;
         if (MRF32(x + 0xc8u) > far) far = MRF32(x + 0xc8u);
     }
@@ -924,9 +919,9 @@ static void results_read(int log){
     for (int k = 0; k < ne; k++){
         MpResult *r = &M.res[M.nres++];
         memset(r, 0, sizeof *r);
-        uint32_t id = MR32(e[k] + 4u) & 0xffffu, np = id < 8u ? rd(G_NETPLAYERS + 4u * id) : 0, t = MR32(e[k] + 0xcu);
+        uint32_t id = MR32(e[k] + 4u) & 0xffffu, np = id < 8u ? guest_rd32(G_NETPLAYERS + 4u * id) : 0, t = MR32(e[k] + 0xcu);
         float laps = MRF32(e[k] + 0xc8u), pts = MRF32(e[k] + 0x104u), avg = MRF32(e[k] + 0x110u), top = MRF32(e[k] + 0x10cu);
-        if (okm(np, 0x22)) for (int i = 0; i < (int)sizeof r->name - 1 && MR8(np + 0x12u + (uint32_t)i); i++) r->name[i] = (char)MR8(np + 0x12u + (uint32_t)i);
+        if (guest_ok(np, 0x22)) for (int i = 0; i < (int)sizeof r->name - 1 && MR8(np + 0x12u + (uint32_t)i); i++) r->name[i] = (char)MR8(np + 0x12u + (uint32_t)i);
         r->ours = (int)id == ours;
         r->done = laps >= 0.f && laps < 1000.f ? laps : 0.f;
         r->clock = t < 4000u * 3600u ? (float)t / 4000.f : 0.f;
@@ -979,12 +974,11 @@ static struct {
     char     joined[SER_HEATS][40];                 /* the joiner: the games it was in, by name */
     MpResult hres[MPRACE_RESULTS_MAX]; int nhres, hplace;   /* the last heat's own rows and our place there (the race's
                                                              * report to the server: a heat's times, not the points) */
+    MpResult hall[SER_HEATS][MPRACE_RESULTS_MAX]; int nhall[SER_HEATS]; /* results for each earlier heat */
     int      between;                               /* from the last heat's game room to the lobby, for the next game */
     int      alone;                                 /* the others quit mid-heat: the series is ours (quit_win) */
     char     step[48];
 } S;
-#define G_RACES_SER     0x008383e0u
-#define G_NRACES_SER    0x008383e4u
 static int series_on(void){ return S.heats > 1; }
 static int series_last(void){ return S.heat + 1 >= S.heats; }
 /* at the trip's start: the race's heats from its record (M.r.race: its name hash); none found: one heat */
@@ -992,8 +986,8 @@ static void series_init(void){
     memset(&S, 0, sizeof S);
     S.heats = 1;
     if (M.r.heats <= 1) return;
-    uint32_t tab = rd(G_RACES_SER), n = rd(G_NRACES_SER), r = 0;
-    for (uint32_t i = 0; tab && i < n && i < 1024 && !r; i++) if (okm(tab + i * 0x88u, 0x88) && MR32(tab + i * 0x88u + 8u) == M.r.race) r = tab + i * 0x88u;
+    uint32_t tab = guest_rd32(G_RACES), n = guest_rd32(G_NRACES), r = 0;
+    for (uint32_t i = 0; tab && i < n && i < 1024 && !r; i++) if (guest_ok(tab + i * 0x88u, 0x88) && MR32(tab + i * 0x88u + 8u) == M.r.race) r = tab + i * 0x88u;
     int h = r ? (int)(int8_t)MR8(r + 0x7eu) : 0;
     if (h > M.r.heats) h = M.r.heats;
     if (h > SER_HEATS) h = SER_HEATS;
@@ -1230,10 +1224,10 @@ static void quit_win(long f){
 
 /* the host's game in the joiner's list (its HOST our host's LAN name): its record, or 0 */
 static uint32_t find_game(void){
-    uint32_t h = rd(G_LOBBY + 8u), n = h ? rd(h + 0x14u) : 0, arr = h ? rd(h + 0x40u) : 0;
+    uint32_t h = guest_rd32(G_LOBBY + 8u), n = h ? guest_rd32(h + 0x14u) : 0, arr = h ? guest_rd32(h + 0x40u) : 0;
     for (uint32_t k = 0; k < n && k < 256; k++){
-        uint32_t p = rd(arr + 4u * k), rec = p ? rd(p) : 0;
-        if (!okm(rec, 0x1c0)) continue;
+        uint32_t p = guest_rd32(arr + 4u * k), rec = p ? guest_rd32(p) : 0;
+        if (!guest_ok(rec, 0x1c0)) continue;
         char host[17]; for (int i = 0; i < 16; i++) host[i] = (char)MR8(rec + 0x38u + (uint32_t)i); host[16] = 0;
         if (!strcmp(host, M.r.host_name) && !series_old_game(rec)) return rec;
     }
@@ -1280,25 +1274,37 @@ static void dlg_text(char *t, int n){ int i = 0; for (; i < n - 1; i++){ t[i] = 
  * the next heat's game is created and joined as the first was.  1 while on the way */
 static int step_between(long f){
     if (!S.between) return 0;
-    uint32_t cb = rd(G_LOBBY + 0xcu);
-    if (rd(G_DLG)){
-        uint32_t nb = rd(G_DLG_NBUT);
+    uint32_t cb = guest_rd32(G_LOBBY + 0xcu);
+    if (guest_rd32(G_DLG)){
+        uint32_t nb = guest_rd32(G_DLG_NBUT), m1 = guest_rd32(G_DLG_MSG1), m2 = guest_rd32(G_DLG_MSG2), m3 = guest_rd32(G_DLG_MSG3);
         char t[96]; dlg_text(t, sizeof t);
-        int cancel = nb == 1 && (rd(G_DLG_MSG3) == MSG_LOOK_CANCEL || rd(G_DLG_LABEL3) == LBL_CANCEL);
-        if (nb == 0 || cancel){
+        /* a "please wait" goes by itself: above all the game's login on the host's lobby again after the heat
+         * ("Connecting to lobby..."; more than 5 s for a joiner on the live server, a player's log), whose Cancel
+         * takes the game out of LAN ("If you cancel connecting to the lobby server, you will be taken offline and
+         * returned to the main menu"): no next heat from there.  Given up after 30 s, as on the way to the first
+         * heat: the series ends there */
+        if (nb == 0 || (nb == 1 && (m3 == MSG_LOOK_CANCEL || guest_rd32(G_DLG_LABEL3) == LBL_CANCEL))){
             if (!M.wait_at) M.wait_at = f;
-            if (cancel && f - M.wait_at > 60 * 5){ dlg_answer(rd(G_DLG_MSG3)); M.wait_at = 0; M.next = f + 30; }
+            if (f - M.wait_at > 60 * 30){ M.wait_at = 0; fail("the host's lobby did not answer between the heats"); }
             return 1;
         }
         M.wait_at = 0;
+        /* the host's LAN server not listening yet: again, as on the way to the first heat */
+        if (nb == 2 && (m1 == MSG_RETRY || m2 == MSG_RETRY)){
+            if (++M.ndlg > 8){ dlg_answer(m1 == MSG_RETRY ? m2 : m1); fail("the host's LAN server did not answer between the heats"); return 1; }
+            mlog("between the heats, a dialog: \"%s\": retry", t); dlg_answer(MSG_RETRY); M.next = f + 120;
+            return 1;
+        }
         mlog("between the heats, a dialog: \"%s\": yes / OK", t);
-        dlg_answer(nb == 1 ? rd(G_DLG_MSG3) : rd(G_DLG_MSG1));
+        dlg_answer(nb == 1 ? m3 : m1);
         M.next = f + 30;
         return 1;
     }
     M.wait_at = 0;
-    if (on("UI_PostRaceResults.fng")){ if (f - M.scr_tap >= 60 * 4){ autotest_tap(K_RET, 6); acted(f); } return 1; }
-    if (rd(G_FLOW) != 3u) return 1;                                               /* (the last heat's world going) */
+    if (on("UI_PostRaceResults.fng")){ if (f - M.scr_tap >= 60 * 4 && !restart_asked()){ autotest_tap(K_RET, 6); acted(f); } return 1; }
+    if (guest_rd32(G_FLOW) != 3u) return 1;                                               /* (the last heat's world going) */
+    /* out of LAN (an error's OK, the host's game gone): the next heat cannot come, the series ends at once */
+    if (on("UI_Main.fng")){ fail("the game left LAN between the heats"); return 1; }
     if (cb == CB_ROOM){ if (act_ok("PC_OL_GameRoom.fng", f)){ autotest_tap(K_ESC, 6); acted(f); } return 1; }
     if (cb == CB_LOBBY || on("UI_OLMAIN.fng")){
         S.between = 0; M.scr = 0;
@@ -1310,24 +1316,24 @@ static int step_between(long f){
 
 /* ---- toward the race -------------------------------------------------------------------------- */
 static void step_race(CPU *c, long f){
-    uint32_t cb = rd(G_LOBBY + 0xcu), ctx = rd(G_LOBBY + 0x10u), flow = rd(G_FLOW);
+    uint32_t cb = guest_rd32(G_LOBBY + 0xcu), ctx = guest_rd32(G_LOBBY + 0x10u), flow = guest_rd32(G_FLOW);
     /* the connection to the host's LAN game lost (the game's own screen, step_back answers it): the race is off at
      * once (the room would wait for a start that cannot come) */
     if (M.phase == MPR_LAN && on("UI_OL_Disconnect.fng")){ S.between = 0; fail("the connection to the host's game was lost"); return; }
     if (!M.host_gone && step_between(f)) return;
     if (M.host_gone && M.phase == MPR_LAN){
         /* the host quit: its LAN server went with it (a "Connecting to lobby..." called off) */
-        if (rd(G_DLG) && rd(G_DLG_NBUT) == 1u) dlg_answer(rd(G_DLG_MSG3));
+        if (guest_rd32(G_DLG) && guest_rd32(G_DLG_NBUT) == 1u) dlg_answer(guest_rd32(G_DLG_MSG3));
         char w[64]; snprintf(w, sizeof w, "%s closed the game", M.r.host_name);
         fail(w);
         return;
     }
-    if (rd(G_DLG) && M.phase == MPR_LAN){
+    if (guest_rd32(G_DLG) && M.phase == MPR_LAN){
         /* a dialog on the way: "please wait" ones (no button, or "Looking for
          * LAN servers"' Cancel) go by themselves; the joiner's "reconnect?"
          * (the host's server not listening yet) is retried, 8 times at most;
          * an error's OK ends the trip */
-        uint32_t nb = rd(G_DLG_NBUT), m1 = rd(G_DLG_MSG1), m2 = rd(G_DLG_MSG2), m3 = rd(G_DLG_MSG3);
+        uint32_t nb = guest_rd32(G_DLG_NBUT), m1 = guest_rd32(G_DLG_MSG1), m2 = guest_rd32(G_DLG_MSG2), m3 = guest_rd32(G_DLG_MSG3);
         if (!M.dlg_at) M.dlg_at = f;
         /* the host's "Looking for LAN servers" (5 s): called off, as a player who hosts would (Host LAN Server takes
          * nothing from its list; the Cancel only closes it, 0x4FB745) */
@@ -1335,7 +1341,7 @@ static void step_race(CPU *c, long f){
             if (f - M.dlg_at >= SETTLE && dlg_answer(m3)){ M.look_off = 1; M.dlg_at = 0; mlog("the search for LAN servers called off%s", ""); }
             return;
         }
-        int wait = nb == 0 || (nb == 1 && (m3 == MSG_LOOK_CANCEL || rd(G_DLG_LABEL3) == LBL_CANCEL));
+        int wait = nb == 0 || (nb == 1 && (m3 == MSG_LOOK_CANCEL || guest_rd32(G_DLG_LABEL3) == LBL_CANCEL));
         if ((wait && f - M.dlg_at < 60 * 30) || f - M.dlg_at < 60) return;      /* (a "please wait" of 30 s: given up) */
         char t[96]; dlg_text(t, sizeof t);
         if (nb == 2 && (m1 == MSG_RETRY || m2 == MSG_RETRY)){
@@ -1348,7 +1354,7 @@ static void step_race(CPU *c, long f){
         if (wait) snprintf(w, sizeof w, "%s", M.r.host ? "the LAN server did not start" : "the host's game did not answer");
         else snprintf(w, sizeof w, "the game said \"%s\"", t);
         fprintf(stderr, "[mprace] f=%ld a dialog: \"%s\" (%u buttons: %08x %08x %08x, label %08x): the trip ends\n", autotest_frame(), t, nb, m1, m2, m3,
-                rd(G_DLG_LABEL3));
+                guest_rd32(G_DLG_LABEL3));
         dlg_answer(nb == 1 ? m3 : m2);                                            /* OK, or No / Cancel */
         fail(w);
         return;
@@ -1366,9 +1372,9 @@ static void step_race(CPU *c, long f){
             autotest_tap(on("UI_EngageMessageDialog.fng") ? K_RET : K_ESC, 6); M.next = f + 60; return;
         }
         if (flow == 6u && !M.paused){
-            uint32_t co = rd(G_RACECO), pl = rd(G_PLAYER1);
-            if (rd(co) != 4u || rd(G_RACETYPE) || !pl) return;                     /* an outrun, a cut scene: later */
-            call(c, FN_PAUSE, co, 1, (uint32_t[]){ rd(pl + 8u) });
+            uint32_t co = guest_rd32(G_RACECO), pl = guest_rd32(G_PLAYER1);
+            if (guest_rd32(co) != 4u || guest_rd32(G_RACETYPE) || !pl) return;                     /* an outrun, a cut scene: later */
+            call(c, FN_PAUSE, co, 1, (uint32_t[]){ guest_rd32(pl + 8u) });
             M.paused = 1; M.next = f + 30;
             return;
         }
@@ -1385,7 +1391,7 @@ static void step_race(CPU *c, long f){
     }
     if (on("UI_PC_LAN_ServerSelect.fng")){
         uint32_t ss = screen_of(VT_SERVERSEL);
-        if (!ss || rd(G_LANSTATE) != 2u || rd(ss + SS_LOOKING)) return;           /* the network not up, or still looking */
+        if (!ss || guest_rd32(G_LANSTATE) != 2u || guest_rd32(ss + SS_LOOKING)) return;           /* the network not up, or still looking */
         if (M.r.host){
             if (M.hosted) return;
             send_to(c, MSG_BUTTON1, S_SERVERSEL);                                   /* Host LAN Server */
@@ -1397,7 +1403,7 @@ static void step_race(CPU *c, long f){
              * switch it did not: the trip waited 45 s for it), and one not listening yet is asked again
              * (the "reconnect?" dialog, below) */
             int seen = 0; uint32_t head = ss + SS_LIST;
-            for (uint32_t n = rd(head), k = 0; n && n != head && k < 128; n = rd(n), k++) if (rd(n + 0x18u) == M.r.host_ip) seen = 1;
+            for (uint32_t n = guest_rd32(head), k = 0; n && n != head && k < 128; n = guest_rd32(n), k++) if (guest_rd32(n + 0x18u) == M.r.host_ip) seen = 1;
             if (!M.look_at) M.look_at = f;
             if (!seen && f - M.look_at < 60 * 12) return;
             char ip[20]; snprintf(ip, sizeof ip, "%u.%u.%u.%u", M.r.host_ip >> 24, (M.r.host_ip >> 16) & 255u, (M.r.host_ip >> 8) & 255u, M.r.host_ip & 255u);
@@ -1410,20 +1416,20 @@ static void step_race(CPU *c, long f){
         return;
     }
     if (on("UI_PC_LAN.fng")){
-        if (MR8(G_TXT_ON) != 1u || !rd(G_TXT_REC) || M.named) return;
+        if (MR8(G_TXT_ON) != 1u || !guest_rd32(G_TXT_REC) || M.named) return;
         gs(G_TXT_BUF, M.r.name, 13); MR32(G_TXT_LEN) = (uint32_t)strlen(M.r.name);
-        call(c, FN_TXT_ACCEPT, rd(G_TXT_REC), 0, 0);
+        call(c, FN_TXT_ACCEPT, guest_rd32(G_TXT_REC), 0, 0);
         M.named = 1; M.next = f + 30;
         mlog("the LAN name %s", M.r.name);
         return;
     }
     if (on("UI_OLMAIN.fng") && cb != CB_LOBBY && cb != CB_ROOM){
-        if (rd(G_LANSTATE) != 0x11u || rd(G_DLG)) return;                       /* logging in, or a dialog */
+        if (guest_rd32(G_LANSTATE) != 0x11u || guest_rd32(G_DLG)) return;                       /* logging in, or a dialog */
         if (!M.carset){
             /* the career car, as the car select's Career category picks it */
-            MR32(G_QR_CAR) = rd(G_CAREER_CAR); MR32(G_QR_CARCAT) = 4;
+            MR32(G_QR_CAR) = guest_rd32(G_CAREER_CAR); MR32(G_QR_CARCAT) = 4;
             M.carset = 1;
-            fprintf(stderr, "[mprace] f=%ld the career car 0x%08x\n", autotest_frame(), rd(G_CAREER_CAR));
+            fprintf(stderr, "[mprace] f=%ld the career car 0x%08x\n", autotest_frame(), guest_rd32(G_CAREER_CAR));
         }
         /* Move to the first icon before Enter. After a detour, move one
          * additional step left: the game wraps its icon scroller. */
@@ -1456,8 +1462,8 @@ static void step_race(CPU *c, long f){
             return;
         }
     }
-    if (cb == CB_LOBBY && okm(ctx, 0x110)){
-        if (rd(G_LANSTATE) != 0x11u || rd(G_GAME_IDENT) != 0xffffffffu || rd(G_DLG)) return;
+    if (cb == CB_LOBBY && guest_ok(ctx, 0x110)){
+        if (guest_rd32(G_LANSTATE) != 0x11u || guest_rd32(G_GAME_IDENT) != 0xffffffffu || guest_rd32(G_DLG)) return;
         if (M.r.host){
             if (!M.created && act_ok("PC_OL_Lobby.fng", f)){ autotest_tap(K_RET, 6); M.created = 1; acted(f); mlog("create the game%s", ""); }   /* Create Game */
             return;
@@ -1493,10 +1499,10 @@ static void step_race(CPU *c, long f){
             return;
         }
     }
-    if (cb == CB_ROOM && okm(ctx, 0x1180)){
+    if (cb == CB_ROOM && guest_ok(ctx, 0x1180)){
         if (!M.step_at) M.step_at = f;
         M.step = M.started || MR8(ctx + 0x1178u) ? "Starting the race" : "Waiting for the others";
-        uint32_t n = rd(G_GAME_COUNT);
+        uint32_t n = guest_rd32(G_GAME_COUNT);
         if (!M.r.host){
             /* ready (the join's own callback sent "not ready" first): again every 1.5 s until the game says so */
             if ((!M.ready || f - M.ready > 90) && !(call(c, FN_AMREADY, G_LOBBY, 0, 0) & 0xffu)){
@@ -1507,10 +1513,10 @@ static void step_race(CPU *c, long f){
             return;
         }
         int ready = 0;
-        for (uint32_t i = 1; i < n && i < 6; i++) ready += (rd(G_GAME_FLAGS0 + 0x64u * i) & GF_READY) != 0;
+        for (uint32_t i = 1; i < n && i < 6; i++) ready += (guest_rd32(G_GAME_FLAGS0 + 0x64u * i) & GF_READY) != 0;
         {   /* the room as the host sees it, when it changes */
             uint32_t now[10] = { n, MR8(ctx + 0x1178u), MR8(ctx + 0x1180u), (uint32_t)ready };
-            for (uint32_t i = 0; i < 6; i++) now[4 + i] = rd(G_GAME_FLAGS0 + 0x64u * i);
+            for (uint32_t i = 0; i < 6; i++) now[4 + i] = guest_rd32(G_GAME_FLAGS0 + 0x64u * i);
             if (memcmp(now, M.room, sizeof now)){
                 memcpy(M.room, now, sizeof now);
                 fprintf(stderr, "[mprace] f=%ld the room: %u in the game, %d ready, counting down %u, can start %u; flags %08x %08x %08x %08x %08x %08x\n",
@@ -1531,30 +1537,103 @@ static void step_race(CPU *c, long f){
 }
 
 /* ---- the race and its results ----------------------------------------------------------------- */
+/* The host's Restart on a LAN race's results (its help bar's, the C key: PAD_BUTTON1 to the results' handler,
+ * 0x4E9ACB -> 0x601D00, the glue's +0x11A; offered by 0x4E97A5 while 0x5FE500 says so: the host, other players in
+ * the race, not mode 8) takes the host's game from its results back into the race's world at once, and each other
+ * game whose player says OK to the game's question (restart_asked): the same race, without the menus (flow 7, 5,
+ * then 6 again with the start screen; no flow 3).  That race is a race of its own, as often as the host restarts:
+ * its own results and place (the prize goes by the last one raced), its cars evened out again, its racers' Quits
+ * its own, and its results read for as long as the first's before the trip's Continue (by the first's clock the
+ * trip would take the second results' Continue at once).  In a URL race's heats the heat is raced again (its
+ * points are counted only when its results are left: series_next).  1: the race came again just now */
+/* the host asked to restart the race (above: G_SRV_GLUE's): the question is the player's, as in the original game,
+ * so the trip takes no Continue on our results meanwhile (its Enter would answer Cancel); at most 10 s past the
+ * game's 15 s (a question that did not go) */
+static int restart_asked(void){
+    return MR8(G_SRV_GLUE + GLUE_REDO_ASKED) && (int32_t)(guest_rd32(G_REALTIMER) - guest_rd32(G_SRV_GLUE + GLUE_REDO_AT)) < 4000 * 10;
+}
+/* the race before the host's Restart: its result stands until the race again is under way (its countdown), and
+ * comes back when that never comes (the others said no: the host's start screen, UI_OLPreRaceStart, says "The race
+ * can not be started because you have lost your network connection, or the other players ...", about 15 s after
+ * the Restart, and its OK goes to the lobby) */
+static struct { int on, place, prize, nres, credit, nhall, nhres, hplace; float lead; char winner[16]; MpResult res[MPRACE_RESULTS_MAX]; } R;
+static void race_again_init(void){ memset(&R, 0, sizeof R); }
+static int race_again(void){
+    uint32_t flow = guest_rd32(G_FLOW);
+    if (!M.results_at) return 0;
+    if (flow != 6u && flow != 3u){ M.unloaded = 1; return 0; }           /* (the results' world going; a Continue then
+                                                                          * goes on to the menus, flow 3) */
+    if (!M.unloaded || flow != 6u || !(guest_rd32(G_GAMEMODE) & 0x200u)) return 0;
+    M.again++;
+    fprintf(stderr, "[mprace] f=%ld the host restarted the race: the race again (%d time%s); the last one's place %d, prize $%d until it is under way\n",
+            autotest_frame(), M.again, M.again == 1 ? "" : "s", M.place, M.prize);
+    int k = S.heat >= 0 && S.heat < SER_HEATS ? S.heat : 0;
+    R.on = 1; R.place = M.place; R.prize = M.prize; R.nres = M.nres; R.credit = M.credit; R.lead = M.lead;
+    memcpy(R.winner, M.winner, sizeof R.winner); memcpy(R.res, M.res, sizeof R.res);
+    R.nhall = S.nhall[k]; R.nhres = S.nhres; R.hplace = S.hplace;
+    M.unloaded = 0; M.redo_asked = 0; M.results_at = 0; M.place = M.prize = 0; M.logged_place = 0; M.nres = 0;
+    M.credit = MPC_NONE; M.lead = 0.f; M.winner[0] = 0; M.logged_credit = 0;
+    M.perf_logged = 0; memset(&g_bal, 0, sizeof g_bal); quit_reset();
+    if (series_on()){ S.alone = 0; S.nhres = 0; S.hplace = 0; S.nhall[k] = 0; }
+    M.since = clk(); M.scr = 0;
+    return 1;
+}
+/* ...under way: the last race's result goes; or it did not come (the menus again without results): the last race's
+ * result back, as if its results were left (f) */
+static void race_again_on(void){
+    uint32_t rs = guest_rd32(G_RACE), st = rs ? guest_rd32(rs) : 0;
+    if (!R.on || (st != 3u && st != 4u && st != 6u)) return;
+    R.on = 0;
+    mlog("the race again is under way: the last one's result is gone%s", "");
+}
+static void race_again_off(long f){
+    if (!R.on || M.results_at) return;
+    int k = S.heat >= 0 && S.heat < SER_HEATS ? S.heat : 0;
+    R.on = 0;
+    M.place = R.place; M.prize = R.prize; M.nres = R.nres; M.credit = R.credit; M.lead = R.lead;
+    memcpy(M.winner, R.winner, sizeof M.winner); memcpy(M.res, R.res, sizeof M.res);
+    if (series_on()){ S.nhall[k] = R.nhall; S.nhres = R.nhres; S.hplace = R.hplace; }
+    M.results_at = f;
+    fprintf(stderr, "[mprace] f=%ld the race again did not come: the last one's result stands, place %d, prize $%d\n", autotest_frame(), M.place, M.prize);
+}
 static int step_racing(long f){
-    if (rd(G_FLOW) == 6u && (rd(G_GAMEMODE) & 0x200u) && M.phase == MPR_LAN && !S.between){ to_phase(MPR_RACE); M.raced = 1; mlog("the race is on%s", ""); }
-    if (M.phase == MPR_LAN && M.lan && rd(G_FLOW) != 3u && !S.between){                     /* (the room's start: the race's world loads) */
+    if (guest_rd32(G_FLOW) == 6u && (guest_rd32(G_GAMEMODE) & 0x200u) && M.phase == MPR_LAN && !S.between){ to_phase(MPR_RACE); M.raced = 1; mlog("the race is on%s", ""); }
+    if (M.phase == MPR_LAN && M.lan && guest_rd32(G_FLOW) != 3u && !S.between){                     /* (the room's start: the race's world loads) */
         M.step = "Loading the race";
         if (!M.load_at) M.load_at = f;
     }
+    /* (the host's Restart came as the trip's Continue went: into the race again, not the way back, whose input is
+     * the trip's) */
+    if (M.phase == MPR_BACK && M.raced && !M.left && !M.why[0] && race_again()){ M.goal = G_RACE_GOAL; M.step = "Loading the race"; to_phase(MPR_RACE); }
     if (M.phase != MPR_RACE) return 0;
+    race_again(); race_again_on();
+    {   /* the game's dialogs in the race and on its results (the player's to answer), in the log */
+        uint32_t d = guest_rd32(G_DLG);
+        if (d && d != M.race_dlg){
+            char t[96]; dlg_text(t, sizeof t);
+            fprintf(stderr, "[mprace] f=%ld in the race, the game's dialog: \"%s\" (%u buttons: %08x %08x %08x, labels %08x %08x %08x)\n",
+                    autotest_frame(), t, guest_rd32(G_DLG_NBUT), guest_rd32(G_DLG_MSG1), guest_rd32(G_DLG_MSG2), guest_rd32(G_DLG_MSG3),
+                    guest_rd32(G_DLG_MSG1 - 4u), guest_rd32(G_DLG_MSG2 - 4u), guest_rd32(G_DLG_LABEL3));
+        }
+        M.race_dlg = d;
+    }
     if (!M.perf_logged){
         /* the race's cars, once all are rated (or 20 s on): ours and every racer's in the log (GRaceStatus: +0x24
          * racers, +0xBD0 theirs, each +0 its car, [[car +0x14] +4] its driver), ours for the race's report, then
          * evened out */
-        uint32_t pl = rd(G_PLAYER1), car = pl ? rd(pl + 4u) : 0, cars[RACE_CARS_MAX], pis[RACE_CARS_MAX]; int nc;
+        uint32_t pl = guest_rd32(G_PLAYER1), car = pl ? guest_rd32(pl + 4u) : 0, cars[RACE_CARS_MAX], pis[RACE_CARS_MAX]; int nc;
         if (race_cars(cars, pis, &nc) || f - M.since > 60 * 20){
             mprace_perf_log("our car in the race", car); M.perf_logged = 1;
             float sum = 0.f; int k = 0;
             for (int i = 0; i < nc; i++){
                 char who[48];
-                snprintf(who, sizeof who, "racer %d (driver %d%s)", i, (int)rd(rd(cars[i] + 0x14u) + 4u), cars[i] == car ? ", ours" : "");
+                snprintf(who, sizeof who, "racer %d (driver %d%s)", i, (int)guest_rd32(guest_rd32(cars[i] + 0x14u) + 4u), cars[i] == car ? ", ours" : "");
                 mprace_perf_log(who, cars[i]);
                 if (pis[i] && MRF32(pis[i] + PI_RATING) > 0.f){ sum += MRF32(pis[i] + PI_RATING); k++; }
             }
             mprace_car_perf(car, &M.rep_car);
             M.rep_cars = nc; M.rep_field = k ? sum / (float)k : 0.f;
-            M.rep_mode = (int)rd(G_NET + N_MODE); M.rep_track = (int)(rd(G_NET + N_TRACK) & 0xffffu); M.rep_laps = (int)(rd(G_NET + N_LAPS) & 0xffffu);
+            M.rep_mode = (int)guest_rd32(G_NET + N_MODE); M.rep_track = (int)(guest_rd32(G_NET + N_TRACK) & 0xffffu); M.rep_laps = (int)(guest_rd32(G_NET + N_LAPS) & 0xffffu);
             M.rep_factor = balance_race(car, M.rep_mode);
         }
     }
@@ -1576,8 +1655,11 @@ static int step_racing(long f){
             fprintf(stderr, "[mprace] f=%ld the results: place %d, prize $%d%s\n", autotest_frame(), M.place, M.prize, first ? "" : " (our row came later)");
             results_read(1);
         }
-        /* the player reads them; Continue after 8 s, the host 4 s after the others (its leaving closes the server) */
-        if (f - M.results_at > 60 * (M.r.host ? 12 : 8)){
+        /* the player reads them; Continue after 8 s, the host 4 s after the others (its leaving closes the server);
+         * none while the host's Restart counts down (race_again) */
+        if (restart_asked()){
+            if (!M.redo_asked){ M.redo_asked = 1; mlog("the host asked to restart the race: the results wait for the game's countdown%s", ""); }
+        } else if (f - M.results_at > 60 * (M.r.host ? 12 : 8)){
             autotest_tap(K_RET, 6);
             act_ok("UI_PostRaceResults.fng", f); acted(f);
             if (series_next(f)) return 1;                                         /* (the next heat) */
@@ -1589,7 +1671,8 @@ static int step_racing(long f){
     /* the menus again: the player left the race (its pause menu's Quit to LAN Main Menu: no results), or the
      * results with their own Continue, before ours (the game's room came up, and the trip waited there for
      * good): back */
-    if (rd(G_FLOW) == 3u){
+    if (guest_rd32(G_FLOW) == 3u){
+        race_again_off(f);                                                        /* (a race again that did not come) */
         if (M.results_at && series_next(f)) return 1;                             /* (a heat's results left: the next heat) */
         if (!M.results_at && quit_alone()){ quit_win(f); M.goal = G_CAREER_GOAL; M.step = "Back to free roam"; to_phase(MPR_BACK); return 1; }
         if (M.results_at && !M.place){ M.place = results_place(); M.prize = prize_at(M.place); credit_decide(); }
@@ -1614,10 +1697,10 @@ static int disconnect_answer(CPU *c){
     uint32_t s = screen_of(VT_OL_DISCONNECT);
     if (!s) return 0;
     int pick = -1;
-    for (int i = 0; i < 3 && pick < 0; i++) if (rd(s + 0x4cu + 4u * (uint32_t)i) == 3u) pick = i;
-    for (int i = 0; i < 3 && pick < 0; i++) if (rd(s + 0x4cu + 4u * (uint32_t)i) == 2u) pick = i;
-    fprintf(stderr, "[mprace] f=%ld the game's \"connection lost\" screen: options %u %u %u, %s%d\n", autotest_frame(), rd(s + 0x4cu), rd(s + 0x50u),
-            rd(s + 0x54u), pick < 0 ? "none to take" : "take ", pick);
+    for (int i = 0; i < 3 && pick < 0; i++) if (guest_rd32(s + 0x4cu + 4u * (uint32_t)i) == 3u) pick = i;
+    for (int i = 0; i < 3 && pick < 0; i++) if (guest_rd32(s + 0x4cu + 4u * (uint32_t)i) == 2u) pick = i;
+    fprintf(stderr, "[mprace] f=%ld the game's \"connection lost\" screen: options %u %u %u, %s%d\n", autotest_frame(), guest_rd32(s + 0x4cu), guest_rd32(s + 0x50u),
+            guest_rd32(s + 0x54u), pick < 0 ? "none to take" : "take ", pick);
     if (pick < 0) return 0;
     uint32_t a = (uint32_t)pick; call(c, FN_DISCONNECT_PICK, s, 1, &a);
     return 1;
@@ -1633,52 +1716,53 @@ static int disconnect_answer(CPU *c){
  * traffic, the race's HUD (HUD_Drift after a drift race), and the game hung at the player's first change of control
  * (its input setup 0x605C70 walking the actions' subscriptions, 0x579410, for good: tests with the game's autopilot,
  * 2026-11-02).  On the way back, in the main menu, they get the same reset when they are not the menus' already. */
-#define G_RPARAMS        0x0089e7a0u
 #define FN_RPARAMS_RESET 0x005ed5f0u   /* thiscall GRaceParameters: as the front end has them */
 #define RP_TRACK_MENUS   0x7d0u
 static void params_reset(CPU *c){
-    uint32_t tr = rd(G_RPARAMS), ty = rd(G_RPARAMS + 0x10u), n = rd(G_RPARAMS + 0x74u), nf = rd(G_RPARAMS + 0x40u), nf2 = rd(G_RPARAMS + 0x44u);
+    uint32_t tr = guest_rd32(G_RACEPARAMS), ty = guest_rd32(G_RACEPARAMS + 0x10u), n = guest_rd32(G_RACEPARAMS + 0x74u), nf = guest_rd32(G_RACEPARAMS + 0x40u), nf2 = guest_rd32(G_RACEPARAMS + 0x44u);
     if (tr == RP_TRACK_MENUS && !ty && !n) return;
-    call(c, FN_RPARAMS_RESET, G_RPARAMS, 0, 0);
+    call(c, FN_RPARAMS_RESET, G_RACEPARAMS, 0, 0);
     fprintf(stderr, "[mprace] f=%ld the race's parameters were the LAN race's (track %u, race type %u, %u racers, flags %08x %08x): put back "
-            "as the menus have them (track %u, race type %u, %u racers)\n", autotest_frame(), tr, ty, n, nf, nf2, rd(G_RPARAMS), rd(G_RPARAMS + 0x10u),
-            rd(G_RPARAMS + 0x74u));
+            "as the menus have them (track %u, race type %u, %u racers)\n", autotest_frame(), tr, ty, n, nf, nf2, guest_rd32(G_RACEPARAMS), guest_rd32(G_RACEPARAMS + 0x10u),
+            guest_rd32(G_RACEPARAMS + 0x74u));
 }
 static void step_back(CPU *c, long f){
-    uint32_t cb = rd(G_LOBBY + 0xcu), flow = rd(G_FLOW);
+    uint32_t cb = guest_rd32(G_LOBBY + 0xcu), flow = guest_rd32(G_FLOW);
     /* in the crib after the race's win: the player picks a sponsor, or the race's movie plays (mpcredit.c): theirs,
      * the dialog too */
     if (mpcredit_busy()){ M.next = f + 4; return; }
     if (on("UI_OL_Disconnect.fng")){ if (act_ok("UI_OL_Disconnect.fng", f)){ disconnect_answer(c); acted(f); } return; }
-    if (rd(G_DLG)){
+    /* (the host's Restart counting down on our results: the game's own, into the race again) */
+    if (restart_asked() && on("UI_PostRaceResults.fng")){ M.next = f + 4; return; }
+    if (guest_rd32(G_DLG)){
         /* a dialog on the way back: Yes / OK (the left button, or the only
          * one); a "please wait" goes by itself, or with its Cancel after 5 s
          * (on the way out of the LAN menus there is nothing to wait for: a
          * host gone left one "connecting" for a minute) */
-        uint32_t nb = rd(G_DLG_NBUT);
+        uint32_t nb = guest_rd32(G_DLG_NBUT);
         char t[96]; dlg_text(t, sizeof t);
-        int cancel = nb == 1 && (rd(G_DLG_MSG3) == MSG_LOOK_CANCEL || rd(G_DLG_LABEL3) == LBL_CANCEL);
+        int cancel = nb == 1 && (guest_rd32(G_DLG_MSG3) == MSG_LOOK_CANCEL || guest_rd32(G_DLG_LABEL3) == LBL_CANCEL);
         if (nb == 0 || cancel){
             if (!M.wait_at){ M.wait_at = f; mlog("a \"please wait\" on the way back: \"%s\"", t); }
-            if (cancel && f - M.wait_at > 60 * 5){ mlog("... called off%s", ""); dlg_answer(rd(G_DLG_MSG3)); M.wait_at = 0; M.next = f + 30; }
+            if (cancel && f - M.wait_at > 60 * 5){ mlog("... called off%s", ""); dlg_answer(guest_rd32(G_DLG_MSG3)); M.wait_at = 0; M.next = f + 30; }
             return;
         }
         M.wait_at = 0;
         mlog("a dialog on the way back: \"%s\": yes / OK", t);
-        dlg_answer(nb == 1 ? rd(G_DLG_MSG3) : rd(G_DLG_MSG1));
+        dlg_answer(nb == 1 ? guest_rd32(G_DLG_MSG3) : guest_rd32(G_DLG_MSG1));
         M.next = f + 30;
         return;
     }
     M.wait_at = 0;
     /* (Continue missed: again after 4 s, not sooner; a second Enter on the room that comes next would do its own) */
-    if (on("UI_PostRaceResults.fng")){ if (f - M.scr_tap >= 60 * 4){ autotest_tap(K_RET, 6); acted(f); } return; }
+    if (on("UI_PostRaceResults.fng")){ if (f - M.scr_tap >= 60 * 4 && !restart_asked()){ autotest_tap(K_RET, 6); acted(f); } return; }
     if (flow == 6u){
         /* free roam again: done (the career's own free roam, not a LAN race's world); a test's
          * NFSU2_MPRACE_TEST_NODONE=1 misses it, as a trip that lost its way would (roam_game.c's MP_STALE_US) */
         static int nodone = -1;
         if (nodone < 0){ const char *e = getenv("NFSU2_MPRACE_TEST_NODONE"), *p = getenv("NFSU2_MPRACE_TEST_NOCRIBPAY");
                          nodone = (e && *e == '1') || (p && *p == '1'); }
-        if ((rd(G_GAMEMODE) & 1u) && rd(G_RACETYPE) == 0 && rd(rd(G_RACECO)) == 4u && on("HUD_SingleRace.fng") && !nodone){
+        if ((guest_rd32(G_GAMEMODE) & 1u) && guest_rd32(G_RACETYPE) == 0 && guest_rd32(guest_rd32(G_RACECO)) == 4u && on("HUD_SingleRace.fng") && !nodone){
             state_log("back in free roam"); to_phase(M.why[0] ? MPR_FAILED : MPR_DONE);
             M.owns = 0;
             return;
@@ -1721,8 +1805,8 @@ static void step_back(CPU *c, long f){
         if (nocribpay < 0){ const char *e = getenv("NFSU2_MPRACE_TEST_NOCRIBPAY"); nocribpay = e && *e == '1'; }
         if (!M.paid && nocribpay && !M.crib_go) mlog("the crib: no pay here (NFSU2_MPRACE_TEST_NOCRIBPAY)%s", "");
         if (!M.paid && !nocribpay){
-            if (rd(G_SNAPSHOT) == 0 && f - M.since < 60 * 3) return;               /* (its INIT_COMPLETE) */
-            pay(c, 0, rd(G_SNAPSHOT) ? "" : "; the game's autosave is off: saved at the next save");
+            if (guest_rd32(G_SNAPSHOT) == 0 && f - M.since < 60 * 3) return;               /* (its INIT_COMPLETE) */
+            pay(c, 0, guest_rd32(G_SNAPSHOT) ? "" : "; the game's autosave is off: saved at the next save");
         }
         if (mpcredit_busy()){ M.next = f + 4; return; }                          /* (the sponsor pick, the movie) */
         if (!M.crib_go){
@@ -1733,11 +1817,11 @@ static void step_back(CPU *c, long f){
         return;
     }
     if (on("MC_Main.fng")){                                                      /* the autosave's prompts: yes / OK */
-        uint32_t mode = rd(G_MC_MODE), next = rd(G_MC_NEXT);
+        uint32_t mode = guest_rd32(G_MC_MODE), next = guest_rd32(G_MC_NEXT);
         char nm[40] = "";
-        if ((mode & 0xfu) == 2u && okm(next, sizeof nm)) for (unsigned i = 0; i + 1 < sizeof nm && MR8(next + i); i++){ nm[i] = (char)MR8(next + i); nm[i + 1] = 0; }
+        if ((mode & 0xfu) == 2u && guest_ok(next, sizeof nm)) for (unsigned i = 0; i + 1 < sizeof nm && MR8(next + i); i++){ nm[i] = (char)MR8(next + i); nm[i + 1] = 0; }
         fprintf(stderr, "[mprace] f=%ld the save: mode 0x%x, from 0x%x, next 0x%x%s%s; dialog %u, top %s\n", autotest_frame(), mode,
-                rd(G_MC_FROM), next, nm[0] ? " " : "", nm, rd(G_DLG), autotest_top_fng() ? autotest_top_fng() : "?");
+                guest_rd32(G_MC_FROM), next, nm[0] ? " " : "", nm, guest_rd32(G_DLG), autotest_top_fng() ? autotest_top_fng() : "?");
         keys("LR"); M.next = f + 90; return;
     }
 }
@@ -1745,7 +1829,7 @@ static void step_back(CPU *c, long f){
 /* a guest string (scratch, up to 8 of them alive) */
 static uint32_t g_tmp; static int g_tmp_i;
 static uint32_t gstr_tmp(CPU *c, const char *s){
-    if (!g_tmp){ uint32_t sz = 0x200; g_tmp = call(c, 0x00575620u, 0, 1, &sz); if (!g_tmp) return 0; }
+    if (!g_tmp){ uint32_t sz = 0x200; g_tmp = call(c, FN_NEW, 0, 1, &sz); if (!g_tmp) return 0; }
     uint32_t a = g_tmp + 0x40u * (uint32_t)(g_tmp_i++ & 7);
     gs(a, s, 0x40);
     return a;

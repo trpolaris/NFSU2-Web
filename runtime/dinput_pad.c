@@ -80,6 +80,7 @@
  *   NFSU2_FF_LOG=1      log the effects the game creates, changes, starts and
  *                       stops, and the motor levels when they change      */
 #include "cpu.h"
+#include "game.h"
 #include "gamepad.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -296,6 +297,8 @@ void dipad_created(uint32_t obj, uint32_t guid){
     Dev *d = dev_of(obj, 1);
     d->wheel = dipad_guid(guid) == 2;
     PadState s; gamepad_read(&s);
+    int split_menu_pad(PadState *);
+    split_menu_pad(&s);
     if (pad_log()) fprintf(stderr, "[pad] CreateDevice -> 0x%08x, the %s (%s)\n", obj, d->wheel ? "wheel" : "pad",
                            s.connected ? s.name : "no controller yet");
 }
@@ -480,8 +483,8 @@ static void fe_keys(Dev *d, uint32_t buttons){
     if (on < 0) on = gamepad_env_flag("NFSU2_PAD_FE_KEYS", 1);
     uint32_t press = buttons & ~d->fe_prev, rel = d->fe_prev & ~buttons;
     d->fe_prev = buttons;
-    if (!on || !mem_is_committed(0x8654a7u)) return;
-    int fe = MR32(0x8654a4u) == 3u;
+    if (!on || !mem_is_committed(G_FLOW + 3u)) return;
+    int fe = MR32(G_FLOW) == 3u;
     fe_key(&d->fe_down[0], !!(press & 1u << PAD_A), !!(rel & 1u << PAD_A), fe, 0x0D, 0x1C, 0x0D);
     fe_key(&d->fe_down[1], !!(press & 1u << PAD_B), !!(rel & 1u << PAD_B), fe, 0x1B, 0x01, 0x1B);
     fe_key(&d->fe_down[2], !!(press & 1u << PAD_BACK), !!(rel & 1u << PAD_BACK), fe, 'Q', 0x10, 'q');
@@ -741,8 +744,8 @@ static float g_jolt_age, g_jolt_logt;   /* world seconds since this car appeared
 static void ff_jolt(void){
     uint32_t pl = mem_is_committed(0x8900acu + 3u) ? MR32(0x8900acu) : 0u;
     uint32_t car = pl && mem_is_committed(pl + 7u) ? MR32(pl + 4u) : 0u;
-    float dt = MRF32(0x865154u);
-    if (MR32(0x8654a4u) != 6u || !car || !mem_is_committed(car + 0x7bu)){ g_jolt_car = 0; g_jolt = 0; return; }
+    float dt = MRF32(G_WORLDDT);
+    if (MR32(G_FLOW) != 6u || !car || !mem_is_committed(car + 0x7bu)){ g_jolt_car = 0; g_jolt = 0; return; }
     float v[3] = { MRF32(car + 0x70u), MRF32(car + 0x74u), MRF32(car + 0x78u) };
     if (!isfinite(v[0]) || !isfinite(v[1]) || !isfinite(v[2])) return;
     if (!(dt > 0.f && dt < 0.25f)) return;              /* the world stands (pause, a menu over it) */
@@ -1143,3 +1146,26 @@ void sub_00407750(CPU *c){
     }
     sub_00407750_orig(c);
 }
+
+
+#ifdef __wasm__
+/* Convert a local browser seat through the same DirectInput mapping as the
+ * main virtual pad. Each seat keeps its own POV and trigger edge history. */
+int dipad_local_state(unsigned seat, uint8_t out[0x110]){
+    static int pov[6], triggers[6][2];
+    if (seat >= 6) return 0;
+    PadState state;
+    int split_read_local(unsigned, PadState *);
+    if (!split_read_local(seat, &state)) { pov[seat] = 0; memset(triggers[seat], 0, sizeof triggers[seat]); return 0; }
+    Dev *source = 0;
+    for (int i = 0; i < 4; ++i) if (g_dev[i].obj && !g_dev[i].gone && !g_dev[i].wheel){ source = &g_dev[i]; break; }
+    if (!source) return 0;
+    Dev local = *source;
+    local.pov1 = pov[seat];
+    memcpy(local.trig, triggers[seat], sizeof local.trig);
+    fill_state(out, 0x110, &local, &state);
+    pov[seat] = local.pov1;
+    memcpy(triggers[seat], local.trig, sizeof local.trig);
+    return 1;
+}
+#endif

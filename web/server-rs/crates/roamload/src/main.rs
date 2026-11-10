@@ -811,7 +811,6 @@ async fn run_life(i: usize, a: &Args, sh: &Arc<Shared>, life: Duration) -> End {
 }
 
 /// a bot on the switch until its life is over (or the run, or its connection)
-#[allow(clippy::too_many_arguments)]
 async fn play(
     i: usize,
     n: usize,

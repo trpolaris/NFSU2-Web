@@ -22,7 +22,7 @@ LDOPT="${LDOPT} -mmacosx-version-min=$MINOS"
 WHICH="${1:-both}"
 case "$WHICH" in both|orig|hd) ;; *) echo "usage: ./link.sh [orig|hd]"; exit 1 ;; esac
 
-CSRC="mem dispatch genexec heap watchdog win32 win32_ext com debug res fileio overrides d3dx_hle vsemu enhance perflog autotest lifecycle widescreen framerate dinput_pad dikeys keyboard dinput_kbd career intro oracle drifttest discord roam roam_core roam_bsd roam_game travel hiddenraces quickrace mprace mpcredit_store mpcredit horn hornmenu optslider tonemenu radio powerunits drift carsfx racehorn racenet winsock online netrace net_vlan module modheap headlights language sms sponsors lobbyclick olfilter tunegraph menusize regional garage vinylpacks modpacks specialties sndlead carshadow carspot movie photo look engage gpsdistance catchup"
+CSRC="mem dispatch genexec heap watchdog win32 win32_ext com debug features res fileio overrides d3dx_hle vsemu enhance perflog autotest lifecycle widescreen framerate dinput_pad dikeys keyboard dinput_kbd career intro oracle drifttest discord roam roam_core roam_bsd roam_game travel hiddenraces quickrace cameras trafficcars vinylcat visualrep walls mprace mpcredit_store mpcredit horn hornmenu optslider tonemenu radio powerunits drift carsfx racehorn racenet winsock online netrace net_vlan module modheap racecars headlights language sms sponsors lobbyclick olfilter tunegraph dyno menusize regional garage vinylpacks modpacks specialties sndlead carshadow carpaint carspot movie photo savegame look engage gpsdistance catchup hqvinyls whine lightkey shownames hudbank stance splitscreen coop damage_none showoff plates plate_image uniques"
 MSRC="metal audio bundle gamepad keyboard_mac fpscounter texrep"
 # Unicorn 2.1.4 (native arm64, x86 target only) for the two test builds,
 # ORACLE=1 and ASIPEER=1: by default the project's work/deps/unicorn-2.1.4
@@ -90,6 +90,9 @@ if [ "$WHICH" != hd ]; then
   clang -O1 -ffp-contract=off -mmacosx-version-min=$MINOS -Iruntime -o out/roam_unit tests/roam_unit.c runtime/roam_core.c runtime/roam_bsd.c
   clang -O2 -ffp-contract=off -mmacosx-version-min=$MINOS -Iruntime -o out/roam_fakepeer tests/roam_fakepeer.c runtime/roam_core.c runtime/roam_bsd.c
   clang -O2 -ffp-contract=off -mmacosx-version-min=$MINOS -Iruntime -o out/roam_recv tests/roam_recv.c runtime/roam_core.c runtime/roam_bsd.c
+  clang -O1 -ffp-contract=off -mmacosx-version-min=$MINOS -Iruntime -o out/plates_unit tests/plates_unit.c runtime/plate_image.c runtime/roam_core.c -lm
+  clang -O1 -mmacosx-version-min=$MINOS -Iruntime -o out/splitscreen_layout_unit tests/splitscreen_layout_unit.c
+  clang -O1 -mmacosx-version-min=$MINOS -Iruntime -o out/roam_weather_unit tests/roam_weather_unit.c
   # ASIPEER=1: also out/nfsu2_asipeer, a "virtual Windows friend" (the Windows
   # plugin out/win/dbg/NFSU2FreeRoam.asi under Unicorn, runtime/roam_asipeer.c;
   # test tooling) and the plugin's tests (tests/asi_harness.c,

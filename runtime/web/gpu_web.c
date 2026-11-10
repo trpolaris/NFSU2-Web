@@ -32,13 +32,13 @@
 #include <math.h>
 #include <time.h>
 #include <stdatomic.h>
-
-#define ENVC(nm_) ({ static const char *_ev_; static int _ei_; \
-                     if (!_ei_){ _ei_ = 1; _ev_ = getenv(nm_); } _ev_; })
+#include "setting.h"      /* ENVC */
 
 void guest_wait_begin(void);     /* win32_ext.c: release the guest lock around a host wait */
 void guest_wait_end(void);
 int  hfr_mailbox(void);          /* framerate.c */
+int  hfr_display_live(void);
+double hfr_frame_input_ms(void);
 void hfr_note_vsync(double ts, double dur);
 
 /* ---- shared-memory waits (wasm atomics on the shared linear memory) ---- */
@@ -67,9 +67,12 @@ static int      g_detached;      /* the page never attached: dropped back to nul
 #define KZERO  256u                         /* K arena bytes [0, 256): an all-zero block for TVert draws (base 0) */
 #define KFIRST 2048u                        /* [GW_K_HL, + GW_HL_BYTES): the frame's headlights; [GW_K_MARKS, + GW_MARKS_BYTES):
                                                quick chat's places; [GW_K_TONE, + GW_TONE_BYTES): Exposure and
-                                               White Level; the draws' blocks from here */
+                                               White Level; [GW_K_LAT, + GW_LAT_BYTES): input age;
+                                               [GW_K_PHOTO, + GW_PHOTO_BYTES): photo mode's picture; the draws'
+                                               blocks from here */
 _Static_assert(GW_K_HL >= KZERO && GW_K_HL + GW_HL_BYTES <= KFIRST && GW_K_MARKS + GW_MARKS_BYTES <= KFIRST
-               && GW_K_TONE + GW_TONE_BYTES <= KFIRST, "K arena");
+               && GW_K_TONE + GW_TONE_BYTES <= KFIRST && GW_K_LAT + GW_LAT_BYTES <= KFIRST
+               && GW_K_PHOTO + GW_PHOTO_BYTES <= KFIRST, "K arena");
 
 typedef struct {
     GwDraw  *d;  unsigned dn;
@@ -143,7 +146,7 @@ static void gw_init(void){
      * in wasm.  An explicit GPUVS=0 still wins. */
     if (g_on) setenv("GPUVS", "1", 0);
     if (g_on){
-        /* the translator's built-in modules (docs/web/gpu-abi.md section 1): vs_0
+        /* the translator's built-in modules: vs_0
          * for TVert draws, ps_0 / ps_256 for draws without a pixel shader */
         static char t[16384];
         if (wgsl_tvert_module(t, sizeof t) > 0) shader_put(GW_SHADER_VS, 0, t);
@@ -288,7 +291,7 @@ static unsigned tex_new(unsigned w, unsigned h, unsigned levels, unsigned f, uns
             c->a[5] = (rt ? GW_TF_RT : 0) | ((rt & 2u) && !cube ? GW_TF_MS : 0) | (cube ? GW_TF_CUBE : 0); rq_commit(c); }
     return id;
 }
-/* is_rt: 1 a render target, 3 one drawn at four samples (GW_TF_MS). */
+/* is_rt: 1 a render target, 3 one drawn at 4 samples (GW_TF_MS: com.c MULTISAMPLING) */
 unsigned metal_create_texture_ex(unsigned w, unsigned h, unsigned levels, unsigned f, unsigned is_rt){
     return tex_new(w, h, levels, f, is_rt, 0);
 }
@@ -403,6 +406,7 @@ void metal_z_forget(unsigned zid){
     GwCmd *c = rq_begin(GW_Z_FORGET, 0);
     if (c){ c->a[0] = zid; rq_commit(c); }
 }
+/* the back buffer's samples (1 or 4) from the next frame on (com.c bb_multisample) */
 void metal_set_bb_samples(unsigned n){
     gw_init();
     GwCmd *c = rq_begin(GW_BB_SAMPLES, 0);
@@ -564,6 +568,24 @@ static void shader_put(int op, int id, const char *src){
     memcpy((uint8_t *)c + GW_CMD_HDR, src, n);
     rq_commit(c);
 }
+/* ---- HQ vinyls (runtime/hqvinyls.c) ---------------------------------------
+ * The page paints a skin again at 1024 (web/src/gpu/hqskin.ts) when it says it
+ * can (GW_FEAT_HQSKIN: a PC with BC compression).  The recipe, then the
+ * 512x512 alpha planes its layers without REMAP need, in one record. */
+int gw_hqskin_ok(void){
+    return g_on && g_ctl && (g_ctl->features & GW_FEAT_HQSKIN) != 0;
+}
+void gw_skin_hq(unsigned id, const GwSkinHq *r, const uint8_t *const *planes, unsigned nplanes){
+    if (!gw_hqskin_ok() || !id) return;
+    const uint32_t plane = GW_SKIN_HQ_SIDE * GW_SKIN_HQ_SIDE;
+    GwCmd *c = rq_begin(GW_SKIN_HQ, (uint32_t)sizeof *r + nplanes * plane);
+    if (!c) return;
+    c->a[0] = id; c->a[1] = (uint32_t)sizeof *r; c->a[2] = nplanes;
+    uint8_t *p = (uint8_t *)c + GW_CMD_HDR;
+    memcpy(p, r, sizeof *r);
+    for (unsigned k = 0; k < nplanes; k++) memcpy(p + sizeof *r + k * plane, planes[k], plane);
+    rq_commit(c);
+}
 void metal_register_vs(int id, const char *src){
     gw_init();
     if (id <= 0 || id >= MAXVSF || !src || g_vs_ok[id]) return;
@@ -599,7 +621,12 @@ void metal_set_fog(unsigned enable, unsigned argb){
     g_cur_fog[2] = (float)( argb        & 0xFFu) / 255.0f;
     g_cur_fog[3] = enable ? 1.0f : 0.0f;
 }
-void metal_set_render_target(unsigned t){ g_cur_target = t; }
+static float g_viewport[6];
+void web_set_viewport(unsigned x, unsigned y, unsigned w, unsigned h, float z0, float z1){
+    g_viewport[0] = x; g_viewport[1] = y; g_viewport[2] = w; g_viewport[3] = h;
+    g_viewport[4] = z0; g_viewport[5] = z1;
+}
+void metal_set_render_target(unsigned t){ g_cur_target = t; memset(g_viewport, 0, sizeof g_viewport); }
 void metal_set_samplers(const unsigned k[4]){ for (int i = 0; i < 4; i++) g_cur_smp[i] = k[i]; }
 void metal_set_stage_tex(unsigned a, unsigned b, unsigned c3){ g_cur_tex1 = a; g_cur_tex2 = b; g_cur_tex3 = c3; }
 void metal_set_ps(int id, const float *c32){
@@ -632,19 +659,77 @@ static unsigned psc_put(Buf *B){
 static int ps_of(unsigned tex){
     return (g_cur_ps > 0 && g_cur_ps < PSCUBE && metal_tex_is_cube(tex)) ? g_cur_ps + PSCUBE : g_cur_ps;
 }
+/* Lines along the bottom and right with Enhanced Contrast (2026-11-03): two
+ * differences from D3D9 at the edges of the screen.
+ * 1. D3D9 puts pixel x's centre at x, WebGPU at x + 0.5.  The game's passes
+ *    are made for D3D9: a full-screen quad at -1..1 with half a texel added
+ *    to its UVs reads each texel's centre there, and here half a texel
+ *    further right and down, so every pass blurred and shifted the picture
+ *    and the last row and column sampled at 1.0, half from the opposite edge
+ *    where the sampler wraps.  Every draw moves half a pixel right and down,
+ *    as D3D9 drew it: the target's size goes to the vertex shaders in the K
+ *    block's header (vsemu_wgsl.inc), and CPU-transformed vertices move here.
+ * 2. Enhanced Contrast's passes (ps 26-28, WRAP) add half a texel of the size
+ *    the game believes (its 4:3 menu row, 1280x960) to their UVs, while the
+ *    screen copy they read has the device's size (res_pick, com.c pulls such
+ *    targets to it): at 2560x1304 the last column still read at 1.0 and the
+ *    last row 18 % past its centre, at 1280x720 the first row 12 % before
+ *    its own.  A render target of the screen's size samples with CLAMP where
+ *    the game asked for WRAP: a copy of the screen is never tiled, and where
+ *    the sizes agree no sample reaches past an edge, so D3D9 drew the same.
+ * GW_HALFPX=0: both off, as before (diagnostics). */
+static int g_halfpx = -1;
+static int halfpx_on(void){
+    if (g_halfpx < 0){ const char *e = getenv("GW_HALFPX"); g_halfpx = e ? atoi(e) != 0 : 1; }
+    return g_halfpx;
+}
+void gw_size(unsigned *w, unsigned *h);
+static void screen_wh(unsigned *w, unsigned *h){     /* as handoff's F->bb_w/h */
+    *w = g_bb_w; *h = g_bb_h;
+    if (!*w || !*h) gw_size(w, h);
+}
+static uint32_t target_wh(void){
+    if (!halfpx_on()) return 0;
+    unsigned t = g_cur_target & 0xFFFFu, w = 0, h = 0;
+    if (!t) screen_wh(&w, &h);
+    else if (t < MAXTEX && g_tex[t].live){ w = g_tex[t].w; h = g_tex[t].h; }
+    return w && h && w <= 0xFFFFu && h <= 0xFFFFu ? w | h << 16 : 0u;
+}
+/* the four stages' sampler keys (com.c smp_push: U at bits 6-8, V at 9-11,
+ * 1 = WRAP, 3 = CLAMP), WRAP made CLAMP on a screen-sized render target */
+static void smp_eff(unsigned tex, uint32_t out[4]){
+    const unsigned t[4] = { tex, g_cur_tex1, g_cur_tex2, g_cur_tex3 };
+    unsigned bw = 0, bh = 0;
+    if (halfpx_on()) screen_wh(&bw, &bh);
+    for (int i = 0; i < 4; i++){
+        uint32_t k = g_cur_smp[i];
+        unsigned id = t[i];
+        if (bw && id && id < MAXTEX && g_tex[id].live && g_tex[id].rt && !g_tex[id].cube
+            && g_tex[id].w == bw && g_tex[id].h == bh){
+            if (((k >> 6) & 7u) == 1u) k = (k & ~(7u << 6)) | 3u << 6;
+            if (((k >> 9) & 7u) == 1u) k = (k & ~(7u << 9)) | 3u << 9;
+        }
+        out[i] = k;
+    }
+}
 /* the record every draw shares: state at the time of the call */
+static unsigned g_hloff = GW_K_HL;
 static GwDraw *rec_draw(Buf *B, unsigned tex){
     GwDraw *D = &B->d[B->dn];
     memset(D, 0, sizeof *D);        /* slots are reused across frames (see metal.m's is_blit story) */
     D->kind = GW_DRAW; D->tex = tex; D->target = g_cur_target;
+    D->blit_src = g_hloff;
+    uint32_t region[2]; int split_effect_region(uint32_t *);
+    if (split_effect_region(region)){ D->clr_argb = region[0]; D->clr_flags = region[1]; }
     D->blend = g_cur_blend; D->aref = g_cur_aref; D->depth = g_cur_depth;
     D->tex1 = g_cur_tex1; D->tex2 = g_cur_tex2; D->tex3 = g_cur_tex3;
     D->ps = ps_of(tex); D->psci = psc_put(B);
     memcpy(D->proj, g_cur_proj, sizeof D->proj);
-    memcpy(D->smp, g_cur_smp, sizeof D->smp);
+    smp_eff(tex, D->smp);
     D->bcol = g_cur_bcol; D->cull = g_cur_cull;
     memcpy(D->fogv, g_cur_fog, sizeof D->fogv);
     D->clip = g_cur_clip;
+    memcpy(D->viewport, g_viewport, sizeof D->viewport);
     return D;
 }
 void metal_draw_tv(const TVert *src, unsigned nverts, unsigned prim, unsigned tex){
@@ -667,18 +752,24 @@ void metal_draw_tv(const TVert *src, unsigned nverts, unsigned prim, unsigned te
         else { idx[0] = t * 3; idx[1] = t * 3 + 1; idx[2] = t * 3 + 2; }               /* list */
         for (int k = 0; k < 3; k++) *dst++ = src[idx[k]];
     }
+    uint32_t wh = target_wh();
+    if (wh){
+        float hx = 1.f / (float)(wh & 0xFFFFu), hy = 1.f / (float)(wh >> 16);
+        for (TVert *v = B->v + B->vn; v < dst; v++){ v->x += v->w * hx; v->y -= v->w * hy; }
+    }
     GwDraw *D = rec_draw(B, tex);
     D->first = B->vn; D->count = tris * 3;
     B->dn++; B->vn += tris * 3;
 }
-/* the VS constant block {u32 stride, tsel, base, 0; vec4 c[nk]}, deduplicated
- * against the previous one.  base: byte offset of vertex 0 in the buffer the
- * shader pulls from (raw arena or pool).  Blocks are 16-byte aligned: the page
- * binds the arena in 64 KB windows and finds a block by its row there
+/* the VS constant block {u32 stride, tsel, base, target w | h << 16; vec4 c[nk]},
+ * deduplicated against the previous one.  base: byte offset of vertex 0 in the
+ * buffer the shader pulls from (raw arena or pool); the target's size moves the
+ * picture to D3D9's pixel centres (target_wh).  Blocks are 16-byte aligned: the
+ * page binds the arena in 64 KB windows and finds a block by its row there
  * (GW_KWIN_ROWS), so a block needs no dynamic offset of its own. */
 static GwDraw *raw_rec(Buf *B, unsigned stride, unsigned base, unsigned tex, int vsid, const float *k, unsigned nk){
     unsigned ksz = 16u + nk * 16u;
-    uint32_t hdr[4] = { stride, 0, base, 0 };
+    uint32_t hdr[4] = { stride, 0, base, target_wh() };
     for (int q = 0; q < 4; q++) hdr[1] |= ((uint32_t)((int)g_cur_proj[q]) & 3u) << (8 * q);
     unsigned koff;
     if (B->last_ksz == ksz && B->last_vs == vsid && B->kn &&
@@ -696,6 +787,38 @@ static GwDraw *raw_rec(Buf *B, unsigned stride, unsigned base, unsigned tex, int
     D->vsid = vsid; D->koff = koff; D->ksz = ksz;
     return D;
 }
+/* A raw draw with everything the same as the last record's: the same state,
+ * shaders and VS constants (all but the vertex base), its vertices right
+ * after the last record's in the raw arena.  The game draws every light
+ * streak and glow of a car as a quad of its own (0x5C5580: ~48 a car, the
+ * vertices in world space, the same constants), and each was a record and a
+ * copy of the constants; they go into the last record instead: the same
+ * triangles in the same order (GW_MERGE=0: a record each). */
+static int g_merge = -1;
+static uint64_t g_merged;
+static GwDraw *raw_merge(Buf *B, unsigned stride, unsigned tex, int vsid, const float *k, unsigned nk, unsigned need){
+    if (g_merge < 0){ const char *e = getenv("GW_MERGE"); g_merge = e ? atoi(e) != 0 : 1; }
+    if (!g_merge || !B->dn) return NULL;
+    GwDraw *P = &B->d[B->dn - 1];
+    uint32_t region[2] = {0, 0}; int split_effect_region(uint32_t *);
+    split_effect_region(region);
+    if (P->clr_argb != region[0] || P->clr_flags != region[1]) return NULL;
+    if (P->kind != GW_DRAW || P->vsid != vsid || P->ix_isz || P->koff != B->last_koff || P->ksz != 16u + nk * 16u
+        || B->last_vs != vsid || P->rawoff + P->count * stride != B->rvn || B->rvn + need > MAXRV) return NULL;
+    const uint32_t *h = (const uint32_t *)(B->kb + P->koff);
+    uint32_t tsel = 0;
+    for (int q = 0; q < 4; q++) tsel |= ((uint32_t)((int)g_cur_proj[q]) & 3u) << (8 * q);
+    if (h[0] != stride || h[1] != tsel || h[3] != target_wh() || memcmp(h + 4, k, nk * 16u)) return NULL;
+    uint32_t smp[4]; smp_eff(tex, smp);
+    if (P->tex != tex || P->target != g_cur_target || P->blend != g_cur_blend || memcmp(&P->aref, &g_cur_aref, 4)
+        || P->depth != g_cur_depth || P->tex1 != g_cur_tex1 || P->tex2 != g_cur_tex2 || P->tex3 != g_cur_tex3
+        || P->ps != ps_of(tex) || P->psci != psc_put(B) || memcmp(P->proj, g_cur_proj, sizeof P->proj)
+        || memcmp(P->smp, smp, sizeof P->smp) || P->bcol != g_cur_bcol || P->cull != g_cur_cull
+        || memcmp(P->fogv, g_cur_fog, sizeof P->fogv) || P->clip != g_cur_clip
+        || P->blit_src != g_hloff || memcmp(P->viewport, g_viewport, sizeof g_viewport)) return NULL;
+    g_merged++;
+    return P;
+}
 int metal_draw_raw(const void *src, unsigned nverts, unsigned stride, unsigned prim, unsigned tex, int vsid,
                    const float *k, unsigned nk){
     if (nverts < 3 || !stride || stride > 256u) return 0;
@@ -706,10 +829,14 @@ int metal_draw_raw(const void *src, unsigned nverts, unsigned stride, unsigned p
     Buf *B = &g_b[g_cur];
     const uint8_t *S = (const uint8_t *)src;
     unsigned need = tris * 3u * stride, roff = (B->rvn + 255u) & ~255u;
-    if (roff + need > MAXRV){ g_ov_rv++; return 0; }
-    if (B->dn >= MAXD){ g_ov_d++; return 0; }
-    GwDraw *D = raw_rec(B, stride, roff, tex, vsid, k, nk);
-    if (!D) return 0;
+    GwDraw *D = raw_merge(B, stride, tex, vsid, k, nk, need);
+    if (D){ roff = B->rvn; D->count += tris * 3; }
+    else {
+        if (roff + need > MAXRV){ g_ov_rv++; return 0; }
+        if (B->dn >= MAXD){ g_ov_d++; return 0; }
+        D = raw_rec(B, stride, roff, tex, vsid, k, nk);
+        if (!D) return 0;
+    }
     uint8_t *dst = B->rv + roff;
     if (prim == 4) memcpy(dst, S, need);
     else for (unsigned t = 0; t < tris; t++){
@@ -720,6 +847,7 @@ int metal_draw_raw(const void *src, unsigned nverts, unsigned stride, unsigned p
         for (int q = 0; q < 3; q++){ memcpy(dst, S + (size_t)idx[q] * stride, stride); dst += stride; }
     }
     B->rvn = roff + need;
+    if (D != &B->d[B->dn]) return 1;        /* (merged) */
     D->count = tris * 3; D->rawoff = roff;
     B->dn++;
     return 1;
@@ -768,6 +896,7 @@ void metal_clear_target_ex(unsigned argb, unsigned flags, float z){
     memset(D, 0, sizeof *D);
     D->kind = GW_CLEAR; D->target = g_cur_target; D->clr_argb = argb; D->clr_flags = flags; D->clr_z = z;
     D->depth = g_cur_depth;
+    memcpy(D->viewport, g_viewport, sizeof D->viewport);
 }
 void metal_clear_target(unsigned argb){ metal_clear_target_ex(argb, 1u, 1.f); }
 
@@ -868,7 +997,15 @@ static void vsync_feed(void){
 /* runtime/headlights.c: the other cars' headlights for the frame being recorded */
 void gw_headlights(const GwHL *blk){
     if (!g_on || !blk) return;
-    memcpy(g_b[g_cur].kb + GW_K_HL, blk, sizeof *blk);
+    Buf *B = &g_b[g_cur];
+    /* one view: the frame's one block, which every draw of the frame reads (as before split screen); in a split
+     * race each player's views keep the block made for them, a new one in the arena after it */
+    if (split_render_limit() <= 1){ memcpy(B->kb + GW_K_HL, blk, sizeof *blk); g_hloff = GW_K_HL; return; }
+    if (!memcmp(B->kb + g_hloff, blk, sizeof *blk)) return;
+    unsigned off = (B->kn + 255u) & ~255u;
+    if (off + sizeof *blk > MAXKB){ g_ov_kb++; g_hloff = GW_K_HL; return; }
+    memcpy(B->kb + off, blk, sizeof *blk);
+    B->kn = off + sizeof *blk; g_hloff = off;
 }
 /* roam_game.c (through roam_web.c): quick chat's places over the cars for the frame being recorded */
 void gw_marks(const GwMark *m, int n){
@@ -881,6 +1018,34 @@ void gw_marks(const GwMark *m, int n){
 /* tonemenu.c: Exposure (as a multiplier) and White Level for every frame from the next handed over */
 static GwTone g_tone = { GW_TONE_MAGIC, 1.f, 1.f, 1.f };
 void gw_tone(float mult, float white, float knee){ g_tone.mult = mult; g_tone.white = white; g_tone.knee = knee; }
+/* photo.c: photo mode's picture, for the next frame handed over; the back buffer's size (its frames' pixels) */
+static GwPhoto g_photo = { GW_PHOTO_MAGIC, GW_PHOTO_OFF, 0, 0, 0, 0, 0, 0, 0.f, 0, { 0, 0 } };
+void gw_photo(uint32_t state, uint32_t n, uint32_t target, uint32_t gen){
+    g_photo.state = state; g_photo.n = n; g_photo.target = target; g_photo.gen = gen;
+}
+/* ...the tile drawn, what is being taken, the field of view and the lens (GwPhoto's tile, fov, lens) */
+void gw_photo_more(uint32_t tile, float fov, uint32_t lens){ g_photo.tile = tile; g_photo.fov = fov; g_photo.lens = lens; }
+/* the page's last picture asked for (its want, in either buffer's block: the same in both) */
+uint32_t gw_photo_want(void){
+    uint32_t w = 0;
+    for (int b = 0; b < 2 && !w; b++)
+        if (g_b[b].kb) w = __atomic_load_n((uint32_t *)(g_b[b].kb + GW_K_PHOTO + offsetof(GwPhoto, want)), __ATOMIC_ACQUIRE);
+    return w;
+}
+/* the frames of still picture gen the page has (its ack, in either buffer's block) */
+uint32_t gw_photo_got(uint32_t gen){
+    uint32_t got = 0;
+    for (int b = 0; b < 2; b++){
+        if (!g_b[b].kb) continue;
+        uint32_t a = __atomic_load_n((uint32_t *)(g_b[b].kb + GW_K_PHOTO + offsetof(GwPhoto, ack)), __ATOMIC_ACQUIRE);
+        if (a >> 16 == (gen & 0xffffu) && (a & 0xffffu) > got) got = a & 0xffffu;
+    }
+    return got;
+}
+void gw_size(unsigned *w, unsigned *h){
+    unsigned vw, vh; view_wh(&vw, &vh);
+    *w = g_bb_w ? g_bb_w : vw; *h = g_bb_h ? g_bb_h : vh;
+}
 void metal_request_dump(long guest_frame, const char *label){
     snprintf(g_dump_label, sizeof g_dump_label, "%s", label ? label : "dump");
     for (char *q = g_dump_label; *q; q++) if (*q == '/' || *q == ' ' || *q == '\\') *q = '_';
@@ -895,6 +1060,11 @@ static void handoff(uint32_t rb_id, uint32_t rb_tex, uint32_t rb_dst, uint32_t r
     F->draws = (uint32_t)(uintptr_t)B->d; F->tv = (uint32_t)(uintptr_t)B->v; F->raw = (uint32_t)(uintptr_t)B->rv;
     F->k = (uint32_t)(uintptr_t)B->kb; F->psc = (uint32_t)(uintptr_t)B->psc;
     memcpy(B->kb + GW_K_TONE, &g_tone, sizeof g_tone);
+    memcpy(B->kb + GW_K_PHOTO, &g_photo, offsetof(GwPhoto, ack));       /* (ack and want are the page's) */
+    memcpy(B->kb + GW_K_PHOTO + offsetof(GwPhoto, tile), &g_photo.tile, sizeof g_photo.tile);
+    memcpy(B->kb + GW_K_PHOTO + offsetof(GwPhoto, fov), &g_photo.fov, GW_PHOTO_BYTES - offsetof(GwPhoto, fov));
+    { GwLat *L = (GwLat *)(B->kb + GW_K_LAT);
+      L->magic = GW_LAT_MAGIC; L->input_ms = hfr_frame_input_ms(); L->handoff_ms = now_ms(); }
     F->rq_end = (uint32_t)g_ctl->rq_head;
     unsigned vw, vh; view_wh(&vw, &vh);
     F->bb_w = g_bb_w ? g_bb_w : vw; F->bb_h = g_bb_h ? g_bb_h : vh;
@@ -944,16 +1114,52 @@ static void handoff(uint32_t rb_id, uint32_t rb_tex, uint32_t rb_dst, uint32_t r
     Buf *N = &g_b[g_cur];
     N->dn = N->vn = N->rvn = N->pscn = 0; N->kn = KFIRST; N->last_ksz = 0;
     ((GwHL *)(N->kb + GW_K_HL))->n = 0;           /* no other cars' headlights until headlights.c sets them */
+    g_hloff = GW_K_HL;
     ((GwMarks *)(N->kb + GW_K_MARKS))->n = 0;     /* nor quick chat's places until roam_game.c does */
     g_frame_clear = g_clear_argb;
+}
+/* After a handoff: wait until the page has taken the frame (it takes one
+ * only while fewer than its limit are on the GPU), so the next frame starts,
+ * and reads its input, only once the page can take that one too.  Without it
+ * a GPU-bound page had the GPU's frames, a frame ready and one recorded
+ * between a press and the screen: with ~16 ms of GPU work a frame at 60 Hz,
+ * input ~78 ms old at the next rAF, now ~61, at the same frame rate.  Taken
+ * is the page's claim (GW_ST_ENC, set before it uploads and encodes the
+ * frame), not its end: the game records its next frame while the page
+ * encodes this one.  Waiting for the end put the page's encode into every
+ * frame's time, which a slow computer felt (the page 6x slower and 22 ms of
+ * game work a frame: 35.4 fps -> 31.8).  Not in mailbox mode (frames
+ * replaced, nothing queues) nor while the page draws nothing (a hidden tab),
+ * at most 100 ms.  NFSU2_WAIT_TAKEN=0: no wait (A/B). */
+static void wait_taken(void){
+    static int on = -1;
+    if (on < 0){ const char *e = getenv("NFSU2_WAIT_TAKEN"); on = !(e && *e == '0'); }
+    if (!on || hfr_mailbox() || !hfr_display_live()) return;
+    int32_t mine = (g_cur ^ 1) + 1;
+    double t0 = now_ms();
+    int unlocked = 0;
+    for (;;){
+        int32_t s = ald(&g_ctl->state);
+        if (GW_ST_READY(s) != mine || GW_ST_ENC(s) || ald(&g_ctl->attached) != GW_ATTACHED) break;
+        double left = 100.0 - (now_ms() - t0);
+        if (left <= 0) break;
+        if (!unlocked){ guest_wait_begin(); unlocked = 1; }
+        wait32(&g_ctl->state, s, left > 1.0 ? left : 1.0);
+    }
+    if (unlocked) guest_wait_end();
+    g_wait_present_ms += now_ms() - t0;
 }
 void metal_present(void){
     gw_init();
     g_presents++;
     if (g_on) gw_attached();          /* the first present waits for the page; a detach ends recording */
     if (!g_on){ g_gframe++; tex_free_due(0); g_handed = 0; return; }
+    /* NFSU2_FRAME_BURN_MS=<ms>: busy work in every frame, a slower CPU for
+     * measurements (web/tools/bench.mjs --throttle slows the page's side) */
+    { static double burn = -1; if (burn < 0){ const char *e = getenv("NFSU2_FRAME_BURN_MS"); burn = e ? atof(e) : 0; }
+      if (burn > 0){ double t = now_ms(); while (now_ms() - t < burn) {} } }
     /* a readback handed the frame over already: only what was drawn since */
-    if (!g_handed || g_b[g_cur].dn) handoff(0, 0, 0, 0, 0);
+    if (!g_handed || g_b[g_cur].dn){ handoff(0, 0, 0, 0, 0); wait_taken(); }
     g_handed = 0;
     g_gframe++;
     tex_free_due(0);
@@ -1006,7 +1212,6 @@ int metal_read_texture(unsigned id, void *dst, unsigned pitch, unsigned rows){
 }
 
 long metal_frames(void){ return g_on && g_ctl ? (long)g_ctl->frames_done : g_presents; }
-long metal_presents(void){ return g_presents; }
 long metal_frames_dropped(void){ return g_dropped; }
 long metal_tris(void){ return g_tris; }
 unsigned long long metal_wait_present_ns(void){ return (unsigned long long)(g_wait_present_ms * 1e6); }
@@ -1030,4 +1235,5 @@ void metal_budget_report(void){
     fprintf(stderr, "  [gpu] shaders: %u VS + %u PS WGSL, %u VS + %u PS without WGSL (CPU vertex path / built-in fragment); "
                     "overflows draw %u tvert %u raw %u const %u\n",
             g_vs_n, g_ps_n, g_msl_vs, g_msl_ps, g_ov_d, g_ov_v, g_ov_rv, g_ov_kb);
+    fprintf(stderr, "  [gpu] raw draws merged into the one before: %.1f/frame\n", g_presents ? (double)g_merged / (double)g_presents : 0.0);
 }

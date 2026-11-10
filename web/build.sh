@@ -86,7 +86,7 @@ HDRSUM="$( (cat runtime/cpu.h runtime/web/compat/wasm_plat.h; echo "$CFLAGS $SHA
 # browser's virtual-LAN backend (runtime/web/net_lan.c); module.c + modheap.c
 # load the lifted server.dll; enhance.c holds the graphics options (all off by
 # default, as on the Mac).
-RT="mem dispatch genexec heap watchdog win32 win32_ext com debug res fileio overrides d3dx_hle vsemu oracle autotest lifecycle widescreen framerate dinput_pad dikeys keyboard dinput_kbd career intro drifttest roam roam_core roam_game mprace mpcredit_store mpcredit horn hornmenu optslider tonemenu powerunits radio drift carsfx racehorn racenet winsock online netrace module modheap enhance headlights language sms sponsors lobbyclick olfilter tunegraph menusize regional garage vinylpacks modpacks specialties sndlead carshadow carspot movie photo look engage gpsdistance catchup hiddenraces quickrace travel"
+RT="mem dispatch genexec heap watchdog win32 win32_ext com debug features res fileio overrides d3dx_hle vsemu oracle autotest lifecycle widescreen framerate dinput_pad dikeys keyboard dinput_kbd career intro drifttest roam roam_core roam_game mprace mpcredit_store mpcredit horn hornmenu optslider tonemenu powerunits radio drift carsfx racehorn racenet winsock online netrace module modheap racecars enhance headlights language sms sponsors lobbyclick olfilter tunegraph dyno menusize regional garage vinylpacks modpacks specialties sndlead carshadow carpaint carspot movie photo look engage gpsdistance catchup hqvinyls whine lightkey shownames hudbank stance hiddenraces savegame quickrace showoff plates plate_image splitscreen coop damage cameras trafficcars vinylcat visualrep walls travel uniques"
 WEB="$(cd runtime/web && ls *.c | sed 's/\.c$//')"
 pids=""
 for f in $RT; do
@@ -98,6 +98,11 @@ done
 for f in $WEB; do
   case "$f" in thread_exit) fl="$TARGET $OPT $FEAT" ;; *) fl="$CFLAGS -DNFS_ENHANCED=0" ;; esac
   "$CC" $fl -c -o "$OUT/rt/web_$f.o" "runtime/web/$f.c" & pids="$pids $!"
+done
+# C++ parts of the runtime (damagecore.cpp: the crash damage, the .asi's own code): libc++ without exceptions
+CXX="$WASI/bin/clang++"
+for f in damagecore; do
+  $CXX $TARGET $OPT $FEAT -std=c++17 -fno-exceptions -fno-rtti -fno-strict-aliasing -fno-delete-null-pointer-checks     -Iruntime -c -o "$OUT/rt/$f.o" "runtime/$f.cpp" & pids="$pids $!"
 done
 for p in $pids; do wait "$p" || { echo "runtime compile failed"; exit 1; }; done
 

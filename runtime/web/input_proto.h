@@ -18,7 +18,7 @@
 #include <stddef.h>
 
 #define INPUT_MAGIC    0x4E494E50u  /* 'NINP' */
-#define INPUT_VERSION  1u
+#define INPUT_VERSION  2u
 #define INPUT_EV_N     1024u        /* power of two */
 #define INPUT_SYN_N    256u         /* power of two */
 #define INPUT_NAME_LEN 16u          /* bytes per key name (cp1252, NUL-terminated) */
@@ -63,8 +63,9 @@ enum {
     IM_PAD_WHEEL = 37,    /* page: 1 when the controller driving the pad is a steering wheel (under IM_PAD_SEQ) */
     IM_VIEW_ROLL = 38,    /* page: float bits, the phone's tilt the 3D view turns against (radians, + = the phone turned
                              clockwise; 0 = the game's view), the touch controls' level horizon */
-    IM_MENU_SCALE = 39,   /* page: float bits, the menus' help bar buttons' size (1 = the game's own; 0 = not set),
-                             the Controls sheet's Menu button size (runtime/menusize.c) */
+    IM_MENU_SCALE = 39,   /* page: float bits, the menus' help bar buttons' and scroller arrows' size (1 = the game's
+                             own; 0 = not set; negative: the arrows' alone, the bar at the game's own), the Controls
+                             sheet's Menu button size (runtime/menusize.c) */
     IM_TEXT = 40,        /* wasm: 40..63, its text (cp1252, NUL-padded, the first INPUT_TEXT_BYTES) */
     IM_HDR_WORDS = 64
 };
@@ -85,9 +86,18 @@ enum {
     IEV_LOG = 12,         /* Download log: how long ago the last frame was, a stall report if long (watchdog.c) */
     IEV_SMS = 13,         /* a = a text message of ours for the game's phone (sms.c) */
     IEV_PHOTO = 14,       /* photo mode (photo.c): dik = what (PH_*), a, b its values */
-    IEV_TRAVEL = 17,      /* career Free Roam Tracks: a = spot (0 city, 1..9 race track) */
-    IEV_TRAVEL_FRIEND = 18, /* career Free Roam Friends: a = friend name hash, b = spot (0 city, 1..9 race track) */
+    IEV_NAME = 15,        /* a new name for free roam and Online mode (the operator took the old one away): a piece of
+                             it, dik = where it starts, vk = the whole length (1..32), ch[3], a and b (little-endian)
+                             its next 11 bytes (roam_web.c roam_plat_name_piece); flags INAME_SEAT2: co-op player 2's
+                             name in free roam instead (roam_plat_name2) */
+    IEV_LOBBY = 16,       /* free roam's race lobby (roam_web.c roam_plat_lobby_input): dik = what (roam_plat.h ROAM_LB_*);
+                             ROAM_LB_JOIN (an invite's Join): a = the lobby's host's id, b = the lobby's id, its race's
+                             hash in vk, flags, ch[0], ch[1] (little-endian) */
+    IEV_TRAVEL = 17,      /* the page menu's Tracks: dik = where, 0 the city, 1.. a race track's spot */
+    IEV_TRAVEL_FRIEND = 18, /* Friends, Join: a = the friend's name hash, b = the spot (0: city) */
 };
+#define INAME_SEAT2 1u            /* IEV_NAME's flags: player 2's (co-op) */
+#define TRAVEL_FRIEND 100u        /* IEV_TRAVEL's where: to a friend */
 enum {                    /* event flags */
     IKF_REPEAT = 1,       /* autorepeat */
     IKF_ALT = 2,          /* Alt / Option held */
@@ -116,24 +126,40 @@ typedef struct {
     float a, b;                   /* mouse: position (fractions) / button; scroll: lines */
 } SynReq;
 
+/* Independent local-player snapshots. The original single-player mailbox
+ * remains intact; shared-engine split input consumes these six records. */
+#define INPUT_LOCAL_PADS 6u
+#define IM_LOCAL_WORDS 32u
+#define IM_LOCAL_SEQ 0u
+#define IM_LOCAL_CONNECTED 1u
+#define IM_LOCAL_BUTTONS 2u
+#define IM_LOCAL_FAMILY 3u
+#define IM_LOCAL_AXIS 4u
+#define IM_LOCAL_NAME 10u
+#define IM_LOCAL_INDEX 26u
+#define IM_LOCAL_JOIN 27u
+#define IM_LOCAL_COOP 28u   /* wasm: 1 while this seat's controller is co-op player 2's: it drives nothing else */
 typedef struct {
     _Atomic uint32_t h[IM_HDR_WORDS];
     char    pad_name[64];                         /* page: under IM_PAD_SEQ */
     char    names[256][INPUT_NAME_LEN];           /* page: key names by DIK, "" = none */
     InEv    ev[INPUT_EV_N];
     SynReq  syn[INPUT_SYN_N];
+    _Atomic uint32_t local_pad[INPUT_LOCAL_PADS][IM_LOCAL_WORDS];
 } HostMailbox;
 
 #define IM_OFF_PAD_NAME 256
 #define IM_OFF_NAMES    320
 #define IM_OFF_EV       4416
 #define IM_OFF_SYN      20800
-#define IM_BYTES        24896
+#define IM_OFF_LOCAL_PADS 24896
+#define IM_BYTES        25664
 _Static_assert(sizeof(InEv) == 16 && sizeof(SynReq) == 16, "input record sizes");
 _Static_assert(offsetof(HostMailbox, pad_name) == IM_OFF_PAD_NAME, "mailbox layout");
 _Static_assert(offsetof(HostMailbox, names) == IM_OFF_NAMES, "mailbox layout");
 _Static_assert(offsetof(HostMailbox, ev) == IM_OFF_EV, "mailbox layout");
 _Static_assert(offsetof(HostMailbox, syn) == IM_OFF_SYN, "mailbox layout");
+_Static_assert(offsetof(HostMailbox, local_pad) == IM_OFF_LOCAL_PADS, "local pad layout");
 _Static_assert(sizeof(HostMailbox) == IM_BYTES, "mailbox layout");
 _Static_assert(IM_TEXT + INPUT_TEXT_BYTES / 4 <= IM_HDR_WORDS, "the text entry fits the header");
 #endif

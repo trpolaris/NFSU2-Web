@@ -22,6 +22,8 @@
 
 use std::collections::HashMap;
 
+// (the limits the Online mode's race checks share: RACE_MPS, THIRD_SHARE, QUICK_WINS, JUMP_M, MODE_DRIFT)
+
 use crate::wire::{LOBBY_PLAYERS, RS_FINISHED, RS_OURS, RaceRes, ResRow};
 
 /// a race's reports are judged once every racer's came, or this long after the first (ms): every game sends its

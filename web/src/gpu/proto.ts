@@ -4,7 +4,7 @@
 // the renderer refuses a control block whose layout word differs.
 
 export const GW_MAGIC = 0x55504757;
-export const GW_VERSION = 5;
+export const GW_VERSION = 7;
 export const GW_NBUF = 2;
 // GwHL: the other cars' headlights at this byte offset of every frame's VS constant arena (group 0 binding 3)
 export const K_HL = 256, HL_BYTES = 656, HL_MAX = 8;
@@ -14,17 +14,30 @@ export const K_MARKS = 1024, MARKS_BYTES = 528, MARKS_MAX = 32, MARKS_MAGIC = 0x
 // GwTone: Exposure and White Level (runtime/tonemenu.c) at this byte offset of every frame's VS constant arena (not
 // bound): magic, then mult, white and knee (floats); the composite's TONE pass
 export const K_TONE = 1552, TONE_BYTES = 16, TONE_MAGIC = 0x454E4F54;
+// GwLat: input age (runtime/framerate.c) at this byte offset of every frame's VS constant arena (not bound): magic, a
+// word, then (float64) when the game read the input the frame simulates with and when it handed the frame off, in ms
+// of performance.timeOrigin + performance.now()
+export const K_LAT = 1568, LAT_BYTES = 24, LAT_MAGIC = 0x4E54414C;
+// GwPhoto: photo mode's picture (runtime/photo.c) at this byte offset of every frame's VS constant arena (not bound):
+// magic, state (0 off, 1 the frame as it is, 2 frame n of target frames of still picture gen, 3 it has them, 4 the frame as it is is the picture), n, target,
+// gen; at PHOTO_ACK the page's answer in both buffers' blocks: gen << 16 | the frames of it the page has; at PHOTO_TILE
+// the tile drawn (low byte), tiles a side (<< 8), what is being taken (<< 12: CAP_*), the last picture asked for the game
+// saw (<< 16); at PHOTO_WANT the page's: a picture asked for (1 .. 0xFFFF) | the most tiles a side it takes << 16; at
+// PHOTO_FOV the field of view drawn (float, degrees across), at PHOTO_LENS what the page makes of it (LENS_*)
+export const K_PHOTO = 1600, PHOTO_BYTES = 48, PHOTO_MAGIC = 0x544F4850, PHOTO_ACK = 20, PHOTO_TILE = 24, PHOTO_WANT = 28,
+  PHOTO_FOV = 32, PHOTO_LENS = 36;
+export const CAP_NONE = 0, CAP_TILES = 1, CAP_SHUTTER = 2, LENS_PLAIN = 0, LENS_FISHEYE = 1;
 // the VS constant arena is bound in windows of this many 16-byte rows (GW_KWIN_ROWS)
 export const KWIN_ROWS = 4096;
 
-// GwDraw: 156 bytes, all 32-bit fields (word index = byte offset / 4).  A blit's first and count: its source
+// GwDraw: 180 bytes, all 32-bit fields (word index = byte offset / 4).  A blit's first and count: its source
 // rectangle, left | top << 16 and right | bottom << 16 (count 0 = the whole source)
-export const DRAW_BYTES = 156, DRAW_WORDS = 39;
+export const DRAW_BYTES = 180, DRAW_WORDS = 45;
 export const enum D {
   first = 0, count = 1, tex = 2, target = 3, kind = 4, blend = 5, aref = 6, depth = 7,
   tex1 = 8, tex2 = 9, tex3 = 10, ps = 11, psci = 12, vsid = 13, rawoff = 14, koff = 15,
   proj = 16, smp = 20, blitSrc = 24, bcol = 25, cull = 26, fogv = 27, clrArgb = 31, clrFlags = 32,
-  clrZ = 33, ksz = 34, ixIsz = 35, ixIb = 36, ixBase = 37, clip = 38,
+  clrZ = 33, ksz = 34, ixIsz = 35, ixIb = 36, ixBase = 37, clip = 38, viewport = 39,
 }
 export const enum Kind { Draw = 0, Clear = 1, Blit = 2 }
 
@@ -49,7 +62,7 @@ export const enum C {
 // stopped waiting for with a CAS to 0) before it writes rbDst, then stores rbDone = rbId (written) or
 // rbId | RB_FLAG (could not read it) and notifies
 export const RB_FLAG = 0x80000000;
-export const FEAT_BC = 1, FEAT_SWIZZLE = 2;
+export const FEAT_BC = 1, FEAT_SWIZZLE = 2, FEAT_HQSKIN = 4;
 // GwCtl.attached: 0 before a renderer attached, then ATTACHED, and DETACHED for good once it let go
 // (or once the game stopped waiting for one: its CAS 0 -> DETACHED after 30 s)
 export const ATTACHED = 1, DETACHED = 2;
@@ -59,8 +72,18 @@ export const enum V { tick = 0, seq = 1, tsF64 = 1, periodF64 = 2, hz = 6, visib
 
 // resource queue
 export const CMD_HDR = 32;
-export const enum Op { Pad = 0, TexCreate = 1, TexUpload = 2, TexFree = 3, PoolGrow = 4, PoolWrite = 5, ShaderVs = 6, ShaderPs = 7, ZForget = 8, BbSamples = 9 }
-// TF_MS: with TF_RT, a render target drawn at 4 samples (runtime/com.c FSAA)
+export const enum Op { Pad = 0, TexCreate = 1, TexUpload = 2, TexFree = 3, PoolGrow = 4, PoolWrite = 5, ShaderVs = 6, ShaderPs = 7, ZForget = 8,
+  BbSamples = 9, SkinHq = 10 }
+// GW_SKIN_HQ's recipe (GwSkinHq, runtime/hqvinyls.c -> hqskin.ts): byte offsets
+export interface GwSkinHqLayout {
+  MAGIC: number; LAYERS: number; PLANE: number; SIDE: number; size: number; magic: number; serial: number; car: number; base: number;
+  n: number; layer: number; layerSize: number; lHash: number; lMask: number; lRemap: number; lAlpha: number; lCol: number;
+}
+export const SKIN_HQ: GwSkinHqLayout = {
+  MAGIC: 0x4B535148, LAYERS: 8, PLANE: 0x100, SIDE: 512, size: 288, magic: 0, serial: 4, car: 8, base: 24, n: 28, layer: 32, layerSize: 32,
+  lHash: 0, lMask: 4, lRemap: 8, lAlpha: 12, lCol: 16,
+};
+// TF_MS: with TF_RT, a render target drawn at 4 samples (runtime/com.c MULTISAMPLING)
 export const TF_RT = 1, TF_CUBE = 2, TF_MS = 8;
 
 // TVert (runtime/gfx.h): 28 floats

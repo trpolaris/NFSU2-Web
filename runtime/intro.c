@@ -43,6 +43,8 @@
  * original: none of this.  Story, tutorial and region movies (IG_PlayMovie)
  * are never touched. */
 #include "cpu.h"
+#include "guest.h"
+#include "game.h"
 #include "kbd.h"
 #include "gamepad.h"
 #include <stdio.h>

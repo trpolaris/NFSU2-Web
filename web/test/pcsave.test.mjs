@@ -9,7 +9,7 @@
 // - a profile the game would not load (version, a name its field does not make) is
 //   left out with why, its cover shoots too; one a save editor changed (checksums
 //   that no longer hold) comes in sealed again, as the game would have saved it, and
-//   one with cars a mod added (a car type the game's 31 player cars do not have),
+//   one with cars a mod added (a car type the game's 46 do not have),
 //   each with a warning
 // - adding: a profile of the same name here (in any case) goes with its cover shoots,
 //   the other profiles and files stay, and its autosave-profiles.txt line goes
@@ -72,8 +72,27 @@ test('modCars: none among the game\'s own cars; a car type past them, by index o
   assert.equal(P.modCars(profile('A', { career: ['240SX', 'SKYLINE', 'RX8'], custom: ['GOLF'] })), 0);
   assert.equal(P.modCars(profile('A', { career: ['240SX', 0x1badcafe] })), 1, 'a career car of an unknown type');
   assert.equal(P.modCars(profile('A', { custom: [0xdeadbeef, 'MIATA'] })), 1, 'a customized one');
-  assert.equal(P.modCars(profile('A', { career: ['TAXI'] })), 1, 'a traffic car is no player car');
-  assert.equal(P.modCars(profile('A', { stock: 33 })), 2, 'two car types past the stock list');
+  assert.equal(P.modCars(profile('A', { career: ['TAXI'] })), 0, 'a traffic car is one of the game\'s car types');
+  assert.equal(P.modCars(profile('A', { career: ['HATCHBACK02', 'FIRETRUCK'], custom: ['BUS'] })), 0);
+  assert.equal(P.modCars(profile('A', { stock: 46 })), 0, 'stock cars of every car type, traffic too');
+  assert.equal(P.modCars(profile('A', { stock: 48 })), 2, 'two car types past the game\'s 46');
+});
+
+/** a GARAGE.DAT (slots 6-10, runtime/garage.c): its head, then 5 career cars; cars: [car type, owned] of each */
+function garage(cars = []) {
+  const f = Buffer.alloc(32 + 5 * 2034);
+  f.writeUInt32LE(0x4147324E, 0); f.writeUInt32LE(1, 4);
+  cars.forEach(([c, owned], i) => { f.writeUInt32LE(typeof c === 'number' ? c : P.bStringHash(c), 32 + i * 2034 + 28); f[32 + i * 2034 + 1073] = owned ? 1 : 0; });
+  return new Uint8Array(f.buffer, f.byteOffset, f.length);
+}
+
+test('garageModCars: slots 6-10 of a car type the game does not have', () => {
+  assert.equal(P.garageModCars(undefined), 0);
+  assert.equal(P.garageModCars(garage([['RX7', 1], ['TAXI', 1]])), 0);
+  assert.equal(P.garageModCars(garage([['RX7', 1], [0x1badcafe, 1], [0x5ec0ffee, 0]])), 1, 'an empty slot\'s leftovers are no car');
+  const v2 = garage([[0x1badcafe, 1]]); v2[4] = 2;
+  assert.equal(P.garageModCars(v2), 0, 'another version: not read');
+  assert.equal(P.garageModCars(garage([[0x1badcafe, 1]]).subarray(0, 100)), 0);
 });
 
 test('profileName: the checks of a profile from elsewhere, and why one is refused', () => {
@@ -163,13 +182,15 @@ test('a backup of the page\'s restores in place, without a profile the game woul
     'registry.txt': 'NotFirstTime=1\n', 'settings.ini': 'movies = off\n', 'nfsu2000.tga': new Uint8Array(40), 'autosave-profiles.txt': 'frik\n',
     [at('frik')]: profile('frik'), [at('frik DVD 1')]: cover('g'),
     [at('BAD')]: profile('BAD', { version: 0x10C }), [at('BAD Magazine 1')]: cover('h'), [at('MOD')]: profile('MOD', { custom: [0x12345678] }),
-    [at('EDIT')]: new Uint8Array(edited),
+    [at('EDIT')]: new Uint8Array(edited), [`${DIR}/frik/GARAGE.DAT`]: garage([['GOLF', 1]]),
   }));
   assert.equal(r.kind, 'backup');
   assert.deepEqual(sorted(r.profiles), ['EDIT', 'MOD', 'frik'], 'a cover shoot is no profile');
   assert.deepEqual([r.modded, r.edited], [['MOD'], ['EDIT']]);
+  const g = await readBackup(z({ 'registry.txt': 'x', [at('SIX')]: profile('SIX'), [`${DIR}/SIX/GARAGE.DAT`]: garage([['GOLF', 1], [0x0ddba11, 1]]) }));
+  assert.deepEqual(g.modded, ['SIX'], 'a car in slots 6-10 a mod added');
   assert.deepEqual(r.refused.map(x => x.name), ['BAD']);
-  assert.deepEqual(paths(r), sorted([at('EDIT'), at('MOD'), at('frik'), at('frik DVD 1'), 'autosave-profiles.txt', 'nfsu2000.tga', 'registry.txt', 'settings.ini']));
+  assert.deepEqual(paths(r), sorted([at('EDIT'), at('MOD'), at('frik'), at('frik DVD 1'), `${DIR}/frik/GARAGE.DAT`, 'autosave-profiles.txt', 'nfsu2000.tga', 'registry.txt', 'settings.ini']));
   const e = r.entries.find(x => x.path === at('EDIT')).data;
   assert.deepEqual([P.profileName(e), e[9000]], [{ name: 'EDIT', edited: false }, edited[9000]], 'sealed again, the edit kept');
   const inside = await readBackup(z({ 'registry.txt': 'x', [at('NAMEA')]: profile('NAMEB') }));

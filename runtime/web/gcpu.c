@@ -19,6 +19,7 @@
  * benchmark can split the race into tier-up and warm parts and count late
  * frames itself. */
 #include "cpu.h"
+#include "game.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

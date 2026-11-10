@@ -7,7 +7,7 @@
 // - what the panel's box lets join: nothing typed, a comma, # or ;, too long, a slur, a repeat by hash, a fifth
 // - the Room setting refuses a name that reads as a slur, as Your name does
 // - Reset all settings keeps the crews, as it keeps the name
-// - /players?crews=: the hashes in the player's order (beside room=), the counts by hash, none from an older server,
+// - /players?crews=: the hashes in the player's order (beside rooms=), the counts by hash, none from an older server,
 //   and a late answer to an earlier question not shown over a later one
 // The modules are bundled from web/src with esbuild, as web/test/settings-reset.test.mjs does.
 import { test } from 'node:test';
@@ -162,7 +162,7 @@ test('the Room setting: a name that reads as a slur is refused, as Your name is'
   for (const v of ['XxCoonXx', 'f4g_42 ; mine', 'ｆａｇ']) {
     const r = S.checkSetting('roam_room', v);
     assert.equal(r.ok, false, v);
-    assert.equal(r.why, '"{value}" is not a room name (it reads as a slur)', v);
+    assert.equal(r.why, '"{value}" is not a world name (it reads as a slur)', v);
   }
   assert.match(S.checkSetting('roam_room', 'z'.repeat(64)).reason, /is not text of 1 to 63 bytes/);
   assert.equal(S.resolveEnv('roam = on\nroam_room = XxCoonXx\n', {}, {}).env.NFSU2_ROAM_ROOM, undefined, 'no room at Play');
@@ -171,15 +171,15 @@ test('the Room setting: a name that reads as a slur is refused, as Your name is'
 test('Reset all settings keeps the crews and their colours', () => {
   let ini = S.TEMPLATE;
   for (const [k, v] of [['roam_name', 'Lessis'], ['roam_crew', 'Blue Room, Night Owls'], ['roam_crew_colours', 'ff4646, 3cd2ff'], ['fps', '60'], ['roam_room', 'x']]) ini = S.settingsPut(ini, k, v);
-  const out = S.UI.resetAll(ini);
+  const out = S.resetAll(ini);
   const r = S.resolveEnv(out, {}, {});
   assert.deepEqual(Object.keys(r.byEnv).sort(), ['NFSU2_ROAM_CREW', 'NFSU2_ROAM_CREW_RGB', 'NFSU2_ROAM_NAME']);
   assert.equal(r.env.NFSU2_ROAM_CREW, 'Blue Room, Night Owls');
   assert.equal(r.env.NFSU2_ROAM_CREW_RGB, 'ff4646, 3cd2ff');
   assert.match(out, /^roam_crew = Blue Room, Night Owls\n[^]*^roam_crew_colours = ff4646, 3cd2ff$/m);
-  assert.equal(S.UI.resetAll(out), out, 'nothing more to reset');
+  assert.equal(S.resetAll(out), out, 'nothing more to reset');
   // a refused line is not kept
-  assert.equal(S.UI.resetAll(`roam_crew = ${'y'.repeat(25)}\nroam_crew_colours = #ff4646\n`), S.TEMPLATE);
+  assert.equal(S.resetAll(`roam_crew = ${'y'.repeat(25)}\nroam_crew_colours = #ff4646\n`), S.TEMPLATE);
   assert.ok(S.UI.PANEL_KEYS.includes('roam_crew_colours'), 'the Crews row writes it');
 });
 
@@ -191,17 +191,17 @@ test('/players?crews=: asked in the player\'s order, the counts by hash', async 
   assert.deepEqual([...P.crewCounts({ players: 3, online: 0, crews: [1, -1, 'x'] }, [blue, owls, room])], [[blue, 1]], 'only counts');
   // watchPlayers against a stand-in server
   const asked = [], fetch0 = globalThis.fetch;
-  let answer = { players: 3, online: 1, roam: 2, room: 1, crews: [2, 0] };
+  let answer = { players: 3, online: 1, roam: 2, rooms: [1, 1], crews: [2, 0] };
   globalThis.window = { setInterval: () => 0 };
   globalThis.document = { visibilityState: 'visible', addEventListener() {} };
   globalThis.fetch = async url => { asked.push(url); return { status: 200, ok: true, json: async () => answer }; };
-  let crews = [blue, owls], name = 'Team';
+  let crews = [blue, owls], rooms = [0, room];
   const shown = [];
   let next;
   const w = P.watchPlayers((line, counts) => { shown.push({ line: line(), counts }); next?.(); }, () => true, undefined, () => name, () => crews);
   const wait = () => new Promise(r => { next = r; });
   await wait();
-  assert.equal(asked[0], `/players?room=${room}&crews=${blue},${owls}`);
+  assert.equal(asked[0], `/players?rooms=0,${room}&crews=${blue},${owls}`);
   assert.deepEqual([...shown[0].counts], [[blue, 2], [owls, 0]]);
   assert.match(shown[0].line, /You are in room "Team": 1 in free roam there\./);
   crews = [owls]; name = ''; answer = { players: 3, online: 1, roam: 2, crews: [5] };
@@ -210,7 +210,7 @@ test('/players?crews=: asked in the player\'s order, the counts by hash', async 
   assert.deepEqual([...shown[1].counts], [[owls, 5]]);
   crews = []; answer = { players: 3, online: 1, roam: 2 };
   w.now(); await wait();
-  assert.equal(asked[2], '/players', 'no crews, no room: as before');
+  assert.equal(asked[2], '/players', 'no crews, no worlds: as before');
   assert.equal(shown[2].counts.size, 0);
   delete globalThis.window; delete globalThis.document; globalThis.fetch = fetch0;
 });

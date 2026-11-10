@@ -121,8 +121,11 @@ export async function askSpots(hashes: readonly number[], ms: number): Promise<M
 /** How many are in free roam in each crew asked for (their hashes, in the order asked), by hash; none from an older
  *  server (no crews in its answer) or for a count it does not give. */
 export function crewCounts(c: PlayerCounts, asked: readonly number[]): Map<number, number> {
+  return byHash(c.crews, asked);
+}
+function byHash(counts: number[] | undefined, asked: readonly number[]): Map<number, number> {
   const m = new Map<number, number>();
-  if (Array.isArray(c.crews)) asked.forEach((h, i) => { const n = c.crews![i]; if (Number.isInteger(n) && n >= 0) m.set(h, n); });
+  if (Array.isArray(counts)) asked.forEach((h, i) => { const n = counts[i]; if (Number.isInteger(n) && n >= 0) m.set(h, n); });
   return m;
 }
 
@@ -152,13 +155,13 @@ export function watchPlayers(show: (line: Msg, crews: Map<number, number>) => vo
     if (gone) return;
     const n = ++asked;
     try {
-      const name = room(), hash = roomHash(name), mine = crews().slice(0, 4);
-      const q = [hash ? `room=${hash}` : '', mine.length ? `crews=${mine.join(',')}` : ''].filter(Boolean).join('&');
+      const inRoom = room().trim(), worlds = inRoom ? [roomHash(inRoom)] : [], mine = crews().slice(0, 4);
+      const q = [worlds.length ? `rooms=${worlds.join(',')}` : '', mine.length ? `crews=${mine.join(',')}` : ''].filter(Boolean).join('&');
       const r = await fetch(q ? `/players?${q}` : '/players', { cache: 'no-store', signal: AbortSignal.timeout(ms) });
       reached?.(r.status < 500);
       if (r.status === 404) { gone = true; last = null; show(() => '', new Map()); return; }
       if (!r.ok) return;
-      const c = await r.json() as PlayerCounts, inRoom = hash ? name : '';
+      const c = await r.json() as PlayerCounts;
       if (n !== asked) return;
       last = c; show(() => playersText(c, inRoom), crewCounts(c, mine));
     } catch { reached?.(false); }

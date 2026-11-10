@@ -333,9 +333,41 @@ export function failureOf(e: unknown): { msg: string; why: { t: string; v?: Vars
     : of(String(e instanceof Error ? e.message : e), 'VAULT-ERROR');
 }
 
+/** IEEE CRC-32 used to compare profile and side-file bytes in the cloud-save conflict hash. */
+const CRC32_TABLE = (() => {
+  const table = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) {
+    let value = n;
+    for (let k = 0; k < 8; k++) value = value & 1 ? 0xedb88320 ^ (value >>> 1) : value >>> 1;
+    table[n] = value >>> 0;
+  }
+  return table;
+})();
+function crc32(bytes: Uint8Array): number {
+  let value = 0xffffffff;
+  for (const byte of bytes) value = CRC32_TABLE[(value ^ byte) & 0xff] ^ (value >>> 8);
+  return (value ^ 0xffffffff) >>> 0;
+}
+
 /** the unanswered sends a link remembers */
 const SENT_MAX = 8;
 
+/** the files beside a profile that hold what it does not (runtime/garage.c slots 6-10, runtime/modpacks.c mod parts
+ *  and stances, runtime/mpcredit.c multiplayer wins): a save may change only one of them */
+const BESIDE = ['GARAGE.DAT', 'MODPARTS.DAT', 'MPWINS.DAT'];
+/** a profile's sum for a conflict: its file's and those beside it, so a change only there shows too */
+function profileSum(files: SaveFile[], f: SaveFile): number {
+  const dir = f.path.slice(0, f.path.lastIndexOf('/') + 1).toLowerCase();
+  const parts = [crc32(f.data)];
+  for (const name of BESIDE) {
+    const b = files.find(x => x.path.toLowerCase() === dir + name.toLowerCase());
+    parts.push(b ? crc32(b.data) : 0);
+  }
+  const packed = new Uint8Array(parts.length * 4);
+  const view = new DataView(packed.buffer);
+  parts.forEach((value, i) => view.setUint32(i * 4, value, true));
+  return crc32(packed);
+}
 /** a side of a conflict from its files (saved: the server's time of them; none: the newest profile's file's) */
 export function sideOf(files: SaveFile[], saved?: number): Side {
   const profiles = profileFiles(files), times = profiles.filter(f => f.mtime).map(f => f.mtime!);

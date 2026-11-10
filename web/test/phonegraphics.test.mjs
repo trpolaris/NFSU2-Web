@@ -1,6 +1,7 @@
 // A phone's graphics (web/src/app/phonegraphics.ts): a new phone's registry is the built-in seed with six options
 // off and the mark; a phone from before gets them once while every graphics option still has the seed's value, and
-// only the mark when one was changed; a marked registry is left alone.
+// only the mark when one was changed; a marked registry is left alone.  A new computer's registry has Full Scene
+// Anti-Aliasing on; a tablet's is the seed.  A registry from before it (-1) is asked about it once.
 //   node --test web/test/phonegraphics.test.mjs
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

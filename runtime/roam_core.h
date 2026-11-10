@@ -21,18 +21,26 @@
 #include <stddef.h>
 
 #define RC_PROTO_VER     1          /* header byte 4; a different value is ignored */
-#define RC_CORE_VER      8          /* HELLO: implementation revision (2: lists of up to RC_MAX_PEERS; 3: RC_MSG_DUEL;
-                                       4: state extensions, RC_HF_STATEX; 5: race lobbies, RC_HF_LOBBY; 6: quick chat,
-                                       RC_HF_SAY; 7: crews, RC_HF_CREW; 8: crews from the hub, RC_HF_HUBCREW) */
+#define RC_CORE_VER      9          /* HELLO: implementation revision; 9 adds optional moderated license plates */
 #define RC_MAGIC0        0x4E       /* "N2FR" */
 #define RC_MAGIC1        0x32
 #define RC_MAGIC2        0x46
 #define RC_MAGIC3        0x52
 #define RC_DEFAULT_PORT  47210
+/* Car body parts exposed by the local show-off controls (showoff.c). */
+#define RC_STATEX_OPEN   1
+#define RC_OPEN_HOOD     0x01
+#define RC_OPEN_TRUNK    0x02
+#define RC_OPEN_LDOOR    0x04
+#define RC_OPEN_RDOOR    0x08
+#define RC_OPEN_ALL      0x0f
+#define RC_OPEN_HIBEAM   0x10
+
 #define RC_MAX_DGRAM     1200       /* never IP-fragmented (< 1280) */
 #define RC_HDR           16
 #define RC_CRC           4
 #define RC_NAME_MAX      24
+#define RC_PLATE_MAX     8
 #define RC_MAX_PLAYERS   33         /* the mesh: this machine + 32 peers */
 #define RC_MAX_PEERS     (RC_MAX_PLAYERS - 1)
 #define RC_PEERS_V1      7          /* the most a core of version 1 reads in a HELLO's ids or a PEERS list */
@@ -52,10 +60,14 @@
 #define RC_CFG_MAXFRAG   3
 #define RC_PART_SLOTS    170        /* RideInfo part slots */
 #define RC_CFG_TYPE_NAME 16
+#define RC_DMG_BYTES     11         /* one dent in RC_MSG_DENTS */
+#define RC_DMG_MAX       66         /* newest dents per update */
+#define RC_DMG_DEPTH     0.25f      /* depth unit, metres */
 #define RC_PERF_BYTES    52         /* car-look record extension 1 */
 #define RC_EXT_PERF      1
 #define RC_EXT_HORN      2          /* car-look record extension 2: the player's horn, 1 byte */
 #define RC_EXT_RATING    3          /* car-look record extension 3: class and rounded performance rating */
+#define RC_EXT_STANCE    4          /* car-look record extension 4: stance values, 8 bytes */
 #define RC_DUEL_INBOX    16         /* DUEL messages held for the game side */
 #define RC_MAP_ENTRY     5          /* a MAP entry: x, y (int16, m), heading (u8, 256 a turn) */
 #define RC_MAP_PER       230        /* entries per MAP datagram at most */
@@ -119,7 +131,10 @@ enum { RC_MSG_HELLO = 1, RC_MSG_PEERS = 2, RC_MSG_SNAP = 3, RC_MSG_CFG = 4, RC_M
         * racer's place in them, by its player's id, its time and how far it came.  The server compares the players'
         * games' results for a racer far ahead of the others (a teleport to the finish, a speed hack).  A hub before it
         * ignores the type, and no player is sent one */
-       RC_MSG_RACERES = 16, RC_MSG_NEARREQ = 19, RC_MSG_NEARD = 20 };
+       RC_MSG_RACERES = 16, RC_MSG_NEARREQ = 19, RC_MSG_NEARD = 20,
+       /* DENTS is 21: TRPOLARIS reserves 18/19/20 for MAPD/NEARREQ/NEARD. */
+       RC_MSG_DENTS = 21 };
+enum { RC_DENTS_STATE = 1, RC_DENTS_HAVE = 2 };
 /* RACEREP flags */
 #define RC_RR_HOST       0x01       /* the reporter hosted the race */
 #define RC_RR_QUIT       0x02       /* ...left it with its pause menu's Quit */
@@ -216,7 +231,15 @@ enum { RC_PLAT_MAC = 1, RC_PLAT_WIN = 2, RC_PLAT_TOOL = 3 };
 /* header flags (HELLO, core 8 and up): this player reads the crew marks of
  * the hub's PEERS (RC_HF_CREW above); a hub sends them to no other */
 #define RC_HF_HUBCREW    0x0400
+/* HELLO, core 9: a moderated license plate follows the crew list. */
+#define RC_HF_PLATE      0x8000
+#define RC_HF_DRIFT      0x1000  /* HELLO: accepts drift battles */
+#define RC_HF_SEAT2      0x2000  /* HELLO: second local co-op player */
+/* HELLO: this player shows friends' crash damage and receives RC_MSG_DENTS. */
+#define RC_HF_DENTS      0x4000
 #define RC_MARK_FRIEND   0x80       /* mutual friend bit in a hub PEERS crew mark */
+#define RC_MARK_RXONLY   0x20       /* hub link: we receive this peer's car only */
+#define RC_MARK_TXONLY   0x40       /* hub link: this peer receives our car only */
 /* decoder results */
 enum { RC_OK = 0, RC_E_SHORT = -1, RC_E_MAGIC = -2, RC_E_VERSION = -3, RC_E_LENGTH = -4,
        RC_E_CRC = -5, RC_E_TYPE = -6, RC_E_FIELD = -7, RC_E_TRAIL = -8, RC_E_RANGE = -9 };
@@ -238,7 +261,9 @@ float    rc_getf(rc_r *r);
 void     rc_getb(rc_r *r, void *dst, uint32_t n);
 uint32_t rc_crc32(const uint8_t *p, uint32_t n);
 uint32_t rc_fnv1a(const char *s);           /* 0 for "" */
-uint32_t rc_room_hash(const char *s);       /* room names -> room hash: capitals and spaces do not count (0: none) */
+uint32_t rc_room_hash(const char *s);
+int      rc_plate_ok(const char *s, uint32_t n);
+
 uint32_t rc_fnv1a_bytes(const uint8_t *p, uint32_t n);
 uint32_t rc_fbits(float f);
 float    rc_bitsf(uint32_t u);
@@ -246,6 +271,9 @@ float    rc_sqrtf(float x);
 /* printable ASCII, at most RC_NAME_MAX bytes, never empty and never one that
  * reads as a slur (names.h): "Player" then */
 void     rc_name_clean(char *dst, const char *src, uint32_t srclen);
+/* a license plate's text: n (at most RC_PLATE_MAX) capital letters A-Z and digits, none other (n 0: the game's own
+ * plate).  Whether it reads as a slur is names.h's name_blocked */
+int      rc_plate_ok(const char *s, uint32_t n);
 
 /* ---- messages -------------------------------------------------------------- */
 typedef struct {
@@ -332,7 +360,7 @@ typedef struct {
     union {
         struct { uint16_t core_ver; uint8_t platform, status; uint16_t listen_port, cfg_rev;
                  uint32_t room; char name[RC_NAME_MAX + 1]; uint8_t n_seen; uint32_t seen[RC_MAX_PEERS];
-                 uint8_t n_crews; uint32_t crews[RC_CREW_MAX]; } hello;   /* crews: with RC_HF_CREW only */
+                 uint8_t n_crews; uint32_t crews[RC_CREW_MAX]; char plate[RC_PLATE_MAX + 1]; } hello;   /* crews: with RC_HF_CREW only */
         struct { uint8_t n; struct { uint32_t ip; uint16_t port; uint32_t id; } e[RC_MAX_PEERS];
                  uint8_t n_mine; uint32_t mine[RC_CREW_MAX]; uint8_t crew[RC_MAX_PEERS]; } peers;   /* the crew marks: with RC_HF_CREW only */
         struct { uint8_t status, epoch; uint16_t cfg_rev; uint8_t n, clock; rc_state s[RC_SNAP_STATES]; } snap;
@@ -350,6 +378,7 @@ typedef struct {
         rc_racerep racerep;
         struct { uint8_t phrase, seq; } say;
         rc_raceres raceres;
+        struct { uint8_t op, epoch, n; uint16_t rev, first; const uint8_t *data; } dents;   /* data: n x RC_DMG_BYTES (STATE) */
     } u;
 } rc_msg;
 
@@ -383,6 +412,10 @@ typedef struct {
     /* extension 3 (3 bytes): game-rated class and performance rating.
      * Remote rides lack the physics block needed to calculate these. */
     uint8_t  has_rating; int8_t rating_cls; uint16_t rating;
+    /* extension 4 (8 bytes): the car's stance as its player set it in the garage (stance.h's units: the cambers,
+     * front and rear, tenths of a degree, u8 each; the offsets, mm, int16 each; the tires' width, per cent, u8; a
+     * byte 0); a record without it: the car as the game draws it */
+    uint8_t  has_stance; uint8_t stance_fc, stance_rc, stance_tw; int16_t stance_fo, stance_ro;
 } rc_carcfg;
 int rc_carcfg_encode(const rc_carcfg *c, uint8_t *out, int cap);   /* bytes, or -1 */
 int rc_carcfg_decode(const uint8_t *p, int len, rc_carcfg *c);     /* RC_OK / RC_E_* */
@@ -475,6 +508,7 @@ typedef struct {
     uint32_t crews[RC_CREW_MAX];   /* rc_room_hash(crew name), each its own, in the player's order (n_crews of them) */
     int      n_crews;
     char     name[RC_NAME_MAX + 1];
+    char     plate[RC_PLATE_MAX + 1];
     uint8_t  platform;
     int      discovery;            /* beacon through io.broadcast every 2 s */
     int      test_mode;            /* only 127/8 peers are accepted */
@@ -494,8 +528,12 @@ typedef struct {
     uint32_t hub_ip;
     uint16_t hub_port;
     int      duels;                /* we take outrun challenges (HELLO says so: RC_HF_DUELS) */
+    int      drifts;               /* we take drift battles (HELLO says so: RC_HF_DRIFT) */
     int      lobbies;              /* we take race lobbies (HELLO says so: RC_HF_LOBBY) */
     int      say;                  /* we take quick chat (HELLO says so: RC_HF_SAY) */
+    int      links;                /* maximum hub links we want; 0 means server default */
+    int      seat2;                /* second local player on this browser */
+     int      dents;                /* show friends' crash damage (HELLO says so: RC_HF_DENTS) */
 } rc_config;
 
 enum { RC_PS_FREE = 0, RC_PS_CANDIDATE = 1, RC_PS_HEARD = 2, RC_PS_EST = 3 };
@@ -508,10 +546,14 @@ typedef struct {
     int64_t  added_us, last_rx_us, last_hello_tx, last_ping_tx, last_cfgreq_tx, last_snap_rx;
     int64_t  cfg_answer_us;        /* our record goes to it again (asked for, or at its join) from then on */
     int64_t  hub_listed_us;        /* the hub's list named it last (0: never) */
+    uint8_t  far;                  /* our send cadence to this peer: every 1, 4 or 10 snapshots */
+    uint8_t  hub_far;              /* cadence advised by hub hints: 0 = no hint */
     char     name[RC_NAME_MAX + 1];
+    char     plate[RC_PLATE_MAX + 1]; /* last valid HELLO plate; empty means the game's own */
     uint8_t  platform, status;
     uint16_t core_ver;             /* its HELLO's (0 until one came): below 2 it reads lists of RC_PEERS_V1 at most */
     uint8_t  duels;                /* its HELLO says it takes outrun challenges (RC_HF_DUELS) */
+    uint8_t  drifts;               /* its HELLO says it takes drift battles (RC_HF_DRIFT) */
     uint8_t  lobbies;              /* its HELLO says it takes race lobbies (RC_HF_LOBBY) */
     uint8_t  statex;              /* its HELLO says it reads state extensions (RC_HF_STATEX) */
     uint8_t  say;                  /* its HELLO says it takes quick chat (RC_HF_SAY) */
@@ -519,6 +561,7 @@ typedef struct {
     uint8_t  n_crews;  uint32_t crews[RC_CREW_MAX];   /* its crews, as its last HELLO had them (an older core's, or no hub) */
     uint8_t  n_hub_crews; uint32_t hub_crews[RC_CREW_MAX];   /* our crews it is in too, as the hub's last list naming it said */
     uint8_t  hub_friend;                                     /* mutual friend according to hub PEERS mark */
+    uint8_t  hub_way;                                        /* RC_MARK_RXONLY / RC_MARK_TXONLY; 0 = both ways */
     uint16_t cfg_rev_seen;         /* what the peer announces */
     int      hears_us, lost;
     int      hears_miss;           /* with the hub: one HELLO without our id forgiven (hub mode only) */
@@ -533,6 +576,14 @@ typedef struct {
     int      cfg_len;  uint8_t cfg[RC_CFG_MAX];
     uint32_t cfg_gen;              /* +1 for every new complete record */
     uint16_t asm_rev;  uint16_t asm_total;  uint8_t asm_mask, asm_nfrag;  uint8_t asm_buf[RC_CFG_MAX];
+    /* crash damage (RC_MSG_DENTS) */
+    uint8_t  dents;                /* its HELLO says it shows friends' damage (RC_HF_DENTS): ours goes to it */
+    uint16_t dents_have;           /* ...the revision of ours it said it has (0: none) */
+    uint16_t dents_tx_rev;  uint8_t dents_tries;  int64_t dents_tx_us;   /* ours to it: the revision last sent, how often, when */
+    int64_t  dents_have_us;        /* our HAVE to it for a revision we had already: at most every T_DENTS_HAVE */
+    uint16_t dents_rev;            /* its car's damage as its last DENTS had it (0: none came): */
+    uint8_t  dents_epoch, dents_n;  uint16_t dents_first;  uint8_t dent[RC_DMG_MAX * RC_DMG_BYTES];
+    uint32_t dents_gen;            /* +1 for every new one */
     rc_interp mo;                  /* motion: jitter buffer and smoothing */
 } rc_peer;
 
@@ -598,6 +649,9 @@ typedef struct {
     struct { uint32_t from; uint8_t phrase, seq; } say_in[RC_SAY_INBOX];
     int       n_say_in;
     uint32_t  say_dropped;         /* the inbox was full */
+    /* our car's crash damage (rc_set_dents): its revision (0: none yet), epoch, first dent's number and dents */
+    uint16_t  dents_rev;  uint8_t dents_epoch, dents_n;  uint16_t dents_first;  uint8_t dent[RC_DMG_MAX * RC_DMG_BYTES];
+    uint32_t  dents_tx, dents_rx;  /* DENTS sent and taken (statistics) */
 } rc_session;
 
 void rc_session_init(rc_session *s, const rc_config *cfg, const rc_io *io);

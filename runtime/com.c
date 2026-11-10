@@ -4,6 +4,7 @@
 #include <time.h>
 #include <stdatomic.h>
 #include "cpu.h"
+#include "game.h"
 #include "d3d9_tables.h"
 #include <stdio.h>
 #include <string.h>
@@ -12,14 +13,7 @@
 #include <stdlib.h>
 #include <math.h>
 
-/* getenv() SCANS the environment array and takes a lock on every call.  On
- * per-draw paths (for example the "PDLIST" check in
- * SetVertexShaderConstantF was the FIRST term of an && chain) that has a
- * measurable cost: in the profile getenv+__findenv_locked ate 3% of the
- * guest thread.  Environment variables do not change during a run ->
- * resolve once, keep. */
-#define ENVC(nm_) ({ static const char *_ev_; static int _ei_; \
-                     if (!_ei_){ _ei_ = 1; _ev_ = getenv(nm_); } _ev_; })
+#include "setting.h"      /* ENVC: getenv once per call site (per-draw paths) */
 
 
 void mem_commit(uint32_t,uint32_t);
@@ -3322,7 +3316,7 @@ int com_call(CPU *c, uint32_t magic){
                     fprintf(stderr,"  [flow] frame %u: %s  flag(865498)=%u (8654a4)=%u\n",
                             g_present_no, cur,
                             mem_is_committed(0x00865498u)?MR8(0x00865498u):999u,
-                            mem_is_committed(0x008654a4u)?MR32(0x008654a4u):999u);
+                            mem_is_committed(G_FLOW)?MR32(G_FLOW):999u);
                 }
             }
             /* PRESENTBT: work out the structure of the main loop. */

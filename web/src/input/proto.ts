@@ -2,7 +2,7 @@
 // names, same numbers; web/tools/check-proto.mjs compares the two files).
 
 export const INPUT_MAGIC = 0x4E494E50;
-export const INPUT_VERSION = 1;
+export const INPUT_VERSION = 2;
 export const INPUT_EV_N = 1024;
 export const INPUT_SYN_N = 256;
 export const INPUT_NAME_LEN = 16;
@@ -43,7 +43,8 @@ export const IM_TEXT_KIND = 35;     // wasm: which characters it takes besides l
 export const IM_TEXT_LEN = 36;      // wasm: the characters in it now
 export const IM_PAD_WHEEL = 37;     // page: 1 when the controller driving the pad is a steering wheel (under IM_PAD_SEQ)
 export const IM_VIEW_ROLL = 38;     // page: float bits, the phone's tilt the 3D view turns against (radians, + = clockwise)
-export const IM_MENU_SCALE = 39;    // page: float bits, the menus' help bar buttons' size (1 = the game's own; 0 = not set)
+export const IM_MENU_SCALE = 39;    // page: float bits, the menus' help bar buttons' and arrows' size (1 = the game's own;
+                                    // 0 = not set; negative: the arrows' alone, the bar at the game's own)
 export const IM_TEXT = 40;          // wasm: 40..63, its text (cp1252, NUL-padded)
 export const IM_HDR_WORDS = 64;
 
@@ -62,6 +63,19 @@ export const IEV_TEXT = 11;
 export const IEV_LOG = 12;
 export const IEV_SMS = 13;
 export const IEV_PHOTO = 14;
+/** a new name for free roam and Online mode, in pieces of 11 bytes: dik = where the piece starts, vk = the whole
+ *  length, chars[3] then a and b (little-endian) its bytes (runtime/web/input_proto.h) */
+export const IEV_NAME = 15;
+export const INAME_SEAT2 = 1;                 // IEV_NAME's flags: co-op player 2's name (runtime/web/input_proto.h)
+/** free roam's race lobby (runtime/web/roam_web.c roam_plat_lobby_input): dik = what (LB_*); LB_JOIN: a = the lobby's
+ *  host's id, b = the lobby's id, its race's hash in vk, flags and chars[0..1] (little-endian) */
+export const IEV_LOBBY = 16;
+/** IEV_LOBBY's what (runtime/roam_plat.h ROAM_LB_*): the lobby card's next page, Friends & crew only (hosting), leave a
+ *  lobby joined from afar, an invite's Join */
+export const LB_NEXT = 1, LB_PRIVATE = 2, LB_LEAVE = 3, LB_JOIN = 4, LB_NEW = 5;
+/** the page menu's Tracks (runtime/travel.c travel_ask): dik = where, 0 the city, 1.. a race track's spot;
+ *  TRAVEL_FRIEND: the page menu's Friends, Join (travel_ask_friend): a = the friend's name's hash (players.ts roomHash),
+ *  b = the spot it is at (tracks.ts friendSpot, 0 the city) */
 export const IEV_TRAVEL = 17;
 export const IEV_TRAVEL_FRIEND = 18;
 
@@ -105,7 +119,20 @@ export const IM_OFF_PAD_NAME = 256;
 export const IM_OFF_NAMES = 320;
 export const IM_OFF_EV = 4416;
 export const IM_OFF_SYN = 20800;
-export const IM_BYTES = 24896;
+export const INPUT_LOCAL_PADS = 6;
+export const IM_LOCAL_WORDS = 32;
+export const IM_LOCAL_SEQ = 0;
+export const IM_LOCAL_CONNECTED = 1;
+export const IM_LOCAL_BUTTONS = 2;
+export const IM_LOCAL_FAMILY = 3;
+export const IM_LOCAL_AXIS = 4;
+export const IM_LOCAL_NAME = 10;
+export const IM_LOCAL_INDEX = 26;
+export const IM_LOCAL_JOIN = 27;
+/** wasm: 1 while this seat's controller is co-op free roam's player 2's: the page lets it drive nothing else */
+export const IM_LOCAL_COOP = 28;
+export const IM_OFF_LOCAL_PADS = 24896;
+export const IM_BYTES = 25664;
 
 // runtime/gamepad.h
 export const PAD_A = 0, PAD_B = 1, PAD_X = 2, PAD_Y = 3, PAD_LB = 4, PAD_RB = 5, PAD_BACK = 6, PAD_START = 7,

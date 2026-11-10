@@ -235,7 +235,6 @@ impl Switch {
 // ---- frames ---------------------------------------------------------------------------------------------------
 
 /// a frame of the virtual host's TCP (kind 4), UDP (3) or ICMP (5), as nfsu2-online's `vhost::lan_frame` makes one
-#[allow(clippy::too_many_arguments)]
 pub fn lan_frame(kind: u8, src: u32, dst: u32, sport: u16, dport: u16, op: u8, cid: u32, data: &[u8]) -> Vec<u8> {
     let mut f = vec![0u8; 24 + data.len()];
     f[0] = kind;
@@ -313,12 +312,18 @@ pub fn roam_hello(sender: u32) -> Vec<u8> {
 
 /// a free-roam HELLO under `name` (core version 1, in free roam, room 0)
 pub fn roam_hello_named(sender: u32, name: &[u8]) -> Vec<u8> {
+    roam_hello_named_in(sender, name, 0)
+}
+
+/// a free-roam HELLO under `name` in `room` (core version 1, in free roam)
+pub fn roam_hello_named_in(sender: u32, name: &[u8], room: u32) -> Vec<u8> {
     let mut p = vec![0u8; 13 + name.len() + 1];
     p[0..2].copy_from_slice(&1u16.to_le_bytes());
     p[2] = 1;
     p[3] = 2;
     p[4..6].copy_from_slice(&47210u16.to_le_bytes());
     p[6..8].copy_from_slice(&3u16.to_le_bytes());
+    p[8..12].copy_from_slice(&room.to_le_bytes());
     p[12] = name.len() as u8;
     p[13..13 + name.len()].copy_from_slice(name);
     dgram(1, sender, &p)

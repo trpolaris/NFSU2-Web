@@ -126,8 +126,8 @@ test('React owns the Controls route while the F9 help sheet keeps its inert sour
   assert.match(reactUi, /role="tabpanel"/);
   assert.equal((html.match(/data-pad-mount/g) || []).length, 1, 'controller SVG has a dedicated mount');
   assert.match(controls, /querySelector<HTMLElement>\('\[data-pad-mount\]'\)/);
-  assert.match(wheel, /querySelector<HTMLElement>\('\[data-pad-mount\]'\)/);
-  assert.match(wheel, /for \(const el of mount\.children\)/, 'a connected wheel only hides the drawing area');
+  assert.match(wheel, /export function wheelSection\(pad: HTMLElement/);
+  assert.match(wheel, /for \(const el of pad\.children\)/, 'a connected wheel only hides the drawing area');
   assert.doesNotMatch(css, /#controls/);
   assert.match(css, /\.keyboard-map-grid/);
 });

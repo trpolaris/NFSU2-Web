@@ -40,6 +40,8 @@ unsigned hiddenraces_apply_tables(volatile uint8_t *races, uint32_t race_count,
 
 #ifndef HIDDENRACES_UNIT
 #include "cpu.h"
+#include "game.h"
+#include "setting.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

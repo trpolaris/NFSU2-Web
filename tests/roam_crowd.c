@@ -86,6 +86,7 @@ __attribute__((export_name("crowd_init"))) void crowd_init(uint32_t id, uint32_t
     uint8_t rec[RC_CFG_MAX]; int len = rc_carcfg_encode(&cc, rec, sizeof rec);
     if (len > 0) rc_set_cfg(&S, rec, len, (int64_t)now_us);
     rc_set_status(&S, RC_ST_ROAM);
+    if (DMG_MODE) dmg_publish((int64_t)now_us);
 }
 /* a datagram the script put into IO */
 __attribute__((export_name("crowd_recv"))) void crowd_recv(uint32_t ip, uint32_t port, int n, double now_us){
@@ -103,6 +104,7 @@ __attribute__((export_name("crowd_tick"))) void crowd_tick(double now_us, float 
     st.q[3] = 1.f - a2 / 2.f + a2 * a2 / 24.f - a2 * a2 * a2 / 720.f + a2 * a2 * a2 * a2 / 40320.f;
     st.speed = rc_sqrtf(vx * vx + vy * vy); st.rpm = 2500.f; st.gear = 3; st.throttle = 0.5f;
     rc_push_state(&S, &st, (int64_t)now_us);
+    if (DMG_MODE >= 2 && (int64_t)now_us >= DMG_NEXT) dmg_publish((int64_t)now_us);
     rc_tick(&S, (int64_t)now_us);
 }
 /* in a race (RC_ST_EVENT) or back in free roam: a game in a race sends no

@@ -34,7 +34,6 @@ fn bench_moving(what: &str, players: u32, rooms: u32, area: f64, step: f64) {
 
 /// `crews(i)`: player i's crews (none: a HELLO of before, without the crew flag); players i of one room are the ones
 /// with the same i % rooms; player i is named p<i>, and `blocks(i)` are the names it blocks
-#[allow(clippy::type_complexity)]
 fn bench_with(
     what: &str,
     players: u32,

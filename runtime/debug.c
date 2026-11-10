@@ -1,5 +1,6 @@
 /* Debugging: guest watchpoint + instruction hooks */
 #include "cpu.h"
+#include "featurelist.h"
 #include <stdio.h>
 #include <pthread.h>
 #include <time.h>
@@ -93,17 +94,7 @@ static RecEnt g_rec[RECR];
 static uint32_t g_rec_n = 0, g_rec_esp0 = 0;
 void guest_hook(CPU *c, uint32_t ip){
     g_hook_hits++;
-    { int ws_hook(CPU *, uint32_t); if (ws_hook(c, ip)) return; }
-    { int quickrace_hook(CPU *, uint32_t); if (quickrace_hook(c, ip)) return; }
-    { int roam_hook(CPU *, uint32_t); if (roam_hook(c, ip)) return; }
-    { int language_hook(CPU *, uint32_t); if (language_hook(c, ip)) return; }
-    { int hornmenu_hook(CPU *, uint32_t); if (hornmenu_hook(c, ip)) return; }
-    { int tonemenu_hook(CPU *, uint32_t); if (tonemenu_hook(c, ip)) return; }
-    { int powerunits_hook(CPU *, uint32_t); if (powerunits_hook(c, ip)) return; }
-    { int regional_hook(CPU *, uint32_t); if (regional_hook(c, ip)) return; }
-    { int garage_hook(CPU *, uint32_t); if (garage_hook(c, ip)) return; }
-    { int sndlead_hook(CPU *, uint32_t); if (sndlead_hook(c, ip)) return; }
-    { int drift_hook(CPU *, uint32_t); if (drift_hook(c, ip)) return; }
+    if (features_hook(c, ip)) return;
     if (ip == 0x0065ae25u){
         uint32_t a1=MR32(c->esp+4u), a2=MR32(c->esp+8u), a3=MR32(c->esp+12u);
         if (!g_rec_esp0) g_rec_esp0 = c->esp;

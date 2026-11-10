@@ -5,6 +5,11 @@
 // trails and world detail stay.  A phone that started before this gets them once too, if every graphics option there
 // still has the seed's value; one where any was changed keeps its own.  The game's Options, Display raise them again.
 // Cloud saves leave registry.txt out (vault.ts keeps), so a phone's never reaches a PC.
+//
+// A computer's new registry has the game's Full Scene Anti-Aliasing on (runtime/com.c MULTISAMPLING: 4 samples, about
+// 1 to 1.5 ms more GPU time a frame at 2560x1440 on an M4 Pro, 2026-11-08); tablets' and phones' stay as the seed
+// (off; phones are not offered it).  A computer's registry from before, which could never have it (-1), is asked about
+// it once at Play (shell.ts askFsaa) and marked.
 
 /** the game's own options (registry DWORDs) a phone starts with */
 export const PHONE_GRAPHICS: Readonly<Record<string, number>> = {
