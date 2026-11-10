@@ -435,7 +435,6 @@ fn own(data: &Bytes, src: u32, dst: u32) -> Bytes {
 pub(crate) mod tests {
     use super::*;
     use crate::{AttachCtx, LanOptions};
-    use crate::{BASE, UDP_SET};
 
     /// a peer on the switch without a socket: its connection's queue only fills
     pub(crate) fn peer(sw: &Arc<LanSwitch>, group: &str) -> (Arc<Conn>, Arc<AttachCtx>, Arc<Peer>) {
