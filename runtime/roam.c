@@ -802,6 +802,7 @@ void mpcredit_frame(CPU *c);                  /* mpcredit.c: pending career wins
 void optslider_frame(CPU *c);                 /* optslider.c: our option sliders' copied parts (the pause menu's Horn Volume) */
 void drift_frame(CPU *c);                     /* drift.c: drift mode in free roam (F2) */
 void photo_frame(CPU *c);                     /* photo.c: photo mode (F12, the pause menu's Photo Mode) */
+void savegame_frame(void);                     /* savegame.c: pause-menu Save */
 void language_texts_frame(CPU *c);            /* language.c: texts of our own in the game's language table */
 void sms_frame(CPU *c);                       /* sms.c: a text message of ours on the game's phone */
 void engage_frame(CPU *c);                    /* engage.c: recover a stale career marker transition */
@@ -828,7 +829,7 @@ int roam_hook(CPU *c, uint32_t ip){
     if (vinylcat_hook(c, ip)) return 1;
     if (travel_hook(c, ip)) return 1;
     switch (ip){
-    case HOOK_SITE(0x00581475): visualrep_frame(); walls_frame(); cameras_frame(c); hiddenraces_frame(); reads_frame(c); language_texts_frame(c); sms_frame(c); carspot_frame(); mprace_frame(c); mpcredit_frame(c); if (!roam_asipeer_frame(c)) roam_game_frame(c); travel_frame(c); racehorn_frame(c); racenet_frame(c); optslider_frame(c); drift_frame(c); photo_frame(c); engage_frame(c); roam_frame(c); return 1;
+    case HOOK_SITE(0x00581475): savegame_frame(); visualrep_frame(); walls_frame(); cameras_frame(c); hiddenraces_frame(); reads_frame(c); language_texts_frame(c); sms_frame(c); carspot_frame(); mprace_frame(c); mpcredit_frame(c); if (!roam_asipeer_frame(c)) roam_game_frame(c); travel_frame(c); racehorn_frame(c); racenet_frame(c); optslider_frame(c); drift_frame(c); photo_frame(c); engage_frame(c); roam_frame(c); return 1;
     /* Remove the Visual Rating meter from career shops when explicitly enabled. */
     case HOOK_SITE(0x00557ed0): visualrep_meter(c); return 1;
     /* Player::Update's HUD step (0x600590), behind its call of the HUD
