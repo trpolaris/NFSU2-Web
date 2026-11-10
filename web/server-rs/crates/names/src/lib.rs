@@ -226,6 +226,21 @@ pub const WHOLE_OK: &[&str] = &["nazli", "nazilli"];
 /// the starts of the English words that end in "pid": rapid, cupid, stupid, tepid, vapid, insipid, lipid, limpid,
 /// sapid, intrepid, hispid
 pub const PID_STEMS: &[&str] = &["ra", "cu", "stu", "te", "va", "insi", "li", "lim", "sa", "intre", "his"];
+/// Compact license plate moderation lists; kept in sync with names.mjs and runtime/names.h.
+pub(crate) const PLATE_EDGE: &[&str] =
+    &["fag", "coon", "spic", "paki", "kike", "kyke", "gook", "chink", "dyke", "nig", "nigr", "neger", "pedo", "rtard"];
+pub(crate) const PLATE_END_OK: &[&str] = &[
+    "rafag", "tafag", "racoon", "cocoon", "tycoon", "aspic", "ospic", "uspic", "papaki", "ipaki", "eepaki", "klike", "akike", "ekike",
+    "ikike", "okyke", "ergook", "achink", "uchink", "vandyke", "oldyke", "odyke", "knig", "midnig", "ghtnig", "sehnig", "anig", "enig",
+    "inig", "onig", "unig", "reneger", "torpedo", "speedo", "ipedo", "ppedo",
+];
+pub(crate) const PLATE_RESTS: &[&str] = &["boy", "boi", "lord", "king", "kid", "kill", "killer", "slayer", "hunter", "lover", "life"];
+pub(crate) const PLATE_ANYWHERE: &[&str] = &["nggr", "jewgas", "jewsgas", "h8jew"];
+pub(crate) const PLATE_ANYWHERE_OK: &[&str] = &["anggr", "unggr"];
+pub(crate) const PLATE_ALONE: &[&str] = &["KKK"];
+pub(crate) const PLATE_MARKS: &[&str] = &["HH", "SS", "WP", "HEIL", "SIEG"];
+pub(crate) const PLATE_NUMBERS: &[&str] = &["88"];
+
 /// hate aimed at a group as a phrase, matched anywhere as the [`ANYWHERE`] words are: a verb, one of [`HATE_BETWEEN`]
 /// or none, a group of [`HATE_GROUPS`] ("GasJews", "Kill_All_Jews")
 pub const HATE_VERBS: &[&str] = &[
@@ -691,12 +706,15 @@ pub fn blocked_plate(plate: &str) -> bool {
         }
         parts.push(&b[start..i]);
     }
-    const MARKS: &[&[u8]] = &[b"HH", b"SS", b"WP", b"HEIL", b"SIEG"];
+    let is_part = |part: &[u8], words: &[&str]| words.iter().any(|word| part == word.as_bytes());
     for (k, p) in parts.iter().enumerate() {
-        if *p == b"KKK" {
+        if is_part(p, PLATE_ALONE) {
             return true;
         }
-        if *p == b"88" && ((k > 0 && MARKS.contains(&parts[k - 1])) || (k + 1 < parts.len() && MARKS.contains(&parts[k + 1]))) {
+        if is_part(p, PLATE_NUMBERS)
+            && ((k > 0 && is_part(parts[k - 1], PLATE_MARKS))
+                || (k + 1 < parts.len() && is_part(parts[k + 1], PLATE_MARKS)))
+        {
             return true;
         }
     }
@@ -722,39 +740,29 @@ pub fn blocked_plate(plate: &str) -> bool {
         i += 1;
     }
 
-    const EDGE: &[&str] =
-        &["fag", "coon", "spic", "paki", "kike", "kyke", "gook", "chink", "dyke", "nig", "nigr", "neger", "pedo", "rtard"];
-    const END_OK: &[&str] = &[
-        "rafag", "tafag", "racoon", "cocoon", "tycoon", "aspic", "ospic", "uspic", "papaki", "ipaki", "eepaki", "klike", "akike", "ekike",
-        "ikike", "okyke", "ergook", "achink", "uchink", "vandyke", "oldyke", "odyke", "knig", "midnig", "ghtnig", "sehnig", "anig", "enig",
-        "inig", "onig", "unig", "reneger", "torpedo", "speedo", "ipedo", "ppedo",
-    ];
-    const RESTS: &[&str] = &["boy", "boi", "lord", "king", "kid", "kill", "killer", "slayer", "hunter", "lover", "life"];
-    const ANY: &[&str] = &["nggr", "jewgas", "jewsgas", "h8jew"];
-    const ANY_OK: &[&str] = &["anggr", "unggr"];
     let as_word = |s: &str| s.chars().filter_map(letter).collect::<Vec<_>>();
 
-    for raw in EDGE {
-        if ends_with(&letters, &Word::new(raw)) && !END_OK.iter().any(|ok| ends_with(&letters, &Word::new(ok))) {
+    for raw in PLATE_EDGE {
+        if ends_with(&letters, &Word::new(raw)) && !PLATE_END_OK.iter().any(|ok| ends_with(&letters, &Word::new(ok))) {
             return true;
         }
         let w = as_word(raw);
         if let Some(e) = at(&letters, 0, &w) {
             let rest = &letters[e..];
             let bare = rest.iter().position(|&c| c != b's').map_or(&rest[rest.len()..], |n| &rest[n..]);
-            if RESTS.iter().any(|tail| whole(rest, &[Word::new(tail)]) || whole(bare, &[Word::new(tail)])) {
+            if PLATE_RESTS.iter().any(|tail| whole(rest, &[Word::new(tail)]) || whole(bare, &[Word::new(tail)])) {
                 return true;
             }
         }
     }
-    for raw in ANY {
+    for raw in PLATE_ANYWHERE {
         let w = as_word(raw);
         for i in 0..letters.len() {
             let Some(end) = at(&letters, i, &w) else {
                 continue;
             };
             let mut ok = false;
-            for raw_ok in ANY_OK {
+            for raw_ok in PLATE_ANYWHERE_OK {
                 let x = as_word(raw_ok);
                 for a in i.saturating_sub(x.len())..=i {
                     if at(&letters, a, &x).is_some_and(|e| e >= end) {
