@@ -852,11 +852,6 @@ export function checkSetting(key: string, val: string): Checked | Refused | null
     }
     case 'id': if (!(val.length < 32 && /^[0-9]+$/.test(val))) return refuse(N('"{value}" is not a numeric id'), val); break;
     case 'token': if (!(val.length < 300 && /^[!-~]+$/.test(val))) return refuse(N('"{value}" is not an asset key or URL (printable ASCII, no spaces)'), val); break;
-    case 'plate':
-      out = val.trim().toUpperCase();
-      if (!/^[A-Z0-9]{1,8}$/.test(out)) return refuse(N('"{value}" is not a license plate (1 to 8 letters and digits)'), val);
-      if (blockedPlate(out)) return refuse(N('"{value}" is not a license plate (it reads as a slur)'), val);
-      break;
     case 'raw': break;
     default:
       if (!valueOk(kind, val)) return refuse(N('"{value}" is not {kind}'), val, { kind: KIND_TEXT[kind]! });
