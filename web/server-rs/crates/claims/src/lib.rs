@@ -19,6 +19,7 @@
 //! to a temporary file of 0600, synced and renamed over the old one ([`Claims::save`]).
 
 use parking_lot::RwLock;
+use nfsu2_util::atomic_file::Options;
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
