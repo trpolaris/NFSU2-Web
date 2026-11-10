@@ -10,7 +10,7 @@ use nfsu2_util::atomic_file::{Options, Step};
 use std::path::Path;
 
 /// the folder (0700, with its parents), a unique private temporary file, then the rename over `file`
-pub fn write_atomic(_dir: &Path, file: &Path, body: &[u8]) -> Result<(), String> {
+pub fn write_atomic(file: &Path, body: &[u8]) -> Result<(), String> {
     Options::new().make_folder().no_sync().write(file, body).map_err(|f| match f.step {
         Step::Folder => node_error(&f.error, "mkdir", Some(&f.path), None),
         Step::Open => node_error(&f.error, "open", Some(&f.tmp), None),
