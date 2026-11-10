@@ -965,6 +965,8 @@ int rc_interp_eval(rc_interp *ip, int64_t now_us, int64_t frame_dt_us, int64_t d
 #define T_HUB_HELLO    1000000      /* to the hub: a HELLO this often */
 #define T_HUB_SNAP      500000      /* and a SNAP (where we are) this often */
 #define T_HUB_GRACE    2500000      /* a peer the hub has not listed for this long goes (its list comes every second, twice since 2026-10-23) */
+#define T_DENTS_AGAIN 1000000      /* resend unacknowledged damage with backoff */
+#define T_DENTS_HAVE   500000      /* limit repeated damage acknowledgements */
 #define T_HUB_SILENT  10000000      /* no list for this long (or from the start): discovery and gossip again */
 #define RL_DGRAMS      100          /* per second and source */
 #define RL_BYTES     65536
