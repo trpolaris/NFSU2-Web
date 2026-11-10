@@ -68,7 +68,7 @@ void sub_0050e960_orig(CPU *c);
 /* MODPACKS/PARTS.BIN (tools/modpacks.py) */
 #define PK_HDR        32u
 #define PK_MOD        32u
-#define PK_PART       124u
+#define PK_PART       128u
 #define MAX_MODS      8
 #define MAX_PARTS     4096
 #define MAX_BRANDS    32
@@ -77,7 +77,7 @@ static const uint32_t SUB[7] = { 0x34603u, 0x34606u, 0x3460cu, 0x34605u, 0x3460a
 enum { S_HDR, S_STR, S_LIST, S_ATTR, S_MODEL, S_OWNER, S_PART };
 
 typedef struct {
-    uint32_t key, owner, name, mbase, mstr[8], nattr, attr[8][2];
+    uint32_t key, owner, name, mbase, mstr[8], nattr, attr[8][2], stand;
     uint8_t kind, cl, b6, mod, m0, m1, has_model;
 } Part;
 typedef struct { uint32_t key, tex, text; char name[32]; int mod; } Brand;
@@ -146,6 +146,7 @@ static int load(void){
         for (int k = 0; k < 8; k++) p->mstr[k] = rd32(q + 24 + 4 * k);
         p->nattr = rd32(q + 56);
         for (int k = 0; k < 8; k++){ p->attr[k][0] = rd32(q + 60 + 8 * k); p->attr[k][1] = rd32(q + 64 + 8 * k); }
+        p->stand = rd32(q + 124);
         int bad = p->mod >= nm || p->nattr > 8 || !pstr(p->name) || p->kind == KIND_DECAL || p->kind == KIND_VINYL ||
                   (p->has_model && p->mbase != NONE && !pstr(p->mbase));
         for (int k = 0; k < 8 && !bad; k++) bad = p->mstr[k] != NONE && !pstr(p->mstr[k]);
