@@ -64,7 +64,7 @@ int main(void){
     CHECK(n > 0 && rc_decode(buf, n, &d) == RC_OK && !strcmp(d.u.hello.plate, "ABC123") && (d.h.flags & RC_HF_PLATE), "a plate");
     /* none: no flag, the bytes as before core 17 (nothing after the name and the ids it hears) */
     int n0 = hello("", none, sizeof none);
-    CHECK(n0 > 0 && n0 == n - 1 - 1 - 4 - 1 - 1 - 6, "no plate: %d bytes, with one %d", n0, n);
+    CHECK(n0 > 0 && n0 == n - 1 - 1 - 6, "no plate: %d bytes, with one %d", n0, n);
     CHECK(rc_decode(none, n0, &d) == RC_OK && !d.u.hello.plate[0] && !(d.h.flags & RC_HF_PLATE), "no plate comes back none");
     /* one that reads as a slur comes as none, the HELLO itself taken (the name and the rest) */
     n = hello("N1GGER", buf, sizeof buf);
@@ -77,7 +77,7 @@ int main(void){
     CHECK(rc_decode(buf, n, &d) == RC_OK && !d.u.hello.plate[0], "a '!' is none");
     n = hello("ABCD", buf, sizeof buf);
     buf[n - 4 - 5] = 9; crc(buf, n);                         /* its length past the HELLO's end */
-    CHECK(rc_decode(buf, n, &d) == RC_OK && !d.u.hello.plate[0], "a length past the end is none");
+    CHECK(rc_decode(buf, n, &d) == RC_E_SHORT, "a plate length past the datagram is rejected");
     /* the encoder takes a plate with the flag only, and only capitals and digits */
     rc_msg m; memset(&m, 0, sizeof m);
     m.h.type = RC_MSG_HELLO; m.h.sender = 42; m.h.flags = RC_HF_CREW; m.u.hello.core_ver = RC_CORE_VER; strcpy(m.u.hello.name, "Ann");

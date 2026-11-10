@@ -95,9 +95,10 @@ impl LanSwitch {
                 plates::Verdict::Block { tell } => {
                     if tell {
                         // HELLO names are untrusted input: keep operator logs single-line and printable.
-                        let player: String = name.iter().map(|b| {
-                            if b.is_ascii_alphanumeric() || *b == b'_' || *b == b'-' { *b as char } else { '?' }
-                        }).collect();
+                        let player: String = name
+                            .iter()
+                            .map(|b| if b.is_ascii_alphanumeric() || *b == b'_' || *b == b'-' { *b as char } else { '?' })
+                            .collect();
                         let plate = std::str::from_utf8(bytes).unwrap_or("?");
                         eprintln!("[plate] blocked plate {plate} from {player}");
                     }
