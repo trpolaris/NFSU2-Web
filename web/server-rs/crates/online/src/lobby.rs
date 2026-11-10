@@ -63,6 +63,7 @@ use std::sync::Arc;
 use hmac::{Hmac, Mac};
 use indexmap::{IndexMap, IndexSet};
 use md5::Md5;
+use nfsu2_anticheat::MODE_DRIFT;
 use nfsu2_util::{Bucket, js, rand, vip_str};
 use sha2::{Digest, Sha256};
 
