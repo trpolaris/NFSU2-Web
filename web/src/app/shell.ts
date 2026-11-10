@@ -68,6 +68,7 @@ import { measureCountryRtt, countryFlag } from './country-rtt';
 import { FpsOverlay, FPS_MODES, type FpsMode } from './overlay';
 import { LobbyPanel } from './lobby';
 import { ICON as CHAT_ICON, QuickChat } from './quickchat';
+import { bindUiSounds, uiSounds } from './ui-sound';
 import { groupsOf, phrasesOf } from './phrases';
 import { GameSession } from './game';
 import { AwayCheck, AWAY_LIMITS, type AwayLimits } from './away';
@@ -1377,7 +1378,7 @@ async function screenshot(photo = false) {
 // ----------------------------------------------------------- page menu --
 function openMenu() {
   const m = $<HTMLDialogElement>('#menu');
-  if (m.open) { $<HTMLDialogElement>('#playlist').close(); m.close(); return; }                // (its Crews popup too: the menu's close)
+  if (m.open) { uiSounds.play('click'); $<HTMLDialogElement>('#playlist').close(); m.close(); return; }                // (its Crews popup too: the menu's close)
   const fsButton = m.querySelector<HTMLButtonElement>('[data-act="fullscreen"]')!;
   fsButton.textContent = isFullscreen() ? t('Leave full screen') : t('Full screen');
   fsButton.hidden = !canFullscreen() && fromHomeScreen();         // from an iPhone's Home Screen: already without bars
@@ -1395,6 +1396,8 @@ function openMenu() {
   m.querySelector<HTMLButtonElement>('[data-act="quit"]')!.textContent = quitLabel();
   showRadio(m);
   syncChatMenuAppearance();
+  syncMenuUiSounds();
+  uiSounds.play('click');
   const line = $('#menu-save');
   if (saved) line.textContent = t('Last saved at {when} ({name}).', { when: when(saved.at), name: saved.name });
   else {
@@ -1410,6 +1413,10 @@ function openMenu() {
     : activeTab === 'tracks' && !travelNow() ? 'multiplayer' : activeTab);
   m.showModal();
 }
+function syncMenuUiSounds() {
+  $<HTMLInputElement>('#menu-ui-sounds').checked = uiSounds.enabled;
+}
+
 /** Switch the F9 control deck between real, native game features. */
 function selectMenuTab(name: string) {
   const m = $<HTMLDialogElement>('#menu');
@@ -2313,6 +2320,10 @@ export async function boot() {
   $('#menu-chat-position').addEventListener('change', updateChatMenuAppearance);
   $('#menu-chat-compact').addEventListener('change', updateChatMenuPreferences);
   $('#menu-chat-timestamp').addEventListener('change', updateChatMenuPreferences);
+  $('#menu-ui-sounds').addEventListener('change', e => {
+    uiSounds.setEnabled((e.target as HTMLInputElement).checked);
+  });
+  bindUiSounds();
   $('#playlist-body').addEventListener('change', setTrackMode);
   $('#playlist-shuffle').addEventListener('change', setShuffle);
   $('#menu').addEventListener('close', () => {
