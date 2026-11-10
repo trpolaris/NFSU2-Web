@@ -197,6 +197,20 @@ export function blockedName(name) {
   }) || wholeWord(s) || edge(s);
 }
 
+/** The license-plate moderation lists, shared with runtime/names.h and the Rust cross-check. */
+export const PLATE = Object.freeze({
+  edge: Object.freeze(['fag', 'coon', 'spic', 'paki', 'kike', 'kyke', 'gook', 'chink', 'dyke', 'nig', 'nigr', 'neger', 'pedo', 'rtard']),
+  endOk: Object.freeze(['rafag', 'tafag', 'racoon', 'cocoon', 'tycoon', 'aspic', 'ospic', 'uspic', 'papaki', 'ipaki', 'eepaki',
+    'klike', 'akike', 'ekike', 'ikike', 'okyke', 'ergook', 'achink', 'uchink', 'vandyke', 'oldyke', 'odyke', 'knig', 'midnig',
+    'ghtnig', 'sehnig', 'anig', 'enig', 'inig', 'onig', 'unig', 'reneger', 'torpedo', 'speedo', 'ipedo', 'ppedo']),
+  rests: Object.freeze(['boy', 'boi', 'lord', 'king', 'kid', 'kill', 'killer', 'slayer', 'hunter', 'lover', 'life']),
+  anywhere: Object.freeze(['nggr', 'jewgas', 'jewsgas', 'h8jew']),
+  anywhereOk: Object.freeze(['anggr', 'unggr']),
+  alone: Object.freeze(['KKK']),
+  marks: Object.freeze(['HH', 'SS', 'WP', 'HEIL', 'SIEG']),
+  numbers: Object.freeze(['88']),
+});
+
 /** A license plate has no word separators; apply the shared name filter plus
  * compact plate-only slurs and hate codes. Mirrors runtime/names.h. */
 export function blockedPlate(plate) {
@@ -204,9 +218,10 @@ export function blockedPlate(plate) {
   if (blockedName(p)) return true;
   if (!/^[A-Z0-9]{1,8}$/.test(p)) return false;
   const parts = p.match(/[A-Z]+|[0-9]+/g) ?? [];
-  if (parts.includes('KKK')) return true;
-  const marks = new Set(['HH', 'SS', 'WP', 'HEIL', 'SIEG']);
-  for (let i = 0; i < parts.length; i++) if (parts[i] === '88' && (marks.has(parts[i - 1]) || marks.has(parts[i + 1]))) return true;
+  for (let i = 0; i < parts.length; i++) {
+    if (PLATE.alone.includes(parts[i])) return true;
+    if (PLATE.numbers.includes(parts[i]) && (PLATE.marks.includes(parts[i - 1]) || PLATE.marks.includes(parts[i + 1]))) return true;
+  }
   let q = p;
   if (q.length >= 2 && /[A-Z]/.test(q[q.length - 2]) && /[0-9]/.test(q[q.length - 1])) q = q.slice(0, -1);
   let s = '';
@@ -216,9 +231,9 @@ export function blockedPlate(plate) {
     if (run && number([...q], i, run)) { i += run; continue; }
     s += letter(q[i++]);
   }
-  const edges = ['fag','coon','spic','paki','kike','kyke','gook','chink','dyke','nig','nigr','neger','pedo','rtard'].map(word);
-  const endOk = ['rafag','tafag','racoon','cocoon','tycoon','aspic','ospic','uspic','papaki','ipaki','eepaki','klike','akike','ekike','ikike','okyke','ergook','achink','uchink','vandyke','oldyke','odyke','knig','midnig','ghtnig','sehnig','anig','enig','inig','onig','unig','reneger','torpedo','speedo','ipedo','ppedo'].map(word);
-  const rests = ['boy','boi','lord','king','kid','kill','killer','slayer','hunter','lover','life'].map(word);
+  const edges = PLATE.edge.map(word);
+  const endOk = PLATE.endOk.map(word);
+  const rests = PLATE.rests.map(word);
   for (const w of edges) {
     if (endsWith(s, w) && !endOk.some(x => endsWith(s, x))) return true;
     const e = at(s, 0, w);
@@ -227,7 +242,7 @@ export function blockedPlate(plate) {
       if (rests.some(x => whole(rest, [x]) || whole(bare, [x]))) return true;
     }
   }
-  const anywhere = ['nggr','jewgas','jewsgas','h8jew'].map(word), anywhereOk = ['anggr','unggr'].map(word);
+  const anywhere = PLATE.anywhere.map(word), anywhereOk = PLATE.anywhereOk.map(word);
   for (const w of anywhere) for (let i = 0; i < s.length; i++) {
     const e = at(s, i, w); if (e < 0) continue;
     let ok = false;
