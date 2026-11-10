@@ -6,22 +6,30 @@ on:
       - main
     paths:
       - '.github/workflows/wasm-runtime-duplicate-check.yml'
-      - 'runtime/com.c'
-      - 'runtime/web/**'
       - 'web/build.sh'
-      - 'tools/check_runtime_source_ownership.py'
+      - 'runtime/com.c'
+      - 'runtime/mprace.c'
+      - 'runtime/mprace.h'
+      - 'runtime/roam_game.c'
+      - 'runtime/mpcredit_store.c'
+      - 'runtime/web/**'
       - 'tests/env_bool_unit.c'
+      - 'tools/check_runtime_source_ownership.py'
       - 'web/tools/check-wasi-runtime.sh'
   pull_request:
     branches:
       - main
     paths:
       - '.github/workflows/wasm-runtime-duplicate-check.yml'
-      - 'runtime/com.c'
-      - 'runtime/web/**'
       - 'web/build.sh'
-      - 'tools/check_runtime_source_ownership.py'
+      - 'runtime/com.c'
+      - 'runtime/mprace.c'
+      - 'runtime/mprace.h'
+      - 'runtime/roam_game.c'
+      - 'runtime/mpcredit_store.c'
+      - 'runtime/web/**'
       - 'tests/env_bool_unit.c'
+      - 'tools/check_runtime_source_ownership.py'
       - 'web/tools/check-wasi-runtime.sh'
   workflow_dispatch:
 

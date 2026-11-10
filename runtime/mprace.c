@@ -776,6 +776,9 @@ static void credit_decide(void){
             M.place, M.winner[0] ? M.winner : "none", M.credit == MPC_FRIEND ? ", a friend" : "", "", (double)M.lead);
 }
 int mprace_credit(void){ return M.credit; }
+/* Whether the race was configured to count in this player's career.
+ * This is distinct from mprace_credit(), which reports the actual result. */
+int mprace_counts(void){ return M.r.credit != 0; }
 int mprace_credited(void){ return M.credited; }
 int mprace_topup(void){ return M.topup; }
 const char *mprace_winner(void){ return M.winner; }

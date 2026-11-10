@@ -25,7 +25,8 @@ flags=(
   -mexception-handling -mllvm -wasm-enable-sjlj
   -mllvm -wasm-use-legacy-eh=false
   -D_WASI_EMULATED_MMAN -D_WASI_EMULATED_SIGNAL
-  -D_WASI_EMULATED_PROCESS_CLOCKS -fno-delete-null-pointer-checks
+  -D_WASI_EMULATED_PROCESS_CLOCKS -D_WASI_EMULATED_GETPID
+  -fno-delete-null-pointer-checks
   -include runtime/web/compat/wasm_plat.h
   -Iruntime/web/compat -Iruntime -Igen/all
   -Wno-unused-label -Wno-parentheses-equality
@@ -33,9 +34,30 @@ flags=(
 )
 
 index=0
-for source in runtime/com.c runtime/mpcredit.c runtime/mpcredit_store.c runtime/web/sbrk.c; do
+for source in runtime/com.c runtime/mpcredit.c runtime/mpcredit_store.c runtime/mprace.c runtime/roam_game.c runtime/web/sbrk.c; do
   object="${RUNNER_TEMP}/nfsu2-wasi-unit-${index}.o"
   echo "Compile ${source} -> ${object}"
   "${CC}" "${flags[@]}" -c "${source}" -o "${object}"
   index=$((index + 1))
 done
+
+# The production link uses WASI's explicit getpid emulation library. Compile
+# and link a tiny real wasm module so a missing -D/-l pair cannot regress.
+getpid_src="${RUNNER_TEMP}/nfsu2-wasi-getpid-link.c"
+getpid_wasm="${RUNNER_TEMP}/nfsu2-wasi-getpid-link.wasm"
+cat > "${getpid_src}" <<'EOF'
+#include <sys/types.h>
+#include <unistd.h>
+int main(void) { return getpid() == (pid_t)-1; }
+EOF
+"${CC}" --target=wasm32-wasip1-threads -pthread -D_WASI_EMULATED_GETPID \
+  "${getpid_src}" -o "${getpid_wasm}" -lwasi-emulated-getpid
+test -s "${getpid_wasm}"
+
+# The runtime's browser lobby calls this API and the native build includes
+# the same implementation. Catch declaration-only regressions before link.
+grep -Eq '^[[:space:]]*int[[:space:]]+mprace_counts\(void\)[[:space:]]*\{' runtime/mprace.c
+grep -Fq 'mprace_counts' runtime/mprace.h
+grep -Fq 'mprace_counts()' runtime/roam_game.c
+grep -Fq -- '-D_WASI_EMULATED_GETPID' web/build.sh
+grep -Fq -- '-lwasi-emulated-getpid' web/build.sh

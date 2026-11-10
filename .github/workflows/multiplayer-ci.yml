@@ -106,6 +106,9 @@ jobs:
             "$CC" "${flags[@]}" -c "$source" -o "$object"
           done
 
+      - name: Link-check WASI compatibility and mprace API
+        run: bash web/tools/check-wasi-runtime.sh
+
       - name: Check MODPACKS builder and native runtime syntax
         run: |
           python3 -m py_compile tools/modpacks.py tools/vinylpacks.py tools/packcheck.py tools/test_packcheck.py
