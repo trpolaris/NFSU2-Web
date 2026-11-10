@@ -25,7 +25,10 @@ export const attachRenderer: AttachRenderer = async (proc, canvas, o) => {
   return {
     detach: () => r.detach(),
     imageRect: () => r.imageRect(),
-    dump: (name: string) => r.dump(name),
+    dump: (name: string, mark?: boolean) => r.dump(name, mark),
+    photo: (name: string, mark?: boolean) => r.photo(name, mark),
+    photoLook: look => r.photoLook(look),
+    photoProgress: () => r.photoProgress(),
     doneMs: () => r.doneMs(),
     textures: () => { const s = r.stats(); return { bytes: s.texBytes, unpacked: s.unpackBytes, astc: s.astcBytes }; },
     stats: () => {
