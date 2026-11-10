@@ -33,6 +33,7 @@ import { deviceDefaults, deviceKind, isPhone, markTouch, noPinchZoom, noteGraphi
 import { deviceSeed, phoneUpgrade } from './phonegraphics';
 import { markPad, padPress, pageDialog } from './padnav';
 import { controlsSheet, controlsState as createControlsState, type ControlsSheet, type ControlsState, type Family, type Tab } from './controls';
+import { SiteKeysView, applySiteKeys, keyName, menuKeyOf, onSiteKeys, siteKey } from './sitekeys';
 import { askMotion, levelHorizon, menuSize, onLevelHorizon, onSteering, setLevelHorizon, setSteering, steering, STEERING, steeringName, touchSize, type Size, type Steering, TouchControls } from './touch';
 import { PAD_DRIVER_EVENT } from '../input/gamepad';
 import { TextField } from './textentry';
@@ -713,6 +714,7 @@ async function startGame() {
     NFSU2_WIDTH: String(size.w & ~1), NFSU2_HEIGHT: String(size.h & ~1), NFSU2_DISPLAY_HZ: String(displayHz),
   };
   const r = resolved(host);
+  applySiteKeys(r.env);
   if (r.env.NFSU2_ROAM === '1' && noGhost(r.env.NFSU2_ROAM_ROOM ?? '')) r.env.NFSU2_ROAM_COLLIDE = 'on';
   if (playAs) r.env.NFSU2_ROAM_NAME = playAs;
   // the names this game goes by, for the log as it leaves the browser (privacy.ts)
@@ -935,11 +937,12 @@ function toggleFullscreen() {
 /** how the page's menu opens here, for the hints: F9, the ☰ button on a touch screen, Home on a controller */
 function menuKey(): string {
   if (touchFirst()) return padSeen() ? t('the ☰ button or Home on the controller') : t('the ☰ button');
-  return padSeen() ? t('F9 or Home on the controller') : 'F9';
+  const key = keyName(siteKey('menu') ?? 'F9');
+  return padSeen() ? t('{key} or Home on the controller', { key }) : key;
 }
-/** "the menu (F9)", with what opens it here */
+/** the menu's current Site-controls key, and Home on a controller */
 function menuName(): string {
-  const key = touchFirst() ? '☰' : 'F9';
+  const key = touchFirst() ? '☰' : keyName(siteKey('menu') ?? 'F9');
   return padSeen() ? t('the menu ({key}, or Home on the controller)', { key }) : t('the menu ({key})', { key });
 }
 const cap = (s: string) => s[0].toUpperCase() + s.slice(1);
@@ -1082,6 +1085,8 @@ function pageToast(msg: string | Msg) {
 
 /** The Controls sheet in the F9 control deck, at the page's current tab and controller family. */
 let controlState: ControlsState, helpSheet: ControlsSheet | null = null;
+let siteKeysView: SiteKeysView | null = null;
+onSiteKeys(() => siteKeysView?.render());
 function openHelp() {
   const m = $<HTMLDialogElement>('#menu');
   if (!m.open) openMenu();
@@ -1092,6 +1097,20 @@ function openHelp() {
     body.append(template.content.cloneNode(true));
     helpSheet = controlsSheet(body, 'help');
   }
+  if (!siteKeysView) {
+    siteKeysView = new SiteKeysView({
+      set: async (key, value) => {
+        await settings.set(key, value);
+        window.dispatchEvent(new Event('trp-settings-changed'));
+      },
+      current: key => settings.current(key),
+      readOnly: () => !instance.owner,
+      registry: () => readText(SAVE, 'registry.txt'),
+      ps: () => controlState.fam === 'ps',
+    });
+  }
+  const siteBox = body.querySelector<HTMLElement>('[data-site-keys-mount]');
+  siteKeysView.render(siteBox ?? undefined, !session && instance.owner);
   helpSheet.show(controlState.tab);
   helpSheet.family(controlState.fam);
   selectMenuTab('controls');
@@ -2138,6 +2157,7 @@ export async function boot() {
   settings = new SettingsService({
     // another language or texture pack counts other files as the game data (its pack); a keyphrase sends the file
     file: settingsFile!, environment: ENVIRONMENT, defaults: DEVICE, onSaved: (_text, previous) => {
+      applySiteKeys(resolveEnv(_text, ENVIRONMENT, {}, DEVICE).env);
       const before = resolveEnv(previous, ENVIRONMENT, {}, DEVICE);
       const was = language(before) + '/' + texpack(before);
       if (language() + '/' + texpack() !== was) void saves.refresh();
@@ -2145,7 +2165,11 @@ export async function boot() {
       applyLanguage();
       window.dispatchEvent(new Event('trp-settings-changed'));
     },
-    onLoaded: () => { applyLanguage(); window.dispatchEvent(new Event('trp-settings-changed')); },
+    onLoaded: () => {
+      applySiteKeys(resolveEnv(settingsFile?.forGame ?? settingsFile?.text ?? null, ENVIRONMENT, {}, DEVICE).env);
+      applyLanguage();
+      window.dispatchEvent(new Event('trp-settings-changed'));
+    },
     // the tab that owns the saves is the one whose Play reads the file: another tab only looks
     readOnly: () => !instance.owner, say: pageToast, confirm: confirmBox,
   });
@@ -2303,17 +2327,22 @@ export async function boot() {
     if ($<HTMLDialogElement>('#menu').open) b.focus();
   });
 
-  // F8 / F9 belong to the page while the game runs (the game binds neither,
-  // Chrome reserves neither); caught first, so the game never sees them.  F12
-  // too: photo mode in the world, its picture while it is on, else the page's
-  // screenshot (not the game's, whose copy of the frame comes out black in
-  // this port, nor the browser's developer tools).
+  // The controls assigned in Controls, Site: the page consumes its own menu,
+  // photo, next-song and FPS shortcuts before the game receives them.
   window.addEventListener('keydown', e => {
-    if (session && (e.code === 'F8' || e.code === 'F9' || e.code === 'F12')) {
-      e.preventDefault(); e.stopImmediatePropagation();
-      if (e.repeat) return;
-      if (e.code === 'F8') toast(fpsLabel(fps.cycle()), 1500); else if (e.code === 'F9') openMenu(); else photo.f12();
-      return;
+    if (session) {
+      const action = menuKeyOf(e.code);
+      if (action) {
+        e.preventDefault(); e.stopImmediatePropagation();
+        if (e.repeat) return;
+        switch (action) {
+          case 'menu': openMenu(); break;
+          case 'photo': photo.f12(); break;
+          case 'song': radioPort()?.skip(); break;
+          case 'fps': toast(fpsLabel(fps.cycle()), 1500); break;
+        }
+        return;
+      }
     }
     // Enter plays only when nothing else has the focus (or Play itself does): a
     // focused link, button or field keeps its own Enter
