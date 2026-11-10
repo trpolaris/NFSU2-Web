@@ -12,7 +12,7 @@ const CHANGE_MS: i64 = 10_000;
 
 #[derive(Debug, PartialEq)]
 pub(crate) enum Found<'a> {
-    Plate { at: usize, bytes: &'a [u8] },
+    Plate { at: usize, bytes: &'a [u8], name: &'a [u8] },
     Broken { at: usize },
 }
 
@@ -39,7 +39,7 @@ pub(crate) fn hello_plate(frame: &[u8]) -> Option<Found<'_>> {
         return None;
     }
     let mut at = 29usize.checked_add(name_len)?;
-    d.get(29..at)?;
+    let name = d.get(29..at)?;
 
     let seen = *d.get(at)? as usize;
     if seen > MAX_PEERS {
@@ -58,7 +58,7 @@ pub(crate) fn hello_plate(frame: &[u8]) -> Option<Found<'_>> {
     if n == 0 || n > MAX_PLATE || !bytes.iter().all(|b| b.is_ascii_uppercase() || b.is_ascii_digit()) {
         return Some(Found::Broken { at });
     }
-    Some(Found::Plate { at, bytes })
+    Some(Found::Plate { at, bytes, name })
 }
 
 pub(crate) fn rewrite(frame: &[u8], at: usize, replacement: Option<&[u8]>) -> Option<bytes::Bytes> {
@@ -98,6 +98,8 @@ pub(crate) fn rewrite(frame: &[u8], at: usize, replacement: Option<&[u8]>) -> Op
 #[derive(Default)]
 pub(crate) struct Seen {
     last: Option<(Box<[u8]>, i64)>,
+    /// The most recently refused plate, so a repeated HELLO does not flood the operator log.
+    refused: Option<Box<[u8]>>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -105,14 +107,16 @@ pub(crate) enum Verdict {
     Go,
     New,
     Last(Box<[u8]>),
-    Block,
+    Block { tell: bool },
 }
 
 pub(crate) fn judge(seen: &Mutex<Seen>, plate: &[u8], now: i64) -> Verdict {
-    if nfsu2_names::blocked_plate(std::str::from_utf8(plate).unwrap_or("")) {
-        return Verdict::Block;
-    }
     let mut seen = seen.lock();
+    if nfsu2_names::blocked_plate(std::str::from_utf8(plate).unwrap_or("")) {
+        let tell = seen.refused.as_deref() != Some(plate);
+        seen.refused = Some(plate.into());
+        return Verdict::Block { tell };
+    }
     match &seen.last {
         Some((last, _)) if **last == *plate => Verdict::Go,
         Some((last, at)) if now.saturating_sub(*at) < CHANGE_MS => Verdict::Last(last.clone()),
@@ -153,10 +157,11 @@ mod tests {
     #[test]
     fn plate_tail_can_be_removed_without_dropping_player() {
         let f = frame(b"AB123");
-        let Some(Found::Plate { at, bytes }) = hello_plate(&f) else {
+        let Some(Found::Plate { at, bytes, name }) = hello_plate(&f) else {
             panic!("valid plate");
         };
         assert_eq!(bytes, b"AB123");
+        assert_eq!(name, b"Ann");
         let stripped = rewrite(&f, at, None).unwrap();
         assert!(hello_plate(&stripped).is_none());
         assert_eq!(stripped[0], crate::KIND_UDP);
@@ -169,7 +174,28 @@ mod tests {
             panic!("broken");
         };
         assert!(rewrite(&f, at, None).is_some());
-        assert_eq!(judge(&Mutex::new(Seen::default()), b"BIGFAG", 0), Verdict::Block);
+    }
+
+    #[test]
+    fn bad_crc_and_length_are_not_rewritten() {
+        let f = frame(b"AB123");
+        let mut bad_crc = f.clone();
+        *bad_crc.last_mut().unwrap() ^= 1;
+        assert!(hello_plate(&bad_crc).is_none());
+
+        let mut bad_len = f.clone();
+        bad_len[FRAME_HDR + 6] = bad_len[FRAME_HDR + 6].wrapping_add(1);
+        assert!(hello_plate(&bad_len).is_none());
+    }
+
+    #[test]
+    fn blocked_plates_are_removed_and_reported_once_per_repeated_value() {
+        let seen = Mutex::new(Seen::default());
+        for p in [b"N1GGER".as_slice(), b"1488", b"BIGFAG", b"HH88", b"KKK"] {
+            assert_eq!(judge(&seen, p, 0), Verdict::Block { tell: true }, "{p:?}");
+            assert_eq!(judge(&seen, p, 1), Verdict::Block { tell: false }, "{p:?}");
+        }
+        assert_eq!(judge(&seen, b"ABC123", 2), Verdict::New);
     }
 
     #[test]

@@ -86,13 +86,21 @@ impl LanSwitch {
     pub(crate) fn route(&self, peer: &Arc<Peer>, data: &Bytes, dsts: impl Iterator<Item = u32> + Clone) -> bool {
         let fixed;
         let data = match plates::hello_plate(data) {
-            Some(plates::Found::Plate { at, bytes }) => match plates::judge(&peer.plates, bytes, mono_ms() as i64) {
+            Some(plates::Found::Plate { at, bytes, name }) => match plates::judge(&peer.plates, bytes, mono_ms() as i64) {
                 plates::Verdict::Go | plates::Verdict::New => data,
                 plates::Verdict::Last(last) => {
                     fixed = plates::rewrite(data, at, Some(&last)).unwrap_or_else(|| data.clone());
                     &fixed
                 }
-                plates::Verdict::Block => {
+                plates::Verdict::Block { tell } => {
+                    if tell {
+                        // HELLO names are untrusted input: keep operator logs single-line and printable.
+                        let player: String = name.iter().map(|b| {
+                            if b.is_ascii_alphanumeric() || *b == b'_' || *b == b'-' { *b as char } else { '?' }
+                        }).collect();
+                        let plate = std::str::from_utf8(bytes).unwrap_or("?");
+                        eprintln!("[plate] blocked plate {plate} from {player}");
+                    }
                     fixed = plates::rewrite(data, at, None).unwrap_or_else(|| data.clone());
                     &fixed
                 }
