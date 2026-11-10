@@ -164,17 +164,7 @@ int main(int argc,char**argv){
       if (ro && *ro && *ro != '0'){ fileio_set_readonly_root(1);
           fprintf(stderr,"file: game folder is read-only (NFSU2_READONLY_DATA)\n"); } }
     dispatch_init(); win32_init();
-    { extern void overrides_install(void); overrides_install(); }
-    { extern void language_install(void); language_install(); }   /* NFSU2_LANGUAGE: the language pack, the exe's tables */
-    { extern void sponsors_install(void); sponsors_install(); }   /* the sponsor screens' Continue (help bar) */
-    { extern void lobbyclick_install(void); lobbyclick_install(); }   /* the lobby's list ignores a click on a dialog over it */
-    { extern void olfilter_install(void); olfilter_install(); }       /* the Online lobby's Filter, once set, narrows its list */
-    { extern void regional_install(void); regional_install(); }       /* the European game's Corsa and 106 for sale, and AI racers' cars */
-    { extern void garage_install(void); garage_install(); }           /* the career garage's slots 6-10 and Trade Car */
-    { extern void vinylpacks_install(void); vinylpacks_install(); }   /* Art Factory 28-34 (VINYLPACKS) */
-    { extern void showoff_install(void); showoff_install(); }       /* free-roam hood, trunk and door animations */
-    { extern void specialties_install(void); specialties_install(); } /* Car Specialties: Stock gauges again, Trunk Audio's Back */
-    { extern void carshadow_install(void); carshadow_install(); }     /* a car's shadow 1.5 cm above the road, not 4: off its wheels */
+    { extern void features_install(void); features_install(); }   /* boot-time feature installs */
     { extern void autotest_init(void); autotest_init(); }       /* NFSU2_INPUT_SCRIPT ... */
     if (getenv("BT")) g_bt_on = 1;
     g_report_fn = all_reports;
