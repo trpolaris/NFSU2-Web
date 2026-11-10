@@ -15,7 +15,7 @@ fn datagram(flags: u16, ext: bool, plate: Option<&[u8]>) -> Vec<u8> {
     d.extend_from_slice(b"Ann");
     d.push(0); // the ids it hears
     if ext {
-        d.extend_from_slice(&[0, 0, 0, 0, 0, 0, 0]); // crews, links, outrun, flag
+        d.push(0); // n_crews: zero crews; the next byte is the plate length when HF_PLATE is set
     }
     if let Some(text) = plate {
         d.push(text.len() as u8);
