@@ -5,7 +5,7 @@
 import type { GameMemory } from '../host/memory';
 
 export const HOST_STATUS_MAGIC = 0x31545453;
-const MAX = 32, NAME = 16, ITEM = 24, HEAD = 16;
+const MAX = 48, NAME = 16, ITEM = 24, HEAD = 16;
 
 export class StatusReader {
   private td = new TextDecoder();
