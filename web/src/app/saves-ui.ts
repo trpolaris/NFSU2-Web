@@ -9,7 +9,7 @@
 // it stays on the server.
 
 import { cacheBytes, clearCache, clearSaveDir, filesOf, isScreenshot, listFiles, listProfiles, PROFILES_DIR, readBytes, readText, writeFile, type Profile } from './savefs';
-import { AUTOSAVE_SEEN, coverOf, isProfileFile, isProfileName, modCars, NAME_MAX, profileName, renameProfile, sealed, type RenameFiles } from './profile';
+import { AUTOSAVE_SEEN, coverOf, garageModCars, isProfileFile, isProfileName, modCars, NAME_MAX, profileName, renameProfile, sealed, type RenameFiles } from './profile';
 import { listZip, unzip, zip, ZipError, type ZipEntry } from './zip';
 import { downloadBlob, stamp } from './logs';
 import { fmtBytes } from './checks';
@@ -18,6 +18,8 @@ import { gameDataKept, type DownloadState, type DownloadStatus, type Predownload
 import { ScreenshotsPart } from './shots';
 import { GAMEFILE, kept } from './vault';
 import { listOf, N, t, tn, tvars, type Msg } from './i18n';
+
+const SIDE_FILES = ['GARAGE.DAT', 'MODPARTS.DAT', 'MPWINS.DAT'] as const;
 
 export interface SavesDeps {
   saveDir: string;
