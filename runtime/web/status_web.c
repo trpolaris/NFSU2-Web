@@ -5,6 +5,7 @@
  * "frames" still counts the game's presents, so the overlay shows the game's
  * frame rate rather than the page's display rate. */
 #include "cpu.h"
+#include "game.h"
 #include "status_proto.h"
 #include "host_abi.h"
 #include <pthread.h>
@@ -14,9 +15,8 @@
 #include <time.h>
 #include <unistd.h>
 
-long metal_frames(void); long metal_presents(void); long metal_tris(void); long metal_tex_created(void);
+long metal_frames(void); long metal_tris(void); long metal_tex_created(void);
 unsigned long metal_tex_released(void); long metal_frames_dropped(void);
-double win32_busy_all_ms(void);
 
 static HostStatus g_st;
 static pthread_mutex_t g_mu = PTHREAD_MUTEX_INITIALIZER;
@@ -26,7 +26,11 @@ int host_status_slot(const char *name){
     int i = 0;
     for (; i < (int)g_st.count; i++) if (!strncmp(g_st.item[i].name, name, HOST_STATUS_NAME)) break;
     if (i == (int)g_st.count){
-        if (i >= HOST_STATUS_MAX){ pthread_mutex_unlock(&g_mu); return -1; }
+        if (i >= HOST_STATUS_MAX){
+            pthread_mutex_unlock(&g_mu);
+            fprintf(stderr, "[status] no room for \"%s\": all %d places taken, the page never sees it\n", name, HOST_STATUS_MAX);
+            return -1;
+        }
         __atomic_add_fetch(&g_st.seq, 1, __ATOMIC_RELEASE);
         strncpy(g_st.item[i].name, name, HOST_STATUS_NAME);
         g_st.item[i].value = 0;
@@ -73,7 +77,8 @@ static void *status_main(void *unused){
 
 /* "drive": what the page's touch controls (web/src/app/touch.ts) need of the
  * game, set at every Present (autotest.c): 1 while the player drives in a
- * race, 2 in free roam, 0 elsewhere, plus 4 with a manual gearbox and 8
+ * race (the crib's test runs too: roam.c roam_exploring), 2 in free roam,
+ * 0 elsewhere, plus 4 with a manual gearbox and 8
  * during a cutscene (the touch controls' level horizon waits).  Driving
  * is GameFlow 6 with a race HUD (HUD_*.fng) the top package; the pause menu
  * (UI_pause.fng), the results, the world's loading screen and the Engage
@@ -89,7 +94,7 @@ static void *status_main(void *unused){
  * and 3 keep the gear).  The gearbox itself is no good to read: in a drag
  * race the car's controls (+0x30) become the game's lane steering once it
  * rolls. */
-#define G_PLAYER0    0x008900acu
+#define G_PLAYER0    SPLIT_PLAYERS_INDEX
 #define PL_GEARBOX   0x20u
 #define G_RACE_DRAG  0x0089e7d8u      /* race parameters (discord.c G_RACE) + R_DRAG */
 const char *autotest_top_fng(void);
@@ -102,24 +107,8 @@ static int manual_gearbox(int race){
     uint8_t g = MR8(p + PL_GEARBOX);
     return g == 1u || g == 3u;
 }
-
-#define PL_CAR      4u
-#define CAR_SPEED   0x430u
-/* Hysteresis for the touch Reset button: hide above 30 km/h, bring it back
- * only below 25 km/h. Its slot stays fixed in the page so the other buttons
- * never slide under a thumb. */
-static int touch_fast(void){
-    static int on;
-    uint32_t p = mem_is_committed(G_PLAYER0 + 3u) ? MR32(G_PLAYER0) : 0u;
-    uint32_t car = p && mem_is_committed(p + 7u) ? MR32(p + PL_CAR) : 0u;
-    if (!car || !mem_is_committed(car + CAR_SPEED + 3u)) return on = 0;
-    float kmh = MRF32(car + CAR_SPEED) * 3.6f;
-    if (!__builtin_isfinite(kmh)) return on = 0;
-    if (kmh < 0.f) kmh = -kmh;
-    return on = on ? kmh >= 25.f : kmh > 30.f;
-}
 static int drive_state(void){
-    unsigned flow = mem_is_committed(0x8654a7u) ? MR32(0x8654a4u) : 0u;
+    unsigned flow = mem_is_committed(G_FLOW + 3u) ? MR32(G_FLOW) : 0u;
     const char *top = autotest_top_fng();
     int hud = top && !strncasecmp(top, "HUD_", 4) && strcasecmp(top, "HUD_World_Loading.fng");
     int nis = mem_is_committed(0x827ecbu) && (MR32(0x827e98u) | MR32(0x827eb0u) | MR32(0x827ec8u));
@@ -160,50 +149,76 @@ static void roam_state(void){
     double v[2] = { (double)roam_game_cars(), n++ % 30 ? last[1] : (double)roam_game_friends() };
     if (v[0] != last[0] || v[1] != last[1]){ last[0] = v[0]; last[1] = v[1]; host_status_set_n(slot, v, 2); }
 }
+/* "engage", "roam_near": for the touch controls' free-roam buttons
+ * (web/src/app/touch.ts).  "engage" is 1 while Engage (Enter, the pad's
+ * D-pad Up) does something in free roam, so Start shows only then: the
+ * player's car on an event's or a shop's marker (player +0x9AC, what Engage
+ * would enter), the game's own outrun offer (the career's outrun state 2,
+ * set with the HUD's outrun icon by 0x500D20 and tested by 0x500D80), or one
+ * of ours (roam_game_engage: a friend's outrun, a multiplayer-only race spot,
+ * a lobby to join or to start).  "roam_near": friends' cars within a horn's
+ * reach (roam_game_near), so Horn and Quick chat show only then.
+ * "hydraulics": while the player drives a car with hydraulics, so the
+ * Pressurize and Bounce buttons show only then: the level its Hydraulics part
+ * gives it (RideInfo +0x581), or the game's own for every car when that is
+ * not -1, as the driver's hydraulics controls (0x4078A0) read it.  2 while
+ * a press of H or J would set them going, 1 while not: they start 0.22 s
+ * after the press (0x407400) if the car is then at 10 mph or less and the
+ * race has them (0x407370 with 1; the press itself only counts under 30
+ * mph), so a key held from faster never starts them.  The page presses its
+ * key again when this goes to 2, and shows the buttons only then (or while
+ * one is on).  "fast": 1 while the player's car goes over FAST_ON_KMH, 0 again
+ * under FAST_OFF_KMH, so Reset shows only when the car is slow (stuck, after a
+ * crash), not where a stray tap at speed would set it back on the road. */
+#define PL_MARKER    0x9acu
+#define PL_CAR       4u
+#define G_OUTRUN_ST  0x00860a58u      /* Career4230 (0x85EF70) +0x1AE8 */
+#define G_HYD_LEVEL  0x007e949cu      /* int: every car's hydraulics level, -1: each its own */
+#define G_HYD_ON     0x007e94a0u      /* byte: the hydraulics at all */
+#define FAST_ON_KMH  30.f
+#define FAST_OFF_KMH 25.f
+int roam_game_engage(void); int roam_game_near(void);
+static uint32_t rd32_ok(uint32_t a){ return a && mem_is_committed(a) && mem_is_committed(a + 3u) ? MR32(a) : 0u; }
+static int hydraulics(void){
+    uint32_t car = rd32_ok(rd32_ok(G_PLAYER0) + PL_CAR), ride = rd32_ok(car + 0x10u);
+    int32_t lv = ride && mem_is_committed(ride + 0x581u) ? (int8_t)MR8(ride + 0x581u) : 0, all = (int32_t)rd32_ok(G_HYD_LEVEL);
+    if ((all > -1 ? all : lv) == 0) return 0;
+    /* 0x407370 (1): races of the kinds without them (the race parameters' bytes, as it reads them), the speed */
+    if (!MR8(G_HYD_ON) || MR8(0x0089e7d9u) || MR32(0x00890104u) || MR8(0x0089e7e3u) || MR32(0x0089010cu)) return 1;
+    return mem_is_committed(car + CAR_SPEED + 3u) && MRF32(car + CAR_SPEED) * 2.237f <= 10.f ? 2 : 1;
+}
+static int fast(void){
+    static int on;
+    uint32_t car = rd32_ok(rd32_ok(G_PLAYER0) + PL_CAR);
+    if (!car || !mem_is_committed(car + CAR_SPEED + 3u)) return on = 0;
+    float kmh = MRF32(car + CAR_SPEED) * 3.6f;
+    if (kmh < 0.f) kmh = -kmh;                    /* (backwards too) */
+    return on = on ? kmh >= FAST_OFF_KMH : kmh > FAST_ON_KMH;
+}
+static void touch_state(int drive){
+    static int slot[4] = { -2, -2, -2, -2 };
+    static double last[4] = { -1, -1, -1, -1 };
+    if (slot[0] == -2){ slot[0] = host_status_slot("engage"); slot[1] = host_status_slot("roam_near"); slot[2] = host_status_slot("hydraulics");
+                        slot[3] = host_status_slot("fast"); }
+    int roam = (drive & 3) == 2;
+    uint32_t p = roam && mem_is_committed(G_PLAYER0 + 3u) ? MR32(G_PLAYER0) : 0u;
+    int marker = p && mem_is_committed(p + PL_MARKER + 3u) && MR32(p + PL_MARKER);
+    int outrun = roam && mem_is_committed(G_OUTRUN_ST + 3u) && MR32(G_OUTRUN_ST) == 2u;
+    double v[4] = { roam && (marker || outrun || roam_game_engage()), roam ? (double)roam_game_near() : 0, (drive & 3) ? hydraulics() : 0,
+                    (drive & 3) ? fast() : 0 };
+    if (memcmp(v, last, sizeof v)){ memcpy(last, v, sizeof v); host_status_set_n(slot, v, 4); }
+}
 /* "sms": the text message of ours (sms.c) the game has in its inbox this
  * game, 0 none, so the page asks for it no more (web/src/app/playtime.ts) */
 int sms_delivered(void);
+/* "nocount": 1 while a countdown of the player's would not start where they
+ * are in free roam (roam_game_nocount: a car meet, and they have not stayed),
+ * so quick chat's picker dims it (web/src/app/quickchat.ts) */
+int roam_game_nocount(void);
 void status_web_frame(void){
-    /* Page diagnostics and touch-control hints are not game logic. Sample
-     * every fourth present to avoid walking front-end/roam state and taking
-     * the status mutex on every game frame. Worst-case UI staleness: 3 frames. */
-    static unsigned cadence = 0;
-    if ((cadence++ & 3u) != 0u) return;
-
-    /* Measure guest CPU while this thread owns the serialized guest lock.
-     * win32_busy_all_ms includes completed guest-thread holds plus this
-     * thread's current partial hold; no timer-thread race or per-frame
-     * profiler hook is needed. This is busy share of one core, not OS CPU. */
-    static int cpu_slots[2] = { -2, -2 };
-    static double cpu_prev_ms = -1.0, wall_prev_ms = 0.0;
-    static long present_prev = -1;
-    if (cpu_slots[0] == -2) {
-        cpu_slots[0] = host_status_slot("gcpu_pct");
-        cpu_slots[1] = host_status_slot("gcpu_ms_pf");
-    }
-    struct timespec cpu_ts;
-    clock_gettime(CLOCK_MONOTONIC, &cpu_ts);
-    double wall_ms = cpu_ts.tv_sec * 1e3 + cpu_ts.tv_nsec * 1e-6;
-    double busy_ms = win32_busy_all_ms();
-    long presents = metal_presents();
-    if (cpu_prev_ms >= 0.0 && wall_prev_ms > 0.0 && wall_ms > wall_prev_ms &&
-        busy_ms >= cpu_prev_ms && present_prev >= 0 && presents > present_prev) {
-        double elapsed = wall_ms - wall_prev_ms;
-        double busy = busy_ms - cpu_prev_ms;
-        double pct = elapsed > 0.0 ? 100.0 * busy / elapsed : 0.0;
-        if (pct < 0.0) pct = 0.0;
-        if (pct > 100.0) pct = 100.0;
-        double values[2] = { pct, busy / (double)(presents - present_prev) };
-        host_status_set_n(cpu_slots, values, 2);
-    }
-    cpu_prev_ms = busy_ms;
-    wall_prev_ms = wall_ms;
-    present_prev = presents;
-
-    static int slot = -2, last = -1, rslot = -2, rlast = -1, pslot = -2, plast = -1, sslot = -2, slast = -1;
-    static int fslot = -2, flast = -1;
-    if (slot == -2){ slot = host_status_slot("drive"); rslot = host_status_slot("rate"); pslot = host_status_slot("pause"); sslot = host_status_slot("sms"); }
-    if (fslot == -2) fslot = host_status_slot("fast");
+    static int slot = -2, last = -1, rslot = -2, rlast = -1, pslot = -2, plast = -1, sslot = -2, slast = -1, cslot = -2, clast = -1;
+    if (slot == -2){ slot = host_status_slot("drive"); rslot = host_status_slot("rate"); pslot = host_status_slot("pause"); sslot = host_status_slot("sms");
+                     cslot = host_status_slot("nocount"); }
     int v = drive_state();
     if (v != last && slot >= 0){ last = v; host_status_set(slot, v); }
     int r = hfr_rate_now();
@@ -212,9 +227,10 @@ void status_web_frame(void){
     if (p != plast && pslot >= 0){ plast = p; host_status_set(pslot, p); }
     int m = sms_delivered();
     if (m != slast && sslot >= 0){ slast = m; host_status_set(sslot, m); }
-    int fast = (v & 3) ? touch_fast() : 0;
-    if (fast != flast && fslot >= 0){ flast = fast; host_status_set(fslot, fast); }
+    int nc = (v & 3) == 2 && roam_game_nocount();
+    if (nc != clast && cslot >= 0){ clast = nc; host_status_set(cslot, nc); }
     roam_state();
+    touch_state(v);
 }
 
 /* main_web.c, before the guest starts */
