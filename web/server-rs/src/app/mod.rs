@@ -16,10 +16,12 @@ pub mod control;
 mod etag;
 mod files;
 mod friends;
-mod lastfm;
-mod outbound;
 mod kept;
 mod lan;
+mod lastfm;
+mod manifest;
+mod names;
+mod outbound;
 mod manifest;
 mod names;
 mod player_hub;
@@ -711,8 +713,7 @@ impl App {
     /// them at least); counts are from the hub's last tick (nothing waits for its thread)
     /// /country: the country code supplied by a trusted edge proxy, and never by the browser itself.
     async fn send_country(&self, q: &Request, s: &mut Response) -> Res {
-        let country = nfsu2_headers::client_country(q, &self.o.trust)
-            .map(|c| String::from_utf8_lossy(&c).to_ascii_lowercase());
+        let country = nfsu2_headers::client_country(q, &self.o.trust).map(|c| String::from_utf8_lossy(&c).to_ascii_lowercase());
         let mut body = serde_json::Map::new();
         body.insert("country".into(), country.map_or(serde_json::Value::Null, serde_json::Value::from));
         let body = nfsu2_util::json::stringify(&serde_json::Value::Object(body));
