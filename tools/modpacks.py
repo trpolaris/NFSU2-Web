@@ -51,7 +51,7 @@ from vinylpacks import read_tpk, splice, parse_tpk, jdlz_pack, jdlz_game, MAGIC,
 import packcheck  # noqa: E402
 
 PART_MAGIC, PART_VERSION = b'MPRT', 1
-PART_SZ = 4 + 4 + 4 + 4 + 4 + 4 + 32 + 4 + 64
+PART_SZ = 4 + 4 + 4 + 4 + 4 + 4 + 32 + 4 + 64 + 4
 NONE = 0xFFFFFFFF
 CHUNK_PARTS = 0x80034602
 SUB = {0x34603: 'hdr', 0x34606: 'str', 0x3460C: 'list', 0x34605: 'attr', 0x3460A: 'model', 0x3460B: 'owner', 0x34604: 'part'}
@@ -60,6 +60,12 @@ A_TEXTURE, A_OUTER, A_INNER, A_BRAND = (bstring_hash(n) for n in ('TEXTURE_NAME'
 RIM_ATTRS = {A_TEXTURE, A_OUTER, A_INNER, A_BRAND}     # a rim's attributes: all plain values (no string indices)
 OWNER_WHEELS = bstring_hash('WHEELS')
 RIMS_SWITCH = ('NFSU2_MOD_RIMS',)                      # the optional rim pack's switch (web/src/app/settings.ts)
+# A mod rim's look-alike among the game's rims: same dimensions, so an original
+# game or an older page still draws a convincing stock part instead of nothing.
+LOOKALIKES = {
+    'BLITZ_STYLE01': ('AVUS', 'AF-502'),
+    'BLITZ_STYLE02': ('RACINGHART', 'CP8'),
+}
 IMG_BASE = 0x30000000                                  # the new textures' TextureInfo image offsets (each its own)
 
 
@@ -290,6 +296,13 @@ def main():
     game_db = PartDB(find(a.game, 'GLOBAL/GLOBALB.LZC') or find(a.game, 'GLOBAL/GLOBALB.BUN'))
     mod_db = PartDB(find(mod, 'GLOBAL/GLOBALB.LZC'))
     game_keys = {p['key'] for p in game_db.parts}
+    gbrands = {p['key']: game_db.str(p['name']) for p in game_db.parts if p['kind'] == KIND_BRAND}
+    game_rims = {}
+    for gp in game_db.parts:
+        if gp['kind'] != KIND_RIM or gp['owner'] != OWNER_WHEELS:
+            continue
+        ga = dict(game_db.attr_list(gp['list']))
+        game_rims[(gbrands.get(ga.get(A_BRAND)), game_db.str(gp['name']), ga.get(A_INNER), ga.get(A_OUTER))] = gp['key']
     mods = list(RIMS_SWITCH)
     S = Strings()
     parts, texts, want_tex, geo = [], {}, {}, []
@@ -314,11 +327,18 @@ def main():
             if p['kind'] == KIND_BRAND and at: sys.exit(f'{brand}: a brand with attributes')
             if p['kind'] == KIND_RIM: want_tex[dict(at)[A_TEXTURE]] = brand
             m = mod_db.model(p['model'])
+            stand = 0
+            if p['kind'] == KIND_RIM and m and m[1] and f'{brand}{m[1]}' in LOOKALIKES:
+                lb, ln = LOOKALIKES[f'{brand}{m[1]}']
+                ra = dict(at)
+                stand = game_rims.get((lb, ln, ra.get(A_INNER), ra.get(A_OUTER)), 0)
+                if not stand:
+                    sys.exit(f'{brand}{m[1]} {ra.get(A_INNER)}/{ra.get(A_OUTER)}: no {lb} {ln} of that size in the game')
             name = mod_db.str(p['name'])
             if p['kind'] == KIND_RIM and name.upper().startswith(brand + ' '):
                 name = name[len(brand) + 1:]            # the shop shows "<brand> <name>", as the game's own ("CH")
             parts.append(dict(key=p['key'], kind=p['kind'], cl=p['cl'], b6=p['b6'], owner=p['owner'],
-                              name=S(name), model=m and (m[0], S(m[1]), [S(x) for x in m[2]]), attrs=at))
+                              name=S(name), model=m and (m[0], S(m[1]), [S(x) for x in m[2]]), attrs=at, stand=stand))
         name = mod_lang.get(bstring_hash(f'RIMS_BRAND_{brand}')) or brand
         texts[bstring_hash(f'RIMS_BRAND_{brand}')] = S(name)
     # the textures: each rim style's "<brand>_STYLEnn_..." (TEXTURE_NAME's value is the hash of "<brand>_STYLEnn";
@@ -392,6 +412,7 @@ def main():
         body += struct.pack('<8I', *(m[2] if m else [NONE] * 8))
         at = p['attrs'] + [(0, 0)] * (8 - len(p['attrs']))
         body += struct.pack('<I', len(p['attrs'])) + b''.join(struct.pack('<II', h, v) for h, v in at)
+        body += struct.pack('<I', p.get('stand', 0))
     for h in sorted(texts): body += struct.pack('<II', h, texts[h])
     body += S.b
     assert len(body) == 32 + 32 * len(mods) + PART_SZ * len(parts) + 8 * len(texts) + len(S.b)
