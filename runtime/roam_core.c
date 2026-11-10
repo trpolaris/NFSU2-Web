@@ -330,17 +330,22 @@ int rc_encode(const rc_msg *m, uint8_t *out, int cap){
     switch (m->h.type){
     case RC_MSG_HELLO: {
         uint32_t nl = (uint32_t)strlen(m->u.hello.name);
+        uint32_t pl = (uint32_t)strlen(m->u.hello.plate);
+        int has_plate = (m->h.flags & RC_HF_PLATE) != 0;
         if (nl > RC_NAME_MAX || m->u.hello.n_seen > RC_MAX_PEERS) return -1;
+        if (has_plate && (!(m->h.flags & RC_HF_CREW) || !pl || !rc_plate_ok(m->u.hello.plate, pl))) return -1;
+        if (!has_plate && pl) return -1;
         rc_put16(&w, m->u.hello.core_ver); rc_put8(&w, m->u.hello.platform); rc_put8(&w, m->u.hello.status);
         rc_put16(&w, m->u.hello.listen_port); rc_put16(&w, m->u.hello.cfg_rev); rc_put32(&w, m->u.hello.room);
         rc_put8(&w, nl); rc_putb(&w, m->u.hello.name, nl);
         rc_put8(&w, m->u.hello.n_seen);
         for (int i = 0; i < m->u.hello.n_seen; i++) rc_put32(&w, m->u.hello.seen[i]);
-        if (m->u.hello.n_crews){
+        if (m->u.hello.n_crews || has_plate){
             if (!(m->h.flags & RC_HF_CREW) || m->u.hello.n_crews > RC_CREW_MAX) return -1;
             rc_put8(&w, m->u.hello.n_crews);
             for (int i = 0; i < m->u.hello.n_crews; i++){ if (!m->u.hello.crews[i]) return -1; rc_put32(&w, m->u.hello.crews[i]); }
         }
+        if (has_plate){ rc_put8(&w, pl); rc_putb(&w, m->u.hello.plate, pl); }
         break; }
     case RC_MSG_PEERS:
         if (m->u.peers.n > RC_MAX_PEERS) return -1;
@@ -467,14 +472,26 @@ int rc_decode(const uint8_t *buf, int len, rc_msg *m){
         if (m->u.hello.n_seen > RC_MAX_PEERS) return RC_E_FIELD;
         for (int i = 0; i < m->u.hello.n_seen; i++) m->u.hello.seen[i] = rc_get32(&r);
         if (m->u.hello.status >= RC_ST__N) return RC_E_FIELD;
+        if ((m->h.flags & RC_HF_PLATE) && !(m->h.flags & RC_HF_CREW)) return RC_E_FIELD;
         if ((m->h.flags & RC_HF_CREW) && !r.err && r.n < r.len){
             m->u.hello.n_crews = (uint8_t)rc_get8(&r);
             if (m->u.hello.n_crews > RC_CREW_MAX) return RC_E_FIELD;
             for (int i = 0; i < m->u.hello.n_crews; i++) m->u.hello.crews[i] = rc_get32(&r);
             if (r.err) return RC_E_SHORT;
             for (int i = 0; i < m->u.hello.n_crews; i++) if (!m->u.hello.crews[i]) return RC_E_FIELD;
-            r.n = r.len;                                              /* (a newer core's additions) */
-        }
+            if (m->h.flags & RC_HF_PLATE){
+                uint32_t pn = rc_get8(&r);
+                if (r.err) return RC_E_SHORT;
+                if (pn > r.len - r.n) return RC_E_SHORT;
+                if (pn <= RC_PLATE_MAX){
+                    rc_getb(&r, m->u.hello.plate, pn);
+                    m->u.hello.plate[pn] = 0;
+                    if (!pn || !rc_plate_ok(m->u.hello.plate, pn) || name_plate_blocked(m->u.hello.plate)) m->u.hello.plate[0] = 0;
+                } else r.n += pn; /* malformed plate: keep its player, not its text */
+                if (r.err) return RC_E_SHORT;
+            }
+            r.n = r.len;
+        } else if (m->h.flags & RC_HF_PLATE) return RC_E_SHORT;
         break; }
     case RC_MSG_PEERS:
         m->u.peers.n = (uint8_t)rc_get8(&r);
@@ -1273,6 +1290,7 @@ int rc_add_peer(rc_session *s, uint32_t ip, uint16_t port, int configured, int64
 static void fill_hello(rc_session *s, rc_msg *m, const rc_peer *to, int crews){
     hdr(s, m, RC_MSG_HELLO);
     m->h.flags = RC_HF_STATEX | RC_HF_CREW | RC_HF_HUBCREW;
+    if (s->conf.plate[0]) m->h.flags |= RC_HF_PLATE;
     if (crews && (!to || !s->conf.hub_ip)){
         int n = s->conf.n_crews < 0 ? 0 : s->conf.n_crews > RC_CREW_MAX ? RC_CREW_MAX : s->conf.n_crews;
         for (int i = 0; i < n; i++) if (s->conf.crews[i]) m->u.hello.crews[m->u.hello.n_crews++] = s->conf.crews[i];
@@ -1284,6 +1302,7 @@ static void fill_hello(rc_session *s, rc_msg *m, const rc_peer *to, int crews){
     m->u.hello.core_ver = RC_CORE_VER; m->u.hello.platform = s->conf.platform; m->u.hello.status = s->status;
     m->u.hello.listen_port = s->conf.port; m->u.hello.cfg_rev = s->cfg_rev; m->u.hello.room = s->conf.room;
     memcpy(m->u.hello.name, s->conf.name, sizeof m->u.hello.name);
+    if (m->h.flags & RC_HF_PLATE) memcpy(m->u.hello.plate, s->conf.plate, sizeof m->u.hello.plate);
     int n = 0;
     /* a core of version 1 (the beacon and the hub may reach one too) reads 7
      * ids at most, and drops a longer HELLO */
@@ -1455,6 +1474,7 @@ void rc_receive(rc_session *s, uint32_t ip, uint16_t port, const uint8_t *buf, i
         if (m.u.hello.room != s->conf.room){ s->rx_room++; if (p->state == RC_PS_EST) drop_peer(s, i, "other room"); return; }
         int first = !p->name[0];
         memcpy(p->name, m.u.hello.name, sizeof p->name);
+        memcpy(p->plate, m.u.hello.plate, sizeof p->plate);
         p->platform = m.u.hello.platform; p->status = m.u.hello.status; p->cfg_rev_seen = m.u.hello.cfg_rev;
         p->core_ver = m.u.hello.core_ver; p->duels = (m.h.flags & RC_HF_DUELS) != 0;
         p->lobbies = (m.h.flags & RC_HF_LOBBY) != 0;

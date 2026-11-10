@@ -150,7 +150,7 @@ export function putKey(text: string, key: string, value: string | null): { text:
 
 /** What "Reset all settings" keeps: the name the other players know you by, your crews, and the language (this
  *  page's too). */
-const RESET_KEEPS = ['roam_name', 'roam_crew', 'roam_crew_colours', 'language'];
+const RESET_KEEPS = ['roam_name', 'license_plate', 'roam_crew', 'roam_crew_colours', 'language'];
 
 /** "Reset all settings": the template, with the kept settings as the file has them (by their own key, also where
  *  the file sets the variable by its name, if the key reads the value the same).  One the file does not set, or

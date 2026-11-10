@@ -671,6 +671,86 @@ pub fn blocked_name(name: &str) -> bool {
     scan(name).is_none_or(|n| anywhere(n.s.get(), n.s.starts()) || whole_word(n.s.get()) || edge(n.s.get()))
 }
 
+/// Plate-specific moderation for compact uppercase license plates.
+pub fn blocked_plate(plate: &str) -> bool {
+    if blocked_name(plate) { return true; }
+    if plate.is_empty() || plate.len() > 8 || !plate.bytes().all(|b| b.is_ascii_uppercase() || b.is_ascii_digit()) {
+        return false;
+    }
+    let b = plate.as_bytes();
+    let mut parts: Vec<&[u8]> = Vec::new();
+    let mut i = 0;
+    while i < b.len() {
+        let digit = b[i].is_ascii_digit();
+        let start = i;
+        while i < b.len() && b[i].is_ascii_digit() == digit { i += 1; }
+        parts.push(&b[start..i]);
+    }
+    const MARKS: &[&[u8]] = &[b"HH", b"SS", b"WP", b"HEIL", b"SIEG"];
+    for (k, p) in parts.iter().enumerate() {
+        if *p == b"KKK" { return true; }
+        if *p == b"88" && ((k > 0 && MARKS.contains(&parts[k - 1])) || (k + 1 < parts.len() && MARKS.contains(&parts[k + 1]))) {
+            return true;
+        }
+    }
+    let mut q: Vec<char> = plate.chars().collect();
+    if q.len() >= 2 && q[q.len()-1].is_ascii_digit() && q[q.len()-2].is_ascii_alphabetic() { q.pop(); }
+    let mut letters = Vec::with_capacity(q.len());
+    let mut i = 0;
+    while i < q.len() {
+        let mut run = 0;
+        while i + run < q.len() && q[i+run].is_ascii_digit() { run += 1; }
+        if run > 0 && number(&q, i, run) { i += run; continue; }
+        if let Some(c) = letter(q[i]) { letters.push(c); }
+        i += 1;
+    }
+    const EDGE: &[&str] = &["fag","coon","spic","paki","kike","kyke","gook","chink","dyke","nig","nigr","neger","pedo","rtard"];
+    const END_OK: &[&str] = &["rafag","tafag","racoon","cocoon","tycoon","aspic","ospic","uspic","papaki","ipaki","eepaki","klike","akike","ekike","ikike","okyke","ergook","achink","uchink","vandyke","oldyke","odyke","knig","midnig","ghtnig","sehnig","anig","enig","inig","onig","unig","reneger","torpedo","speedo","ipedo","ppedo"];
+    const RESTS: &[&str] = &["boy","boi","lord","king","kid","kill","killer","slayer","hunter","lover","life"];
+    const ANY: &[&str] = &["nggr","jewgas","jewsgas","h8jew"];
+    const ANY_OK: &[&str] = &["anggr","unggr"];
+    let as_word = |s: &str| s.chars().filter_map(letter).collect::<Vec<_>>();
+    for raw in EDGE {
+        if ends_with(&letters, &Word::new(raw)) && !END_OK.iter().any(|ok| ends_with(&letters, &Word::new(ok))) { return true; }
+        let w = as_word(raw);
+        if let Some(e) = at(&letters, 0, &w) {
+            let rest = &letters[e..];
+            let bare = rest.iter().position(|&c| c != b's').map_or(&rest[rest.len()..], |n| &rest[n..]);
+            if RESTS.iter().any(|tail| whole(rest, &[Word::new(tail)]) || whole(bare, &[Word::new(tail)])) { return true; }
+        }
+    }
+    for raw in ANY {
+        let w = as_word(raw);
+        for i in 0..letters.len() {
+            let Some(end) = at(&letters, i, &w) else { continue };
+            let mut ok = false;
+            for raw_ok in ANY_OK {
+                let x = as_word(raw_ok);
+                for a in i.saturating_sub(x.len())..=i {
+                    if at(&letters, a, &x).is_some_and(|e| e >= end) { ok = true; break; }
+                }
+                if ok { break; }
+            }
+            if !ok { return true; }
+        }
+    }
+    false
+}
+
+#[cfg(test)]
+mod license_plate_tests {
+    use super::blocked_plate;
+    #[test]
+    fn compact_plate_words_and_codes_are_filtered() {
+        for p in ["BIGFAG","KILLFAGS","KKK","KKK77","HH88","88SS","HEIL88","SIEG88","WP88","N1GGER","1488"] {
+            assert!(blocked_plate(p), "{p}");
+        }
+        for p in ["AB123456","BAYVIEW","SS14","RACCOON","TYCOON","SPEEDO","MIDNIG"] {
+            assert!(!blocked_plate(p), "{p}");
+        }
+    }
+}
+
 /// The most one-letter words in a row read as a word of the whole list ("f a g s")
 const WHOLE_RUN: usize = 8;
 

@@ -189,6 +189,7 @@
 #define RIDE_SZ         0x900u
 #define REC_SZ          0x940u
 #define NSLOT           32            /* 3 opponent cars + 29 of our own */
+#define PLATE_EVERY_US  10000000      /* limit changed plates from old/modified peers to once per 10 s */
 #define NOPP            3             /* slots 0-2: the parked free-roam opponent cars */
 #define WORLD_INDEX     22            /* World::IndexCars' cars[] (World +0x1C; other fields follow) */
 #define KIND_OUT        4             /* a racer record kind IndexCars skips (1 human, 2 AI racer, 3 traffic) */
@@ -380,6 +381,9 @@ typedef struct {
     int      st;
     int      peer; uint32_t peer_id;          /* session table index and id */
     char     name[RC_NAME_MAX + 1];
+    char     plate[RC_PLATE_MAX + 1];
+    uint32_t plate_owner;
+    int64_t  plate_at;
     uint32_t car, world;                      /* the slot's car in this world */
     int      created;                         /* one of our own cars (k >= NOPP) */
     int      unindexed;                       /* ...past World::IndexCars' 22: record kind KIND_OUT */
@@ -3456,6 +3460,7 @@ typedef struct { int idx; uint32_t id; char name[RC_NAME_MAX + 1]; int visible, 
                  uint8_t cfg[RC_CFG_MAX]; int have_pose; rc_pose pose; float err; uint32_t look;
                  int64_t newest, rt;   /* the sender's time of its newest snapshot, and the one the car is drawn at (push_pose) */
                  int horn;             /* their horn (horn.h's kinds) */
+                 char plate[RC_PLATE_MAX + 1];
                  int crew;             /* in our crew number crew - 1 (rc_peer_crew + 1; 0: none) */ } PeerView;
 static PeerView g_pv[RC_TABLE]; static int g_npv;
 static struct { uint32_t id, gen; int horn; } g_phorn[RC_TABLE];   /* each peer's horn, as its record (cfg_gen) has it */
@@ -6278,6 +6283,7 @@ static void init_once(CPU *c){
     cf.self_id = roam_plat_random(); cf.port = (uint16_t)port; cf.room = rc_room_hash(O.room); g_room_base = cf.room;
     crews_parse(opt("NFSU2_ROAM_CREW"), &cf);
     snprintf(cf.name, sizeof cf.name, "%s", O.name[0] ? O.name : "Player");
+    snprintf(cf.plate, sizeof cf.plate, "%s", rh_plate_mine());
 #ifdef ROAM_HOST_WIN
     cf.platform = RC_PLAT_WIN;                             /* HELLO byte 18: the Windows plugin */
 #else
@@ -6481,6 +6487,14 @@ static void assign(CPU *c, int64_t host){
         int was = s->st;
         s->peer = v->idx; s->peer_id = v->id; s->unseen_since = 0; s->near_since = 0; s->idle_since = 0; s->soft = 0; s->crew = v->crew;
         snprintf(s->name, sizeof s->name, "%s", v->name);
+        if (s->plate_owner != v->id){
+            s->plate_owner = v->id;
+            snprintf(s->plate, sizeof s->plate, "%s", v->plate);
+            s->plate_at = host;
+        } else if (strcmp(s->plate, v->plate) && host - s->plate_at >= PLATE_EVERY_US){
+            snprintf(s->plate, sizeof s->plate, "%s", v->plate);
+            s->plate_at = host;
+        }
         if (reuse){
             s->st = SL_ACTIVE; s->cfg_gen = v->cfg_gen; s->hidden = 1; g_acquires++; g_reuses++;
             set_name(s);
@@ -6520,6 +6534,7 @@ static void world_changed(CPU *c, uint32_t w){
         int any = 0; for (int k = 0; k < NSLOT; k++) if (g_sl[k].st != SL_FREE || g_sl[k].car) any = 1;
         if (any || g_npending) rlog("[roam] f=%ld world 0x%08x -> 0x%08x: friends' cars gone with it\n", rh_frame(), g_world_seen, w);
         world_gone();
+        rh_plates_forget();
         flush_unloads(c);                           /* before the next world loads its own cars */
         memset(&g_tag, 0, sizeof g_tag);            /* never touch the old HUD's objects */
         memset(&g_mm, 0, sizeof g_mm);              /* (nor its minimap's: the next HUD may be at its address) */
@@ -6801,6 +6816,7 @@ void roam_game_frame(CPU *c){
             if (p->state != RC_PS_EST) continue;
             PeerView *v = &g_pv[g_npv++];
             v->idx = i; v->id = p->id; snprintf(v->name, sizeof v->name, "%s", p->name);
+            snprintf(v->plate, sizeof v->plate, "%s", p->plate);
             /* shown while it is in free roam and its snapshots keep coming,
              * or while it is paused there: a paused game (pause menu, or a
              * window in the background: lifecycle.c parks the game, no
@@ -6882,10 +6898,19 @@ void roam_game_frame(CPU *c){
         assign(c, host);
         for (int k = 0; k < NSLOT; k++){
             Slot *s = &g_sl[k];
-            if (s->st == SL_FREE || s->st == SL_PARKED) continue;
+            if (s->st == SL_FREE || s->st == SL_PARKED){ rh_plate_car(k, 0, ""); continue; }
             PeerView *v = 0;
             for (int i = 0; i < g_npv; i++) if (g_pv[i].idx == s->peer && g_pv[i].id == s->peer_id) v = &g_pv[i];
-            if (!v) continue;
+            if (!v){ rh_plate_car(k, 0, ""); continue; }
+            if (s->plate_owner != v->id){
+                s->plate_owner = v->id;
+                snprintf(s->plate, sizeof s->plate, "%s", v->plate);
+                s->plate_at = host;
+            } else if (strcmp(s->plate, v->plate) && host - s->plate_at >= PLATE_EVERY_US){
+                snprintf(s->plate, sizeof s->plate, "%s", v->plate);
+                s->plate_at = host;
+            }
+            rh_plate_car(k, s->car, s->plate);
             /* a second first: a hitch in the friend's game (streaming) is a pause too */
             if (!v->paused) s->paused_since = 0;
             else if (!s->paused_since) s->paused_since = host;

@@ -1353,6 +1353,21 @@ static void t_crews(void){
     CHECK(rc_decode(lb, n, &d) == RC_E_FIELD, "a crew 0 heard is bad");
     m.h.flags = 0; CHECK(rc_encode(&m, b, sizeof b) < 0, "crews without the flag are not sent");
 
+    /* Optional license plate tail; legacy HELLO wire shape remains unchanged. */
+    memset(&m, 0, sizeof m);
+    m.h.type = RC_MSG_HELLO; m.h.sender = 7; m.h.flags = RC_HF_CREW | RC_HF_PLATE;
+    strcpy(m.u.hello.name, "Ann"); strcpy(m.u.hello.plate, "AB123");
+    n = rc_encode(&m, b, sizeof b);
+    CHECK(n > 0 && rc_decode(b, n, &d) == RC_OK && !strcmp(d.u.hello.plate, "AB123"), "HELLO plate tail round trip");
+    strcpy(m.u.hello.plate, "N1GGER");
+    n = rc_encode(&m, b, sizeof b);
+    CHECK(n > 0 && rc_decode(b, n, &d) == RC_OK && !d.u.hello.plate[0], "offensive plate is blanked but the player remains");
+    strcpy(m.u.hello.plate, "123456789");
+    CHECK(rc_encode(&m, b, sizeof b) < 0, "plate longer than eight is refused");
+    m.h.flags = RC_HF_CREW; m.u.hello.plate[0] = 0;
+    n = rc_encode(&m, b, sizeof b);
+    CHECK(n == base && rc_decode(b, n, &d) == RC_OK && !d.u.hello.plate[0], "legacy HELLO wire shape stays unchanged");
+
     /* the hub's PEERS with crew marks (RC_HF_CREW on a PEERS): the receiver's crews, then a byte per entry */
     memset(&m, 0, sizeof m); m.h.type = RC_MSG_PEERS; m.h.sender = 0xB0B; m.h.flags = RC_HF_CREW;
     m.u.peers.n = 3;

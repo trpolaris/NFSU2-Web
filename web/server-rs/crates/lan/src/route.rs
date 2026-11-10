@@ -14,7 +14,7 @@ use nfsu2_util::{FrameCtx, mono_ms};
 use crate::compact;
 use crate::conn::{Conn, Out};
 use crate::lag::{self, SHARE_FULL};
-use crate::{BROADCAST, Cause, Cut, KIND_LAN_ICMP, KIND_LAN_UDP, KIND_STREAM, KIND_UDP, LanSwitch, Peer, STREAM_LOW, slot};
+use crate::{BROADCAST, Cause, Cut, KIND_LAN_ICMP, KIND_LAN_UDP, KIND_STREAM, KIND_UDP, LanSwitch, Peer, STREAM_LOW, plates, slot};
 
 /// What a stream segment waiting at the switch costs it besides its bytes (its entry here, its copy's allocation),
 /// counted with them against `stream_share` and `stream_queue`, so that those bound the memory for segments of a few
@@ -84,6 +84,16 @@ impl LanSwitch {
     /// three locks and a clock read): the destinations go up to the first whose running total one of the buckets
     /// cannot pay for, which is where checking them one destination after the other stops.
     pub(crate) fn route(&self, peer: &Arc<Peer>, data: &Bytes, dsts: impl Iterator<Item = u32> + Clone) -> bool {
+        let fixed;
+        let data = match plates::hello_plate(data) {
+            Some(plates::Found::Plate { at, bytes }) => match plates::judge(&peer.plates, bytes, mono_ms() as i64) {
+                plates::Verdict::Go | plates::Verdict::New => data,
+                plates::Verdict::Last(last) => { fixed = plates::rewrite(data, at, Some(&last)).unwrap_or_else(|| data.clone()); &fixed }
+                plates::Verdict::Block => { fixed = plates::rewrite(data, at, None).unwrap_or_else(|| data.clone()); &fixed }
+            },
+            Some(plates::Found::Broken { at }) => { fixed = plates::rewrite(data, at, None).unwrap_or_else(|| data.clone()); &fixed }
+            None => data,
+        };
         let n = data.len();
         let lan_only = (KIND_LAN_UDP..=KIND_LAN_ICMP).contains(&data[0]);
         let reaches = |p: &Arc<Peer>| !Arc::ptr_eq(p, peer) && p.open() && (!lan_only || p.lan() != Some(false));

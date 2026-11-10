@@ -221,6 +221,7 @@ pub mod fpred;
 mod impair;
 mod lag;
 mod members;
+mod plates;
 mod queue;
 mod reader;
 mod route;
@@ -677,6 +678,8 @@ pub(crate) struct Peer {
     token_hash: [u8; 32],
     /// its first hello's name ("player" until then)
     name: OnceLock<Box<str>>,
+    /// accepted free-roam license plates and their update interval
+    plates: Mutex<plates::Seen>,
     /// its first hello came (the name, and deltas: it takes the changes to the peer list)
     hello: AtomicBool,
     deltas: AtomicBool,

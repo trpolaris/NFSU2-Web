@@ -79,6 +79,12 @@ int language_no_profile(const char *name);   /* language.c */
 #define rh_carsfx_car(who, name, p, v, st) carsfx_car((who), (name), (p), (v), (st))
 #define rh_carsfx_end()  carsfx_end()
 #define rh_no_profile(n) language_no_profile(n)
+const char *plates_mine(void);
+void plates_friend(int k, uint32_t car, const char *text);
+void plates_forget(void);
+#define rh_plate_mine() plates_mine()
+#define rh_plate_car(k, car, text) plates_friend((k), (car), (text))
+#define rh_plates_forget() plates_forget()
 typedef FILE rh_file;
 #ifdef __wasm__
 /* The pose log (a test aid) in the browser: every stdio flush is a

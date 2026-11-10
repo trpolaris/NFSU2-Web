@@ -14,7 +14,7 @@
 // noted and ignored, so a typo never silently selects something else.
 //
 // This module is pure (no DOM, no OPFS) so it can be checked under node.
-import { blockedName } from './names.mjs';
+import { blockedName, blockedPlate } from './names.mjs';
 import { onlineName } from './claim';
 import { crewsOk, rgbsOk } from './crews';
 import { groupsOk, phrasesOk } from './phrases';
@@ -760,6 +760,7 @@ export function checkSetting(key: string, val: string): Checked | Refused | null
     case 'plate':
       out = val.trim().toUpperCase();
       if (!/^[A-Z0-9]{1,8}$/.test(out)) return refuse(N('"{value}" is not a license plate (1 to 8 letters and digits)'), val);
+      if (blockedPlate(out)) return refuse(N('"{value}" is not a license plate (it reads as a slur)'), val);
       break;
     case 'raw': break;
     default:

@@ -183,6 +183,7 @@ impl LanSwitch {
             site: ctx.site.clone(),
             token_hash: token_hash(&token),
             name: Default::default(),
+            plates: Default::default(),
             hello: false.into(),
             deltas: false.into(),
             bundle: false.into(),
