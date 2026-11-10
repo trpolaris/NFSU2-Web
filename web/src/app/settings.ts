@@ -18,6 +18,7 @@ import { blockedName, blockedPlate } from './names.mjs';
 import { onlineName } from './claim';
 import { crewsOk, rgbsOk } from './crews';
 import { groupsOk, phrasesOk } from './phrases';
+import { plateUpper, plateValid } from './plates';
 import { fill, LANGUAGES, N, type Vars } from './i18n';
 export { LANGUAGES };
 
