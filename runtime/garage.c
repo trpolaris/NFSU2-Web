@@ -59,6 +59,8 @@
 #include "cpu.h"
 #include "guest.h"
 #include "game.h"
+#include "guest.h"
+#include "game.h"
 #include "widescreen.h"           /* HOOK_SITE */
 #include "stance.h"
 #include <stdio.h>
@@ -66,12 +68,18 @@
 #include <strings.h>
 
 void dispatch_patch(uint32_t a, void (*f)(CPU *));
+void cameras_setup(void);
 uint32_t gheap_alloc(int heap, uint32_t n, int zero);
 int fileio_resolve_save(const char *win, char *out, size_t outsz);
 
 #define FEDB            0x0083a9d0u   /* FEDatabase */
 #define FEDB_KEPT       0x16778u      /* ... the payload it compares with (0x52A460 makes it, 0x5032C0 frees it) */
+#define CARS0          G_FECARS
 #define CARS_SZ         0xab4cu       /* player 2's follow */
+#define CUSTOM_AT       0x544u        /* the 20 Customize cars */
+#define CUSTOM_SZ       0x434u
+#define PRESET_AT       0x8130u       /* the 6 preset cars */
+#define PRESET_SZ       0x438u
 #define C_SLOTS         0x5954u       /* the career's 5 */
 #define C_TABLE         0x9bd8u       /* the 91 records' table */
 #define TABLE_N         91u
@@ -132,6 +140,7 @@ int fileio_resolve_save(const char *win, char *out, size_t outsz);
 #define GARAGE_OLD      "GARAGE.OLD"
 #define GARAGE_MAGIC    0x4147324eu   /* "N2GA" */
 #define TRADE_PCT       80u
+static uint32_t g_lost[48]; static int g_nlost;
 /* modpacks.c: stock parts stay in the original profile; added parts live beside it. */
 void modparts_hide(CPU *,uint32_t,int);
 void modparts_show(void);
@@ -139,6 +148,15 @@ void modparts_built(int,uint32_t,uint64_t,const char *,int);
 void modparts_loaded(CPU *,uint32_t,int,uint32_t,uint64_t,const char *,int);
 int modparts_changed(CPU *,int);
 void modparts_written(const char *,uint64_t,const char *);
+int64_t modparts_cartype(uint32_t hash);
+void modparts_stock_keys(CPU *c, uint32_t type, uint32_t *keys);
+void modparts_track(int p, uint32_t r, uint32_t size, uint32_t orig, const uint32_t *keys, int used);
+int modparts_stage(int p, uint64_t fp, const char *name);
+void modparts_raw(CPU *c, uint32_t db, int p, int on);
+void modparts_car_gone(int p, uint32_t r, uint32_t h);
+void modparts_car_moved(int p, uint32_t from, uint32_t hf, uint32_t to, uint32_t ht);
+void modparts_deleted(const char *name);
+int cars_stock_fix(CPU *c, uint32_t db, uint32_t *lost, int max);
 
 static uint32_t g_blk;            /* guest memory: our records (XN a player), a new one, scratch */
 static struct { int on; uint8_t cars[XN * SAVE_REC]; } g_split;
@@ -730,11 +748,11 @@ void sub_005344d0(CPU *c){
      * any garage slot (rather than naming an empty extended slot, handled
      * by not_empty above). After the prologue, use the first owned car so
      * the car lot never resolves a nonexistent career vehicle. */
-    uint32_t h = MR32(CAREER + K_CAR), to;
-    if (MR32(CAREER + K_STAGE) >= 1u &&
-        slot_of(CARS0, garage_find(CARS0, h)) < 0 &&
-        (to = first_car(CARS0, SLOTS))){
-        gcall(c, FN_SET_CAR, CAREER, 1, &to);
+    uint32_t h = MR32(G_CAREER + K_CAR), to;
+    if (MR32(G_CAREER + K_STAGE) >= 1u &&
+        slot_of(G_FECARS, garage_find(G_FECARS, h)) < 0 &&
+        (to = first_car(G_FECARS, SLOTS))){
+        gcall(c, FN_SET_CAR, G_CAREER, 1, &to);
         fprintf(stderr, "[garage] the career's car 0x%08x was in none of the slots: now the one in slot %d (0x%08x)\n",
                 h, slot_of(G_FECARS, garage_find(G_FECARS, to)) + 1, MR32(G_CAREER + K_CAR));
     }
