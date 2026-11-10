@@ -26,7 +26,7 @@ export { LANGUAGES };
  *  (names.mjs, as a player's name). */
 export type Kind = 'raw' | 'bool' | 'boolInv' | 'enum' | 'num' | 'id' | 'token' | 'int' | 'name' | 'peers'
   | 'path' | 'text' | 'room' | 'wxh' | 'fixes' | 'ifname' | 'ipv4' | 'mac' | 'host' | 'parts' | 'dump' | 'crews' | 'rgbs'
-  | 'phrases' | 'sayGroups' | 'names';
+  | 'phrases' | 'sayGroups' | 'names' | 'plate';
 
 export interface KeyDef {
   key: string;
@@ -161,7 +161,7 @@ export const KEYS: readonly KeyDef[] = [
   // Opt-in removal of the career DVD cover event's visual-rating requirement.
   { key: 'visual_rep_remover', env: 'NFSU2_VISUAL_REP_REMOVER', kind: 'bool', scope: 'web' },
   // Custom plate text is moderated by runtime/names.h before it is rendered.
-  { key: 'license_plate', env: 'NFSU2_LICENSE_PLATE', kind: 'text', scope: 'web' },
+  { key: 'license_plate', env: 'NFSU2_LICENSE_PLATE', kind: 'plate', scope: 'web' },
   // GPS distance beneath the native direction arrow (runtime/gpsdistance.c).
   { key: 'gps_distance', env: 'NFSU2_GPS_DISTANCE', kind: 'bool', scope: 'web' },
   // Career rubberbanding: original, noboost (no boost beyond an AI's own pace) or off.
@@ -757,6 +757,10 @@ export function checkSetting(key: string, val: string): Checked | Refused | null
     }
     case 'id': if (!(val.length < 32 && /^[0-9]+$/.test(val))) return refuse(N('"{value}" is not a numeric id'), val); break;
     case 'token': if (!(val.length < 300 && /^[!-~]+$/.test(val))) return refuse(N('"{value}" is not an asset key or URL (printable ASCII, no spaces)'), val); break;
+    case 'plate':
+      out = val.trim().toUpperCase();
+      if (!/^[A-Z0-9]{1,8}$/.test(out)) return refuse(N('"{value}" is not a license plate (1 to 8 letters and digits)'), val);
+      break;
     case 'raw': break;
     default:
       if (!valueOk(kind, val)) return refuse(N('"{value}" is not {kind}'), val, { kind: KIND_TEXT[kind]! });
