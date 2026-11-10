@@ -364,7 +364,7 @@ export class SettingsService {
 
   /** React text fields reuse the same validation and normalization as the original setting rows. */
   async setValidated(key: string, value: string | null) {
-    if (!['roam_name', 'roam_room', 'roam_block', 'roam_max_cars'].includes(key)) throw new Error('Unsupported React settings field');
+    if (!['roam_name', 'license_plate', 'roam_room', 'roam_block', 'roam_max_cars'].includes(key)) throw new Error('Unsupported React settings field');
     if (this.ro()) { this.deps.say?.(t(READ_ONLY)); return; }
     let next = value?.trim() ?? '';
     if (key === 'roam_name' && next) next = onlineName(next) ?? next;
@@ -374,7 +374,7 @@ export class SettingsService {
     if (checked && !checked.ok) {
       throw new Error(t('Not saved: {key} = {why}.', { key, why: tvars(checked.why, checked.v) }));
     }
-    await this.put(key, next);
+    await this.put(key, checked && checked.ok ? checked.value : next);
   }
 
 
