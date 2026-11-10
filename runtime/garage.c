@@ -143,6 +143,7 @@ int modparts_changed(CPU *,int);
 void modparts_written(const char *,uint64_t,const char *);
 
 static uint32_t g_blk;            /* guest memory: our records (XN a player), a new one, scratch */
+static struct { int on; uint8_t cars[XN * SAVE_REC]; } g_split;
 #define X_AT(p)         (g_blk + (p) * XN * REC_SZ)
 #define TEMPLATE        (g_blk + 2u * XN * REC_SZ)
 #define SCRATCH         (TEMPLATE + REC_SZ)          /* XN * SAVE_REC, then the "left" counter */
@@ -387,7 +388,17 @@ void sub_00532cf0(CPU *c){ stages(c, sub_00532cf0_orig); }
 /* thiscall FEDatabase: Online's end puts player 1's cars back as its copy has
  * them (+0x1677C, as made); ours as made too */
 void sub_00515d70_orig(CPU *c);
-void sub_00515d70(CPU *c){ sub_00515d70_orig(c); if (g_blk) xinit(c, CARS0); }
+void sub_00515d70(CPU *c){
+    sub_00515d70_orig(c);
+    if (g_blk) xinit(c, CARS0);
+    if (g_blk && g_split.on){ xload(c, CARS0, g_split.cars); g_split.on = 0; }
+}
+void garage_split_keep(CPU *c){
+    if (!g_blk) return;
+    xsave(c, CARS0, g_split.cars);
+    g_split.on = 1;
+    fprintf(stderr, "[garage] split screen: career cars kept aside\n");
+}
 
 /* --- the profile ------------------------------------------------------------ */
 /* What a profile's payload leaves to us: slots 6-10, and the cars driven when
