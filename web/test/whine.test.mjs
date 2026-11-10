@@ -81,6 +81,12 @@ test('tools/whinepack.py: the three sounds, checked', { skip: !havePython && 'no
   }
 });
 
+test('EA original song paths point into PFDATA/ORIGINAL', () => {
+  assert.equal(D.songsPath('PFDATA/STRM_MUSIC.BIN'), 'PFDATA/ORIGINAL/STRM_MUSIC.BIN');
+  assert.equal(D.songsPath('TRACKS/L4RA.BUN'), null);
+  assert.equal(D.songsPath('MOVIES/INTRO.VP6'), null);
+});
+
 test('the preload follows selected texture, original-song and runtime mod packs', () => {
   const files = [
     'MODPACKS/DAMAGE/dent.bin', 'MODPACKS/WHINE/car_whine.wav', 'HQVINYLS/skin.dds',

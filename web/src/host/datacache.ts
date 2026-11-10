@@ -42,6 +42,12 @@ const parts = (f: DataFile) => f.path.toLowerCase().split('/');
 export interface Packs { texpack: string; songs: string; damage?: boolean; whine?: boolean }
 export const NO_PACKS: Packs = { texpack: '', songs: '' };
 
+/** EA's own recordings (PFDATA/ORIGINAL) for one game-folder audio file; null for every other path. */
+export function songsPath(path: string): string | null {
+  const p = path.split('/');
+  return p.length === 2 && p[0].toLowerCase() === 'pfdata' ? [p[0], 'original', p[1]].join('/') : null;
+}
+
 /** Select only the files used by this language and the enabled runtime packs. */
 function gameFiles(files: DataFile[], language: string, packs: Packs): DataFile[] {
   const own = new Set(files.filter(f => { const p = parts(f); return p[0] === 'langpacks' && p[1] === language; })

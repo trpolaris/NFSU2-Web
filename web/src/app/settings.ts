@@ -175,6 +175,7 @@ export const KEYS: readonly KeyDef[] = [
   { key: 'uniques', env: 'NFSU2_UNIQUES', kind: 'bool', scope: 'web' },
   // EA Trax soundtrack selection; the preload follows the selected audio tree.
   { key: 'songs', env: 'NFSU2_SONGS', kind: 'enum', vals: 'uncensored|original', scope: 'web' },
+  { key: 'race_music', env: 'NFSU2_RACE_MUSIC', kind: 'bool', scope: 'web' },
   // Upstream gameplay mods: crash damage, vehicle stance and remote mod-part rendering.
   { key: 'crash_damage', env: 'NFSU2_DAMAGE', kind: 'bool', scope: 'web' },
   { key: 'stance', env: 'NFSU2_STANCE', kind: 'bool', scope: 'web' },
@@ -312,6 +313,10 @@ export const TEMPLATE = `# NFSU2 settings, read at every launch.
 # EA Trax songs: uncensored = the restored soundtrack when installed; original = the game's own recordings
 # from PFDATA/ORIGINAL when present. [NFSU2_SONGS]
 #songs = uncensored
+
+# Music in drag and drift races: on uses the soundtrack above; off keeps the original silence in those races.
+# [NFSU2_RACE_MUSIC]
+#race_music = off
 
 # Damage on cars after collisions. This changes appearance, not handling. Requires the compatible MODPACKS/DAMAGE pack.
 # Off preserves the original game's behavior. [NFSU2_DAMAGE]
