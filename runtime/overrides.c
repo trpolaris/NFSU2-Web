@@ -435,9 +435,30 @@ static int force_rain(void){
     if (fr < 0){ const char *e = getenv("FORCERAIN"); fr = e ? atoi(e) : 0; }
     return fr;
 }
+/* In multiplayer free roam every client uses the same UTC-driven rain phase.
+ * The game's own Rain zones and thresholds still determine where it rains. */
+int roam_game_shared_weather(void);
+#define A_WORLD_T   0x007fb718u
+static float shared_weather_t(void){
+    static uint32_t at = ~0u;
+    static float t;
+    uint32_t tick = MR32(G_WORLDTIMER);
+    if (tick != at){
+        struct timespec ts;
+        clock_gettime(CLOCK_REALTIME, &ts);
+        t = (float)((double)(ts.tv_sec % 360) + (double)ts.tv_nsec * 1e-9);
+        at = tick;
+    }
+    return t;
+}
 void sub_0061e380_orig(CPU *c);
 void sub_0061e380(CPU *c){
-    sub_0061e380_orig(c);
+    if (roam_game_shared_weather()){
+        float own = MRF32(A_WORLD_T);
+        MRF32(A_WORLD_T) = shared_weather_t();
+        sub_0061e380_orig(c);
+        MRF32(A_WORLD_T) = own;
+    } else sub_0061e380_orig(c);
     int fr = force_rain();
     if (fr == 1 || fr == 4) ST(0) = 1.0; else if (fr == 2 || fr == 3) ST(0) = 0.0;
 }
