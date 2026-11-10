@@ -1850,5 +1850,6 @@
   "Last.fm connected. You can close this window.": "Połączono z Last.fm. Możesz zamknąć to okno.",
   "Last.fm didn't connect. Close this window and try again.": "Nie udało się połączyć z Last.fm. Zamknij to okno i spróbuj ponownie.",
   "Unique parts for every car": "Unikatowe części dla każdego auta",
-  "Once Caleb is beaten, the shops sell the unique visual parts, wide body kits too, for every car in your career. Off: as in the original, each one only for the car you earned it with.": "Po pokonaniu Caleba sklepy sprzedają unikatowe części wizualne, także zestawy poszerzające nadwozie, dla każdego auta w twojej karierze. „Wył.”: jak w oryginale, każda tylko dla auta, którym ją zdobyto."
+  "Once Caleb is beaten, the shops sell the unique visual parts, wide body kits too, for every car in your career. Off: as in the original, each one only for the car you earned it with.": "Po pokonaniu Caleba sklepy sprzedają unikatowe części wizualne, także zestawy poszerzające nadwozie, dla każdego auta w twojej karierze. „Wył.”: jak w oryginale, każda tylko dla auta, którym ją zdobyto.",
+  "\"{value}\" is not a license plate (letters A to Z and digits, at most 8)": "\"{value}\" nie jest prawidłową tablicą rejestracyjną (litery A–Z i cyfry, maksymalnie 8)"
 }
