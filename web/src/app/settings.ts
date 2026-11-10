@@ -180,6 +180,26 @@ export const KEYS: readonly KeyDef[] = [
   // the players this one blocks in free roam, by name (the page's hello to the server: net/index.ts).  Not in bundle.m's
   // table: the Mac's free roam has no hub
   { key: 'roam_block', env: 'NFSU2_ROAM_BLOCK', kind: 'names', ic: true, scope: 'web' },
+  // Browser and game site controls (sitekeys.ts). These are local to this browser/device.
+  { key: 'key_drift', env: 'NFSU2_KEY_DRIFT', kind: 'raw', scope: 'web', device: true },
+  { key: 'key_showoff', env: 'NFSU2_KEY_SHOWOFF', kind: 'raw', scope: 'web', device: true },
+  { key: 'key_horn', env: 'NFSU2_KEY_HORN', kind: 'raw', scope: 'web', device: true },
+  { key: 'key_lights', env: 'NFSU2_KEY_LIGHTS', kind: 'raw', scope: 'web', device: true },
+  { key: 'key_message', env: 'NFSU2_KEY_MESSAGE', kind: 'raw', scope: 'web', device: true },
+  { key: 'key_friend', env: 'NFSU2_KEY_FRIEND', kind: 'raw', scope: 'web', device: true },
+  { key: 'key_lobby', env: 'NFSU2_KEY_LOBBY', kind: 'raw', scope: 'web', device: true },
+  { key: 'key_lobby_new', env: 'NFSU2_KEY_LOBBY_NEW', kind: 'raw', scope: 'web', device: true },
+  { key: 'key_lobby_private', env: 'NFSU2_KEY_LOBBY_PRIVATE', kind: 'raw', scope: 'web', device: true },
+  { key: 'key_lobby_invite', env: 'NFSU2_KEY_LOBBY_INVITE', kind: 'raw', scope: 'web', device: true },
+  { key: 'key_photo', env: 'NFSU2_KEY_PHOTO', kind: 'raw', scope: 'web', device: true },
+  { key: 'key_hud', env: 'NFSU2_KEY_HUD', kind: 'raw', scope: 'web', device: true },
+  { key: 'key_menu', env: 'NFSU2_KEY_MENU', kind: 'raw', scope: 'web', device: true },
+  { key: 'key_song', env: 'NFSU2_KEY_SONG', kind: 'raw', scope: 'web', device: true },
+  { key: 'key_fps', env: 'NFSU2_KEY_FPS', kind: 'raw', scope: 'web', device: true },
+  { key: 'button_hold', env: 'NFSU2_BUTTON_HOLD', kind: 'raw', scope: 'web', device: true },
+  { key: 'button_horn', env: 'NFSU2_BUTTON_HORN', kind: 'raw', scope: 'web', device: true },
+  { key: 'button_chat', env: 'NFSU2_BUTTON_CHAT', kind: 'raw', scope: 'web', device: true },
+  { key: 'button_look', env: 'NFSU2_BUTTON_LOOK', kind: 'raw', scope: 'web', device: true },
 ];
 
 /** strcasecmp's and toupper's folding: ASCII letters only (String.toLowerCase would also fold the Kelvin sign to 'k') */
@@ -492,6 +512,30 @@ export const TEMPLATE = `# NFSU2 settings, read at every launch.
 # game's own is 11000; a value at or below it is ignored, as it would leave
 # no room for them).  [NFSU2_ROAM_CARPOOL_KB]
 #roam_carpool_kb = 48000
+
+# Site controls, set in Controls / Site in this browser (not shared with another device).
+# Keyboard values are KeyboardEvent.code names; "off" disables a control where allowed.
+# The defaults are the page's built-in keys and controller buttons.
+#key_drift = KeyX
+#key_showoff = KeyO
+#key_horn = KeyN
+#key_lights = KeyG
+#key_message = KeyI
+#key_friend = KeyF
+#key_lobby = KeyE
+#key_lobby_new = KeyB
+#key_lobby_private = KeyV
+#key_lobby_invite = KeyZ
+#key_photo = F12
+#key_hud = F10
+#key_menu = F9
+#key_song = F7
+#key_fps = F8
+#button_hold = ddown
+#button_horn = ls
+#button_chat = rs
+#button_look = auto
+
 `;
 
 /** The template's default for a key ("#key = value"), '' if the template leaves it empty or does not list it. */

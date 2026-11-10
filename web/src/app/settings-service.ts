@@ -6,6 +6,7 @@ import { CREW_MAX, checkCrew, crewsOf, crewsValue, freeColour, rgbsValue, type C
 import { onlineName } from './claim';
 import { DEFAULT_GROUPS, DEFAULT_PHRASES, groupsOf, PHRASES, phrasesOf, SLOTS } from './phrases';
 import { LANGUAGES, N, NATIVE, t, tn, tvars, type Language, type Msg } from './i18n';
+import { SITE_KEYS } from './sitekeys';
 
 
 /** Safe, allow-listed keys used by portable launcher profiles; never export unknown settings.ini lines. */
@@ -104,6 +105,7 @@ const GROUPS: Group[] = [
  *  settings in this file"): the Crews row's colours */
 const COMPANION: Record<string, string> = { roam_crew: 'roam_crew_colours', quick_chat_phrases: 'quick_chat_groups' };
 const COMPANIONS = new Set(Object.values(COMPANION));
+const SITE_SETTING_KEYS = new Set(SITE_KEYS);
 /** Every key the panel shows (the check in app-test.mjs compares this with the template). */
 export const PANEL_KEYS = [...GROUPS.flatMap(g => g.items.map(i => i.key)), ...COMPANIONS];
 const ITEMS = new Map(GROUPS.flatMap(g => g.items.map(i => [i.key, i] as const)));
@@ -260,7 +262,7 @@ export class SettingsService {
   rawSnapshot() {
     if (!this.fileOnly) return { ready: false, readOnly: true, text: this.text ?? TEMPLATE, canResetAll: false, other: [] };
     const unshown = Object.entries(this.fileOnly.file)
-      .filter(([key, field]) => !ITEMS.has(key) && !COMPANIONS.has(key) && field.raw !== '')
+      .filter(([key, field]) => !ITEMS.has(key) && !COMPANIONS.has(key) && !SITE_SETTING_KEYS.has(key) && field.raw !== '')
       .map(([key, field]) => ({ phys: field.phys, key, env: key, value: field.raw, refused: field.refused, why: field.why }));
     const other = [...this.fileOnly.other, ...unshown].sort((a, b) => a.phys - b.phys).map(item => ({
       line: item.phys,
