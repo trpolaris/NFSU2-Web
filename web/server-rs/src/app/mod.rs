@@ -16,6 +16,8 @@ pub mod control;
 mod etag;
 mod files;
 mod friends;
+mod lastfm;
+mod outbound;
 mod kept;
 mod lan;
 mod manifest;
@@ -236,6 +238,8 @@ pub struct App {
     pub vault: Option<vault::VaultRoute>,
     /// claimed names (/names), none without keyphrase saves
     pub names: Option<names::NamesRoute>,
+    /// Last.fm scrobbles (/lastfm), none without the API account's key and secret
+    pub lastfm: Option<lastfm::Lastfm>,
     /// the start page's friends endpoint, backed by Online's EA Messenger lists
     friends: Option<friends::FriendsRoute>,
     /// the operator's bans (the control socket: control.rs), checked at /lan
@@ -365,6 +369,7 @@ impl App {
             roam,
             vault: vault.map(vault::VaultRoute::new),
             names,
+            lastfm: lastfm::Lastfm::from_env(),
             friends,
             bans,
             hub,
@@ -574,6 +579,9 @@ impl App {
                 Some(friends) => friends.handle(self, q, s).await,
                 None => self.not_found(q, s).await,
             };
+        }
+        if p == "/lastfm" {
+            return self.lastfm(q, s, &u).await;
         }
         if q.method != "GET" && q.method != "HEAD" {
             return self
