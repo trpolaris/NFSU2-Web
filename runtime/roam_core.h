@@ -29,6 +29,15 @@
 #define RC_MAGIC2        0x46
 #define RC_MAGIC3        0x52
 #define RC_DEFAULT_PORT  47210
+/* Car body parts exposed by the local show-off controls (showoff.c). */
+#define RC_STATEX_OPEN   1
+#define RC_OPEN_HOOD     0x01
+#define RC_OPEN_TRUNK    0x02
+#define RC_OPEN_LDOOR    0x04
+#define RC_OPEN_RDOOR    0x08
+#define RC_OPEN_ALL      0x0f
+#define RC_OPEN_HIBEAM   0x10
+
 #define RC_MAX_DGRAM     1200       /* never IP-fragmented (< 1280) */
 #define RC_HDR           16
 #define RC_CRC           4
