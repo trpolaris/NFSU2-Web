@@ -94,7 +94,8 @@ test('Tracks UI events stay wired through the C mailbox, game frame and status p
   assert.ok(travel.includes('if (on_track()){ c->eax &= ~0xffu; POP32(c->eip); return; }'));
   assert.ok(travel.includes('void sub_00540780_orig(CPU *c);'));
   assert.ok(travel.includes('void sub_00581820_orig(CPU *c);'));
-  assert.ok(build.includes('travel sbrk'));
+  assert.ok(build.includes('travel cameras'));
+  assert.ok(build.includes('WEB="$(cd runtime/web && ls *.c'));
   assert.ok(build.includes('WEB="$(cd runtime/web && ls *.c'));
   assert.ok(status.includes('int host_status_slot(const char *name)'));
   assert.ok(status.includes('void status_web_start(void)'));
