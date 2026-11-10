@@ -46,7 +46,7 @@ async fn malformed_and_blocked_plates_are_removed_without_dropping_players_and_c
     b.welcome().await;
 
     let send = |d: &[u8]| a.udp(b.vip, 47210, 47210, d, 1, 0);
-    let broken: [&[u8]; 5] = [b"123456789", b"bad", b"A B", b"A\\0B", "É".as_bytes()];
+    let broken: [&[u8]; 5] = [b"123456789", b"bad", b"A B", b"A\0B", "É".as_bytes()];
     let blocked: [&[u8]; 3] = [b"N1GGER", b"N1GGER", b"1488"];
 
     for value in broken.iter().chain(blocked.iter()) {
