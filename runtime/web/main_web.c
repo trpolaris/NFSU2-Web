@@ -88,6 +88,7 @@ int main(int argc, char **argv){
       if (ro && *ro && *ro != '0'){ fileio_set_readonly_root(1);
           fprintf(stderr, "file: game folder is read-only (NFSU2_READONLY_DATA)\n"); } }
     dispatch_init(); win32_init();
+    { extern void showoff_install(void); showoff_install(); } /* free-roam hood, trunk and door animations */
     { extern void overrides_install(void); overrides_install(); }
     { extern void language_install(void); language_install(); }   /* NFSU2_LANGUAGE: the language pack, the exe's tables */
     { extern void sponsors_install(void); sponsors_install(); }   /* the sponsor screens' Continue (help bar) */
