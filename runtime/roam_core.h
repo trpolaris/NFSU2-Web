@@ -131,7 +131,7 @@ enum { RC_MSG_HELLO = 1, RC_MSG_PEERS = 2, RC_MSG_SNAP = 3, RC_MSG_CFG = 4, RC_M
         * racer's place in them, by its player's id, its time and how far it came.  The server compares the players'
         * games' results for a racer far ahead of the others (a teleport to the finish, a speed hack).  A hub before it
         * ignores the type, and no player is sent one */
-       RC_MSG_RACERES = 16, RC_MSG_NEARREQ = 19, RC_MSG_NEARD = 20 };
+       RC_MSG_RACERES = 16, RC_MSG_NEARREQ = 19, RC_MSG_NEARD = 20,
        /* DENTS is 21: TRPOLARIS reserves 18/19/20 for MAPD/NEARREQ/NEARD. */
        RC_MSG_DENTS = 21 };
 enum { RC_DENTS_STATE = 1, RC_DENTS_HAVE = 2 };
