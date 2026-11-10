@@ -8,7 +8,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { SLURS, EDGE_OK, WHOLE_OK, PID_STEMS, HATE, blockedName, blockedPlate } from '../src/app/names.mjs';
+import { SLURS, EDGE_OK, WHOLE_OK, PID_STEMS, HATE, PLATE, blockedName, blockedPlate } from '../src/app/names.mjs';
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const OUT = path.join(REPO, 'out/web/test'); fs.mkdirSync(OUT, { recursive: true });
@@ -73,6 +73,9 @@ const ALLOWED = ['Mustafa69', 'MustafaGS', 'Mustafa_GS', 'Mustafa Gamer', 'musta
   'Ignazio', 'Ignazi', 'Schlitter', 'HellsSpawn', 'Hellhammer', 'Sheila', 'Heilig', 'Casinojewel', 'Waffen',
   'Panzer', 'Reichert', 'Car14_89', 'Nazlı', 'Nazib', 'Shitlord', 'Goebel',
   'Kaiserreich', 'Adolfo', 'Adolfinho', 'Swastik', 'Zyklon', 'Rudolf'];
+
+const PLATE_BLOCKED = ['BIGFAG', 'KILLFAGS', 'KKK', 'KKK77', 'HH88', '88SS', 'HEIL88', 'SIEG88', 'WP88', 'N1GGER', '1488'];
+const PLATE_ALLOWED = ['AB123456', 'BAYVIEW', 'SS14', 'RACCOON', 'TYCOON', 'SPEEDO', 'MIDNIG'];
 
 test('license plates: shared slurs plus compact plate-only hate codes', () => {
   for (const p of ['BIGFAG', 'KILLFAGS', 'KKK', 'KKK77', 'HH88', '88SS', 'HEIL88', 'SIEG88', 'WP88', 'N1GGER', '1488'])
