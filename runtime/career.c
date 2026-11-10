@@ -57,6 +57,9 @@
  * and "*" between two operands (multiply), e.g. "*(*0x890118+0xbd0)".
  */
 #include "cpu.h"
+#include "guest.h"
+#include "game.h"
+#include "splitscreen_mem.h"
 #include "mpcredit.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -72,12 +75,7 @@ long autotest_frame(void);
 void autotest_tap(unsigned dik, long frames);
 
 /* ---- guest globals (v1.2 NA, verified in our exe) ------------------------ */
-#define G_FLOW          0x008654a4u   /* TheGameFlowManager state (6 = in game) */
-#define G_PLAYER1       0x008900acu   /* PlayersByNumber[0] (Player*) */
-#define G_HOTPOS        0x00890140u   /* hot-position vec3 used by the jump */
-#define G_HOTPOS_ANGLE  0x008900d0u   /* u16 */
-#define G_HOTPOS_JUMP   0x008900cdu   /* u8: jump to the hot position */
-#define G_HOTPOS_VALID  0x008900ceu   /* u8: a hot position is stored */
+#define G_PLAYER1       SPLIT_PLAYERS_INDEX   /* PlayersByNumber[0] (Player*) */
 #define FN_AUTOPILOT_ON  0x005fae20u  /* Player::AutoPilotOn(this) */
 #define FN_AUTOPILOT_OFF 0x005faf10u  /* Player::AutoPilotOff(this) */
 #define FN_SETINPUTMODE  0x00605c70u  /* Player::SetInputMode(this, mode) */
