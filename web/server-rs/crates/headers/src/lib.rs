@@ -603,6 +603,20 @@ pub fn client_ip(q: &impl Req, trust: &ProxyTrust, header: &str) -> String {
     peer.to_ascii_lowercase()
 }
 
+/// The country of a client as a trusted proxy names it (Cloudflare's CF-IPCountry).
+/// Never trust this header from a direct browser connection; omit unknown/Tor codes.
+pub fn client_country(q: &impl Req, trust: &ProxyTrust) -> Option<[u8; 2]> {
+    if !trust.trusts(q.peer()) {
+        return None;
+    }
+    let country = js::trim(q.header("cf-ipcountry")?).as_bytes();
+    if country.len() != 2 || !country.iter().all(u8::is_ascii_alphabetic) {
+        return None;
+    }
+    let country = [country[0].to_ascii_uppercase(), country[1].to_ascii_uppercase()];
+    (&country != b"XX" && &country != b"T1").then_some(country)
+}
+
 /// The browser reached us over https: directly, or through a trusted proxy that says so (X-Forwarded-Proto, else
 /// Cloudflare's CF-Visitor).
 pub fn via_https(q: &impl Req, trust: &ProxyTrust) -> bool {
