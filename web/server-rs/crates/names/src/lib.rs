@@ -712,8 +712,7 @@ pub fn blocked_plate(plate: &str) -> bool {
             return true;
         }
         if is_part(p, PLATE_NUMBERS)
-            && ((k > 0 && is_part(parts[k - 1], PLATE_MARKS))
-                || (k + 1 < parts.len() && is_part(parts[k + 1], PLATE_MARKS)))
+            && ((k > 0 && is_part(parts[k - 1], PLATE_MARKS)) || (k + 1 < parts.len() && is_part(parts[k + 1], PLATE_MARKS)))
         {
             return true;
         }
