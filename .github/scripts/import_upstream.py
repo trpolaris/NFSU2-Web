@@ -6,6 +6,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+UPSTREAM_BASE = "9a9254560a8a36a1d3dcfd19fd245281e56009f3"
 UPSTREAM_SHA = "9e0230212776f6c9a4d0db30c1963e9730138553"
 BRANCH = "feat/remaining-runtime-features-2026-11"
 REPORT = Path("docs/UPSTREAM-SYNC-2026-11-09.md")
@@ -75,10 +76,11 @@ def main():
     if upstream != UPSTREAM_SHA:
         raise SystemExit("Upstream main changed: expected " + UPSTREAM_SHA + " got " + upstream)
 
-    base = git("merge-base", "HEAD", UPSTREAM_SHA, text=True).strip()
-    if not base:
-        raise SystemExit("No common Git ancestor; refusing a blind copy")
-    print("UPSTREAM_MERGE_BASE=" + base)
+    base = UPSTREAM_BASE
+    check_base = run(["git", "cat-file", "-e", base + "^{commit}"], check=False)
+    if check_base.returncode:
+        raise SystemExit("The reviewed upstream comparison base is unavailable: " + base)
+    print("UPSTREAM_COMPARISON_BASE=" + base)
 
     changes = parse_name_status(git("diff", "--name-status", "-z", "--no-renames", base, UPSTREAM_SHA))
     added, merged, deleted, skipped, conflicts = [], [], [], [], []
@@ -173,7 +175,7 @@ def main():
         "",
         "- Upstream: th0mk/nfsu2-web",
         "- Exact upstream commit: " + UPSTREAM_SHA,
-        "- Actual Git merge base: " + base,
+        "- Previous integrated upstream snapshot: " + base,
         "- Target branch: " + BRANCH,
         "- Policy: three-way merge; conflicting hunks keep the TRPOLARIS version.",
         "- Retained TRPOLARIS CI workflows; upstream workflow files and Discord bot were not imported.",
