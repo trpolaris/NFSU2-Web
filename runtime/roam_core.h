@@ -67,6 +67,7 @@
 #define RC_EXT_PERF      1
 #define RC_EXT_HORN      2          /* car-look record extension 2: the player's horn, 1 byte */
 #define RC_EXT_RATING    3          /* car-look record extension 3: class and rounded performance rating */
+#define RC_EXT_STANCE    4          /* car-look record extension 4: stance values, 8 bytes */
 #define RC_DUEL_INBOX    16         /* DUEL messages held for the game side */
 #define RC_MAP_ENTRY     5          /* a MAP entry: x, y (int16, m), heading (u8, 256 a turn) */
 #define RC_MAP_PER       230        /* entries per MAP datagram at most */
@@ -131,6 +132,9 @@ enum { RC_MSG_HELLO = 1, RC_MSG_PEERS = 2, RC_MSG_SNAP = 3, RC_MSG_CFG = 4, RC_M
         * games' results for a racer far ahead of the others (a teleport to the finish, a speed hack).  A hub before it
         * ignores the type, and no player is sent one */
        RC_MSG_RACERES = 16, RC_MSG_NEARREQ = 19, RC_MSG_NEARD = 20 };
+       /* DENTS is 21: TRPOLARIS reserves 18/19/20 for MAPD/NEARREQ/NEARD. */
+       RC_MSG_DENTS = 21 };
+enum { RC_DENTS_STATE = 1, RC_DENTS_HAVE = 2 };
 /* RACEREP flags */
 #define RC_RR_HOST       0x01       /* the reporter hosted the race */
 #define RC_RR_QUIT       0x02       /* ...left it with its pause menu's Quit */
@@ -229,9 +233,13 @@ enum { RC_PLAT_MAC = 1, RC_PLAT_WIN = 2, RC_PLAT_TOOL = 3 };
 #define RC_HF_HUBCREW    0x0400
 /* HELLO, core 9: a moderated license plate follows the crew list. */
 #define RC_HF_PLATE      0x8000
+#define RC_HF_DRIFT      0x1000  /* HELLO: accepts drift battles */
+#define RC_HF_SEAT2      0x2000  /* HELLO: second local co-op player */
 /* HELLO: this player shows friends' crash damage and receives RC_MSG_DENTS. */
 #define RC_HF_DENTS      0x4000
 #define RC_MARK_FRIEND   0x80       /* mutual friend bit in a hub PEERS crew mark */
+#define RC_MARK_RXONLY   0x20       /* hub link: we receive this peer's car only */
+#define RC_MARK_TXONLY   0x40       /* hub link: this peer receives our car only */
 /* decoder results */
 enum { RC_OK = 0, RC_E_SHORT = -1, RC_E_MAGIC = -2, RC_E_VERSION = -3, RC_E_LENGTH = -4,
        RC_E_CRC = -5, RC_E_TYPE = -6, RC_E_FIELD = -7, RC_E_TRAIL = -8, RC_E_RANGE = -9 };
@@ -520,8 +528,11 @@ typedef struct {
     uint32_t hub_ip;
     uint16_t hub_port;
     int      duels;                /* we take outrun challenges (HELLO says so: RC_HF_DUELS) */
+    int      drifts;               /* we take drift battles (HELLO says so: RC_HF_DRIFT) */
     int      lobbies;              /* we take race lobbies (HELLO says so: RC_HF_LOBBY) */
     int      say;                  /* we take quick chat (HELLO says so: RC_HF_SAY) */
+    int      links;                /* maximum hub links we want; 0 means server default */
+    int      seat2;                /* second local player on this browser */
      int      dents;                /* show friends' crash damage (HELLO says so: RC_HF_DENTS) */
 } rc_config;
 
@@ -535,11 +546,14 @@ typedef struct {
     int64_t  added_us, last_rx_us, last_hello_tx, last_ping_tx, last_cfgreq_tx, last_snap_rx;
     int64_t  cfg_answer_us;        /* our record goes to it again (asked for, or at its join) from then on */
     int64_t  hub_listed_us;        /* the hub's list named it last (0: never) */
+    uint8_t  far;                  /* our send cadence to this peer: every 1, 4 or 10 snapshots */
+    uint8_t  hub_far;              /* cadence advised by hub hints: 0 = no hint */
     char     name[RC_NAME_MAX + 1];
     char     plate[RC_PLATE_MAX + 1]; /* last valid HELLO plate; empty means the game's own */
     uint8_t  platform, status;
     uint16_t core_ver;             /* its HELLO's (0 until one came): below 2 it reads lists of RC_PEERS_V1 at most */
     uint8_t  duels;                /* its HELLO says it takes outrun challenges (RC_HF_DUELS) */
+    uint8_t  drifts;               /* its HELLO says it takes drift battles (RC_HF_DRIFT) */
     uint8_t  lobbies;              /* its HELLO says it takes race lobbies (RC_HF_LOBBY) */
     uint8_t  statex;              /* its HELLO says it reads state extensions (RC_HF_STATEX) */
     uint8_t  say;                  /* its HELLO says it takes quick chat (RC_HF_SAY) */
@@ -547,6 +561,7 @@ typedef struct {
     uint8_t  n_crews;  uint32_t crews[RC_CREW_MAX];   /* its crews, as its last HELLO had them (an older core's, or no hub) */
     uint8_t  n_hub_crews; uint32_t hub_crews[RC_CREW_MAX];   /* our crews it is in too, as the hub's last list naming it said */
     uint8_t  hub_friend;                                     /* mutual friend according to hub PEERS mark */
+    uint8_t  hub_way;                                        /* RC_MARK_RXONLY / RC_MARK_TXONLY; 0 = both ways */
     uint16_t cfg_rev_seen;         /* what the peer announces */
     int      hears_us, lost;
     int      hears_miss;           /* with the hub: one HELLO without our id forgiven (hub mode only) */
