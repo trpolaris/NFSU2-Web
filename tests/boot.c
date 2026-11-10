@@ -171,6 +171,7 @@ int main(int argc,char**argv){
     { extern void regional_install(void); regional_install(); }       /* the European game's Corsa and 106 for sale, and AI racers' cars */
     { extern void garage_install(void); garage_install(); }           /* the career garage's slots 6-10 and Trade Car */
     { extern void vinylpacks_install(void); vinylpacks_install(); }   /* Art Factory 28-34 (VINYLPACKS) */
+    { extern void showoff_install(void); showoff_install(); }       /* free-roam hood, trunk and door animations */
     { extern void specialties_install(void); specialties_install(); } /* Car Specialties: Stock gauges again, Trunk Audio's Back */
     { extern void carshadow_install(void); carshadow_install(); }     /* a car's shadow 1.5 cm above the road, not 4: off its wheels */
     { extern void autotest_init(void); autotest_init(); }       /* NFSU2_INPUT_SCRIPT ... */
