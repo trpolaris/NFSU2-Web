@@ -38,7 +38,7 @@ import { PAD_DRIVER_EVENT } from '../input/gamepad';
 import { TextField } from './textentry';
 import { PauseHint } from './pausehint';
 import { DriftPanel } from './drift';
-import { PhotoMode } from './photo';
+import { PhotoMode, photoMark } from './photo';
 import type { PadPage } from '../input/gamepad';
 import type { NetQueue, NetRemoved } from '../net';
 import { blockList, checkSetting, HOST_FIXED, pageOnly, resolveEnv, TEMPLATE, type Resolved } from './settings';
@@ -1340,11 +1340,11 @@ function toast(msg: string, ms: number) {
 
 /** F12 (photo.ts: photo mode's picture, or where it cannot open): the next frame the renderer draws, as a PNG beside the
  *  saves (Saves on the start page shows it) */
-async function screenshot() {
+async function screenshot(photo = false) {
   const r = session?.renderer;
   if (!r?.dump) { toast(t('No screenshot: the picture is not there yet.'), 2500); return; }
   try {
-    const png = await r.dump('screenshot');
+    const png = photo && r.photo ? await r.photo('screenshot', photoMark()) : await r.dump('screenshot');
     if (!png.size) throw new Error('the game ended first');
     const name = await saveScreenshot(SAVE, png);
     log.add(`[app] screenshot ${name}, ${fmtBytes(png.size)}`);
@@ -2389,7 +2389,7 @@ export async function boot() {
     fullscreen: () => canFullscreen() || !fromHomeScreen(),
   });
   driftPanel = new DriftPanel($('#stage'), { toast, wide: () => hudWide, log: logLine });
-  photo = new PhotoMode($('#stage'), { shoot: screenshot, screenshot: () => void screenshot(), log: logLine });
+  photo = new PhotoMode($('#stage'), { shoot: () => screenshot(true), screenshot: () => void screenshot(), log: logLine });
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { void checkNewer(); vault.shown(); } });
   setInterval(() => { if (document.visibilityState === 'visible') void checkNewer(); }, NEWER_EVERY_MS);
 
