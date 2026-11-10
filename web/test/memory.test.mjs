@@ -52,6 +52,28 @@ test('nothing given: the last refusal, for the page\'s GAME-START, with every tr
   assert.equal(b.asked.length, tries.length);
 });
 
+test('a computer: 2 GB first for the guest heap\'s window, then the tries of before; elsewhere those alone', () => {
+  assert.deepEqual(memoryTries(GB, true), [{ initial: 32768, maximum: 65536, optional: true }, ...tries]);
+  assert.deepEqual(memoryTries(GB, false), tries);
+  const b = browser(65536);
+  const { memory, note } = allocMemory(memoryTries(GB, true), b.make);
+  assert.deepEqual(memory.t, { initial: 32768, maximum: 65536, optional: true });
+  assert.equal(note, '[memory] 2048 MB, up to 4096 MB');
+  // a browser that can't give 2 GB from the start: today's 1 GB, and the log says what it refused
+  const small = { asked: [], make: t => { small.asked.push(t); if (t.initial > GB) throw new RangeError(REFUSED); return { t }; } };
+  const r = allocMemory(memoryTries(GB, true), small.make);
+  assert.deepEqual(r.memory.t, { initial: GB, maximum: 65536 });
+  assert.equal(r.note, `[memory] 1024 MB, up to 4096 MB: the browser refused 2048 MB, up to 4096 MB (${REFUSED})`);
+  // Firefox's refusal of a memory it can't commit is a plain "out of memory", not a RangeError: passed over for the
+  // window's try only
+  const ff = t => { if (t.initial > GB) throw 'out of memory'; return { t }; };
+  const f = allocMemory(memoryTries(GB, true), ff);
+  assert.deepEqual(f.memory.t, { initial: GB, maximum: 65536 });
+  assert.equal(f.note, '[memory] 1024 MB, up to 4096 MB: the browser refused 2048 MB, up to 4096 MB (out of memory)');
+  assert.throws(() => allocMemory(tries, () => { throw 'out of memory'; }), e => e === 'out of memory');
+  assert.throws(() => allocMemory(memoryTries(GB, true), () => { throw new TypeError('no shared memory'); }), TypeError);
+});
+
 test('no shared memory at all is no size question: thrown at once', () => {
   let n = 0;
   assert.throws(() => allocMemory(tries, () => { n++; throw new TypeError('shared memory is not available'); }), TypeError);
@@ -64,11 +86,11 @@ test('the real constructor makes a shared memory of the size tried', () => {
   assert.equal(memory.buffer.byteLength, 32 * 65536);
 });
 
-
+// WebKit's page holds the memory's buffer only (memory.ts: a live WebAssembly.Memory keeps JavaScriptCore from collecting)
 test('the page holds the buffer only in WebKit: Safari and every browser on an iPhone, not Chrome or Firefox', () => {
   const safari = 'Mozilla/5.0 (iPhone; CPU iPhone OS 27_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/27.0 Mobile/15E148 Safari/604.1';
   const crios = 'Mozilla/5.0 (iPhone; CPU iPhone OS 27_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/150.0 Mobile/15E148 Safari/604.1';
-  const macSafari = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/27.0 Safari/605.1';
+  const macSafari = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/27.0 Safari/605.1.15';
   const chrome = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36';
   const firefox = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:159.0) Gecko/20100101 Firefox/159.0';
   assert.deepEqual([safari, crios, macSafari, chrome, firefox].map(u => memoryOffPage(u)), [true, true, true, false, false]);

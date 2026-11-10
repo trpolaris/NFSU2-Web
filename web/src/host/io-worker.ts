@@ -18,6 +18,7 @@ import {
 import { BLOCK, CACHE_DIR, av1Path, blockRuns, cacheKey, dataUrl, openCacheFile, putBlock, runUrl, type CacheFile, type Manifest } from './datacache';
 import { movieClose, movieDecode, movieOpen } from './movie';
 import { allocMemory, type MemoryTry } from './memory';
+import type { ReadAsk, ReadAnswer } from './proto';
 
 interface Init { memory?: WebAssembly.Memory; tries?: MemoryTry[]; ctl: SharedArrayBuffer; rpc: SharedArrayBuffer; cfg: BootConfig }
 
@@ -684,8 +685,9 @@ async function serve() {
   }
 }
 
-onmessage = async (e: MessageEvent<Init | { t: 'save-ready' } | { t: 'give'; port: MessagePort; slot: number } | { t: 'give-page'; slot: number }>) => {
+onmessage = async (e: MessageEvent<Init | { t: 'save-ready' } | { t: 'give'; port: MessagePort; slot: number } | { t: 'give-page'; slot: number }>) => {onmessage = async (e: MessageEvent<Init | { t: 'save-ready' } | { t: 'give'; port: MessagePort; slot: number } | { t: 'give-page'; slot: number } | ReadAsk>) => {
   if ('t' in e.data) {
+    if (e.data.t === 'read') { void pageRead(e.data); return; }
     if (e.data.t === 'give') {
       try { e.data.port.postMessage(memory); }
       catch (x) { me.postMessage({ t: 'give-here', slot: e.data.slot, memory }); }

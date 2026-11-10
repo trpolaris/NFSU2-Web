@@ -41,7 +41,11 @@ export const E = {
   NAMETOOLONG: 37, NOENT: 44, NOSPC: 51, NOSYS: 52, NOTDIR: 54, NOTEMPTY: 55, NOTSUP: 58, PERM: 63, ROFS: 69, SPIPE: 70,
 } as const;
 
-export interface BootConfig {
+export interface BootConfig {/** The page asks the I/O worker for bytes of a game-folder file. */
+export interface ReadAsk { t: 'read'; id: number; path: string; off: number; len: number; exact?: boolean }
+export interface ReadAnswer { t: 'read'; id: number; bytes?: Uint8Array<ArrayBuffer>; error?: string }
+
+
   args: string[];
   env: Record<string, string>;
   dataBase: string;        // URL prefix of the install folder (".../data/")
