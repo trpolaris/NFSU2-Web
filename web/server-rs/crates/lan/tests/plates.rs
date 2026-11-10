@@ -29,11 +29,7 @@ fn datagram(flags: u16, ext: bool, plate: Option<&[u8]>) -> Vec<u8> {
 }
 
 fn hello(plate: &[u8]) -> Vec<u8> {
-    if plate.is_empty() {
-        datagram(0x0200, false, None)
-    } else {
-        datagram(0x0A00, true, Some(plate))
-    }
+    if plate.is_empty() { datagram(0x0200, false, None) } else { datagram(0x0A00, true, Some(plate)) }
 }
 
 fn sanitized_extended_hello() -> Vec<u8> {
@@ -50,7 +46,7 @@ async fn malformed_and_blocked_plates_are_removed_without_dropping_players_and_c
     b.welcome().await;
 
     let send = |d: &[u8]| a.udp(b.vip, 47210, 47210, d, 1, 0);
-    let broken: [&[u8]; 5] = [b"123456789", b"bad", b"A B", b"A\0B", "É".as_bytes()];
+    let broken: [&[u8]; 5] = [b"123456789", b"bad", b"A B", b"A\\0B", "É".as_bytes()];
     let blocked: [&[u8]; 3] = [b"N1GGER", b"N1GGER", b"1488"];
 
     for value in broken.iter().chain(blocked.iter()) {
@@ -68,16 +64,8 @@ async fn malformed_and_blocked_plates_are_removed_without_dropping_players_and_c
     send(&bad_crc);
     a.flush().await;
 
-    let mut expected: Vec<Vec<u8>> = (0..broken.len() + blocked.len())
-        .map(|_| sanitized_extended_hello())
-        .collect();
-    expected.extend([
-        hello(b"AB123456"),
-        hello(b"AB123456"),
-        hello(b"AB123456"),
-        hello(b""),
-        bad_crc,
-    ]);
+    let mut expected: Vec<Vec<u8>> = (0..broken.len() + blocked.len()).map(|_| sanitized_extended_hello()).collect();
+    expected.extend([hello(b"AB123456"), hello(b"AB123456"), hello(b"AB123456"), hello(b""), bad_crc]);
 
     b.until_true(|g| g.frames.len() >= expected.len()).await;
     tokio::time::sleep(std::time::Duration::from_millis(100)).await;
