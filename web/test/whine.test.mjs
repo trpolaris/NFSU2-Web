@@ -1,6 +1,6 @@
 // Transmission Whine's sounds (runtime/whine.c, tools/whinepack.py, web/src/host/datacache.ts):
 //   node --test web/test/whine.test.mjs
-// - the preload fetches MODPACKS/WHINE only with the whine on, and the rest of MODPACKS either way
+// - preload follows the selected DAMAGE/WHINE packs, fetches only selected texture/song data, and leaves HQ vinyls on demand
 // - tools/whinepack.py writes MODPACKS/WHINE's three sounds from the mod's release (a zip, or its files extracted): the
 //   1.0.2 release's own unless --any, 16-bit mono WAVs only, all three or nothing
 // The modules are bundled from web/src with esbuild, as web/test/songs.test.mjs does.
