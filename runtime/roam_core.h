@@ -42,6 +42,7 @@
 #define RC_HDR           16
 #define RC_CRC           4
 #define RC_NAME_MAX      24
+#define RC_PLATE_MAX     8
 #define RC_MAX_PLAYERS   33         /* the mesh: this machine + 32 peers */
 #define RC_MAX_PEERS     (RC_MAX_PLAYERS - 1)
 #define RC_PEERS_V1      7          /* the most a core of version 1 reads in a HELLO's ids or a PEERS list */
@@ -247,7 +248,8 @@ float    rc_getf(rc_r *r);
 void     rc_getb(rc_r *r, void *dst, uint32_t n);
 uint32_t rc_crc32(const uint8_t *p, uint32_t n);
 uint32_t rc_fnv1a(const char *s);           /* 0 for "" */
-uint32_t rc_room_hash(const char *s);       /* room names -> room hash: capitals and spaces do not count (0: none) */
+uint32_t rc_room_hash(const char *s);
+int rc_plate_ok(const char *s, uint32_t n);       /* room names -> room hash: capitals and spaces do not count (0: none) */
 uint32_t rc_fnv1a_bytes(const uint8_t *p, uint32_t n);
 uint32_t rc_fbits(float f);
 float    rc_bitsf(uint32_t u);
