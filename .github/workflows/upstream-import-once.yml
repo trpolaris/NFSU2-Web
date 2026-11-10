@@ -1,4 +1,5 @@
 name: One-time upstream import
+# Retry after switching to the last integrated upstream base.
 
 on:
   push:
