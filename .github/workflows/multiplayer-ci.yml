@@ -105,6 +105,11 @@ jobs:
             echo "Compile $source -> $object"
             "$CC" "${flags[@]}" -c "$source" -o "$object"
           done
+          # Run the same license-plate texture and Free Roam HELLO tests as native, on the production WASI target.
+          "$CC" "${flags[@]}" tests/plates_unit.c runtime/plate_image.c runtime/roam_core.c -lm \
+            -Wl,--import-memory,--export-memory,--shared-memory,--initial-memory=67108864,--max-memory=268435456 \
+            -Wl,-z,stack-size=8388608 -o "$RUNNER_TEMP/plates_unit.wasm"
+          node web/test/wasi-run.mjs "$RUNNER_TEMP/plates_unit.wasm"
 
       - name: Link-check WASI compatibility and mprace API
         run: bash web/tools/check-wasi-runtime.sh

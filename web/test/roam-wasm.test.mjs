@@ -36,6 +36,18 @@ test('roam_unit on wasm (core + web platform layer)', { skip: !CC && 'no wasi-sd
   assert.ok(+m[1] >= 119, 'every check ran');
 });
 
+test('plates_unit on wasm (renderer + Free Roam HELLO protocol)', { skip: !CC && 'no wasi-sdk in deps/' }, () => {
+  const w = path.join(OUT, 'plates_unit.wasm');
+  cc(w, ['tests/plates_unit.c', 'runtime/plate_image.c', 'runtime/roam_core.c']);
+  const out = run(w);
+  const m = /plates_unit: (\d+) passed, (\d+) failed/.exec(out);
+  console.log(out.trim().split('\n').filter(l => /FAIL|plates_unit/.test(l)).join('\n'));
+  assert.ok(m, 'plates_unit ran to the end');
+  assert.equal(+m[2], 0, 'no failed check');
+  assert.ok(+m[1] >= 50, 'renderer and HELLO protocol checks ran');
+});
+
+
 test('the pose log flushes only every 240 frames (roam_host.h buffer)', { skip: !CC && 'no wasi-sdk in deps/' }, () => {
   const w = path.join(OUT, 'poselog_unit.wasm');
   execFileSync(CC, ['--target=wasm32-wasip1-threads', '-pthread', '-O2', '-include', 'runtime/web/compat/wasm_plat.h',
