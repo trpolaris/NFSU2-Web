@@ -20,8 +20,7 @@
 #include <stddef.h>
 
 #define GW_MAGIC   0x55504757u          /* "WGPU" */
-#define GW_VERSION 5u                   /* 2: the headlights block in the K arena (GwHL); 3: K blocks 16-byte aligned, bound in windows;
-                                           4: GwDraw.clip; 5: GW_BLIT's source rectangle, a texture read back (GwFrame.rb_*) */
+#define GW_VERSION 7u                   /* 7: immutable per-draw headlights */
 #define GW_NBUF    2                    /* record buffers: one being written, one handed off */
 
 /* GwDraw.kind */
@@ -46,12 +45,12 @@ typedef struct {
     uint32_t koff;        /* VS constant block offset in the K arena (16-byte aligned) */
     float    proj[4];     /* per stage: TEXCOORDINDEX + 16 * projection mode */
     uint32_t smp[4];      /* packed sampler keys (com.c smp_push) */
-    uint32_t blit_src;    /* GW_BLIT: source texture id (0 = back buffer) */
+    uint32_t blit_src;    /* GW_BLIT: source texture id; GW_DRAW: headlight block byte offset */
     uint32_t bcol;        /* D3DRS_BLENDFACTOR (ARGB) */
     uint32_t cull;        /* D3DCULL: 1 none, 2 CW, 3 CCW */
     float    fogv[4];     /* fog colour rgb + enable */
-    uint32_t clr_argb;    /* GW_CLEAR: colour */
-    uint32_t clr_flags;   /* GW_CLEAR: D3DCLEAR_* (1 target, 2 Z, 4 stencil) */
+    uint32_t clr_argb;    /* GW_CLEAR: colour; GW_DRAW: normalized effect clip left|top<<16 */
+    uint32_t clr_flags;   /* GW_CLEAR: D3DCLEAR_*; GW_DRAW: normalized right|bottom<<16 (0 = no clip) */
     float    clr_z;       /* GW_CLEAR: Z value */
     uint32_t ksz;         /* VS constant block size in bytes (16 + 16 * nk) */
     uint32_t ix_isz;      /* indexed draw: index size 2 or 4; 0 = not indexed */
@@ -59,6 +58,7 @@ typedef struct {
     int32_t  ix_base;     /* indexed draw: BaseVertexIndex */
     uint32_t clip;        /* the 2D UI on a screen narrower than 4:3: rows y0 | y1 << 16 of the back buffer
                            * (its 4:3 band), the draw kept between them; 0 = the whole target (com.c) */
+    float viewport[6];   /* x,y,width,height,minZ,maxZ; width=0: full target */
 } GwDraw;
 
 typedef struct {
@@ -132,6 +132,7 @@ typedef struct {
 
 #define GW_FEAT_BC       1u   /* texture-compression-bc */
 #define GW_FEAT_SWIZZLE  2u   /* texture-component-swizzle */
+#define GW_FEAT_HQSKIN   4u   /* the page paints car skins again at 1024 (GW_SKIN_HQ): HQ vinyls, a PC with BC */
 
 /* The page's display clock, filled from requestAnimationFrame. */
 typedef struct {
@@ -155,19 +156,49 @@ enum {
     GW_SHADER_VS   = 6,   /* a: id, text bytes; payload WGSL (NUL-terminated) */
     GW_SHADER_PS   = 7,   /* a: id, text bytes; payload WGSL (NUL-terminated) */
     GW_Z_FORGET    = 8,   /* a: zid */
-    GW_BB_SAMPLES  = 9,   /* a: the back buffer's samples from the next frame on, 1 or 4 */
+    GW_BB_SAMPLES  = 9,   /* a: the back buffer's samples from the next frame on, 1 or 4 (com.c MULTISAMPLING; a page
+                           * without it skips the record and draws with 1) */
+    GW_SKIN_HQ     = 10,  /* a: id, recipe bytes; payload GwSkinHq, then its layers' alpha planes (runtime/hqvinyls.c) */
 };
 #define GW_TF_RT   1u
 #define GW_TF_CUBE 2u
-#define GW_TF_MS   8u     /* with GW_TF_RT: a render target drawn at 4 samples */
+#define GW_TF_MS   8u     /* with GW_TF_RT: a render target drawn at 4 samples, resolved into the texture at the end of
+                           * every pass (CreateRenderTarget with multisampling, com.c MULTISAMPLING; a page without it
+                           * draws the target with 1) */
 typedef struct { uint32_t op, len; uint32_t a[6]; } GwCmd;
 #define GW_CMD_HDR 32u
+
+/* A car skin the game just painted at 512 (DUMMY_SKIN<n>, texture id a[0]), to be painted again at 1024 from the HQ
+ * vinyls' pictures (HQVINYLS/CARS/<car>.hqv, tools/hqvinyls.py) and shown in its place (web/src/gpu/hqskin.ts):
+ * the game's compositor's recipe (0x611F10's argument), its colours as it holds them: R, G, B, A bytes (A = gloss).
+ * A layer drawn as it is (no REMAP: a doorline, some vinyls) gives the skin its alpha, which the HQ pictures do not
+ * have: alpha = GW_SKIN_HQ_PLANE then means a 512x512 plane of the game's own (one byte a pixel) follows the
+ * recipe, the layers' planes in their order; else alpha is the layer's one alpha (or unused, with REMAP). */
+#define GW_SKIN_HQ_MAGIC  0x4B535148u     /* "HQSK" */
+#define GW_SKIN_HQ_LAYERS 8
+#define GW_SKIN_HQ_PLANE  0x100u
+#define GW_SKIN_HQ_SIDE   512u            /* the game's skins and layers */
+typedef struct {
+    uint32_t hash;        /* the layer picture's name hash (<car>_<TEXTURE>, <car>_DOORLINE...) */
+    uint32_t mask;        /* its mask's (... + "_MASK") */
+    uint32_t remap;       /* nonzero: coloured by col[0..2] by the picture's R, G, B */
+    uint32_t alpha;       /* without REMAP: the layer's alpha 0..255, or GW_SKIN_HQ_PLANE */
+    uint32_t col[4];      /* R, G, B, A bytes */
+} GwSkinHqLayer;
+typedef struct {
+    uint32_t magic;       /* GW_SKIN_HQ_MAGIC */
+    uint32_t serial;      /* the runtime's count of skins sent (a newer one for the same id wins) */
+    char     car[16];     /* the car's folder (CARS/<car>), NUL-padded */
+    uint32_t base;        /* the base paint, R, G, B, A bytes */
+    uint32_t n;           /* layers */
+    GwSkinHqLayer layer[GW_SKIN_HQ_LAYERS];
+} GwSkinHq;
 
 /* The other cars' headlights (runtime/headlights.c): every frame's VS
  * constant arena holds this block at GW_K_HL, bound as group 0 binding 3 (H)
  * for the lit pixel shaders, which add car k's light at q * t (q: their
  * coordinate in the player's light, uv1; t: columns) with the falloff
- * coordinate s * q'.w + o (gpu-abi.md section 2).  n = 0: none this frame. */
+ * coordinate s * q'.w + o.  n = 0: none this frame. */
 #define GW_HL_MAX   8
 typedef struct { float t[16]; float col[4]; } GwHLight;
 typedef struct { uint32_t n; float s, o, pad; GwHLight l[GW_HL_MAX]; } GwHL;
@@ -201,16 +232,58 @@ typedef struct { uint32_t magic; float mult, white, knee; } GwTone;
 #define GW_K_TONE      1552u
 #define GW_TONE_BYTES  16u
 
+/* Input age (framerate.c): every frame's VS constant arena holds this block
+ * at GW_K_LAT: when the game read the input this frame simulates with, and
+ * when it handed the frame off, in ms of the shared clock
+ * (performance.timeOrigin + performance.now()).  The page logs how old that
+ * input is when the frame is submitted, done on the GPU and next shown.
+ * magic: GW_LAT_MAGIC (where a module without the block has zeros).  The page
+ * binds none of it. */
+#define GW_LAT_MAGIC   0x4E54414Cu        /* "LATN" */
+typedef struct { uint32_t magic, pad; double input_ms, handoff_ms; } GwLat;
+#define GW_K_LAT       1568u
+#define GW_LAT_BYTES   24u
+
+/* Photo mode's picture (photo.c): every frame's VS constant arena holds this
+ * block at GW_K_PHOTO, which the page reads with the frame it encodes.  state
+ * GW_PHOTO_LIVE: the frame as it is (the camera moves); GW_PHOTO_ADD: frame n
+ * of the target frames of still picture gen, each drawn from a slightly
+ * different spot (smooth edges, the lens's blur), which the page averages
+ * (the first replaces what it had); GW_PHOTO_DONE: the picture has its
+ * frames, this one adds nothing; GW_PHOTO_NOW: the frame as it is is the
+ * picture (time runs on: nothing to add up).  magic: GW_PHOTO_MAGIC; none, or
+ * GW_PHOTO_OFF: photo mode is off.  The page binds none of it.
+ * ack is the page's, in both buffers' blocks (the game hands over only the
+ * words before it): gen << 16 | the frames of that picture it has.  The game
+ * draws frame n + 1 next, so a frame the page never encodes (a newer one
+ * took its place, the GPU behind) is drawn again, and none counts twice.
+ * want is the page's too: a picture asked for (Take photo), as a number
+ * 1 .. 0xFFFF in its low half and the most tiles a side the page can put
+ * together (1 .. 4) at 16.  tile is the game's answer, for that frame: the
+ * tile drawn (its index, left to right then top to bottom) in its low byte,
+ * the tiles a side at 8, what the game is taking at 12 (GW_CAP_*: nothing
+ * but the still picture, a bigger picture in tiles, a shutter's time) and
+ * the last picture asked for that it saw at 16.  fov: the field of view the
+ * frame is drawn with (degrees across), and lens what the page makes of it
+ * (GW_LENS_*: as drawn, a fisheye). */
+#define GW_PHOTO_MAGIC 0x544F4850u        /* "PHOT" */
+enum { GW_PHOTO_OFF = 0, GW_PHOTO_LIVE = 1, GW_PHOTO_ADD = 2, GW_PHOTO_DONE = 3, GW_PHOTO_NOW = 4 };
+enum { GW_CAP_NONE = 0, GW_CAP_TILES = 1, GW_CAP_SHUTTER = 2 };
+enum { GW_LENS_PLAIN = 0, GW_LENS_FISHEYE = 1 };
+typedef struct { uint32_t magic, state, n, target, gen, ack, tile, want; float fov; uint32_t lens, pad[2]; } GwPhoto;
+#define GW_K_PHOTO     1600u
+#define GW_PHOTO_BYTES 48u
+
 /* The page binds the VS constant arena (K) in windows of GW_KWIN_ROWS rows of
  * 16 bytes: 64 KB, the default maxUniformBufferBindingSize.  A draw's block
  * (16-byte header + c[0..255]) starts at row firstInstance of its window, so
- * consecutive draws share one bind group (gpu-abi.md section 3). */
+ * consecutive draws share one bind group. */
 #define GW_KWIN_ROWS 4096u
 
 /* Layout word: changes whenever a struct above changes shape. */
 #define GW_LAYOUT ((uint32_t)(sizeof(GwDraw) | sizeof(GwFrame) << 8 | (sizeof(GwCtl) & 0xFFF) << 16) ^ (GW_VERSION << 28))
 
-_Static_assert(sizeof(GwDraw) == 156, "GwDraw");
+_Static_assert(sizeof(GwDraw) == 180, "GwDraw");
 _Static_assert(offsetof(GwDraw, kind) == 16 && offsetof(GwDraw, aref) == 24 && offsetof(GwDraw, depth) == 28, "GwDraw a");
 _Static_assert(offsetof(GwDraw, ps) == 44 && offsetof(GwDraw, psci) == 48 && offsetof(GwDraw, vsid) == 52, "GwDraw b");
 _Static_assert(offsetof(GwDraw, rawoff) == 56 && offsetof(GwDraw, koff) == 60 && offsetof(GwDraw, proj) == 64, "GwDraw c");
@@ -233,4 +306,9 @@ _Static_assert(sizeof(GwHLight) == 80 && sizeof(GwHL) == GW_HL_BYTES && offsetof
 _Static_assert(sizeof(GwMark) == 16 && sizeof(GwMarks) == GW_MARKS_BYTES && offsetof(GwMarks, m) == 16, "GwMarks");
 _Static_assert(GW_K_MARKS >= GW_K_HL + GW_HL_BYTES, "GwMarks after GwHL");
 _Static_assert(sizeof(GwTone) == GW_TONE_BYTES && GW_K_TONE >= GW_K_MARKS + GW_MARKS_BYTES, "GwTone after GwMarks");
+_Static_assert(sizeof(GwLat) == GW_LAT_BYTES && offsetof(GwLat, input_ms) == 8 && GW_K_LAT % 8 == 0
+               && GW_K_LAT >= GW_K_TONE + GW_TONE_BYTES, "GwLat after GwTone");
+_Static_assert(sizeof(GwPhoto) == GW_PHOTO_BYTES && GW_K_PHOTO >= GW_K_LAT + GW_LAT_BYTES && offsetof(GwPhoto, ack) == 20
+               && offsetof(GwPhoto, tile) == 24 && offsetof(GwPhoto, want) == 28 && offsetof(GwPhoto, fov) == 32,
+               "GwPhoto after GwLat");
 #endif
