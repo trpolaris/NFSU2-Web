@@ -4,6 +4,7 @@
 // shapes.  See web/src/host/abi.ts for the shared-memory side (nfsu2_register
 // kinds).
 import type { GameProcess } from '../host/process';
+import type { PhotoLook } from '../gpu/photo-picture';
 import type { PadPage, TouchPad } from '../input/gamepad';
 import type { TextEntry } from '../input/index';
 import type { NetQueue, NetRemoved } from '../net';
