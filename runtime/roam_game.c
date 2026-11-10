@@ -389,6 +389,7 @@ typedef struct {
     char     plate[RC_PLATE_MAX + 1];
     uint32_t plate_owner;
     int64_t  plate_at;
+    int      plated;                           /* the friend's first plate is on this car; later changes are rate-limited */
     uint32_t car, world;                      /* the slot's car in this world */
     int      created;                         /* one of our own cars (k >= NOPP) */
     int      unindexed;                       /* ...past World::IndexCars' 22: record kind KIND_OUT */
@@ -586,8 +587,6 @@ static int local_state(rc_state *s){
             s->slip[2 * w] = __builtin_isfinite(a) ? a : 0.f; s->slip[2 * w + 1] = __builtin_isfinite(b) ? b : 0.f;
             s->surf[w] = sf < N_SURF ? (uint8_t)sf : 0;
         }
-    /* the engine as the game sounds it, for friends' games (eng_state) */
-    eng_state(car, s);
     if (g_sync_paused > 1){ for (int i = 0; i < 3; i++){ s->v[i] = 0; s->w[i] = 0; } s->speed = 0; s->rpm = 0; for (int i = 0; i < 8; i++) s->slip[i] = 0; }
     for (int i = 0; i < 3; i++) if (!__builtin_isfinite(s->p[i]) || !__builtin_isfinite(s->v[i])) return 0;
     /* the stamp clock may run a little faster than the world (it is pulled
@@ -637,7 +636,7 @@ static int local_cfg(uint8_t *out, int cap, char *tname){
     int horn = rh_horn_mine();                       /* the horn the others hear from this car */
     if (horn >= 0){ c.has_horn = 1; c.horn = (uint8_t)horn; }
     int16_t st[5];                                   /* the stance the others see this car with (stance.c) */
-    if (mine && rh_stance_mine(st)){
+    if (rh_stance_mine(st)){
         c.has_stance = 1; c.stance_fc = (uint8_t)st[0]; c.stance_rc = (uint8_t)st[1];
         c.stance_fo = st[2]; c.stance_ro = st[3]; c.stance_tw = (uint8_t)st[4];
     }
