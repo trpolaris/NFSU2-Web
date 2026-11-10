@@ -18,16 +18,14 @@
 //! Kept in <state>/names.json (the names, their owners' hashes, when they were made and last played), written whole
 //! to a temporary file of 0600, synced and renamed over the old one ([`Claims::save`]).
 
+use parking_lot::RwLock;
+use serde_json::Value;
+use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use parking_lot::RwLock;
-use serde_json::Value;
-use sha2::{Digest, Sha256};
-
-use nfsu2_util::atomic_file::Options;
 
 #[cfg(test)]
 mod tests;
@@ -554,7 +552,3 @@ impl Claims {
     }
 }
 
-/// names.json is replaced as one private, synced file; a failed write leaves the prior copy intact.
-fn write_atomic(file: &Path, body: &[u8]) -> Result<(), String> {
-    Options::new().make_folder().write(file, body).map_err(|e| e.to_string())
-}
