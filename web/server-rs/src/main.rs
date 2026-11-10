@@ -53,6 +53,21 @@ pub fn die(msg: &str) -> ! {
     std::process::exit(1)
 }
 
+/// The source checkout containing the installed server binary: the stable out/web/server-rs layout only.
+fn checkout_of(binary: &std::path::Path) -> Option<String> {
+    let mut path = binary;
+    for expected in ["nfsu2-server", "server-rs", "web", "out"] {
+        if path.file_name()?.to_str()? != expected {
+            return None;
+        }
+        path = path.parent()?;
+    }
+    if !path.is_absolute() || path == std::path::Path::new("/") {
+        return None;
+    }
+    Some(path.to_string_lossy().into_owned())
+}
+
 /// the repository the defaults are in: NFSU2_REPO, else the one this binary was built from
 fn repo(cwd: &str) -> String {
     match std::env::var_os("NFSU2_REPO") {
