@@ -61,6 +61,8 @@ import { FriendPrompt } from './friend-prompt';
 import { Radio, MODES, radioWasOn, type Mode } from '../radio';
 import { canPickMusic, pickMusic } from '../radio-folder';
 import { RadioLink } from './radio-link';
+import { LastfmApi, readSession, Scrobbler, scrobbleWhilePlaying } from './lastfm';
+import { LastfmRow } from './lastfm-ui';
 import { FpsOverlay, FPS_MODES, type FpsMode } from './overlay';
 import { LobbyPanel } from './lobby';
 import { ICON as CHAT_ICON, QuickChat } from './quickchat';
@@ -2146,6 +2148,12 @@ export async function boot() {
     // the tab that owns the saves is the one whose Play reads the file: another tab only looks
     readOnly: () => !instance.owner, say: pageToast, confirm: confirmBox,
   });
+  const lastfmApi = new LastfmApi();
+  const lastfmRow = new LastfmRow({ api: lastfmApi, log: logLine, say: pageToast });
+  $('#lastfm-slot').append(lastfmRow.el);
+  const scrobbler = new Scrobbler({ api: lastfmApi, folder: () => radio?.lastTrack ?? null, dropped: () => lastfmRow.dropped(), log: logLine });
+  scrobbleWhilePlaying(radioPort, scrobbler, readSession);
+  onLanguage(() => lastfmRow.render());
   Object.assign(window, {
     __trpSettingsBridge: {
     current: (key: string) => settings.current(key),
