@@ -241,6 +241,11 @@ jobs:
           cc -O1 -g -fsanitize=address,undefined -Iruntime tests/roam_unit.c runtime/roam_core.c runtime/roam_bsd.c -lm -o /tmp/roam_unit
           /tmp/roam_unit 50000
 
+      - name: Test custom license plate rendering and HELLO protocol
+        run: |
+          cc -O1 -g -fsanitize=address,undefined -Iruntime tests/plates_unit.c runtime/plate_image.c runtime/roam_core.c -lm -o /tmp/plates_unit
+          /tmp/plates_unit
+
       - name: Build server binaries for Node integration tests
         run: |
           cargo build --manifest-path web/server-rs/Cargo.toml -p nfsu2-server -p nfsu2-roamload
