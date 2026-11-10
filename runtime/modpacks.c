@@ -488,19 +488,24 @@ static uint32_t g_ride;                                  /* a ride of ours, for 
 static struct { uint32_t type, key[N_SLOTS]; } g_stock[16]; static int g_nstock;
 
 static int mod_key(uint32_t key){
-static int have_key(uint32_t key){ return mod_key(key) || (vinylpacks_key(key) && vinylpacks_have()); }
-/* A car type's info (0x610130's search, without the call): its CarTypeInfo,
- * 0 none; -1 not known yet (no car types have been built). */
-int64_t modparts_cartype(uint32_t hash){
-    uint32_t types = MR32(G_CARTYPES);
-    if (!guest_ok_bytes(types, CARTYPES_N * CARTYPE_SZ)) return -1;
-    for (uint32_t i = 0; hash && i < CARTYPES_N; i++)
-        if (MR32(types + i * CARTYPE_SZ + 0xd0u) == hash) return (int64_t)(types + i * CARTYPE_SZ);
-    return 0;
-}
-
     if (!key || !g_grown) return 0;
     for (int i = 0; i < g.nparts; i++) if (g.p[i].key == key) return 1;
+    return 0;
+}
+/* a part kept beside the profile, never in it: a mod's (with MODPACKS) or one of Art Factory 28-34 (always) */
+static int aside_key(uint32_t key){ return mod_key(key) || vinylpacks_key(key); }
+/* ... and one this game has, to put back */
+static int have_key(uint32_t key){ return mod_key(key) || (vinylpacks_key(key) && vinylpacks_have()); }
+/* a car type's info (0x610130's search, without the call): its CarTypeInfo, 0 none; -1 not known yet (no car types) */
+int64_t modparts_cartype(uint32_t hash){
+    uint32_t t = MR32(G_CARTYPES);
+    if (!guest_ok_bytes(t, CARTYPES_N * CARTYPE_SZ)) return -1;
+    for (uint32_t i = 0; hash && i < CARTYPES_N; i++) if (MR32(t + i * CARTYPE_SZ + 0xd0u) == hash) return t + i * CARTYPE_SZ;
+    return 0;
+}
+/* a mod part's look-alike among the game's (tools/modpacks.py LOOKALIKES: a rim of the same size), 0: none */
+static uint32_t lookalike(uint32_t key){
+    for (int i = 0; i < g.nparts; i++) if (g.p[i].key == key) return g.p[i].stand;
     return 0;
 }
 /* the stock part's key of a car type's slot (0: none, or not known: then 0 all the same, the game's "no part") */
@@ -527,6 +532,7 @@ static uint32_t stand_in(CPU *c, uint32_t type, uint32_t slot, uint32_t key){
     uint32_t la = lookalike(key);
     return la ? la : stock_key(c, type, slot);
 }
+
 static uint64_t car_fp(uint32_t r){
     uint64_t h = 0xcbf29ce484222325ull;
     for (uint32_t o = 8u; o < 0xcu + 4u * N_SLOTS; o++){ h ^= MR8(r + R_PARTS + o); h *= 0x100000001b3ull; }
