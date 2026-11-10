@@ -7,6 +7,9 @@
  *   2) visited set: each node at most once per top-level walk
  * That way the walk terminates and the game can make progress.            */
 #include "cpu.h"
+#include "game.h"
+#include "guest.h"
+#include "guest_span.h"
 #include <stdio.h>
 #include <math.h>
 #include <string.h>
@@ -16,6 +19,7 @@
 #include "enhance.h"
 
 void guest_backtrace(CPU*,int);
+__attribute__((weak)) int damage_texlist_engine(uint32_t ride);
 
 uint64_t g_cycle_break = 0, g_oob_node = 0, g_depth_guard = 0;
 static uint64_t guard_total = 0, guard_cap = 0;
