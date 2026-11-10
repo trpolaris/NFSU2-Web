@@ -823,6 +823,7 @@ void roam_frame(CPU *c){
     spawn_tick(c);
     if (g_carlog_every > 0 && f >= g_carlog_next){ g_carlog_next = f + g_carlog_every; log_cars("periodic", 0); }
 }
+void features_frame(CPU *c);
 void roam_game_frame(CPU *c);                 /* roam_game.c: the multiplayer feature */
 void travel_frame(CPU *c);
 int travel_hook(CPU *c, uint32_t ip);
@@ -868,7 +869,7 @@ void coop_frame(CPU *);
     if (vinylcat_hook(c, ip)) return 1;
     if (travel_hook(c, ip)) return 1;
     switch (ip){
-    case HOOK_SITE(0x00581475): visualrep_frame(); walls_frame(); cameras_frame(c); showoff_frame(c); plates_frame(c); hiddenraces_frame(); reads_frame(c); language_texts_frame(c); sms_frame(c); carspot_frame(); mprace_frame(c); mpcredit_frame(c); if (!roam_asipeer_frame(c)) roam_game_frame(c); travel_frame(c); racehorn_frame(c); racenet_frame(c); optslider_frame(c); drift_frame(c); photo_frame(c); savegame_frame(); coop_frame(c); engage_frame(c); roam_frame(c); return 1;
+    case HOOK_SITE(0x00581475): features_frame(c); return 1;
     /* Remove the Visual Rating meter from career shops when explicitly enabled. */
     case HOOK_SITE(0x00557ed0): visualrep_meter(c); return 1;
     /* Player::Update's HUD step (0x600590), behind its call of the HUD
