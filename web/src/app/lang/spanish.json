@@ -1694,5 +1694,11 @@
   "The game continues running behind this menu.": "El juego sigue funcionando detrás de este menú.",
   "RETURN TO GAME": "VOLVER AL JUEGO",
   "Enable mod rim brands": "Activar marcas de llantas modificadas",
-  "Adds compatible mod rim brands to Body Shop. Requires a compatible MODPACKS pack in the game folder. Off by default. Changes apply the next time you press Play.": "Añade al Body Shop marcas de llantas compatibles con mods. Requiere un paquete MODPACKS compatible en la carpeta del juego. Está desactivado de forma predeterminada. Los cambios se aplican la próxima vez que inicies el juego."
+  "Adds compatible mod rim brands to Body Shop. Requires a compatible MODPACKS pack in the game folder. Off by default. Changes apply the next time you press Play.": "Añade al Body Shop marcas de llantas compatibles con mods. Requiere un paquete MODPACKS compatible en la carpeta del juego. Está desactivado de forma predeterminada. Los cambios se aplican la próxima vez que inicies el juego.",
+  "License plate": "Matrícula",
+  "On your car, also for other players in free roam: up to 8 letters and digits.": "En tu coche, también para otros jugadores en la circulación libre: hasta 8 letras y números.",
+  "Original plate": "Matrícula original",
+  "\"{value}\" is not a license plate (letters A to Z and digits, at most 8)": "\"{value}\" no es una matrícula válida (letras de la A a la Z y números, 8 como mucho)",
+  "\"{value}\" is not a license plate (it reads as a slur)": "\"{value}\" no es una matrícula válida (se lee como un insulto)"
+
 }

@@ -1671,5 +1671,11 @@
   "The game continues running behind this menu.": "Het spel blijft achter dit menu actief.",
   "RETURN TO GAME": "TERUG NAAR HET SPEL",
   "Enable mod rim brands": "Mod-velgmerken inschakelen",
-  "Adds compatible mod rim brands to Body Shop. Requires a compatible MODPACKS pack in the game folder. Off by default. Changes apply the next time you press Play.": "Voegt compatibele mod-velgmerken toe aan de Body Shop. Hiervoor is een compatibel MODPACKS-pakket in de gamemap nodig. Standaard uitgeschakeld. Wijzigingen gelden bij de volgende start van de game."
+  "Adds compatible mod rim brands to Body Shop. Requires a compatible MODPACKS pack in the game folder. Off by default. Changes apply the next time you press Play.": "Voegt compatibele mod-velgmerken toe aan de Body Shop. Hiervoor is een compatibel MODPACKS-pakket in de gamemap nodig. Standaard uitgeschakeld. Wijzigingen gelden bij de volgende start van de game.",
+  "License plate": "Kenteken",
+  "On your car, also for other players in free roam: up to 8 letters and digits.": "Op je wagen, ook voor andere spelers in Verkennen: tot 8 letters en cijfers.",
+  "Original plate": "Oorspronkelijk kenteken",
+  "\"{value}\" is not a license plate (letters A to Z and digits, at most 8)": "“{value}” is geen kenteken (letters A tot Z en cijfers, hooguit 8)",
+  "\"{value}\" is not a license plate (it reads as a slur)": "“{value}” is geen kenteken (het leest als een scheldwoord)"
+
 }

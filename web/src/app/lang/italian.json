@@ -1694,5 +1694,11 @@
   "The game continues running behind this menu.": "Il gioco continua a funzionare dietro questo menu.",
   "RETURN TO GAME": "TORNA AL GIOCO",
   "Enable mod rim brands": "Attiva i marchi di cerchi modificati",
-  "Adds compatible mod rim brands to Body Shop. Requires a compatible MODPACKS pack in the game folder. Off by default. Changes apply the next time you press Play.": "Aggiunge al Body Shop i marchi di cerchi compatibili con le mod. Richiede un pacchetto MODPACKS compatibile nella cartella del gioco. Disattivato per impostazione predefinita. Le modifiche si applicano al prossimo avvio del gioco."
+  "Adds compatible mod rim brands to Body Shop. Requires a compatible MODPACKS pack in the game folder. Off by default. Changes apply the next time you press Play.": "Aggiunge al Body Shop i marchi di cerchi compatibili con le mod. Richiede un pacchetto MODPACKS compatibile nella cartella del gioco. Disattivato per impostazione predefinita. Le modifiche si applicano al prossimo avvio del gioco.",
+  "License plate": "Targa",
+  "On your car, also for other players in free roam: up to 8 letters and digits.": "Sulla tua auto, anche per gli altri giocatori in modalità Esplora: fino a 8 lettere e cifre.",
+  "Original plate": "Targa originale",
+  "\"{value}\" is not a license plate (letters A to Z and digits, at most 8)": "\"{value}\" non è una targa (lettere dalla A alla Z e cifre, al massimo 8)",
+  "\"{value}\" is not a license plate (it reads as a slur)": "\"{value}\" non è una targa (sembra un insulto)"
+
 }

@@ -1602,5 +1602,11 @@
   "The game continues running behind this menu.": "遊戲會在此選單後方繼續執行。",
   "RETURN TO GAME": "返回遊戲",
   "Enable mod rim brands": "啟用模組輪圈品牌",
-  "Adds compatible mod rim brands to Body Shop. Requires a compatible MODPACKS pack in the game folder. Off by default. Changes apply the next time you press Play.": "將相容的模組輪圈品牌加入 Body Shop。遊戲資料夾中必須有相容的 MODPACKS 套件。預設為關閉。變更會在下次啟動遊戲時生效。"
+  "Adds compatible mod rim brands to Body Shop. Requires a compatible MODPACKS pack in the game folder. Off by default. Changes apply the next time you press Play.": "將相容的模組輪圈品牌加入 Body Shop。遊戲資料夾中必須有相容的 MODPACKS 套件。預設為關閉。變更會在下次啟動遊戲時生效。",
+  "License plate": "車牌",
+  "On your car, also for other players in free roam: up to 8 letters and digits.": "顯示在你的車上，自由漫遊中其他玩家也看得到：最多 8 個字母和數字。",
+  "Original plate": "原廠車牌",
+  "\"{value}\" is not a license plate (letters A to Z and digits, at most 8)": "「{value}」不能當作車牌（只能用 A 到 Z 的字母和數字，最多 8 個）",
+  "\"{value}\" is not a license plate (it reads as a slur)": "「{value}」不能當作車牌（含有歧視性字眼）"
+
 }

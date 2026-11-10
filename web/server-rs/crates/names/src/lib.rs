@@ -722,7 +722,8 @@ pub fn blocked_plate(plate: &str) -> bool {
         i += 1;
     }
 
-    const EDGE: &[&str] = &["fag", "coon", "spic", "paki", "kike", "kyke", "gook", "chink", "dyke", "nig", "nigr", "neger", "pedo", "rtard"];
+    const EDGE: &[&str] =
+        &["fag", "coon", "spic", "paki", "kike", "kyke", "gook", "chink", "dyke", "nig", "nigr", "neger", "pedo", "rtard"];
     const END_OK: &[&str] = &[
         "rafag", "tafag", "racoon", "cocoon", "tycoon", "aspic", "ospic", "uspic", "papaki", "ipaki", "eepaki", "klike", "akike", "ekike",
         "ikike", "okyke", "ergook", "achink", "uchink", "vandyke", "oldyke", "odyke", "knig", "midnig", "ghtnig", "sehnig", "anig", "enig",

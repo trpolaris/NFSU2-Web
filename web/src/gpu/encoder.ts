@@ -11,8 +11,8 @@
 //   - every Z surface is depth32float, created at the size of the first target
 //     it is used with (the implicit one follows the screen); a size mismatch
 //     binds a scratch depth and turns the Z test off;
-//   - no viewport (com.c ignores SetViewport), full-target passes; a scissor only
-//     for the 2D UI's 4:3 band on a screen narrower than 4:3 (GwDraw.clip);
+//   - draw viewports follow Direct3D; a scissor also keeps the 2D UI in its
+//     4:3 band on a screen narrower than 4:3 (GwDraw.clip);
 //   - StretchRect: a copy when size and format match, else a scaled quad; from a
 //     source rectangle (the cover shoot's picture) always a scaled quad, opaque from
 //     the screen (the D3D back buffer has no alpha).
@@ -24,20 +24,16 @@ import * as P from './proto';
 import { D, F, Kind, Op } from './proto';
 import { COPY, FF_FS, MS_RESOLVE, TONE, TVERT_VS } from './wgsl';
 import { createShaderAbi, alphaFunc, PSCUBE, VSPAR_SIZE, KWIN_SIZE, PSPAR_SIZE, HLPAR_SIZE } from './shader-abi';
-import type { GameMemory } from '../host/memory';
 import { unpackDxt } from './dxt';
+import { drawViewport, drawScissor } from './viewport';
 import { dxt1HasPunch, dxt1ToAstc } from './astc';
+import type { GameMemory } from '../host/memory';
+import { HqSkins, type DataReader } from './hqskin';
 
 export interface EncodeStats {
   draws: number; passes: number; skipped: number; encodeMs: number;
   /** the frame was drawn straight into the texture given to encodeFrame (no back buffer, no composite) */
   direct: boolean;
-}
-
-/** Use the game's anisotropy request on linear, mipmapped game textures, never on render targets. */
-export function anisotropicSamplerKey(k: number, renderTarget: boolean): number {
-  const mn = k & 3, mg = (k >> 2) & 3, mp = (k >> 4) & 3, al = (k >> 12) & 7;
-  return !renderTarget && mn === 2 && mg === 2 && mp !== 0 && al !== 0 ? (k & ~3) | 3 : k;
 }
 
 interface Tex {
@@ -50,10 +46,16 @@ interface Tex {
   filled: boolean;                 // a level has gone up (an ASTC texture's choice is made at its first upload)
   bytes: number;                   // its size on the GPU, every level and face
   face0?: GPUTextureView;          // a cube's face 0, level 0 as a 2D view (StretchRect from it), made at its first use
-  ms?: MsTwin;                     // the 4-sample render twin for an FSAA target
+  ms?: MsTwin;                     // a render target made with TF_MS: its 4-sample twin (runtime/com.c MULTISAMPLING)
 }
 
+/** a 4-sample colour texture that a target's passes draw into and resolve from (runtime/com.c MULTISAMPLING); stale:
+ *  the target was written another way (a blit, a copy, a clear pass of its own) since the twin last resolved into it */
 interface MsTwin { tex: GPUTexture; view: GPUTextureView; stale: boolean }
+/** HQ vinyls (hqskin.ts): skins painted again at 1024 shown at once, at most; the one drawn longest ago goes */
+const OVER_MAX = 16;
+/** a sampler key (encoder.sampler) with a mip filter: linear where it had none */
+const overSmp = (k: number) => ((k >> 4) & 3) ? k : (k & ~(3 << 4)) | (2 << 4);
 
 const enum Src { TVert = 0, Raw = 1, Pool = 2 }
 const PSLOT = 768;                 // PSPar (560 bytes) at 256-aligned slots
@@ -73,6 +75,30 @@ const CMP: GPUCompareFunction[] = ['always', 'never', 'less', 'equal', 'less-equ
 const ADDR: GPUAddressMode[] = ['repeat', 'repeat', 'mirror-repeat', 'clamp-to-edge', 'clamp-to-edge', 'mirror-repeat'];
 
 export class Encoder {
+  private regionClearPipes = new Map<string, GPURenderPipeline>();
+  /** Attachment clears ignore viewports. A triangle clears only this player's
+   * pixels and preserves the colour/depth belonging to the other players. */
+  private regionClearPipe(flags: number, argb: number, z: number, ms = false): GPURenderPipeline {
+    const key = `${flags & 3}:${argb}:${z}${ms ? ':x4' : ''}`;
+    let pipe = this.regionClearPipes.get(key);
+    if (pipe) return pipe;
+    const rgba = [(argb >>> 16 & 255) / 255, (argb >>> 8 & 255) / 255, (argb & 255) / 255, (argb >>> 24) / 255];
+    const module = this.device.createShaderModule({ label: 'split region clear', code: `
+      @vertex fn vs(@builtin(vertex_index) i: u32) -> @builtin(position) vec4f {
+        let xy = array<vec2f, 3>(vec2f(-1., -1.), vec2f(3., -1.), vec2f(-1., 3.));
+        return vec4f(xy[i], ${z.toFixed(9)}, 1.);
+      }
+      @fragment fn fs() -> @location(0) vec4f { return vec4f(${rgba.map(v => v.toFixed(9)).join(',')}); }
+    ` });
+    pipe = this.device.createRenderPipeline({ label: 'split region clear', layout: 'auto',
+      vertex: { module, entryPoint: 'vs' }, fragment: { module, entryPoint: 'fs', targets: [{ format: 'bgra8unorm', writeMask: flags & 1 ? 15 : 0 }] },
+      primitive: { topology: 'triangle-list' },
+      depthStencil: { format: 'depth32float', depthWriteEnabled: !!(flags & 2), depthCompare: 'always' },
+      ...(ms ? { multisample: { count: 4 } } : {}),
+    });
+    this.regionClearPipes.set(key, pipe);
+    return pipe;
+  }
   readonly device: GPUDevice;
   private queue: GPUQueue;
   private memory: GameMemory;
@@ -84,6 +110,13 @@ export class Encoder {
 
   // resources
   private tex: (Tex | undefined)[] = [];
+  // HQ vinyls: the 1024 skins shown in the game's skins' places (texFor), by the game's texture id; the latest paint
+  // asked for each id (a newer one, the game painting it again or freeing it: an older paint is dropped)
+  private hq: HqSkins | null = null;
+  private over = new Map<number, Tex & { drawn: number }>();
+  private hqWant = new Map<number, number>();
+  private hqSeq = 0;
+  private drawClock = 0;
   private serial = 1;
   private white!: Tex; private whiteCube!: Tex;
   private zTex: (GPUTexture | undefined)[] = [];
@@ -94,8 +127,6 @@ export class Encoder {
   private vsMods = new Map<number, GPUShaderModule>();
   private psMods = new Map<number, GPUShaderModule>();
   private samplers = new Map<number, GPUSampler>();
-  /** Anisotropic filtering where the game's sampler asks for it (web setting, off on touch devices). */
-  aniso = false;
   private pipes = new Map<number, GPURenderPipeline | null>();
   private bg1 = new Map<string, GPUBindGroup>();
   private destroyLater: { destroy(): void }[] = [];
@@ -107,7 +138,7 @@ export class Encoder {
   // per-draw scratch, reused so that a draw allocates nothing: group 0's dynamic
   // offsets, and the group 1 tuple of the previous draw (cube, 4 texture serials,
   // 4 sampler keys; [0] = -1 when the pass has none bound yet)
-  private dyn = new Uint32Array(2);
+  private dyn = new Uint32Array(3);
   private b1 = new Int32Array(9);
 
   // layouts and built-in pipelines
@@ -126,7 +157,16 @@ export class Encoder {
   // draws its screen into: the back buffer, or the canvas texture when sizes match
   bb: GPUTexture | null = null; private bbView: GPUTextureView | null = null;
   screen: GPUTexture | null = null; screenView: GPUTextureView | null = null;
-  /** the game's Full Scene Anti-Aliasing: 4-sample twins resolved into the screen and marked render targets */
+  /** frames that copied from the screen before drawing to it (they keep the back buffer) */
+  screenReadFirst = 0;
+  // multisampling (runtime/com.c MULTISAMPLING: the game's Full Scene Anti-Aliasing): the back buffer with 4 samples
+  // (Op.BbSamples) and a render target made with TF_MS each have a 4-sample twin; their passes draw into the twin, with
+  // a 4-sample twin of their Z surface (by surface and size), and resolve into the screen or the texture at the pass's
+  // end; a blit or copy into them leaves the twin behind (stale) until the next pass that loads draws the picture into it.
+  // The resolve is a pass of ours (msResolve: the samples' average), not the GPU's own (a resolveTarget): the twin is
+  // kept for the next pass that loads, and the GPU's resolve of a picture it also keeps failed on two computers'
+  // graphics on 2026-11-08 (an AMD Ryzen 5600GT's Vega in Chrome and Edge: the GPU hung at the third frame, every game;
+  // a Qualcomm Snapdragon laptop: the picture in scrambled tiles once frames had several passes on the screen)
   private bbSamples = 1;
   // msResolve's shader, layout, pipelines by format and bind groups by twin, made at its first use
   private msRes: { mod: GPUShaderModule; bgl: GPUBindGroupLayout; layout: GPUPipelineLayout; pipes: Map<string, GPURenderPipeline>;
@@ -135,14 +175,21 @@ export class Encoder {
   private msZ = new Map<string, { tex: GPUTexture; view: GPUTextureView }>();
   private msZpend = new Uint8Array(64); private msZpendV = new Float32Array(64);
   private pipesMs = new Map<number, GPURenderPipeline | null>();
+  /** passes drawn at 4 samples (resolved at their end), pictures drawn into a twin again after a blit or copy */
   msPasses = 0; msRefreshes = 0;
-  /** frames that copied from the screen before drawing to it (they keep the back buffer) */
-  screenReadFirst = 0;
 
   /** guest frames whose records are logged in full (diagnostics), and "trace every dumped frame" */
   traceSeq = new Set<number>(); traceDumps = false; logShaders = false;
   /** diagnostics: log every create / upload / free of these texture ids */
   watchTex = new Set<number>();
+  /** pixelated textures (the page's pixelated_textures, NFSU2_PIXELATED_TEXTURES): the game's own textures sampled
+   *  nearest, their mip levels too, as dgVoodoo's "Point sampled", whatever filter the game asks for; its render
+   *  targets (the screen copies of the post passes, reflections, the mirror) stay as it sets them */
+  pointTex = false;
+  /** anisotropic filtering where the game asks for it: the game gives its world's textures MAXANISOTROPY 16 with linear
+   *  filters (every Texture Filtering level, 2026-11-08), which D3D9 filters trilinear; on, those draws filter at the
+   *  anisotropy asked (anisoKey) */
+  aniso = false;
   private tr: string[] | null = null;
 
   // stats
@@ -150,6 +197,10 @@ export class Encoder {
   /** the game's textures on the GPU, bytes: all of them, those unpacked from DXT and those DXT1 as ASTC (no
    *  texture-compression-bc) */
   texBytes = 0; unpackBytes = 0; astcBytes = 0;
+  /** textures made and freed since the log's last minute line (index.ts zeroes them): friends' cars coming and
+   *  going, the world after a shop */
+  texMade = 0; texMadeBytes = 0; texFreed = 0; texFreedBytes = 0;
+  get bindGroups(): number { return this.bg1.size; }
   /** blocks with a transparent texel that went into a texture already ASTC: two planes (astc.ts) */
   private astcHoles = { blocks: 0 };
   /** WebGPU calls made by encodeFrame, by kind (totals; what the GPU process decodes and records) */
@@ -157,13 +208,13 @@ export class Encoder {
   private seenFmt = new Set<string>();
 
   constructor(device: GPUDevice, memory: GameMemory, ctlPtr: number, log: (s: string) => void) {
-    this.device = device; this.queue = device.queue; this.memory = memory; this.ctlW = ctlPtr >> 2; this.log = log;
+    this.device = device; this.queue = device.queue; this.memory = memory; this.ctlW = ctlPtr >>> 2; this.log = log;
     const f = device.features;
     this.feat = { bc: f.has('texture-compression-bc'), astc: f.has('texture-compression-astc'), swizzle: f.has('texture-component-swizzle'),
       unaligned: f.has('texture-compression-unaligned' as GPUFeatureName) };
     this.views();
     const d = device;
-    // the shader ABI's explicit layouts (docs/web/gpu-abi.md section 2), shared with the shader check
+    // the shader ABI's explicit layouts, shared with the shader check
     const abi = createShaderAbi(d);
     this.bgl0 = abi.group0; this.bgl1 = abi.group1; this.bgl1c = abi.group1Cube;
     this.pl2d = abi.layout2d; this.plCube = abi.layoutCube;
@@ -191,7 +242,9 @@ export class Encoder {
     return m;
   }
 
-  /** (re)create the typed views when the wasm memory grew */
+  /** (re)create the typed views when the wasm memory grew.  The queue's writes take a subarray of just their bytes,
+   *  never u8 with an offset: Firefox's WebGPU refuses a view of 2 GB or more (a computer's memory with the guest
+   *  heap's window, host/memory.ts) */
   views(): void {
     const b = this.memory.buffer as unknown as SharedArrayBuffer;
     if (b === this.sab) return;
@@ -214,11 +267,11 @@ export class Encoder {
     const c = this.ctlW, u32 = this.u32;
     const cap = u32[c + P.C.rqCap], base = u32[c + P.C.rqPtr];
     let tail = u32[c + P.C.rqTail];
-    // The queue may describe bytes beyond this page's current shared-memory buffer after a grow.
+    // the queue past this page's buffer of a memory that grew (host/memory.ts): left as it is until the new buffer came
     if (!(base + cap <= this.u8.length)) return tail;
     let n = 0;
     while (((limit - tail) | 0) > 0) {
-      const p = base + (tail & (cap - 1)), w = p >> 2;
+      const p = base + (tail & (cap - 1)), w = p >>> 2;
       const op = u32[w], len = u32[w + 1];
       if (len < 16 || len > cap) { this.log(`[gpu] corrupt resource queue record op=${op} len=${len} at ${tail}`); tail = limit; break; }
       const a0 = u32[w + 2], a1 = u32[w + 3], a2 = u32[w + 4], a3 = u32[w + 5], a4 = u32[w + 6], a5 = u32[w + 7];
@@ -234,7 +287,7 @@ export class Encoder {
           } break;
         case Op.TexFree: if (this.watchTex.has(a0)) this.log(`[watch] tex ${a0} free`); this.texFree(a0); break;
         case Op.PoolGrow: this.poolGrow(a0); break;
-        case Op.PoolWrite: if (this.pool && a0 + a1 <= this.pool.size) this.queue.writeBuffer(this.pool, a0, this.u8, data, a1); break;
+        case Op.PoolWrite: if (this.pool && a0 + a1 <= this.pool.size) this.queue.writeBuffer(this.pool, a0, this.u8.subarray(data, data + a1)); break;
         case Op.ShaderVs: case Op.ShaderPs: {
           const text = new TextDecoder().decode(this.u8.slice(data, data + Math.max(0, a1 - 1)));
           const mod = this.module(`${op === Op.ShaderVs ? 'vs' : 'ps'}_${a0}`, text);
@@ -245,11 +298,10 @@ export class Encoder {
           this.warmUp();
           break;
         }
-        case Op.ZForget:
-          if (a0 < 64 && this.zTex[a0]) { this.zTex[a0]!.destroy(); this.zTex[a0] = undefined; this.zView[a0] = undefined; }
-          for (const [k, z] of this.msZ) if (k.startsWith(`${a0}:`)) { this.destroyLater.push(z.tex); this.msZ.delete(k); }
-          break;
+        case Op.ZForget: if (a0 < 64 && this.zTex[a0]) { this.zTex[a0]!.destroy(); this.zTex[a0] = undefined; this.zView[a0] = undefined; }
+          for (const [k, z] of this.msZ) if (k.startsWith(`${a0}:`)) { z.tex.destroy(); this.msZ.delete(k); } break;
         case Op.BbSamples: this.setBbSamples(a0); break;
+        case Op.SkinHq: this.skinHq(a0, a1, a2, data); break;
         default: this.log(`[gpu] unknown resource op ${op}`);
       }
       tail = (tail + len) >>> 0;
@@ -307,22 +359,26 @@ export class Encoder {
     }
     bytes *= cube ? 6 : 1;
     this.texBytes += bytes; if (gf.unpack) this.unpackBytes += bytes; if (gf.astc) this.astcBytes += bytes;
+    this.texMade++; this.texMadeBytes += bytes;
+    // a multisampled render target (runtime/com.c MULTISAMPLING): its 4-sample twin, in the texture's own format
     let ms: MsTwin | undefined;
     if ((flags & P.TF_MS) && rt && !cube && levels === 1) {
       const mt = this.device.createTexture({ label: `t${id} x4`, size: [w, h], format: gf.f, sampleCount: 4,
         usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING });
       ms = { tex: mt, view: mt.createView(), stale: true };
-      bytes += w * h * 16; this.texBytes += w * h * 16;
+      bytes += w * h * 4 * 4; this.texBytes += w * h * 4 * 4; this.texMadeBytes += w * h * 4 * 4;
     }
     this.tex[id] = { serial: this.serial++, tex, fmt, w, h, levels, cube, rt, view: tex.createView(vd), rtViews, expandA8: gf.a8, bc: gf.bc,
       unpack: !!gf.unpack, astc: !!gf.astc, filled: false, bytes, ms };
   }
 
   private texFree(id: number): void {
+    if (this.hqWant.size) this.overGone(id);
     const t = this.tex[id];
     if (!t) return;
     t.tex.destroy(); t.ms?.tex.destroy();
     this.texBytes -= t.bytes; if (t.unpack) this.unpackBytes -= t.bytes; if (t.astc) this.astcBytes -= t.bytes;
+    this.texFreed++; this.texFreedBytes += t.bytes;
     this.tex[id] = undefined;
     if (this.bg1.size > 8192) this.bg1.clear();       // keys carry serials: stale entries are never hit again
   }
@@ -331,6 +387,7 @@ export class Encoder {
   private unpackBuf = new Uint8Array(0);           // DXT unpacked or rewritten as ASTC for an upload (no texture-compression-bc)
   private texUpload(id: number, level: number, face: number, lw: number, lh: number, pitch: number, rows: number, data: number): void {
     let t = this.tex[id];
+    if (level === 0 && this.hqWant.size) this.overGone(id);      // the game painted it again: its own until the new paint
     if (t && this.traceDumps) this.uploads.set(t.serial, (this.uploads.get(t.serial) ?? 0) + 1);
     if (!t || level >= t.levels) return;
     if (t.astc) {
@@ -369,7 +426,7 @@ export class Encoder {
       this.queue.writeTexture(dst, unpackDxt(t.fmt, this.u8, data, pitch, lw, lh, this.unpackBuf), { bytesPerRow: lw * 4, rowsPerImage: lh }, [lw, lh, 1]);
       return;
     }
-    this.queue.writeTexture(dst, this.u8, { offset: data, bytesPerRow: pitch, rowsPerImage: rows }, [w, h, 1]);
+    this.queue.writeTexture(dst, this.u8.subarray(data, data + pitch * rows), { bytesPerRow: pitch, rowsPerImage: rows }, [w, h, 1]);
   }
 
   private poolGrow(size: number): void {
@@ -391,6 +448,19 @@ export class Encoder {
     this.destroyLater.push(b);
     this.bufGen++;
     return this.device.createBuffer({ label, size, usage });
+  }
+
+  /** pointTex: a sampler key with nearest min, mag and mip filters (so no anisotropy) for one of the game's own
+   *  textures; a mip filter of none (the top level only) stays */
+  private pointKey(k: number, t: Tex): number {
+    if (t.rt) return k;
+    return (k & ~0x3f) | 1 | 1 << 2 | ((k >> 4) & 3 ? 1 << 4 : 0);
+  }
+
+  /** aniso: a sampler key with linear filters, mips and a MAXANISOTROPY above 1 on one of the game's own textures as
+   *  anisotropic (D3DTEXF_ANISOTROPIC min filter: sampler() gives it the anisotropy asked) */
+  private anisoKey(k: number, t: Tex): number {
+    return !t.rt && (k & 3) === 2 && ((k >> 2) & 3) === 2 && (k >> 4) & 3 && (k >> 12) & 7 ? (k & ~3) | 3 : k;
   }
 
   private sampler(k: number): GPUSampler {
@@ -426,24 +496,12 @@ export class Encoder {
     return p;
   }
 
-  // A copy's bind group, by its source view and sampler.  Made anew for every copy, the composite alone was one a
-  // frame (a phone's render scale always composites), and WebKit frees what a bind group holds in its graphics
-  // process only when the page's garbage collector gets to it.
-  private copyBgs = new WeakMap<GPUTextureView, Map<GPUSampler, GPUBindGroup>>();
-  private copyBg(src: GPUTextureView, smp: GPUSampler): GPUBindGroup {
-    let m = this.copyBgs.get(src);
-    if (!m) this.copyBgs.set(src, m = new Map());
-    let g = m.get(smp);
-    if (!g) m.set(smp, g = this.device.createBindGroup({ layout: this.copyBgl, entries: [{ binding: 0, resource: src }, { binding: 1, resource: smp }] }));
-    return g;
-  }
-
-  /** the back buffer's sample count from the next frame on (resource op BbSamples). */
+  /** the back buffer's samples from the next frame on (Op.BbSamples: 1 or 4) */
   private setBbSamples(n: number): void {
     n = n === 4 ? 4 : 1;
     if (n === this.bbSamples) return;
     this.bbSamples = n;
-    this.log(`[gpu] back buffer: ${n} sample${n === 1 ? '' : 's'} (FSAA ${n === 4 ? 'on' : 'off'})`);
+    this.log(`[gpu] back buffer: ${n} sample${n > 1 ? 's' : ''} (the game's Full Scene Anti-Aliasing ${n > 1 ? 'on' : 'off'})`);
     if (n === 1) {
       if (this.msScreen) { this.destroyLater.push(this.msScreen.tex); this.msScreen = null; }
       for (const z of this.msZ.values()) this.destroyLater.push(z.tex);
@@ -451,6 +509,8 @@ export class Encoder {
     }
   }
 
+  /** the screen's 4-sample twin, of the back buffer's size; a new one holds nothing yet (stale).  A new size (a window
+   *  resized with native resolution) also drops the Z surfaces' twins of other sizes: made again, cleared, if used */
   private screenTwin(w: number, h: number): MsTwin {
     const s = this.msScreen;
     if (s && s.tex.width === w && s.tex.height === h) return s;
@@ -486,6 +546,8 @@ export class Encoder {
     pass.end();
   }
 
+  /** the 4-sample twin of Z surface zid at a pass's size (one per surface and size: the implicit Z serves the screen
+   *  and a smaller target alike); fresh: made just now, so cleared */
   private msZView(zid: number, w: number, h: number): { view: GPUTextureView; fresh: boolean } {
     const k = `${zid}:${w}x${h}`;
     let z = this.msZ.get(k), fresh = false;
@@ -497,6 +559,7 @@ export class Encoder {
     return { view: z.view, fresh };
   }
 
+  /** a target's picture (src: its sampling view) drawn into its twin at every sample, before a pass that loads */
   private msRefresh(enc: GPUCommandEncoder, twin: MsTwin, src: GPUTextureView): void {
     const pass = enc.beginRenderPass({ colorAttachments: [{ view: twin.view, loadOp: 'clear', clearValue: [0, 0, 0, 1], storeOp: 'store' }] });
     pass.setPipeline(this.copyPipe(twin.tex.format, false, true));
@@ -504,6 +567,18 @@ export class Encoder {
     pass.draw(3);
     pass.end();
     twin.stale = false; this.msRefreshes++;
+  }
+
+  // A copy's bind group, by its source view and sampler.  Made anew for every copy, the composite alone was one a
+  // frame (a phone's render scale always composites), and WebKit frees what a bind group holds in its graphics
+  // process only when the page's garbage collector gets to it.
+  private copyBgs = new WeakMap<GPUTextureView, Map<GPUSampler, GPUBindGroup>>();
+  private copyBg(src: GPUTextureView, smp: GPUSampler): GPUBindGroup {
+    let m = this.copyBgs.get(src);
+    if (!m) this.copyBgs.set(src, m = new Map());
+    let g = m.get(smp);
+    if (!g) m.set(smp, g = this.device.createBindGroup({ layout: this.copyBgl, entries: [{ binding: 0, resource: src }, { binding: 1, resource: smp }] }));
+    return g;
   }
 
   /** draw `src` over the whole of `dst` (StretchRect between sizes, composite) */
@@ -572,6 +647,7 @@ export class Encoder {
         constants: { ALPHA_FUNC: alphaFunc(nd ? 0 : 1) } },
       primitive: { topology: 'triangle-list', frontFace: 'cw', cullMode: cull === 1 ? 'none' : cull === 2 ? 'front' : 'back' },
       depthStencil: { format: 'depth32float', depthWriteEnabled: (dm & 2) !== 0, depthCompare: (dm & 1) ? CMP[(dm >> 2) & 7] : 'always' },
+      // a pass on a 4-sample target (runtime/com.c MULTISAMPLING)
       ...(ms ? { multisample: { count: 4 } } : {}),
     };
   }
@@ -589,7 +665,8 @@ export class Encoder {
     this.device.popErrorScope().then(e => { if (e) { this.log(`[gpu] pipeline ps=${ps} vs=${vs} blend=${blend.toString(16)}${ms ? ' x4' : ''}: ${e.message}`); pipes.set(key, null); } });
     pipes.set(key, p);
     this.pipelinesMade++; this.pipelinesSync++;
-    // remember it for the next session; bit 35 marks four-sample pipelines
+    // remember it for the next session, by the modules' text hashes (the state: blend, cull, depth mode, alpha test
+    // off, 4 samples at 2^35; an entry from before the samples has 1)
     const vh = this.vsHash.get(vs), ph = this.psHash.get(ps);
     if (vh !== undefined && ph !== undefined) {
       const st = blend + cull * 262144 + dm * 1048576 + (nd ? 67108864 : 0) + (ms ? 34359738368 : 0), k = `${vh}:${ph}:${st}`;
@@ -626,8 +703,7 @@ export class Encoder {
       const vs = this.vsByHash.get(e.v), ps = this.psByHash.get(e.p);
       if (vs === undefined || ps === undefined) return true;
       const blend = e.s % 262144, cull = Math.floor(e.s / 262144) % 4, dm = Math.floor(e.s / 1048576) % 64;
-      const nd = Math.floor(e.s / 67108864) % 2 === 1, ms = Math.floor(e.s / 34359738368) % 2 === 1;
-      const pipes = ms ? this.pipesMs : this.pipes;
+      const nd = Math.floor(e.s / 67108864) % 2 === 1, ms = Math.floor(e.s / 34359738368) % 2 === 1, pipes = ms ? this.pipesMs : this.pipes;
       const key = blend + ps * 262144 + vs * 268435456 + cull * 137438953472 + dm * 549755813888 + (nd ? 35184372088832 : 0);
       if (pipes.has(key)) return false;
       const desc = this.pipeDesc(key, blend, ps, vs, cull, dm, nd, ms);
@@ -649,7 +725,7 @@ export class Encoder {
         { binding: 1, resource: { buffer: this.kBuf, size: KWIN_SIZE } },
         { binding: 2, resource: { buffer: this.pBuf, size: PSPAR_BYTES } },
         // the frame's other cars' headlights, in its VS constant arena (gpu_proto.h GwHL)
-        { binding: 3, resource: { buffer: this.kBuf, offset: P.K_HL, size: HLPAR_SIZE } }] });
+        { binding: 3, resource: { buffer: this.kBuf, size: HLPAR_SIZE } }] });
       this.bg0[src] = g;
     }
     return g;
@@ -702,11 +778,12 @@ export class Encoder {
    * the same passes, one full-screen copy fewer. */
   encodeFrame(b: number, enc: GPUCommandEncoder, direct?: GPUTexture): EncodeStats {
     const t0 = performance.now();
+    this.drawClock++;
     this.views();
     const u32 = this.u32, i32 = this.i32, f32 = this.f32, dev = this.device;
     const fw = this.ctlW + P.C.frame + b * (P.FRAME_BYTES >> 2);
     const dn = u32[fw + F.dn], vn = u32[fw + F.vn], rvn = u32[fw + F.rvn], kn = u32[fw + F.kn];
-    const drawsW = u32[fw + F.draws] >> 2, pscW = u32[fw + F.psc] >> 2;
+    const drawsW = u32[fw + F.draws] >>> 2, pscW = u32[fw + F.psc] >>> 2;
     const bbW = u32[fw + F.bbW] || 1280, bbH = u32[fw + F.bbH] || 720;
     let isDirect = !!direct && direct.width === bbW && direct.height === bbH;
     if (isDirect && this.readsScreenFirst(drawsW, dn)) {
@@ -725,9 +802,9 @@ export class Encoder {
 
     // arenas: one writeBuffer each, in the queue before this frame's submit
     const SV = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST, UV = GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST;
-    if (vn) { this.tvBuf = this.grow(this.tvBuf, vn * P.TVERT_BYTES, 'tvert', SV); this.queue.writeBuffer(this.tvBuf, 0, this.u8, u32[fw + F.tv], vn * P.TVERT_BYTES); }
-    if (rvn) { const n = (rvn + 3) & ~3; this.rawBuf = this.grow(this.rawBuf, n, 'raw', SV); this.queue.writeBuffer(this.rawBuf, 0, this.u8, u32[fw + F.raw], n); }
-    if (kn) { const n = (kn + 3) & ~3; this.kBuf = this.grow(this.kBuf, n + KWIN_SIZE, 'vsconst', UV); this.queue.writeBuffer(this.kBuf, 0, this.u8, u32[fw + F.k], n); }
+    if (vn) { this.tvBuf = this.grow(this.tvBuf, vn * P.TVERT_BYTES, 'tvert', SV); this.queue.writeBuffer(this.tvBuf, 0, this.u8.subarray(u32[fw + F.tv], u32[fw + F.tv] + vn * P.TVERT_BYTES)); }
+    if (rvn) { const n = (rvn + 3) & ~3; this.rawBuf = this.grow(this.rawBuf, n, 'raw', SV); this.queue.writeBuffer(this.rawBuf, 0, this.u8.subarray(u32[fw + F.raw], u32[fw + F.raw] + n)); }
+    if (kn) { const n = (kn + 3) & ~3; this.kBuf = this.grow(this.kBuf, n + KWIN_SIZE, 'vsconst', UV); this.queue.writeBuffer(this.kBuf, 0, this.u8.subarray(u32[fw + F.k], u32[fw + F.k] + n)); }
     this.pBuf = this.grow(this.pBuf, (dn + 1) * PSLOT, 'pspar', UV);
     if (this.pStage.length < (dn + 1) * (PSLOT / 4)) this.pStage = new Float32Array((dn + 64) * (PSLOT / 4));
     const ps = this.pStage;
@@ -740,10 +817,15 @@ export class Encoder {
     const touched = new Set<number>();
     let clearArgb = u32[fw + F.clearArgb];
     let cPipe: GPURenderPipeline | null = null, cSrc = -1, cK = -1, cP = -1, cBcol = -1, cIx = '';
-    // the pass's size, and the scissor in effect in it (a GwDraw.clip value; 0 = the whole target)
-    let passW = 0, passH = 0, cClip = 0;
+    // the pass's size, the scissor in effect in it (a GwDraw.clip value; 0 = the whole target), whether a split
+    // screen's cells came in it (passCells: viewports and scissors then by viewport.ts), the headlights block bound
+    let passW = 0, passH = 0, cClip = 0, passCells = false, cH = -1;
+    // the viewport and scissor in effect in the pass (when it opens WebGPU's: the whole target), and the draw's
+    // (viewport.ts fills them in place, so a draw allocates nothing and sets either only when it changes)
+    const vpNow = [0, 0, 0, 0, 0, 1], vpDraw = [0, 0, 0, 0, 0, 1], scNow = [0, 0, 0, 0], scDraw = [0, 0, 0, 0];
     // the previous draw's pipeline (pipelines outlive passes, so this survives a pass change)
     let lastKey = -1, lastMs = false, lastPipe: GPURenderPipeline | null | undefined;
+    // the pass draws at 4 samples: the screen of a multisampled back buffer, or a TF_MS target (runtime/com.c MULTISAMPLING)
     let passMs = false;
     const b1 = this.b1, dyn = this.dyn;
     b1[0] = -1;
@@ -758,6 +840,7 @@ export class Encoder {
 
     const openPass = (target: number, zid: number): GPURenderPassEncoder | null => {
       let view: GPUTextureView, w: number, h: number, key: number;
+      // a 4-sample target: its twin, and the view its picture is drawn into the twin from
       let twin: MsTwin | null = null, twinSrc: GPUTextureView | null = null;
       if (!target) {
         view = this.screenView!; w = bbW; h = bbH; key = -1; passCube = -1;
@@ -770,11 +853,15 @@ export class Encoder {
         if (t.ms) { twin = t.ms; twinSrc = t.view; }
       }
       passW = w; passH = h;
+      vpNow[0] = 0; vpNow[1] = 0; vpNow[2] = w; vpNow[3] = h; vpNow[4] = 0; vpNow[5] = 1;
+      scNow[0] = 0; scNow[1] = 0; scNow[2] = w; scNow[3] = h; cClip = 0; passCells = false;
       passKey = target ? (target & 0xFFFF) : -1;
       const first = key === -1 ? !screenTouched : !touched.has(key);
       let zv: GPUTextureView | undefined, zclear = false, zval = 1;
       passMs = !!twin;
       if (twin) {
+        // drawn into the twin and resolved into the target as the pass ends (endPass); a twin behind its target (a blit
+        // or copy into it) first gets the target's picture when the pass loads; the Z surface's own 4-sample twin
         if (!first && twin.stale) { this.msRefresh(enc, twin, twinSrc!); passes++; }
         if (zid && zid < 64) {
           const z = this.msZView(zid, w, h);
@@ -796,7 +883,7 @@ export class Encoder {
         if (key === -1) screenTouched = true; else touched.add(key);
         passes++; this.calls.pass++; this.msPasses++;
         if (tr) tr.push(`  pass ${passes}: ${target ? `tex ${target & 0xFFFF}` : 'SCREEN'} x4 ${w}x${h} color ${first ? `clear ${c.toString(16)}` : 'load'}, z ${zv ? `zid ${zid} ${zclear ? `clear ${zval}` : 'load'}` : `none (zid ${zid})`}`);
-        cPipe = null; cSrc = -1; cK = -1; cP = -1; b1[0] = -1; cBcol = -1; cIx = ''; cClip = 0;
+        cPipe = null; cSrc = -1; cK = -1; cP = -1; b1[0] = -1; cBcol = -1; cIx = ''; cH = -1;
         return p;
       }
       if (zid && zid < 64) {
@@ -824,7 +911,7 @@ export class Encoder {
       if (key === -1) screenTouched = true; else touched.add(key);
       passes++; this.calls.pass++;
       if (tr) tr.push(`  pass ${passes}: ${target ? `tex ${target & 0xFFFF}${(target >>> 16) ? ` face ${(target >>> 16) - 1}` : ''}` : 'SCREEN'} ${w}x${h} color ${first ? `clear ${c.toString(16)}` : 'load'}, z ${zv ? `zid ${zid} ${zclear ? `clear ${zval}` : 'load'}` : `none (zid ${zid})`}`);
-      cPipe = null; cSrc = -1; cK = -1; cP = -1; b1[0] = -1; cBcol = -1; cIx = ''; cClip = 0;
+      cPipe = null; cSrc = -1; cK = -1; cP = -1; b1[0] = -1; cBcol = -1; cIx = ''; cH = -1;
       return p;
     };
 
@@ -833,18 +920,20 @@ export class Encoder {
       const kind = u32[w + D.kind];
       if (kind === Kind.Blit) {
         const sid = u32[w + D.blitSrc], tgt = u32[w + D.target];
-        const st = sid ? this.tex[sid] : null, dt = tgt ? this.tex[tgt & 0xFFFF] : null;
+        const st = sid ? this.tex[sid & 0xFFFF] : null, dt = tgt ? this.tex[tgt & 0xFFFF] : null;
+        // Packed surface faces use 1..6; zero denotes an ordinary 2D target.
+        const sf = Math.max(0, ((sid >>> 16) & 7) - 1), df = Math.max(0, ((tgt >>> 16) & 7) - 1);
         const sTex = sid ? st?.tex : this.screen!, dTex = tgt ? dt?.tex : this.screen!;
         const r0 = u32[w + D.first], r1 = u32[w + D.count];   // a source rectangle (r1 0: the whole source)
         if (tr) tr.push(`  #${i} blit ${sid || 'SCREEN'}${r1 ? ` (${r0 & 0xFFFF},${r0 >>> 16})-(${r1 & 0xFFFF},${r1 >>> 16})` : ''} -> ${tgt ? tgt & 0xFFFF : 'SCREEN'}${!sTex || !dTex ? ' (missing: skipped)' : ''}`);
         if (!sTex || !dTex || sTex === dTex || (tgt && !dt!.rt)) { skipped++; continue; }
         endPass(); curT = -1; curZ = -1;
         if (r1 && this.blitRect(enc, sTex, r0, r1, tgt ? dt!.rtViews[0] : this.screenView!, !sid)) passes++;
-        else if (sTex.width === dTex.width && sTex.height === dTex.height && sTex.format === dTex.format && sTex.depthOrArrayLayers === 1 && dTex.depthOrArrayLayers === 1)
-          { enc.copyTextureToTexture({ texture: sTex }, { texture: dTex }, [sTex.width, sTex.height, 1]); this.calls.copy++; }
+        else if (sTex.width === dTex.width && sTex.height === dTex.height && sTex.format === dTex.format && sf < sTex.depthOrArrayLayers && df < dTex.depthOrArrayLayers)
+          { enc.copyTextureToTexture({ texture: sTex, origin: [0, 0, sf] }, { texture: dTex, origin: [0, 0, df] }, [sTex.width, sTex.height, 1]); this.calls.copy++; }
         else {
-          const sv = sid ? (st!.cube ? st!.face0 ??= st!.tex.createView({ dimension: '2d', baseArrayLayer: 0, arrayLayerCount: 1, baseMipLevel: 0, mipLevelCount: 1 }) : st!.view) : this.screenView!;
-          const dv = tgt ? dt!.rtViews[0] : this.screenView!;
+          const sv = sid ? (st!.cube ? st!.tex.createView({ dimension: '2d', baseArrayLayer: sf, arrayLayerCount: 1, baseMipLevel: 0, mipLevelCount: 1 }) : st!.view) : this.screenView!;
+          const dv = tgt ? dt!.rtViews[df] : this.screenView!;
           this.copyQuad(enc, sv, dv, 'bgra8unorm', this.linear);
           passes++;
         }
@@ -853,6 +942,19 @@ export class Encoder {
         continue;
       }
       const depth = u32[w + D.depth], zid = depth >>> 8, target = u32[w + D.target];
+      if (kind === Kind.Clear && f32[w + D.viewport + 2] > 0) {
+        endPass(); curT = target; curZ = zid;
+        pass = openPass(target, zid);
+        const vp = drawViewport(f32, w + D.viewport, passW, passH, vpDraw);
+        const z = f32[w + D.clrZ], flags = u32[w + D.clrFlags];
+        if (pass && vp && Number.isFinite(z) && (flags & 3)) {
+          pass.setViewport(vp[0], vp[1], vp[2], vp[3], 0, 1);
+          pass.setPipeline(this.regionClearPipe(flags, u32[w + D.clrArgb], Math.max(0, Math.min(1, z)), passMs));
+          pass.draw(3);
+        }
+        endPass(); curT = -1;
+        continue;
+      }
       if (kind === Kind.Clear) {
         const fl = u32[w + D.clrFlags];
         if (tr) tr.push(`  #${i} clear flags ${fl} argb ${u32[w + D.clrArgb].toString(16)} z ${f32[w + D.clrZ]} target ${target & 0xFFFF} zid ${zid}`);
@@ -860,6 +962,7 @@ export class Encoder {
         if ((fl & 2) && zid && zid < 64) {
           const z = f32[w + D.clrZ];
           this.zpend[zid] = 1; this.zpendV[zid] = z < 0 ? 0 : z > 1 ? 1 : z;
+          // and its 4-sample twins (one Z surface for the game)
           this.msZpend[zid] = 1; this.msZpendV[zid] = this.zpendV[zid];
           if (pass && curZ === zid) { endPass(); curT = -1; }
         }
@@ -874,6 +977,18 @@ export class Encoder {
       const count = u32[w + D.count];
       if (!pass || !count) { if (tr) tr.push(`  #${i} draw skipped: ${pass ? 'no vertices' : 'no pass (target missing)'}`); skipped++; continue; }
       const p: GPURenderPassEncoder = pass;
+      // a split screen's cell or effect region (GwDraw.viewport, clrFlags): from then on in this pass every draw
+      // takes the general way; until then (and in any frame of one view) the whole target, as before split screen
+      const cell = f32[w + D.viewport + 2] !== 0 || u32[w + D.clrFlags] !== 0;
+      if (cell) passCells = true;
+      if (passCells) {
+        if (!drawViewport(f32, w + D.viewport, passW, passH, vpDraw)) { skipped++; continue; }
+        if (vpDraw[0] !== vpNow[0] || vpDraw[1] !== vpNow[1] || vpDraw[2] !== vpNow[2] || vpDraw[3] !== vpNow[3]
+            || vpDraw[4] !== vpNow[4] || vpDraw[5] !== vpNow[5]) {
+          p.setViewport(vpDraw[0], vpDraw[1], vpDraw[2], vpDraw[3], vpDraw[4], vpDraw[5]);
+          for (let q = 0; q < 6; q++) vpNow[q] = vpDraw[q];
+        }
+      }
 
       // pipeline
       const psid = i32[w + D.ps], vsid = i32[w + D.vsid];
@@ -886,8 +1001,7 @@ export class Encoder {
       if (psEff === 0 && t0 && this.tex[t0]?.cube) psEff = PSCUBE;
       const nd = !(aref > 0);
       const key = blend + psEff * 262144 + vsid * 268435456 + cull * 137438953472 + dm * 549755813888 + (nd ? 35184372088832 : 0);
-      const pipes = passMs ? this.pipesMs : this.pipes;
-      let pipe = key === lastKey && passMs === lastMs ? lastPipe : pipes.get(key);
+      let pipe = key === lastKey && passMs === lastMs ? lastPipe : (passMs ? this.pipesMs : this.pipes).get(key);
       if (pipe === undefined) pipe = this.pipeline(key, blend, psEff, vsid, cull, dm, nd, passMs);
       lastKey = key; lastMs = passMs; lastPipe = pipe;
       if (!pipe) { skipped++; if (tr) tr.push(`  #${i} draw skipped: no pipeline (ps ${psEff} vs ${vsid})`); continue; }
@@ -895,9 +1009,18 @@ export class Encoder {
       // the 2D UI on a screen narrower than 4:3 stays in its 4:3 band (gpu_proto.h GwDraw.clip), on the
       // back buffer or a target of its size
       const clip = passW === bbW && passH === bbH ? u32[w + D.clip] : 0;
-      if (clip !== cClip) {
+      if (passCells) {
+        // A viewport transforms coordinates; explicitly restrict rasterization
+        // too. Screen-space quads and light sprites must stay in their cell.
+        drawScissor(vpDraw, passW, passH, clip, u32[w + D.clrArgb], u32[w + D.clrFlags], scDraw);
+        if (scDraw[0] !== scNow[0] || scDraw[1] !== scNow[1] || scDraw[2] !== scNow[2] || scDraw[3] !== scNow[3]) {
+          p.setScissorRect(scDraw[0], scDraw[1], scDraw[2], scDraw[3]);
+          for (let q = 0; q < 4; q++) scNow[q] = scDraw[q];
+        }
+      } else if (clip !== cClip) {
         const y0 = Math.min(clip & 0xFFFF, passH), y1 = Math.min(clip >>> 16, passH);
-        if (clip) p.setScissorRect(0, y0, passW, Math.max(0, y1 - y0)); else p.setScissorRect(0, 0, passW, passH);
+        scNow[0] = 0; scNow[1] = clip ? y0 : 0; scNow[2] = passW; scNow[3] = clip ? Math.max(0, y1 - y0) : passH;
+        p.setScissorRect(scNow[0], scNow[1], scNow[2], scNow[3]);
         cClip = clip;
       }
 
@@ -916,16 +1039,17 @@ export class Encoder {
 
       // group 0: vertex source + VS constants + PS parameters.  K is a 64 KB window of the
       // frame's constant arena that many draws share: the draw's block is row kb of it, given
-      // as firstInstance (gpu-abi.md section 3).  A new bind group only for another vertex
+      // as firstInstance.  A new bind group only for another vertex
       // source, other PS parameters or a block past the window.
       const isz = u32[w + D.ixIsz];
       const src = isz ? Src.Pool : vsid > 0 ? Src.Raw : Src.TVert;
       const koff = vsid > 0 ? u32[w + D.koff] : -1;
-      if (src !== cSrc || poff !== cP || (koff >= 0 && (cK < 0 || koff < cK || koff - cK > KWIN_SIZE - VSPAR_SIZE))) {
+      const hoff = u32[w + D.blitSrc];
+      if (src !== cSrc || poff !== cP || hoff !== cH || (koff >= 0 && (cK < 0 || koff < cK || koff - cK > KWIN_SIZE - VSPAR_SIZE))) {
         // the window starts at this draw's block (256-aligned below it); TVert draws read no K
         if (koff >= 0) cK = koff & ~255; else if (cK < 0) cK = 0;
-        dyn[0] = cK; dyn[1] = poff;
-        p.setBindGroup(0, this.group0(src), dyn, 0, 2); cSrc = src; cP = poff; this.calls.bg0++;
+        dyn[0] = cK; dyn[1] = poff; dyn[2] = hoff;
+        p.setBindGroup(0, this.group0(src), dyn, 0, 3); cSrc = src; cP = poff; cH = hoff; this.calls.bg0++;
       }
       const kb = koff >= 0 ? (koff - cK) >> 4 : 0;
 
@@ -934,10 +1058,15 @@ export class Encoder {
       const t1 = u32[w + D.tex1], t2 = u32[w + D.tex2], t3 = u32[w + D.tex3];
       let s0 = u32[w + D.smp], s1 = u32[w + D.smp + 1], s2 = u32[w + D.smp + 2], s3 = u32[w + D.smp + 3];
       const v0 = this.texFor(t0, cube, passCube), v1 = this.texFor(t1, false, passCube), v2 = this.texFor(t2, false, passCube), v3 = this.texFor(t3, false, passCube);
-      if (this.aniso) {
-        s0 = anisotropicSamplerKey(s0, v0.rt); s1 = anisotropicSamplerKey(s1, v1.rt);
-        s2 = anisotropicSamplerKey(s2, v2.rt); s3 = anisotropicSamplerKey(s3, v3.rt);
+      // a 1024 skin (HQ vinyls) has its mipmaps: sampled with them, whatever the game's 512 one (one level) asked for
+      if (this.over.size) {
+        if (this.over.get(t0) === v0) s0 = overSmp(s0);
+        if (this.over.get(t1) === v1) s1 = overSmp(s1);
+        if (this.over.get(t2) === v2) s2 = overSmp(s2);
+        if (this.over.get(t3) === v3) s3 = overSmp(s3);
       }
+      if (this.pointTex) { s0 = this.pointKey(s0, v0); s1 = this.pointKey(s1, v1); s2 = this.pointKey(s2, v2); s3 = this.pointKey(s3, v3); }
+      else if (this.aniso) { s0 = this.anisoKey(s0, v0); s1 = this.anisoKey(s1, v1); s2 = this.anisoKey(s2, v2); s3 = this.anisoKey(s3, v3); }
       // the same textures and samplers as the previous draw (the common case): nothing to do
       if (b1[0] !== (cube ? 1 : 0) || b1[1] !== v0.serial || b1[2] !== v1.serial || b1[3] !== v2.serial || b1[4] !== v3.serial
           || b1[5] !== s0 || b1[6] !== s1 || b1[7] !== s2 || b1[8] !== s3) {
@@ -969,7 +1098,7 @@ export class Encoder {
     endPass();
     if (tr) {
       // the first vertices of every TVert draw: clip position, oD0, oT0
-      const tv = u32[fw + F.tv] >> 2;
+      const tv = u32[fw + F.tv] >>> 2;
       for (let i = 0; i < dn; i++) {
         const w = drawsW + i * P.DRAW_WORDS;
         if (u32[w + D.kind] !== Kind.Draw || i32[w + D.vsid] > 0) continue;
@@ -984,12 +1113,12 @@ export class Encoder {
       for (let i = 0; i < dn; i++) {
         const w = drawsW + i * P.DRAW_WORDS;
         if (u32[w + D.kind] !== Kind.Draw || i32[w + D.vsid] <= 0 || u32[w + D.ixIsz]) continue;
-        const a = (raw + u32[w + D.rawoff]) >> 2, k = (kb + u32[w + D.koff]) >> 2;
+        const a = (raw + u32[w + D.rawoff]) >>> 2, k = (kb + u32[w + D.koff]) >>> 2;
         const hex = [...u32.subarray(a, a + 8)].map(x => x.toString(16).padStart(8, '0')).join(' ');
         const flt = [...f32.subarray(a, a + 3)].map(x => x.toPrecision(5)).join(' ');
         const kc = [...f32.subarray(k + 4, k + 4 + 20)].map(x => x.toPrecision(4)).join(' ');
         tr.push(`  raw #${i}: v0 ${hex} (xyz ${flt}) K stride ${u32[k]} tsel ${u32[k + 1].toString(16)} base ${u32[k + 2]} c0-4 ${kc}`);
-        const st = u32[k] >> 2, n = Math.min(u32[w + D.count], 6);
+        const st = u32[k] >>> 2, n = Math.min(u32[w + D.count], 6);
         if (st) for (let v = 1; v < n; v++) tr.push(`  raw #${i}.${v}: xyz ${[...f32.subarray(a + v * st, a + v * st + 3)].map(x => x.toPrecision(6)).join(' ')} word3 ${u32[a + v * st + 3].toString(16)}`);
       }
       // per vertex shader, the first draw's constants c0..c15 (matrices)
@@ -998,7 +1127,7 @@ export class Encoder {
         const w = drawsW + i * P.DRAW_WORDS, vs = i32[w + D.vsid];
         if (u32[w + D.kind] !== Kind.Draw || vs <= 0 || seenVs.has(vs)) continue;
         seenVs.add(vs);
-        const k = (kb + u32[w + D.koff]) >> 2, nk = (u32[w + D.ksz] - 16) >> 4;
+        const k = (kb + u32[w + D.koff]) >>> 2, nk = (u32[w + D.ksz] - 16) >> 4;
         const rows: string[] = [];
         for (let r = 0; r < Math.min(nk, 16); r++) rows.push(`c${r}(${[...f32.subarray(k + 4 + r * 4, k + 8 + r * 4)].map(x => x.toPrecision(4)).join(' ')})`);
         tr.push(`  consts vs ${vs} (#${i}, ${nk} rows): ${rows.join(' ')}`);
@@ -1059,7 +1188,62 @@ export class Encoder {
     const t = id ? this.tex[id] : undefined;
     if (!t || t.cube !== cube) return cube ? this.whiteCube : this.white;
     if (id === passTex) { this.conflicts++; return cube ? this.whiteCube : this.white; }
+    if (this.over.size) { const o = this.over.get(id); if (o) { o.drawn = this.drawClock; return o; } }
     return t;
+  }
+
+  // ------------------------------------------------------------ HQ vinyls
+  /** this page paints skins again at 1024 (GW_FEAT_HQSKIN): BC compression (a PC's GPU), and a reader of the game data */
+  get hqCapable(): boolean { return this.feat.bc; }
+  hqSkins(read: DataReader): void {
+    if (this.hq || !this.feat.bc) return;
+    this.hq = new HqSkins(this.device, read, this.log, (enc, tex) => this.mipChain(enc, tex), P.SKIN_HQ);
+  }
+  get hqStats(): { painted: number; failed: number; shown: number } {
+    return { painted: this.hq?.painted ?? 0, failed: this.hq?.failed ?? 0, shown: this.over.size };
+  }
+
+  /** each level of tex drawn from the one above it */
+  private mipChain(enc: GPUCommandEncoder, tex: GPUTexture): void {
+    for (let l = 1; l < tex.mipLevelCount; l++)
+      this.copyQuad(enc, tex.createView({ baseMipLevel: l - 1, mipLevelCount: 1 }), tex.createView({ baseMipLevel: l, mipLevelCount: 1 }),
+        'bgra8unorm', this.linear);
+  }
+
+  /** the game painted (or freed) texture id: its 1024 one goes, and any paint of it still under way is dropped */
+  private overGone(id: number): void {
+    if (!this.hqWant.has(id)) return;
+    this.hqWant.set(id, ++this.hqSeq);
+    const o = this.over.get(id);
+    if (o) { this.over.delete(id); this.texBytes -= o.bytes; this.destroyLater.push(o.tex); }
+  }
+
+  /** GW_SKIN_HQ: the game painted texture id at 512 from this recipe (+ alpha planes); paint it at 1024 */
+  private skinHq(id: number, recipeBytes: number, nplanes: number, data: number): void {
+    const t = this.tex[id];
+    if (!this.hq || !t || t.cube || t.w !== P.SKIN_HQ.SIDE || t.h !== P.SKIN_HQ.SIDE || recipeBytes !== P.SKIN_HQ.size || nplanes > P.SKIN_HQ.LAYERS) return;
+    const token = ++this.hqSeq, serial = t.serial, plane = P.SKIN_HQ.SIDE * P.SKIN_HQ.SIDE;
+    this.hqWant.set(id, token);
+    // the payload is the queue's only until drain returns: copied
+    const recipe = this.u8.slice(data, data + recipeBytes), planes = this.u8.slice(data + recipeBytes, data + recipeBytes + nplanes * plane);
+    const current = () => this.hqWant.get(id) === token && this.tex[id]?.serial === serial;
+    void this.hq.paint({ id, recipe, planes, nplanes, game: () => current() ? this.tex[id]!.view : null }).then(out => {
+      if (!out) return;
+      if (!current()) { out.destroy(); return; }
+      const old = this.over.get(id);
+      if (old) { this.over.delete(id); this.texBytes -= old.bytes; this.destroyLater.push(old.tex); }
+      if (this.over.size >= OVER_MAX) {
+        let far = -1, at = Infinity;
+        for (const [k, o] of this.over) if (o.drawn < at) { at = o.drawn; far = k; }
+        const o = this.over.get(far)!;
+        this.over.delete(far); this.texBytes -= o.bytes; this.destroyLater.push(o.tex);
+      }
+      const bytes = Math.round(out.width * out.height * 4 * 4 / 3);
+      this.texBytes += bytes;
+      this.over.set(id, { serial: this.serial++, tex: out, fmt: P.Fmt.A8R8G8B8, w: out.width, h: out.height, levels: out.mipLevelCount,
+        cube: false, rt: false, view: out.createView(), rtViews: [], expandA8: false, bc: false, unpack: false, astc: false, filled: true,
+        bytes, drawn: this.drawClock });
+    });
   }
 
   /** after the frame's submit: drop what the frame may still have referenced */

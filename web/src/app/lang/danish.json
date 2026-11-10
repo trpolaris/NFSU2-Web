@@ -1671,5 +1671,11 @@
   "The game continues running behind this menu.": "Spillet fortsætter med at køre bag denne menu.",
   "RETURN TO GAME": "TILBAGE TIL SPILLET",
   "Enable mod rim brands": "Aktivér modificerede fælgmærker",
-  "Adds compatible mod rim brands to Body Shop. Requires a compatible MODPACKS pack in the game folder. Off by default. Changes apply the next time you press Play.": "Føjer kompatible mod-fælgmærker til Body Shop. Kræver en kompatibel MODPACKS-pakke i spillets mappe. Deaktiveret som standard. Ændringerne gælder næste gang spillet startes."
+  "Adds compatible mod rim brands to Body Shop. Requires a compatible MODPACKS pack in the game folder. Off by default. Changes apply the next time you press Play.": "Føjer kompatible mod-fælgmærker til Body Shop. Kræver en kompatibel MODPACKS-pakke i spillets mappe. Deaktiveret som standard. Ændringerne gælder næste gang spillet startes.",
+  "License plate": "Nummerplade",
+  "On your car, also for other players in free roam: up to 8 letters and digits.": "På din bil, også for andre spillere i udforsknings-mode: op til 8 bogstaver og tal.",
+  "Original plate": "Original nummerplade",
+  "\"{value}\" is not a license plate (letters A to Z and digits, at most 8)": "\"{value}\" er ikke en nummerplade (bogstaverne A til Z og tal, højst 8)",
+  "\"{value}\" is not a license plate (it reads as a slur)": "\"{value}\" er ikke en nummerplade (det kan læses som et skældsord)"
+
 }

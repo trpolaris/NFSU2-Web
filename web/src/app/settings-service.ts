@@ -46,7 +46,7 @@ const GROUPS: Group[] = [
   { title: N('Online'), more: N('More online settings'), status: true, own: true, items: [
     { key: 'roam', label: N('Free roam with others'), help: N('Everyone on this server who turns this on sees your car in career free roam, and you see theirs, with their names over them.'), c: { t: 'switch' } },
     { key: 'roam_name', label: N('Your name'), help: N('What other players see over your car in free roam and in the Online menu: 3 to 15 letters, digits, - or _. Empty uses your profile name.'), c: { t: 'text', placeholder: N('profile name') } },
-    { key: 'license_plate', label: N('License plate'), help: N('Up to eight uppercase letters and digits. Plates matching blocked words are rejected; leave empty for the game\'s original plate.'), c: { t: 'text', placeholder: N('ABC123') } },
+    { key: 'license_plate', label: N('License plate'), help: N('On your car, also for other players in free roam: up to 8 letters and digits.'), c: { t: 'text', placeholder: N('Original plate') } },
     { key: 'roam_crew', label: N('Crews'), help: N('Friends who type the same crew name always see each other in free roam, however far apart, with names and map arrows in the crew\'s colour. Up to 4 crews. Anyone who types the name joins.'), c: { t: 'crews', placeholder: N('Crew name') } },
     { key: 'horn', label: N('Your horn'), help: N('N or the controller\'s left stick click, in free roam and in races with other players.'), c: { t: 'select', opts: [
       ['dual', N('Dual tone')], ['single', N('Single tone')], ['truck', N('Air horn')], ['train', N('Train horn')], ['klaxon', N('Klaxon')],

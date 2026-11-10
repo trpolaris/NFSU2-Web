@@ -1671,5 +1671,11 @@
   "The game continues running behind this menu.": "Spelet fortsätter att köras bakom den här menyn.",
   "RETURN TO GAME": "TILLBAKA TILL SPELET",
   "Enable mod rim brands": "Aktivera modifierade fälgmärken",
-  "Adds compatible mod rim brands to Body Shop. Requires a compatible MODPACKS pack in the game folder. Off by default. Changes apply the next time you press Play.": "Lägger till kompatibla moddfälgmärken i Body Shop. Kräver ett kompatibelt MODPACKS-paket i spelmappen. Avstängt som standard. Ändringarna börjar gälla nästa gång spelet startas."
+  "Adds compatible mod rim brands to Body Shop. Requires a compatible MODPACKS pack in the game folder. Off by default. Changes apply the next time you press Play.": "Lägger till kompatibla moddfälgmärken i Body Shop. Kräver ett kompatibelt MODPACKS-paket i spelmappen. Avstängt som standard. Ändringarna börjar gälla nästa gång spelet startas.",
+  "License plate": "Registreringsskylt",
+  "On your car, also for other players in free roam: up to 8 letters and digits.": "På din bil, i läget Utforska även för andra spelare: upp till 8 bokstäver och siffror.",
+  "Original plate": "Originalskylt",
+  "\"{value}\" is not a license plate (letters A to Z and digits, at most 8)": "\"{value}\" är ingen registreringsskylt (bokstäverna A till Z och siffror, högst 8)",
+  "\"{value}\" is not a license plate (it reads as a slur)": "\"{value}\" är ingen registreringsskylt (det läses som ett glåpord)"
+
 }

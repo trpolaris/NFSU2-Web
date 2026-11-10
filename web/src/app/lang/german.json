@@ -1671,5 +1671,11 @@
   "The game continues running behind this menu.": "Das Spiel läuft hinter diesem Menü weiter.",
   "RETURN TO GAME": "ZURÜCK ZUM SPIEL",
   "Enable mod rim brands": "Mod-Felgenmarken aktivieren",
-  "Adds compatible mod rim brands to Body Shop. Requires a compatible MODPACKS pack in the game folder. Off by default. Changes apply the next time you press Play.": "Fügt kompatible Mod-Felgenmarken zum Body Shop hinzu. Ein kompatibles MODPACKS-Paket im Spielordner ist erforderlich. Standardmäßig deaktiviert. Änderungen gelten beim nächsten Spielstart."
+  "Adds compatible mod rim brands to Body Shop. Requires a compatible MODPACKS pack in the game folder. Off by default. Changes apply the next time you press Play.": "Fügt kompatible Mod-Felgenmarken zum Body Shop hinzu. Ein kompatibles MODPACKS-Paket im Spielordner ist erforderlich. Standardmäßig deaktiviert. Änderungen gelten beim nächsten Spielstart.",
+  "License plate": "Kennzeichen",
+  "On your car, also for other players in free roam: up to 8 letters and digits.": "An deinem Wagen, in der freien Fahrt auch für andere Spieler: bis zu 8 Buchstaben und Ziffern.",
+  "Original plate": "Originalkennzeichen",
+  "\"{value}\" is not a license plate (letters A to Z and digits, at most 8)": "„{value}“ ist kein Kennzeichen (Buchstaben A bis Z und Ziffern, höchstens 8)",
+  "\"{value}\" is not a license plate (it reads as a slur)": "„{value}“ ist kein Kennzeichen (es liest sich wie eine Beleidigung)"
+
 }

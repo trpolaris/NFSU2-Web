@@ -1717,5 +1717,11 @@
   "The game continues running behind this menu.": "Gra nadal działa za tym menu.",
   "RETURN TO GAME": "WRÓĆ DO GRY",
   "Enable mod rim brands": "Włącz marki felg z modów",
-  "Adds compatible mod rim brands to Body Shop. Requires a compatible MODPACKS pack in the game folder. Off by default. Changes apply the next time you press Play.": "Dodaje do Body Shop zgodne marki felg z modów. Wymaga zgodnego pakietu MODPACKS w folderze gry. Domyślnie wyłączone. Zmiany zostaną zastosowane przy następnym uruchomieniu gry."
+  "Adds compatible mod rim brands to Body Shop. Requires a compatible MODPACKS pack in the game folder. Off by default. Changes apply the next time you press Play.": "Dodaje do Body Shop zgodne marki felg z modów. Wymaga zgodnego pakietu MODPACKS w folderze gry. Domyślnie wyłączone. Zmiany zostaną zastosowane przy następnym uruchomieniu gry.",
+  "License plate": "Tablica rejestracyjna",
+  "On your car, also for other players in free roam: up to 8 letters and digits.": "Na twoim samochodzie, na przejażdżce widoczna też dla innych graczy: do 8 liter i cyfr.",
+  "Original plate": "Oryginalna tablica",
+  "\"{value}\" is not a license plate (letters A to Z and digits, at most 8)": "„{value}” to nie tablica rejestracyjna (litery od A do Z i cyfry, najwyżej 8)",
+  "\"{value}\" is not a license plate (it reads as a slur)": "„{value}” to nie tablica rejestracyjna (brzmi jak obelga)"
+
 }

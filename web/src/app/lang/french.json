@@ -1694,5 +1694,11 @@
   "The game continues running behind this menu.": "Le jeu continue de fonctionner derrière ce menu.",
   "RETURN TO GAME": "RETOUR AU JEU",
   "Enable mod rim brands": "Activer les marques de jantes modifiées",
-  "Adds compatible mod rim brands to Body Shop. Requires a compatible MODPACKS pack in the game folder. Off by default. Changes apply the next time you press Play.": "Ajoute les marques de jantes compatibles au magasin de carrosserie. Nécessite un pack MODPACKS compatible dans le dossier du jeu. Désactivé par défaut. Les changements s’appliquent au prochain lancement du jeu."
+  "Adds compatible mod rim brands to Body Shop. Requires a compatible MODPACKS pack in the game folder. Off by default. Changes apply the next time you press Play.": "Ajoute les marques de jantes compatibles au magasin de carrosserie. Nécessite un pack MODPACKS compatible dans le dossier du jeu. Désactivé par défaut. Les changements s’appliquent au prochain lancement du jeu.",
+  "License plate": "Plaque d'immatriculation",
+  "On your car, also for other players in free roam: up to 8 letters and digits.": "Sur votre voiture, visible aussi des autres joueurs en mode Exploration : jusqu'à 8 lettres et chiffres.",
+  "Original plate": "Plaque d'origine",
+  "\"{value}\" is not a license plate (letters A to Z and digits, at most 8)": "« {value} » n'est pas une plaque (lettres de A à Z et chiffres, 8 au plus)",
+  "\"{value}\" is not a license plate (it reads as a slur)": "« {value} » n'est pas une plaque (elle ressemble à une insulte)"
+
 }
