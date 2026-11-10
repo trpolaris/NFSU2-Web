@@ -8143,3 +8143,8 @@ int roam_game_shared_weather(void){
     return O.on && rd32(G_FLOW) == 6u && rd32(G_TRACK) % 1000u == 0u &&
            !rd32(G_CAREER_RACE) && !(rd32(G_GAMEMODE) & 0x200u);
 }
+
+/* Local co-op (coop.c): create the second player's paint slot through the same game texture loader. */
+int roam_game_coop_skin(CPU *c, uint32_t n){ return skin_textures(c, n); }
+/* Local co-op (coop.c): the current online free-roam state, without entering a network race. */
+int roam_game_roaming_now(void){ return roaming(); }
