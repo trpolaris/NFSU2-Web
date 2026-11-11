@@ -45,7 +45,7 @@ export const NO_PACKS: Packs = { texpack: '', songs: '' };
 /** EA's own recordings (PFDATA/ORIGINAL) for one game-folder audio file; null for every other path. */
 export function songsPath(path: string): string | null {
   const p = path.split('/');
-  return p.length === 2 && p[0].toLowerCase() === 'pfdata' ? [p[0], 'original', p[1]].join('/') : null;
+  return p.length === 2 && p[0].toLowerCase() === 'pfdata' ? [p[0], 'ORIGINAL', p[1]].join('/') : null;
 }
 
 /** Select only the files used by this language and the enabled runtime packs. */
