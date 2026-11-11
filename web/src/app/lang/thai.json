@@ -1672,7 +1672,6 @@
   "Camera on the car in the middle": "กล้องอยู่ที่รถตรงกลาง",
   "Add a path point": "เพิ่มจุดบนเส้นทาง",
   "Play the path": "เล่นเส้นทาง",
-  "\"{value}\" is not a license plate (1 to 8 letters and digits)": "\"{value}\" ไม่ใช่ป้ายทะเบียน (ตัวอักษรและตัวเลข 1–8 ตัว)",
   "{key} or Home on the controller": "{key} หรือ Home บนคอนโทรลเลอร์",
   "Country unavailable": "ไม่มีข้อมูลประเทศ",
   "Drift mode": "โหมดดริฟต์",
