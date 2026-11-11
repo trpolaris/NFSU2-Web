@@ -128,7 +128,7 @@ test('names.h has the lists of names.mjs', () => {
   assert.deepEqual(list('plate_numbers'), [...PLATE.numbers]);
 });
 
-/** names.h's answers (fn: name_blocked, name_plate_blocked) for each of lines, as '0' and '1' */
+/** names.h's answers (fn: name_blocked, name_plate_blocked) for each line, as '0' and '1'. */
 function answersOfC(fn, lines) {
   const out = fs.mkdtempSync(path.join(OUT, 'names-c-'));
   try {
@@ -144,32 +144,41 @@ int main(void){
 }
 `);
     execFileSync('clang', ['-O1', '-Wall', '-Wextra', '-Werror', '-I', path.join(REPO, 'runtime'), '-o', bin, src]);
-    // the cases above, then names made of the lists' pieces with the ways round them, and plain noise
-    let seed = 7;
-    const rnd = n => { seed = (seed * 1103515245 + 12345) >>> 0; return (seed >>> 8) % n; };
-    const pick = a => a[rnd(a.length)];
-    const pieces = [...SLURS.anywhere, ...SLURS.whole, ...SLURS.edge, ...EDGE_OK.start, ...EDGE_OK.end, ...WHOLE_OK, ...PID_STEMS,
-      ...HATE.verbs, ...HATE.between, ...HATE.groups, 'jewel', 'mustafa', 'gs',
-      'raccoon', 'spice', 'niger', 'nigeria', 'pakize', 'xx', 'gamer', 'a', 'g', 'dani', 'hakan', 'van', 'n', 'pid', 'topi', 'drift',
-      '99', '1995', '1663', '69', '1488', '88', '14', '1_4', '8-8'];
-    const swap = { o: '0', i: '1!|l', e: '3', a: '4@', s: '5$', t: '7+', g: '69q', b: '8' };
-    const names = [...BLOCKED, ...ALLOWED.filter(n => /^[ -~]*$/.test(n))];
-    for (let k = 0; k < 20000; k++) {
-      let n = '';
-      for (let j = 1 + rnd(3); j > 0; j--) {
-        for (const ch of pick(pieces)) {
-          const r = rnd(10), alt = swap[ch];
-          n += r === 0 && alt ? pick([...alt]) : r === 1 ? ch.toUpperCase() : r === 2 ? ch + ch : ch;
-          if (rnd(12) === 0) n += pick([' ', '_', '-', '.', '2']);
-        }
-        if (rnd(3) === 0) n += pick(['', ' ', '_', '42']);
+    const output = execFileSync(bin, [], { input: lines.join('\n') + '\n', encoding: 'utf8' });
+    return output.replace(/\\r?\\n$/, '').split('');
+  } finally {
+    fs.rmSync(out, { recursive: true, force: true });
+  }
+}
+
+test('names.h answers names as names.mjs (25,000 names)', { skip: !haveClang && 'no clang' }, () => {
+  let seed = 7;
+  const rnd = n => { seed = (seed * 1103515245 + 12345) >>> 0; return (seed >>> 8) % n; };
+  const pick = a => a[rnd(a.length)];
+  const pieces = [...SLURS.anywhere, ...SLURS.whole, ...SLURS.edge, ...EDGE_OK.start, ...EDGE_OK.end, ...WHOLE_OK, ...PID_STEMS,
+    ...HATE.verbs, ...HATE.between, ...HATE.groups, 'jewel', 'mustafa', 'gs',
+    'raccoon', 'spice', 'niger', 'nigeria', 'pakize', 'xx', 'gamer', 'a', 'g', 'dani', 'hakan', 'van', 'n', 'pid', 'topi', 'drift',
+    '99', '1995', '1663', '69', '1488', '88', '14', '1_4', '8-8'];
+  const swap = { o: '0', i: '1!|l', e: '3', a: '4@', s: '5$', t: '7+', g: '69q', b: '8' };
+  const names = [...BLOCKED, ...ALLOWED.filter(n => /^[ -~]*$/.test(n))];
+  for (let k = 0; k < 20000; k++) {
+    let n = '';
+    for (let j = 1 + rnd(3); j > 0; j--) {
+      for (const ch of pick(pieces)) {
+        const r = rnd(10), alt = swap[ch];
+        n += r === 0 && alt ? pick([...alt]) : r === 1 ? ch.toUpperCase() : r === 2 ? ch + ch : ch;
+        if (rnd(12) === 0) n += pick([' ', '_', '-', '.', '2']);
       }
       if (rnd(3) === 0) n += pick(['', ' ', '_', '42']);
-      }
-      if (rnd(3) === 0) n += pick(['', ' ', '_', '42']);
-      names.push(n.slice(0, 24));
     }
-  for (let k = 0; k < 5000; k++) { let n = ''; for (let j = rnd(25); j > 0; j--) n += String.fromCharCode(32 + rnd(95)); names.push(n); }
+    if (rnd(3) === 0) n += pick(['', ' ', '_', '42']);
+    names.push(n.slice(0, 24));
+  }
+  for (let k = 0; k < 5000; k++) {
+    let n = '';
+    for (let j = rnd(25); j > 0; j--) n += String.fromCharCode(32 + rnd(95));
+    names.push(n);
+  }
   const c = answersOfC('name_blocked', names);
   assert.equal(c.length, names.length);
   const js = names.map(n => (blockedName(n) ? '1' : '0')).join('');
@@ -178,7 +187,6 @@ int main(void){
   const blocked = [...js].filter(x => x === '1').length;
   assert.ok(blocked > 1000 && blocked < names.length - 1000, `both answers among the made-up names (${blocked} of ${names.length} blocked)`);
 });
-
 test('names.h answers plates as names.mjs (25,000 plates)', { skip: !haveClang && 'no clang' }, () => {
   // the cases above, then plates made of the lists' pieces with digits for letters, and plain capitals and digits
   let seed = 11;
