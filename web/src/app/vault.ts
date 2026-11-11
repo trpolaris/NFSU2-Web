@@ -292,7 +292,7 @@ export interface Link {
 
 /** one side of a conflict: its profiles and their banks (null: not known) and when they were saved (here: the newest
  *  profile's file's time, this device's clock; the cloud: the server's; null: not known) */
-export interface Side { saved: number | null; profiles: { name: string; money: number | null }[] | null }
+export interface Side { saved: number | null; profiles: { name: string; money: number | null }[] | null; sums: Record<string, number> }
 
 export interface VaultDeps {
   /** the files of the save folder as a keyphrase keeps them (kept()); was: as a link of that version counted them
@@ -372,7 +372,8 @@ function profileSum(files: SaveFile[], f: SaveFile): number {
 export function sideOf(files: SaveFile[], saved?: number): Side {
   const profiles = profileFiles(files), times = profiles.filter(f => f.mtime).map(f => f.mtime!);
   return { saved: saved ?? (times.length ? Math.max(...times) : null),
-    profiles: profiles.map(f => ({ name: f.path.split('/')[1], money: profileMoney(f.data) })) };
+    profiles: profiles.map(f => ({ name: f.path.split('/')[1], money: profileMoney(f.data) })),
+    sums: Object.fromEntries(profiles.map(f => [f.path.split('/')[1].toLowerCase(), profileSum(files, f)])) };
 }
 
 export class VaultSync {
@@ -454,7 +455,7 @@ export class VaultSync {
    *  files here, cloud: theirs (none: not fetched) */
   private clash(l: Link, theirs: Remote | null, both: boolean, here: SaveFile[], cloud?: SaveFile[]): void {
     this.set({ s: 'conflict', why: theirs && theirs.saved < l.saved ? 'older' : both ? 'both' : 'bare', theirs, here: sideOf(here),
-      cloud: cloud ? sideOf(cloud, theirs?.saved) : theirs ? { saved: theirs.saved, profiles: null } : null });
+      cloud: cloud ? sideOf(cloud, theirs?.saved) : theirs ? { saved: theirs.saved, profiles: null, sums: {} } : null });
   }
 
   /** the files here (hash) about to be sent under the link: remembered until an answer comes (Link.sent) */
