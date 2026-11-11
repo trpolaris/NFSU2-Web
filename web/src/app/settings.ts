@@ -162,7 +162,7 @@ export const KEYS: readonly KeyDef[] = [
   // Opt-in removal of the career DVD cover event's visual-rating requirement.
   { key: 'visual_rep_remover', env: 'NFSU2_VISUAL_REP_REMOVER', kind: 'bool', scope: 'web' },
   // Custom plate text is moderated by runtime/names.h before it is rendered.
-  { key: 'license_plate', env: 'NFSU2_LICENSE_PLATE', kind: 'plate', scope: 'web' },
+  { key: 'license_plate', env: 'NFSU2_LICENSE_PLATE', kind: 'plate', scope: 'web', ic: true },
   // GPS distance beneath the native direction arrow (runtime/gpsdistance.c).
   { key: 'gps_distance', env: 'NFSU2_GPS_DISTANCE', kind: 'bool', scope: 'web' },
   // Career rubberbanding: original, noboost (no boost beyond an AI's own pace) or off.
@@ -287,7 +287,8 @@ export const TEMPLATE = `# NFSU2 settings, read at every launch.
 #visual_rep_remover = off
 
 # Personal license plate: up to eight uppercase letters and digits. Blocked words are rejected.
-# Leave empty to use the game's original plate. [NFSU2_LICENSE_PLATE]
+# Leave empty to use the game's original plate.
+# [NFSU2_LICENSE_PLATE]
 #license_plate =
 
 #gps_distance = off
