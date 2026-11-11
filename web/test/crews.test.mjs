@@ -203,7 +203,7 @@ test('/players?crews=: asked in the player\'s order, the counts by hash', async 
   const w = P.watchPlayers((line, counts) => { shown.push({ line: line(), counts }); next?.(); }, () => true, undefined, () => name, () => crews);
   const wait = () => new Promise(r => { next = r; });
   await wait();
-  assert.equal(asked[0], `/players?rooms=0,${room}&crews=${blue},${owls}`);
+  assert.equal(asked[0], `/players?rooms=${room}&crews=${blue},${owls}`);
   assert.deepEqual([...shown[0].counts], [[blue, 2], [owls, 0]]);
   assert.match(shown[0].line, /You are in room "Team": 1 in free roam there\./);
   crews = [owls]; name = ''; answer = { players: 3, online: 1, roam: 2, crews: [5] };
