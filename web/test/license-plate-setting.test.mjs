@@ -17,7 +17,7 @@ test('license plate setting normalizes uppercase and accepts only one to eight A
   assert.equal(checkSetting('license_plate', '') , null);
 
   for (const value of ['bad plate', '123456789', 'AB-123', 'A_B', 'é', 'АBC']) {
-    assert.match(checkSetting('license_plate', value)?.reason ?? '', /not a license plate \(1 to 8 letters and digits\)/, value);
+    assert.match(checkSetting('license_plate', value)?.reason ?? '', /not a license plate \(letters A to Z and digits, at most 8\)/, value);
   }
 });
 
