@@ -78,6 +78,7 @@ import { NameClaims, onlineName } from './claim';
 import { claimQuietly, NameRow, quietCheck, settleName, type PlayNameDeps } from './claim-ui';
 import { RenderCheck, RENDER_CHECK_TIMES, type RenderCheckTimes } from './rendercheck';
 import { moviesKept, Predownload } from './predownload';
+import type { Packs } from '../host/datacache';
 import { movieCodec } from '../host/movie';
 import { texSplit } from '../gpu/index';
 import { setupPlatformFeatures } from './platform';
@@ -436,6 +437,12 @@ const language = (r: Resolved = resolved()) => (r.env.NFSU2_LANGUAGE ?? 'turkish
 /** the texture pack picked (runtime/web/texrep_web.c), '' for none: the one the page fetches ahead and counts */
 const texpack = (r: Resolved = resolved()) => { const v = (r.env.NFSU2_UI_TEXTURES ?? '').toLowerCase(); return v === 'original' ? '' : v; };
 const openTunnel = (r: Resolved = resolved()) => /^(1|on|true)$/i.test(r.env.NFSU2_OPEN_TUNNEL ?? '');
+const packs = (r: Resolved = resolved()): Packs => ({
+  texpack: texpack(r),
+  songs: (r.env.NFSU2_SONGS ?? '').trim().toLowerCase(),
+  damage: /^(1|on|true)$/i.test(r.env.NFSU2_DAMAGE ?? ''),
+  whine: /^(1|on|true)$/i.test(r.env.NFSU2_GEARBOX_WHINE ?? ''),
+});
 
 // ----------------------------------------------------------------- play --
 function stageCanvas(): HTMLCanvasElement {
@@ -2169,8 +2176,8 @@ export async function boot() {
     file: settingsFile!, environment: ENVIRONMENT, defaults: DEVICE, onSaved: (_text, previous) => {
       applySiteKeys(resolveEnv(_text, ENVIRONMENT, {}, DEVICE).env);
       const before = resolveEnv(previous, ENVIRONMENT, {}, DEVICE);
-      const was = language(before) + '/' + texpack(before);
-      if (language() + '/' + texpack() !== was) void saves.refresh();
+      const was = language(before) + '/' + JSON.stringify(packs(before));
+      if (language() + '/' + JSON.stringify(packs()) !== was) void saves.refresh();
       vault?.changed(); players?.now();
       applyLanguage();
       window.dispatchEvent(new Event('trp-settings-changed'));
@@ -2231,7 +2238,8 @@ export async function boot() {
   window.addEventListener('online', () => { players?.now(); if ($<HTMLDialogElement>('#menu').open) void friendsPanel.refresh(); });
   window.addEventListener('resize', placeNotices);
   window.addEventListener('resize', placeLobby);
-  download = new Predownload(s => saves.showData(s), logLine, () => language(), () => texpack(), () => openTunnel());
+  download = new Predownload(s => saves.showData(s), logLine, () => language(), () => texpack(), () => openTunnel(),
+    () => packs().songs, () => !!packs().damage, () => !!packs().whine);
   saves = new SavesPanel({
     saveDir: SAVE, busy: () => !!session || starting || !instance.owner, confirm: confirmBox,
     onRestored: () => { void loadSettings(); void settings.refresh(); }, download, onChanged: () => vault.changed(),

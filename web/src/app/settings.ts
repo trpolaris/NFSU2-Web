@@ -173,6 +173,16 @@ export const KEYS: readonly KeyDef[] = [
   { key: 'mod_rims', env: 'NFSU2_MOD_RIMS', kind: 'bool', scope: 'web' },
   // Career unique visual rewards become available for every car after Caleb (runtime/uniques.c).
   { key: 'uniques', env: 'NFSU2_UNIQUES', kind: 'bool', scope: 'web' },
+  // EA Trax soundtrack selection; the preload follows the selected audio tree.
+  { key: 'songs', env: 'NFSU2_SONGS', kind: 'enum', vals: 'uncensored|original', scope: 'web' },
+  { key: 'race_music', env: 'NFSU2_RACE_MUSIC', kind: 'bool', scope: 'web' },
+  // Upstream gameplay mods: crash damage, vehicle stance and remote mod-part rendering.
+  { key: 'crash_damage', env: 'NFSU2_DAMAGE', kind: 'bool', scope: 'web' },
+  { key: 'stance', env: 'NFSU2_STANCE', kind: 'bool', scope: 'web' },
+  { key: 'others_mod_parts', env: 'NFSU2_OTHERS_MOD_PARTS', kind: 'enum', vals: 'shown|original', scope: 'web' },
+  // Optional audio/visual packs. Their source assets remain user-supplied.
+  { key: 'gearbox_whine', env: 'NFSU2_GEARBOX_WHINE', kind: 'bool', scope: 'web' },
+  { key: 'hq_vinyls', env: 'NFSU2_HQ_VINYLS', kind: 'bool', scope: 'web' },
   // the movies' subtitles (runtime/language.c).  Not in bundle.m's table either
   { key: 'subtitles', env: 'NFSU2_SUBTITLES', kind: 'bool', scope: 'web' },
   // the player's horn, which the others hear too (runtime/horn.c).  Not in bundle.m's table either: NFSU2_HORN there
@@ -299,6 +309,34 @@ export const TEMPLATE = `# NFSU2 settings, read at every launch.
 # to be sold for every career car. Off keeps the original per-car reward rule. Parts already bought stay
 # on their cars if this is turned off later. [NFSU2_UNIQUES]
 #uniques = off
+
+# EA Trax songs: uncensored = the restored soundtrack when installed; original = the game's own recordings
+# from PFDATA/ORIGINAL when present. [NFSU2_SONGS]
+#songs = uncensored
+
+# Music in drag and drift races: on uses the soundtrack above; off keeps the original silence in those races.
+# [NFSU2_RACE_MUSIC]
+#race_music = off
+
+# Damage on cars after collisions. This changes appearance, not handling. Requires the compatible MODPACKS/DAMAGE pack.
+# Off preserves the original game's behavior. [NFSU2_DAMAGE]
+#crash_damage = off
+
+# Per-car stance settings in the garage Body Shop. Other players see your configured stance when supported.
+# [NFSU2_STANCE]
+#stance = off
+
+# Remote players' modded visual parts: shown = use transmitted compatible mod-part appearance; original = stock look.
+# [NFSU2_OTHERS_MOD_PARTS]
+#others_mod_parts = shown
+
+# Engine/gearbox whine audio. Requires the three compatible MODPACKS/WHINE WAV files; downloads only when enabled.
+# [NFSU2_GEARBOX_WHINE]
+#gearbox_whine = off
+
+# Higher-resolution vehicle vinyls and doorlines. Requires the optional HQVINYLS assets supplied by the user.
+# [NFSU2_HQ_VINYLS]
+#hq_vinyls = off
 
 # Sound output.  [NOSOUND, inverted]
 #sound = on
@@ -814,11 +852,6 @@ export function checkSetting(key: string, val: string): Checked | Refused | null
     }
     case 'id': if (!(val.length < 32 && /^[0-9]+$/.test(val))) return refuse(N('"{value}" is not a numeric id'), val); break;
     case 'token': if (!(val.length < 300 && /^[!-~]+$/.test(val))) return refuse(N('"{value}" is not an asset key or URL (printable ASCII, no spaces)'), val); break;
-    case 'plate':
-      out = val.trim().toUpperCase();
-      if (!/^[A-Z0-9]{1,8}$/.test(out)) return refuse(N('"{value}" is not a license plate (1 to 8 letters and digits)'), val);
-      if (blockedPlate(out)) return refuse(N('"{value}" is not a license plate (it reads as a slur)'), val);
-      break;
     case 'raw': break;
     default:
       if (!valueOk(kind, val)) return refuse(N('"{value}" is not {kind}'), val, { kind: KIND_TEXT[kind]! });
@@ -1014,7 +1047,9 @@ export function resetAll(text: string | null): string {
   const r = resolveEnv(text, {}, {});
   let next = TEMPLATE;
   for (const key of RESET_KEEPS) {
-    const env = keyDef(key)!.env, v = r.env[env], c = checkSetting(key, v ?? '');
+    // Some kept identity values are passed through as raw runtime variables
+    // rather than having a browser KeyDef.  envNameOf handles both forms.
+    const env = keyDef(key)?.env ?? envNameOf(key), v = r.env[env], c = checkSetting(key, v ?? '');
     if (r.source[env] === 'settings.ini' && c?.ok && c.value === v) next = settingsPut(next, key, v);
   }
   return next;

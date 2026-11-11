@@ -38,12 +38,31 @@ const parts = (f: DataFile) => f.path.toLowerCase().split('/');
 /** The files a game in this language reads: the folder's, but where its language pack (LANGPACKS/<language>,
  *  runtime/language.c) has a file of the same path, that one; no other language's pack; of the texture packs
  *  (TEXPACKS/<name>.pak, runtime/web/texrep_web.c) only the one picked (texpack, '' for none). */
-function gameFiles(files: DataFile[], language: string, texpack: string): DataFile[] {
+/** Optional game-data packs selected in settings.ini. */
+export interface Packs { texpack: string; songs: string; damage?: boolean; whine?: boolean }
+export const NO_PACKS: Packs = { texpack: '', songs: '' };
+
+/** EA's own recordings (PFDATA/ORIGINAL) for one game-folder audio file; null for every other path. */
+export function songsPath(path: string): string | null {
+  const p = path.split('/');
+  return p.length === 2 && p[0].toLowerCase() === 'pfdata' ? [p[0], 'original', p[1]].join('/') : null;
+}
+
+/** Select only the files used by this language and the enabled runtime packs. */
+function gameFiles(files: DataFile[], language: string, packs: Packs): DataFile[] {
   const own = new Set(files.filter(f => { const p = parts(f); return p[0] === 'langpacks' && p[1] === language; })
     .map(f => parts(f).slice(2).join('/')));
+  const isOriginal = (p: string[]) => p.length === 3 && p[0] === 'pfdata' && p[1] === 'original';
+  const original = packs.songs === 'original';
+  const replaced = new Set(original ? files.map(parts).filter(isOriginal).map(p => `pfdata/${p[2]}`) : []);
   return files.filter(f => {
     const p = parts(f);
-    if (p[0] === 'texpacks') return p.length === 2 && p[1] === `${texpack}.pak`;
+    if (p[0] === 'texpacks') return p.length === 2 && packs.texpack.split(',').some(n => n && (p[1] === `${n}.pak` || p[1] === `${n}.tracks`));
+    if (p[0] === 'modpacks' && p[1] === 'damage') return !!packs.damage;
+    if (p[0] === 'modpacks' && p[1] === 'whine') return !!packs.whine;
+    if (p[0] === 'hqvinyls') return false;
+    if (isOriginal(p)) return original;
+    if (replaced.has(p.join('/'))) return false;
     return p[0] === 'langpacks' ? p[1] === language : !own.has(p.join('/'));
   });
 }
@@ -76,12 +95,15 @@ export function withTunnelOverlay(files: DataFile[], enabled: boolean): DataFile
     return true;
   });
 }
-export const aheadFiles = (files: DataFile[], language: string, texpack = '', openTunnel = false) =>
-  withTunnelOverlay(gameFiles(files, language, texpack), openTunnel).filter(f => !isMovie(f));
+export const aheadFiles = (files: DataFile[], language: string, selected: Packs | string = NO_PACKS, openTunnel = false) => {
+  // Accept the former string argument while older cached app bundles are still in use.
+  const packs = typeof selected === 'string' ? { ...NO_PACKS, texpack: selected } : selected;
+  return withTunnelOverlay(gameFiles(files, language, packs), openTunnel).filter(f => !isMovie(f));
+}
 /** The movies a game in this language can open: its VP6 files, or where it plays AV1 (av1) their AV1 copies, the
  *  VP6 file where a movie has none (as the I/O worker opens them, io-worker.ts dataFile). */
 export function languageMovies(files: DataFile[], language: string, av1 = false): DataFile[] {
-  const all = gameFiles(files, language, '').filter(isMovie), byPath = new Map(all.map(f => [f.path.toLowerCase(), f]));
+  const all = gameFiles(files, language, NO_PACKS).filter(isMovie), byPath = new Map(all.map(f => [f.path.toLowerCase(), f]));
   return all.filter(f => av1Path(f.path) !== null).map(f => (av1 && byPath.get(av1Path(f.path)!.toLowerCase())) || f);
 }
 export const dataUrl = (base: string, path: string) => base + path.split('/').map(encodeURIComponent).join('/');

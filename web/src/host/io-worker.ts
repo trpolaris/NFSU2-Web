@@ -15,7 +15,7 @@
 import {
   CTL_IO_DOORBELL, E, MAX_THREADS, Op, RPC_DONE, RPC_POSTED, RPC_SLOT, RPC_TAKEN, type BootConfig,
 } from './proto';
-import { BLOCK, CACHE_DIR, av1Path, blockRuns, cacheKey, dataUrl, openCacheFile, putBlock, runUrl, type CacheFile, type Manifest } from './datacache';
+import { BLOCK, CACHE_DIR, av1Path, songsPath, blockRuns, cacheKey, dataUrl, openCacheFile, putBlock, runUrl, type CacheFile, type Manifest } from './datacache';
 import { movieClose, movieDecode, movieOpen } from './movie';
 import { allocMemory, type MemoryTry } from './memory';
 import type { ReadAsk, ReadAnswer } from './proto';
@@ -93,7 +93,12 @@ function dataFile(rel: string): DNode | null {
     if (overlay && !overlay.dir) return overlay;
   }
   const n = dataLookup(rel);
-  if (!n || n.dir || cfg.env.NFSU2_MOVIE_CODEC !== 'av1') return n;
+  if (!n || n.dir) return n;
+  // Original EA Trax recordings replace the selected soundtrack's matching PFDATA files when installed.
+  const song = cfg.env.NFSU2_SONGS?.trim().toLowerCase() === 'original' ? songsPath(n.path) : null;
+  const original = song ? dataLookup(song) : null;
+  if (original && !original.dir) return original;
+  if (cfg.env.NFSU2_MOVIE_CODEC !== 'av1') return n;
   const a = av1Path(n.path);
   return (a && dataLookup(a)) || n;
 }

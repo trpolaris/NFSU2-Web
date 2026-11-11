@@ -3,12 +3,18 @@
 // start page sees the change (a storage event) and says what came of it.  The popup then closes.  Last.fm's pages cut the popup's
 // link to the start page (window.opener is null by then), so this never loads the start page itself: a browser that keeps the
 // window open gets one line saying it can be closed.
-import { keepSession } from './app/lastfm';
-import { LASTFM_RESULT, localStore } from './app/prefs';
+import { authStateMatches, keepSession } from './app/lastfm';
+import { LASTFM_RESULT, LASTFM_STATE, localStore } from './app/prefs';
 import { lastLanguage, setLanguage, t } from './app/i18n';
 
 async function connect(): Promise<string> {
-  const token = new URLSearchParams(location.search).get('token');
+  const params = new URLSearchParams(location.search);
+  const token = params.get('token');
+  const returnedState = params.get('state');
+  const pendingState = localStore.getJSON(LASTFM_STATE);
+  if (!authStateMatches(pendingState, returnedState)) return 'state';
+  // Consume before exchanging the token: reloading this callback cannot replay the attempt.
+  localStore.remove(LASTFM_STATE);
   if (!token) return 'token';
   try {
     const r = await fetch('/lastfm', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ op: 'session', token }) });

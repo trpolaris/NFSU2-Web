@@ -1,6 +1,6 @@
 // Transmission Whine's sounds (runtime/whine.c, tools/whinepack.py, web/src/host/datacache.ts):
 //   node --test web/test/whine.test.mjs
-// - the preload fetches MODPACKS/WHINE only with the whine on, and the rest of MODPACKS either way
+// - preload follows the selected DAMAGE/WHINE packs, fetches only selected texture/song data, and leaves HQ vinyls on demand
 // - tools/whinepack.py writes MODPACKS/WHINE's three sounds from the mod's release (a zip, or its files extracted): the
 //   1.0.2 release's own unless --any, 16-bit mono WAVs only, all three or nothing
 // The modules are bundled from web/src with esbuild, as web/test/songs.test.mjs does.
@@ -79,4 +79,25 @@ test('tools/whinepack.py: the three sounds, checked', { skip: !havePython && 'no
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
   }
+});
+
+test('EA original song paths point into PFDATA/ORIGINAL', () => {
+  assert.equal(D.songsPath('PFDATA/STRM_MUSIC.BIN'), 'PFDATA/ORIGINAL/STRM_MUSIC.BIN');
+  assert.equal(D.songsPath('TRACKS/L4RA.BUN'), null);
+  assert.equal(D.songsPath('MOVIES/INTRO.VP6'), null);
+});
+
+test('the preload follows selected texture, original-song and runtime mod packs', () => {
+  const files = [
+    'MODPACKS/DAMAGE/dent.bin', 'MODPACKS/WHINE/car_whine.wav', 'HQVINYLS/skin.dds',
+    'PFDATA/song.viv', 'PFDATA/ORIGINAL/song.viv',
+    'TEXPACKS/hd.pak', 'TEXPACKS/hd.tracks', 'TEXPACKS/other.pak',
+    'TRACKS/L4RA.BUN',
+  ].map(p => ({ path: p, size: 10, mtime: 1 }));
+  const paths = packs => D.aheadFiles(files, 'english', packs).map(x => x.path.toLowerCase()).sort();
+  assert.deepEqual(paths({ texpack: '', songs: '', damage: false, whine: false }), ['pfdata/song.viv', 'tracks/l4ra.bun']);
+  assert.deepEqual(paths({ texpack: 'hd', songs: '', damage: true, whine: false }),
+    ['modpacks/damage/dent.bin', 'pfdata/song.viv', 'texpacks/hd.pak', 'texpacks/hd.tracks', 'tracks/l4ra.bun']);
+  assert.deepEqual(paths({ texpack: '', songs: 'original', damage: false, whine: true }),
+    ['modpacks/whine/car_whine.wav', 'pfdata/original/song.viv', 'tracks/l4ra.bun']);
 });

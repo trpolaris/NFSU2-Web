@@ -1,8 +1,8 @@
 // The Game tab's Last.fm row, under the songs' settings: Connect (Last.fm's "allow access" page in a popup, lastfm.ts), then who
 // scrobbles and Disconnect; under it one line about .fmbot, the Discord bot that shows Last.fm stats.  Not there when the server
 // has no Last.fm (its /lastfm is 404).
-import { authLink, keepSession, readSession, type LastfmApi } from './lastfm';
-import { LASTFM_RESULT, LASTFM_SESSION, localStore } from './prefs';
+import { authLink, keepSession, newAuthState, readSession, type LastfmApi } from './lastfm';
+import { LASTFM_RESULT, LASTFM_SESSION, LASTFM_STATE, localStore } from './prefs';
 import { t } from './i18n';
 
 export const FMBOT = 'https://fm.bot/';
@@ -54,9 +54,14 @@ export class LastfmRow {
   private connect() {
     if (!this.key) { void this.askKey(); this.deps.say(t('Last.fm can\'t be reached now. Try again in a moment.')); return; }
     this.state = null;
-    const url = authLink(this.key);
+    const state = newAuthState();
+    localStore.setJSON(LASTFM_STATE, { state, at: Date.now() });
+    const url = authLink(this.key, location.origin, state);
     const w = window.open(url, 'lastfm', 'popup,width=480,height=720');
-    if (!w) this.deps.say(t('Allow pop-ups for this site, then try again.'));
+    if (!w) {
+      localStore.remove(LASTFM_STATE);
+      this.deps.say(t('Allow pop-ups for this site, then try again.'));
+    }
     this.render();
   }
 

@@ -178,6 +178,8 @@ test('Reset all settings keeps the crews and their colours', () => {
   assert.equal(r.env.NFSU2_ROAM_CREW_RGB, 'ff4646, 3cd2ff');
   assert.match(out, /^roam_crew = Blue Room, Night Owls\n[^]*^roam_crew_colours = ff4646, 3cd2ff$/m);
   assert.equal(S.resetAll(out), out, 'nothing more to reset');
+  const legacyFlag = S.resetAll('roam_flag = 1\n');
+  assert.equal(S.resolveEnv(legacyFlag, {}, {}).env.NFSU2_ROAM_FLAG, '1', 'legacy identity flags pass through even without a KeyDef');
   // a refused line is not kept
   assert.equal(S.resetAll(`roam_crew = ${'y'.repeat(25)}\nroam_crew_colours = #ff4646\n`), S.TEMPLATE);
   assert.ok(S.UI.PANEL_KEYS.includes('roam_crew_colours'), 'the Crews row writes it');
