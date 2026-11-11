@@ -163,7 +163,11 @@ export function watchPlayers(show: (line: Msg, crews: Map<number, number>) => vo
       if (!r.ok) return;
       const c = await r.json() as PlayerCounts;
       if (n !== asked) return;
-      last = c; show(() => playersText(c, inRoom), crewCounts(c, mine));
+      // The room setting is queried through the batched `rooms` endpoint; adapt its first requested hash
+      // to the single-room field consumed by playersText, while keeping old servers' unknown count unknown.
+      const roomCount = worlds.length ? worldCounts(c, worlds).get(worlds[0]) : undefined;
+      last = roomCount === undefined ? c : { ...c, room: roomCount };
+      show(() => playersText(last!, inRoom), crewCounts(c, mine));
     } catch { reached?.(false); }
   };
   const ask = async () => { if (document.visibilityState === 'visible' && idle()) await get(5000); };
