@@ -1672,7 +1672,6 @@
   "Camera on the car in the middle": "가운데 차량에 카메라 맞추기",
   "Add a path point": "경로 지점 추가",
   "Play the path": "경로 재생",
-  "\"{value}\" is not a license plate (1 to 8 letters and digits)": "\"{value}\"은(는) 번호판이 아닙니다(영문자와 숫자 1~8자)",
   "{key} or Home on the controller": "컨트롤러의 {key} 또는 Home",
   "Country unavailable": "국가 정보를 사용할 수 없음",
   "Drift mode": "드리프트 모드",
