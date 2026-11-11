@@ -1672,7 +1672,6 @@
   "Camera on the car in the middle": "將相機對準中央的車",
   "Add a path point": "新增路徑點",
   "Play the path": "播放路徑",
-  "\"{value}\" is not a license plate (1 to 8 letters and digits)": "「{value}」不是有效車牌（1 至 8 個英文字母或數字）",
   "{key} or Home on the controller": "控制器上的 {key} 或 Home",
   "Country unavailable": "無法取得國家資訊",
   "Drift mode": "甩尾模式",
