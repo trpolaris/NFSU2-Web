@@ -73,12 +73,16 @@ test('travel.c publishes both status values through the registered status ABI', 
 test('travel.c is connected to the main loop and the Windows companion stays city-only', () => {
   const travel = read('runtime/travel.c');
   const roam = read('runtime/roam.c');
+  const features = read('runtime/features.c');
   const roamGame = read('runtime/roam_game.c');
 
   assert.match(roam, /int travel_hook\(CPU \*c, uint32_t ip\);/);
   assert.match(roam, /if \(travel_hook\(c, ip\)\) return 1;/);
   assert.match(roam, /void travel_frame\(CPU \*c\);/);
-  assert.match(roam, /roam_game_frame\(c\); travel_frame\(c\);/);
+  assert.match(roam, /case HOOK_SITE\(0x00581475\): features_frame\(c\); return 1;/);
+  assert.match(features, /\{\s*"travel",\s*travel_frame\s*\}/);
+  assert.match(features, /\{\s*"roam_game",\s*f_roam_game\s*\}/);
+  assert.match(features, /static void f_roam_game\(CPU \*c\)\{ if \(!roam_asipeer_frame\(c\)\) roam_game_frame\(c\); \}/);
   assert.match(travel, /int travel_hook\(CPU \*c, uint32_t ip\)/);
   assert.match(travel, /void travel_frame\(CPU \*c\)/);
 
