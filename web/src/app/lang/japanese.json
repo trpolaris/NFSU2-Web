@@ -1672,7 +1672,6 @@
   "Camera on the car in the middle": "中央の車にカメラを合わせる",
   "Add a path point": "ルートポイントを追加",
   "Play the path": "ルートを再生",
-  "\"{value}\" is not a license plate (1 to 8 letters and digits)": "「{value}」はナンバープレートとして使えません（英数字1～8文字）",
   "{key} or Home on the controller": "コントローラーの{key}またはHome",
   "Country unavailable": "国を取得できません",
   "Drift mode": "ドリフトモード",
