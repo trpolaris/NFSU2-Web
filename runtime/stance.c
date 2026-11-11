@@ -418,7 +418,7 @@ static const char *text(int t){
         { "danish", "Stance", "Camber for", "Camber bag", "Sporvidde for", "Sporvidde bag", "D\xc3\xa6" "kbredde" },
         { "portuguese", "Stance", "Cambagem diant.", "Cambagem tras.", "Bitola diant.", "Bitola tras.", "Largura pneu" },
         { "polish", "Stance", "Pochylenie prz\xc3\xb3" "d", "Pochylenie ty\xc5\x82", "Rozstaw prz\xc3\xb3" "d", "Rozstaw ty\xc5\x82", "Szeroko\xc5\x9b" "\xc4\x87" " opon" },
-        { "turkish", "Stance", "\xc3\x96" "n kamber", "Arka kamber", "\xc3\x96" "n ofset", "Arka ofset", "Lastik geni\xc5\x9f" "li\xc4\x9f" "i" },
+        { "turkish", "Stance", "\xc3\x96" "n kamber", "Arka kamber", "\xc3\x96" "n offset", "Arka offset", "Lastik geni\xc5\x9f" "li\xc4\x9f" "i" },
         { "hungarian", "Stance", "Els\xc5\x91" " d\xc5\x91" "l\xc3\xa9" "s", "H\xc3\xa1" "ts\xc3\xb3" " d\xc5\x91" "l\xc3\xa9" "s", "Els\xc5\x91" " nyomt\xc3\xa1" "v", "H\xc3\xa1" "ts\xc3\xb3" " nyomt\xc3\xa1" "v", "Gumisz\xc3\xa9" "less\xc3\xa9" "g" },
         { "czech", "Stance", "Odklon vp\xc5\x99" "edu", "Odklon vzadu", "Rozchod vp\xc5\x99" "edu", "Rozchod vzadu", "\xc5\xa0" "\xc3\xad" "\xc5\x99" "ka pneu" },
         { "slovak", "Stance", "Odklon vpredu", "Odklon vzadu", "Rozchod vpredu", "Rozchod vzadu", "\xc5\xa0" "\xc3\xad" "rka pneu" },
