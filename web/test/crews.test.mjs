@@ -197,7 +197,7 @@ test('/players?crews=: asked in the player\'s order, the counts by hash', async 
   globalThis.window = { setInterval: () => 0 };
   globalThis.document = { visibilityState: 'visible', addEventListener() {} };
   globalThis.fetch = async url => { asked.push(url); return { status: 200, ok: true, json: async () => answer }; };
-  let crews = [blue, owls], rooms = [0, room];
+  let crews = [blue, owls], rooms = [0, room], name = 'Team';
   const shown = [];
   let next;
   const w = P.watchPlayers((line, counts) => { shown.push({ line: line(), counts }); next?.(); }, () => true, undefined, () => name, () => crews);
