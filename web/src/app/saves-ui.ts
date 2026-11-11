@@ -143,7 +143,8 @@ function backupIn(files: FileIn[], skipped: string[]): Restore {
     if ('bad' in r) { out.refused.push({ name: s[1], why: r.bad }); gone.add(lower(s[1])); continue; }
     out.profiles.push(s[1]);
     if (r.edited) { out.edited.push(s[1]); e.data = sealed(e.data); }
-    if (modCars(e.data)) out.modded.push(s[1]);
+    const garage = files.find(f => f.path.toLowerCase() === `${PROFILES_DIR}/${s[1]}/GARAGE.DAT`.toLowerCase());
+    if (modCars(e.data) || garageModCars(garage?.data)) out.modded.push(s[1]);
   }
   out.entries = files.filter(e => {
     const s = e.path.split('/');
