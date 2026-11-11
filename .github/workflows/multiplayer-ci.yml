@@ -295,7 +295,6 @@ jobs:
       - name: Run web regression tests
         timeout-minutes: 35
         env:
-          NODE_OPTIONS: --test-timeout=600000
         run: |
           set -o pipefail
           mkdir -p out/ci
