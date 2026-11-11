@@ -82,7 +82,7 @@ test('the keys, as players\' browsers keep them', () => {
     PLAY_MS: 'nfsu2.play.ms', PLAY_SMS: 'nfsu2.play.sms', PLAY_GAMES: 'nfsu2.play.games', PLAY_LAST: 'nfsu2.play.last',
     PLAY_FROM: 'nfsu2.play.from',
     RADIO_MODES: 'nfsu2.radio.modes', RADIO_ON: 'nfsu2.radio.on', RADIO_NEXT: 'nfsu2.radio.next', RADIO_SHUFFLE: 'nfsu2.radio.shuffle',
-    LASTFM_SESSION: 'nfsu2.lastfm', LASTFM_QUEUE: 'nfsu2.lastfm.queue', LASTFM_RESULT: 'nfsu2.lastfm.result',
+    LASTFM_SESSION: 'nfsu2.lastfm', LASTFM_QUEUE: 'nfsu2.lastfm.queue', LASTFM_RESULT: 'nfsu2.lastfm.result', LASTFM_STATE: 'nfsu2.lastfm.state',
     PHOTO_KEPT: 'nfsu2-photo', PHOTO_MARK: 'nfsu2-photo-mark', MESSAGES: 'nfsu2.msgs.',
     FRIENDS_INBOX: 'nfsu2.friends.inbox.',
     TOUCH_STEERING: 'nfsu2-touch-steering', TOUCH_LEVEL: 'nfsu2-touch-level', TOUCH_NITRO: 'nfsu2-touch-nitro',
