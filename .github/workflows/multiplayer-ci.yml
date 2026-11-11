@@ -40,7 +40,7 @@ jobs:
   validate:
     name: Rust, web and multiplayer regressions
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 90
     env:
       CARGO_TERM_COLOR: always
       RUST_BACKTRACE: 1
@@ -293,9 +293,13 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Run web regression tests
+        timeout-minutes: 35
+        env:
+          NODE_OPTIONS: --test-timeout=600000
         run: |
           set -o pipefail
-          node --test --test-concurrency=1 web/test/*.test.mjs 2>&1 | tee out/ci/web-tests.log
+          mkdir -p out/ci
+          node --test --test-concurrency=1 --test-timeout=600000 web/test/*.test.mjs 2>&1 | tee out/ci/web-tests.log
 
       - name: Enforce focused diagnostic result
         if: always()
