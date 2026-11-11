@@ -165,9 +165,8 @@ int main(void){
         if (rnd(3) === 0) n += pick(['', ' ', '_', '42']);
       }
       if (rnd(3) === 0) n += pick(['', ' ', '_', '42']);
+      names.push(n.slice(0, 24));
     }
-    names.push(n.slice(0, 24));
-  }
   for (let k = 0; k < 5000; k++) { let n = ''; for (let j = rnd(25); j > 0; j--) n += String.fromCharCode(32 + rnd(95)); names.push(n); }
   const c = answersOfC('name_blocked', names);
   assert.equal(c.length, names.length);
