@@ -12,7 +12,7 @@ import { fileURLToPath } from 'node:url';
 import * as esbuild from 'esbuild';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
-const entry = `export * from './web/src/app/settings.ts';`;
+const entry = `export * from './web/src/app/settings.ts'; export * as UI from './web/src/app/settings-ui.ts';`;
 const js = (await esbuild.build({ stdin: { contents: entry, resolveDir: ROOT, loader: 'ts' }, bundle: true, format: 'esm', write: false, platform: 'neutral' })).outputFiles[0].text;
 const S = await import('data:text/javascript;base64,' + Buffer.from(js).toString('base64'));
 
