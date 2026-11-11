@@ -72,6 +72,7 @@ test('Tracks UI events stay wired through the C mailbox, game frame and status p
   const cProto = readSource('runtime/web/input_proto.h');
   const cInput = readSource('runtime/web/input_web.c');
   const roam = readSource('runtime/roam.c');
+  const features = readSource('runtime/features.c');
   const travel = readSource('runtime/travel.c');
   const build = readSource('web/build.sh');
   const rtSources = build.match(/^RT="([^"]+)"$/m)?.[1].split(/\s+/) ?? [];
@@ -88,8 +89,10 @@ test('Tracks UI events stay wired through the C mailbox, game frame and status p
   assert.ok(tsInput.includes('push(IEV_TRAVEL_FRIEND, 0, 0, 0, [], nameHash | 0, spot);'));
   assert.ok(cInput.includes('case IEV_TRAVEL: travel_ask(e->a);'));
   assert.ok(cInput.includes('case IEV_TRAVEL_FRIEND: travel_ask_friend((uint32_t)e->a, e->b);'));
-  assert.ok(roam.includes('case HOOK_SITE(0x00581475):'));
-  assert.ok(roam.includes('travel_frame(c);'));
+  assert.ok(roam.includes('case HOOK_SITE(0x00581475): features_frame(c); return 1;'));
+  assert.match(features, /\{\s*"travel",\s*travel_frame\s*\}/);
+  assert.match(features, /\{\s*"roam_game",\s*f_roam_game\s*\}/);
+  assert.match(features, /static void f_roam_game\(CPU \*c\)\{ if \(!roam_asipeer_frame\(c\)\) roam_game_frame\(c\); \}/);
   assert.ok(travel.includes('void sub_0041ace0_orig(CPU *c);'));
   assert.ok(travel.includes('void sub_0041ace0(CPU *c){'));
   assert.ok(travel.includes('if (on_track()){ c->eax &= ~0xffu; POP32(c->eip); return; }'));
