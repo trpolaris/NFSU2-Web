@@ -158,12 +158,13 @@ test('unsupported experimental rim settings stay out of the panel and portable p
   const profileKeys = service.slice(service.indexOf('export const PROFILE_SETTING_KEYS'), service.indexOf('const PROFILE_SETTING_SET'));
   assert.ok(profileKeys.includes("'catchup'"));
   assert.match(service, /key: 'open_tunnel'/);
-  assert.doesNotMatch(service, /ug2net_parts|others_mod_parts/);
+  assert.doesNotMatch(service, /ug2net_parts/);
   assert.ok(profileKeys.includes("'open_tunnel'"));
+  assert.ok(!profileKeys.includes("'others_mod_parts'"), 'the community-parts display preference stays device-local');
   assert.doesNotMatch(service, /PROFILE_SETTING_KEYS = \[[^]]*(?:ug2net_parts|others_mod_parts)/);
   const settings = read('src/app/settings.ts');
   assert.match(settings, /key: 'open_tunnel'/);
-  assert.doesNotMatch(settings, /^#?\s*(?:ug2net_parts|others_mod_parts)\s*=/m);
+  assert.doesNotMatch(settings, /^#?\s*ug2net_parts\s*=/m);
 });
 
 test('Mod and profile export services return JSON payloads while React owns browser downloads', () => {
