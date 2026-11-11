@@ -438,7 +438,6 @@
   "\"{value}\" is not a whole number in {vals}": "\"{value}\", {vals} aralığında bir tam sayı değil",
   "\"{value}\" is not a name (printable ASCII, at most 24 characters)": "\"{value}\" geçerli bir ad değil (yazdırılabilir ASCII, en fazla 24 karakter)",
   "\"{value}\" is not a name (it reads as a slur)": "\"{value}\" geçerli bir ad değil (hakaret olarak algılanıyor)",
-  "\"{value}\" is not a room name (it reads as a slur)": "\"{value}\" geçerli bir oda adı değil (hakaret olarak algılanıyor)",
   "\"{value}\": \"{bad}\" is not a.b.c.d or a.b.c.d:port (IPv4 numbers, no names)": "\"{value}\": \"{bad}\" a.b.c.d veya a.b.c.d:port biçiminde değil (ad değil, IPv4 sayıları olmalı)",
   "\"{value}\" is not a numeric id": "\"{value}\" sayısal bir kimlik değil",
   "\"{value}\" is not an asset key or URL (printable ASCII, no spaces)": "\"{value}\" bir varlık anahtarı veya URL değil (yazdırılabilir ASCII, boşluk içermemeli)",
@@ -1672,7 +1671,6 @@
   "Camera on the car in the middle": "Ortadaki araca kamerayı yönelt",
   "Add a path point": "Yol noktası ekle",
   "Play the path": "Yolu oynat",
-  "\"{value}\" is not a license plate (1 to 8 letters and digits)": "\"{value}\" geçerli bir plaka değil (1-8 harf ve rakam)",
   "{key} or Home on the controller": "Kontrolcüde {key} veya Home",
   "Country unavailable": "Ülke bilgisi yok",
   "Drift mode": "Drift modu",
@@ -1736,5 +1734,6 @@
   "Last.fm didn't connect. Close this window and try again.": "Last.fm bağlantısı kurulamadı. Bu pencereyi kapatıp yeniden dene.",
   "Unique parts for every car": "Her arabaya özel parçalar",
   "Once Caleb is beaten, the shops sell the unique visual parts, wide body kits too, for every car in your career. Off: as in the original, each one only for the car you earned it with.": "Caleb yenildikten sonra mağazalar, geniş gövde kitleri dahil özel görsel parçaları kariyerindeki her araba için satar. Kapalı: orijinal oyundaki gibi, her biri yalnızca onu kazandığın araba için.",
-  "\"{value}\" is not a license plate (letters A to Z and digits, at most 8)": "\"{value}\" geçerli bir plaka değil (A-Z harfleri ve rakamlar, en fazla 8 karakter)"
+  "\"{value}\" is not a license plate (letters A to Z and digits, at most 8)": "\"{value}\" geçerli bir plaka değil (A-Z harfleri ve rakamlar, en fazla 8 karakter)",
+  "\"{value}\" is not a world name (it reads as a slur)": "\"{value}\" geçerli bir dünya adı değil (hakaret olarak algılanıyor)"
 }
