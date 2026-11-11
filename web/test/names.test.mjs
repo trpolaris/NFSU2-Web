@@ -145,7 +145,7 @@ int main(void){
 `);
     execFileSync('clang', ['-O1', '-Wall', '-Wextra', '-Werror', '-I', path.join(REPO, 'runtime'), '-o', bin, src]);
     const output = execFileSync(bin, [], { input: lines.join('\n') + '\n', encoding: 'utf8' });
-    return output.replace(/\\r?\\n$/, '').split('');
+    return output.trimEnd().split('');
   } finally {
     fs.rmSync(out, { recursive: true, force: true });
   }
