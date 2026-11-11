@@ -1741,7 +1741,6 @@
   "Camera on the car in the middle": "Kamera på bilen i mitten",
   "Add a path point": "Lägg till en färdvägspunkt",
   "Play the path": "Spela upp färdvägen",
-  "\"{value}\" is not a license plate (1 to 8 letters and digits)": "\"{value}\" är ingen registreringsskylt (1–8 bokstäver och siffror)",
   "{key} or Home on the controller": "{key} eller Home på handkontrollen",
   "Country unavailable": "Land ej tillgängligt",
   "Drift mode": "Driftläge",
