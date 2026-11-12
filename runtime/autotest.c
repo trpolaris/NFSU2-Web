@@ -145,6 +145,7 @@
  *        NUMPAD0..9 ...), or a number (0x1c = DIK code), or VK_xx / vk:0xNN.
  */
 #include "cpu.h"
+#include "game.h"               /* shared game-state addresses used by the status and input hooks */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
