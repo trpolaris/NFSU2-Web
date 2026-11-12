@@ -54,6 +54,8 @@
  * NFSU2_PAD_LOG=1 logs each look's start and end
  * (tests/scripts/pad_look.txt; roam_look_a.txt in free roam). */
 #include "cpu.h"
+#include "game.h"               /* player-settings offsets */
+#include "guest.h"              /* checked guest-memory helpers */
 #include "gamepad.h"
 #include <math.h>
 #include <stdio.h>
@@ -61,6 +63,10 @@
 #include <string.h>
 #include <strings.h>
 #include <time.h>
+
+/* These files are compiled as independent runtime translation units. */
+static inline uint32_t rd32(uint32_t address){ return guest_rd32(address); }
+static inline int ok(uint32_t address, uint32_t length){ return guest_ok(address, length); }
 
 #define G_FLOW       0x008654a4u   /* 6: in the world */
 #define G_RACE       0x00890118u   /* the race status: +0 4 racing (free roam too), 6 paused */

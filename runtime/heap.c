@@ -916,9 +916,17 @@ uint64_t heap_internal_nlive(int i){ return (i > 0 && i < MAXHEAP) ? g_heap[i].s
  * leaves to the game before it makes clones of friends' cars */
 uint32_t gheap_va_free(void){
     if (g_bump) return ~0u;
-    uint32_t fr = 0;
-    LOCK(); va_free_runs(&fr, 0, 0); UNLOCK();
-    return fr >= ~0u / VA_GRAN ? ~0u : fr * VA_GRAN;
+    /* Count granules that the allocator can actually reuse. Under HEAPCHECK,
+     * released regions remain quarantined in g_va_dead until the allocator
+     * has to reclaim them, so do not report those as currently free. */
+    uint32_t free_granules = 0;
+    LOCK();
+    for (uint32_t g = 0; g < VA_NG; g++)
+        if (!vbit(g_va_bits, g) && (!g_check || !vbit(g_va_dead, g)))
+            free_granules++;
+    UNLOCK();
+    uint64_t free_bytes = (uint64_t)free_granules * VA_GRAN;
+    return free_bytes > UINT32_MAX ? UINT32_MAX : (uint32_t)free_bytes;
 }
 
 /* One status-line fragment for autotest.c ([status] ... mem: ...). */
