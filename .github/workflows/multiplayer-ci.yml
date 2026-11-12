@@ -100,7 +100,8 @@ jobs:
             -Wno-unused-label -Wno-parentheses-equality
             -DNFS_ENHANCED=0
           )
-          for source in runtime/com.c runtime/mpcredit.c runtime/mpcredit_store.c; do
+          for source in runtime/com.c runtime/mpcredit.c runtime/mpcredit_store.c \
+                       runtime/heap.c runtime/autotest.c runtime/drift.c runtime/look.c; do
             object="$RUNNER_TEMP/$(basename "${source%.c}").wasm.o"
             echo "Compile $source -> $object"
             "$CC" "${flags[@]}" -c "$source" -o "$object"
