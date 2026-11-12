@@ -94,12 +94,18 @@
  *   drift_st     STYLE_DRIFT's state: 0 a drift that counts, 1 starting, 2 none, 3 banked, 4 lost (a wall)
  *   drift_pend   its points so far (the page counts them up, as the drift event's HUD does) */
 #include "cpu.h"
+#include "game.h"               /* shared player-settings offsets */
+#include "guest.h"              /* checked guest reads and safe guest calls */
 #include "kbd.h"
 #include "widescreen.h"           /* HOOK_SITE */
 #include "setting.h"
 #include <stdio.h>
 #include <string.h>
 #include <strings.h>
+
+/* Local aliases used by this runtime unit; keep reads inside committed guest memory. */
+static inline uint32_t rd32(uint32_t address){ return guest_rd32(address); }
+static inline int ok(uint32_t address, uint32_t length){ return guest_ok(address, length); }
 
 long autotest_frame(void);
 
