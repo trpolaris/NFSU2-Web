@@ -94,7 +94,7 @@ test('WASM runtime provides every API reported missing by the full game link', (
   ];
   for (const [file, symbol] of providers) {
     const source = fs.readFileSync(runtimePath(file), 'utf8');
-    assert.ok(source.includes(symbol), \`runtime/\${file} provides \${symbol}\`);
+    assert.ok(source.includes(symbol), \`runtime/${file} provides ${symbol}\`);
   }
 });
 
@@ -104,5 +104,5 @@ test('WASI source compile guard includes every new API provider and its caller',
     'runtime/travel.c', 'runtime/drift.c', 'runtime/widescreen.c',
     'runtime/framerate.c', 'runtime/showoff.c', 'runtime/stance.c',
     'runtime/savegame.c', 'runtime/web/gpu_web.c', 'runtime/web/status_web.c'
-  ]) assert.ok(check.includes(source), \`WASI check compiles \${source}\`);
+  ]) assert.ok(check.includes(source), \`WASI check compiles ${source}\`);
 });
