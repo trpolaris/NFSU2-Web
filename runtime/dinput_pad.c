@@ -454,6 +454,30 @@ static void fill_state(uint8_t *buf, uint32_t size, Dev *d, const PadState *s){
 /* look.c: whether the pad has a button on Look Back (else the stick turns the view round to the rear) */
 int pad_look_back_bound(void){ return g_look_back_bound; }
 
+/* The free-look shortcut uses the right stick by default. If the game's
+ * current map uses that stick for driving but leaves the left stick free,
+ * use the left one instead. Never steal a stick the game uses, or the
+ * player's explicit "Off" setting. */
+int pad_look_stick(void){
+    const char *setting = getenv("NFSU2_BUTTON_LOOK");
+    if (setting && (!strcasecmp(setting, "off") || !strcasecmp(setting, "no") ||
+                    !strcasecmp(setting, "false") || !strcmp(setting, "0")))
+        return -1;
+    PadState s;
+    if (!gamepad_read(&s) || !s.connected || s.wheel) return -1;
+    int right_used = 0, left_used = 0;
+    for (int i = 0; i < 4; i++){
+        Dev *d = &g_dev[i];
+        if (!d->obj || d->gone || d->wheel) continue;
+        uint32_t ch = dev_channel(d);
+        if (!ch) continue;
+        right_used |= chan_reads_axis(ch, k_axis_ofs[3]) || chan_reads_axis(ch, k_axis_ofs[4]);
+        left_used  |= chan_reads_axis(ch, k_axis_ofs[0]) || chan_reads_axis(ch, k_axis_ofs[1]);
+    }
+    if (right_used && left_used) return -1;
+    return right_used ? PAD_AXIS_LX : PAD_AXIS_RX;
+}
+
 /* ---- front-end keystrokes ----------------------------------------------------------
  * Some front-end input exists only as characters from the window procedure
  * (0x5ccf50 -> FESendKeystroke 0x55dbd0), not as DirectInput actions: text
