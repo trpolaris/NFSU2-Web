@@ -517,6 +517,12 @@ static struct {
     double   wdt, au_dt, part;
     uint64_t au_upd, trail;
 } g_f;
+/* gpu_web.c: timestamp the guest frame's input boundary in the same monotonic
+ * millisecond domain as the renderer's handoff timestamp. */
+double hfr_frame_input_ms(void){
+    uint64_t at = g_f.t ? g_f.t : mono_ns();
+    return (double)at / 1.0e6;
+}
 static double   g_trace_real = 0, g_trace_sim = 0;
 static uint64_t g_trace_t0 = 0, g_trace_n = 0;
 
