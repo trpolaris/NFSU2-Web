@@ -35,6 +35,8 @@ double ws_max_pixels(void);
  * marker, sub_004ebec0, gets this at its hook sites; roam_game.c's names
  * over friends' cars call it). */
 void  ws_hud_marker(float *x, float *y);
+/* The horizontal edge-anchor offset for an authored HUD coordinate. */
+float ws_hud_shift(float x, float y);
 /* 1 while the game draws a quad over a whole render target (sub_005c7140,
  * e.g. the rain tint): com.c's aspect_apply does not narrow it to 4:3. */
 int   ws_fill_target(void);
