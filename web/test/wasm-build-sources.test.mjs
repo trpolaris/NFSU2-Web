@@ -77,3 +77,32 @@ test('runtime APIs referenced by WASM features have a single provider', () => {
     'int roam_game_slot_kind(uint32_t car, const char **name)'
   ]) assert.ok(roam.includes(symbol), `roam_game.c provides ${symbol}`);
 });
+
+test('WASM runtime provides every API reported missing by the full game link', () => {
+  const providers = [
+    ['travel.c', 'int travel_city(float p[3], uint16_t *h)'],
+    ['drift.c', 'void drift_pad(void)'],
+    ['widescreen.c', 'float ws_hud_shift(float x, float y)'],
+    ['com.c', 'void com_backbuffer_size(unsigned *width, unsigned *height)'],
+    ['framerate.c', 'double hfr_frame_input_ms(void)'],
+    ['modpacks.c', 'int modpacks_others_original(void)'],
+    ['roam_game.c', 'int roam_game_placed(uint32_t data)'],
+    ['roam_game.c', 'int roam_game_in_lobby(void)'],
+    ['roam_game.c', 'int roam_game_engage(void)'],
+    ['roam_game.c', 'int roam_game_near(void)'],
+    ['roam_game.c', 'int roam_game_nocount(void)'],
+  ];
+  for (const [file, symbol] of providers) {
+    const source = fs.readFileSync(runtimePath(file), 'utf8');
+    assert.ok(source.includes(symbol), \`runtime/\${file} provides \${symbol}\`);
+  }
+});
+
+test('WASI source compile guard includes every new API provider and its caller', () => {
+  const check = fs.readFileSync(path.join(ROOT, 'tools', 'check-wasi-runtime.sh'), 'utf8');
+  for (const source of [
+    'runtime/travel.c', 'runtime/drift.c', 'runtime/widescreen.c',
+    'runtime/framerate.c', 'runtime/showoff.c', 'runtime/stance.c',
+    'runtime/savegame.c', 'runtime/web/gpu_web.c', 'runtime/web/status_web.c'
+  ]) assert.ok(check.includes(source), \`WASI check compiles \${source}\`);
+});
