@@ -36,7 +36,7 @@ flags=(
 )
 
 index=0
-for source in runtime/com.c runtime/mpcredit.c runtime/mpcredit_store.c runtime/mprace.c runtime/roam_game.c runtime/web/sbrk.c runtime/intro.c runtime/modpacks.c runtime/dinput_kbd.c runtime/dinput_pad.c runtime/horn.c runtime/features.c runtime/photo.c runtime/garage.c runtime/travel.c runtime/drift.c runtime/widescreen.c runtime/framerate.c runtime/showoff.c runtime/stance.c runtime/savegame.c runtime/web/gpu_web.c runtime/web/status_web.c; do
+for source in runtime/com.c runtime/mpcredit.c runtime/mpcredit_store.c runtime/mprace.c runtime/roam_game.c runtime/web/sbrk.c runtime/intro.c runtime/modpacks.c runtime/dinput_kbd.c runtime/dinput_pad.c runtime/horn.c runtime/features.c runtime/photo.c runtime/garage.c runtime/travel.c runtime/drift.c runtime/widescreen.c runtime/framerate.c runtime/stance.c runtime/savegame.c runtime/web/gpu_web.c runtime/web/status_web.c; do
   object="${RUNNER_TEMP}/nfsu2-wasi-unit-${index}.o"
   echo "Compile ${source} -> ${object}"
   "${CC}" "${flags[@]}" -c "${source}" -o "${object}"
