@@ -177,6 +177,17 @@ static int roam_world(void){
     return rd32(G_FLOW) == 6u && r && MR32(r + 0x24u) == 1u && (MR32(r) == 4u || MR32(r) == 6u) && !rd32(G_CAREER_RACE) &&
            rd32(G_RACEKIND) == 0u && !(rd32(G_GAMEMODE) & 0x208u) && !MR8(G_DRIFTRACE) && pl && rd32(pl + 4u);
 }
+/* showoff.c: the held D-pad shortcut uses the same toggle as the X key. */
+static void drift_press(int world){
+    D.keys++;
+    D.note = !world;
+    if (world){
+        D.want = !D.want;
+        fprintf(stderr, "[drift] f=%ld drift mode %s (X)\n", autotest_frame(), D.want ? "on" : "off");
+    } else fprintf(stderr, "[drift] f=%ld X outside free roam: nothing\n", autotest_frame());
+}
+void drift_pad(void){ drift_press(roam_world()); }
+
 /* the HUD is the top package: no screen over it */
 static int hud_on_top(void){
     uint32_t pl = rd32(G_PLAYER1), hud = pl ? rd32(pl + PL_HUD) : 0, fe = rd32(G_FENG), mg = fe ? rd32(fe + 8u) : 0,
@@ -293,12 +304,7 @@ static void publish(void){
 
 void drift_frame(CPU *c){
     int world = roam_world(), top = world && hud_on_top(), drive = top && MR32(race()) == 4u;
-    for (int n = x_presses(); n > 0; n--){
-        D.keys++;
-        D.note = !world;
-        if (world){ D.want = !D.want; fprintf(stderr, "[drift] f=%ld drift mode %s (X)\n", autotest_frame(), D.want ? "on" : "off"); }
-        else fprintf(stderr, "[drift] f=%ld X outside free roam: nothing\n", autotest_frame());
-    }
+    for (int n = x_presses(); n > 0; n--) drift_press(world);
     int on = D.want && drive;
     if (on != D.on){
         D.on = on;
