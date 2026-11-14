@@ -30,6 +30,8 @@ const char *horn_name(int kind);
  * and v: where the car is and how it moves; p 0: the player's own horn.
  * horn_sound returns 1 when that horn starts now, 0 while it goes on, -1
  * when it is out of hearing or out of voices. */
+/* Mute or resume the synthesized horns (Photo Mode); game thread. */
+void horn_mute(int on);
 void horn_begin(const float *pos, const float *fwd, const float *vel);
 int  horn_sound(uint32_t who, const char *name, int kind, const float *p, const float *v);
 void horn_end(void);
