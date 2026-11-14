@@ -22,7 +22,7 @@ test('WebAssembly runtime build includes newly integrated look and carspot modul
 
 test('WASI compiler invocations quote executable paths that may contain spaces', () => {
   const invocations = build.split('\n').filter((line) => line.includes('$CC'));
-  assert.equal(invocations.length, 5, 'all compiler invocations are covered');
+  assert.equal(invocations.length, 4, 'all C compiler invocations are covered');
   for (const line of invocations) {
     assert.match(line, /"\$CC"/, 'compiler executable is quoted');
   }
