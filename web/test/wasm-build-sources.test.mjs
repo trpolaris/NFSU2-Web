@@ -103,9 +103,14 @@ test('WASI source compile guard includes every new API provider and its caller',
   for (const source of [
     'runtime/travel.c', 'runtime/drift.c', 'runtime/widescreen.c',
     'runtime/framerate.c', 'runtime/stance.c', 'runtime/savegame.c',
-    'runtime/web/gpu_web.c', 'runtime/web/status_web.c'
+    'runtime/web/gpu_web.c'
   ]) assert.ok(check.includes(source), `WASI check compiles ${source}`);
+  for (const patched of ['runtime/showoff.c', 'runtime/web/status_web.c', 'runtime/lightkey.c'])
+    assert.ok(!check.includes(patched), `${patched} stays on the installer's compatibility-patched build path`);
   const showoff = fs.readFileSync(runtimePath('showoff.c'), 'utf8');
   assert.ok(showoff.includes('void drift_pad(void);'));
   assert.ok(showoff.includes('drift_pad();'));
+  const status = fs.readFileSync(runtimePath('web/status_web.c'), 'utf8');
+  for (const api of ['roam_game_near()', 'roam_game_engage()', 'roam_game_nocount()'])
+    assert.ok(status.includes(api), `status_web.c calls ${api}`);
 });
