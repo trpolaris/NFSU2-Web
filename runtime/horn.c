@@ -191,6 +191,25 @@ void horn_set_volume(float v){
 /* ---- the game thread: which horn has which voice ---------------------------------- */
 static struct { int used, sounded, kind; uint32_t who, tune, free_at; float pan, pitch; } g_vo[HORN_VOICES];
 static struct { int ok; float p[3], l[2], v[3]; } g_lis;
+static int g_muted;
+
+/* Photo Mode can mute all player horns without stopping the multiplayer
+ * session. Clear active voices immediately and keep their normal reuse tail. */
+void horn_mute(int on){
+    g_muted = !!on;
+    if (!g_muted) return;
+    uint32_t now = now_ms();
+    for (int k = 0; k < HORN_VOICES; k++){
+        if (!g_vo[k].used && !g_vo[k].sounded) continue;
+        g_vo[k].sounded = 0;
+        if (g_vo[k].used){
+            g_vo[k].used = 0;
+            g_vo[k].free_at = now + tail_ms(g_vo[k].kind);
+        }
+        voice_set(k, g_vo[k].tune, g_vo[k].kind, 0.f, g_vo[k].pan,
+                  g_vo[k].pitch > 0.f ? g_vo[k].pitch : 1.f);
+    }
+}
 #define PREVIEW_WHO 0xfffffffeu
 static char g_self[64];                                  /* the name the player's own horn last sounded with (its pitch) */
 void horn_begin(const float *pos, const float *fwd, const float *vel){
@@ -201,6 +220,7 @@ void horn_begin(const float *pos, const float *fwd, const float *vel){
     if (ln > 0.001f){ g_lis.l[0] = lx / ln; g_lis.l[1] = ly / ln; } else { g_lis.l[0] = 0.f; g_lis.l[1] = 1.f; }
 }
 int horn_sound(uint32_t who, const char *name, int kind, const float *p, const float *v){
+    if (g_muted) return -1;
     float gain = SELF, pan = 0.f, pitch = 1.f, dist = 0.f;
     if (kind < 0 || kind >= HORN_KINDS) kind = 0;        /* a newer build's horn */
     if (p){
