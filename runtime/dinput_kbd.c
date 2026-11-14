@@ -40,6 +40,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 
 /* The split-screen module overrides this; releases still pass through. */
 __attribute__((weak)) int split_kb_hidden(unsigned dik){ (void)dik; return 0; }
@@ -133,6 +134,92 @@ static const char *key_label(unsigned dik){
     const char *n = kbdmac_layout_name(dik);
     if (!n) n = dik_name(dik);
     return n;
+}
+
+/* settings.ts stores site shortcuts as KeyboardEvent.code strings. Translate
+ * those stable names to the DIK scan-code names used by this device. */
+static unsigned site_code_dik(const char *code){
+    static const struct { const char *code, *label; } aliases[] = {
+        {"Escape","Esc"}, {"ArrowUp","Up"}, {"ArrowDown","Down"},
+        {"ArrowLeft","Left"}, {"ArrowRight","Right"},
+        {"PageUp","Page Up"}, {"PageDown","Page Down"},
+        {"AltLeft","Option"}, {"AltRight","Right Option"},
+        {"ControlLeft","Control"}, {"ControlRight","Right Control"},
+        {"ShiftLeft","Shift"}, {"ShiftRight","Right Shift"},
+        {"MetaLeft","Command"}, {"MetaRight","Right Command"},
+        {"NumpadEnter","Num Enter"}, {"NumpadAdd","Num +"},
+        {"NumpadSubtract","Num -"}, {"NumpadMultiply","Num *"},
+        {"NumpadDivide","Num /"}, {"NumpadDecimal","Num ."},
+        {"Quote","'"}, {"IntlBackslash","<"},
+        {"Minus","-"}, {"Equal","="}, {"BracketLeft","["},
+        {"BracketRight","]"}, {"Semicolon",";"}, {"Comma",","},
+        {"Period","."}, {"Slash","/"}
+    };
+    char target[32] = {0};
+    if (!code || !*code) return 0;
+    size_t n = strlen(code);
+    if (n == 4 && !strncasecmp(code, "Key", 3) && isalpha((unsigned char)code[3])){
+        target[0] = (char)toupper((unsigned char)code[3]);
+    } else if (n == 6 && !strncasecmp(code, "Digit", 5) && isdigit((unsigned char)code[5])){
+        target[0] = code[5];
+    } else if (n >= 2 && n <= 3 && (code[0] == 'F' || code[0] == 'f')){
+        char *end = 0; long f = strtol(code + 1, &end, 10);
+        if (end && !*end && f >= 1 && f <= 15) snprintf(target, sizeof target, "F%ld", f);
+    } else if (n >= 7 && !strncasecmp(code, "Numpad", 6)){
+        const char *v = code + 6;
+        if (strlen(v) == 1 && isdigit((unsigned char)v[0])) snprintf(target, sizeof target, "Num %c", v[0]);
+    } else if (!strcasecmp(code, "Backquote")){
+        target[0] = 96;
+    } else if (!strcasecmp(code, "Backslash")){
+        target[0] = 92;
+    }
+    if (!target[0]){
+        for (size_t i = 0; i < sizeof aliases / sizeof aliases[0]; i++)
+            if (!strcasecmp(code, aliases[i].code)){ snprintf(target, sizeof target, "%s", aliases[i].label); break; }
+    }
+    if (!target[0]) snprintf(target, sizeof target, "%s", code);
+    for (unsigned dik = 1; dik < 256; dik++){
+        const char *label = dik_name(dik);
+        if (label && !strcasecmp(label, target)) return dik;
+    }
+    return 0;
+}
+unsigned dikbd_site_key(const char *env, unsigned dflt){
+    const char *value = env && *env ? getenv(env) : 0;
+    if (!value || !*value) return key_exists(dflt) ? dflt : 0;
+    if (!strcasecmp(value, "off") || !strcasecmp(value, "none") ||
+        !strcasecmp(value, "disabled") || !strcasecmp(value, "false") || !strcmp(value, "0"))
+        return 0;
+    unsigned dik = site_code_dik(value);
+    if (!dik){
+        char *end = 0; unsigned long raw = strtoul(value, &end, 0);
+        if (end != value && end && !*end && raw < 256u && key_exists((unsigned)raw)) dik = (unsigned)raw;
+    }
+    if (dik && key_exists(dik)) return dik;
+    if (lg()) fprintf(stderr, "[dikbd] %s=%s is not a supported key; using the default\\n", env ? env : "site key", value);
+    return key_exists(dflt) ? dflt : 0;
+}
+
+/* True only when the key is not assigned to one of the game's active
+ * DirectInput formats. This preserves player rebindings in Options/Controls. */
+int dikbd_ours(unsigned dik, const char *what){
+    if (!key_exists(dik)) return 0;
+    static uint8_t reported[256];
+    int bound = 0;
+    for (int i = 0; i < g_nkd && !bound; i++){
+        const KDev *d = &g_kd[i];
+        if (d->fmt == FMT_RAW) bound = d->ofs_of[dik] >= 0;
+        else if (d->fmt == FMT_ACTIONS) bound = d->act_of[dik] >= 0;
+    }
+    if (bound){
+        if (!reported[dik] && what && *what && lg())
+            fprintf(stderr, "[dikbd] %s key %s is assigned to a game control; site shortcut is inactive\\n",
+                    what, key_label(dik) ? key_label(dik) : "unknown");
+        reported[dik] = 1;
+        return 0;
+    }
+    reported[dik] = 0;
+    return 1;
 }
 static void write_objinst(uint32_t p, uint32_t size, unsigned dik){
     if (size < 0x18u || size > 0x13cu) size = 0x13cu;
