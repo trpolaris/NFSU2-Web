@@ -102,7 +102,10 @@ test('WASI source compile guard includes every new API provider and its caller',
   const check = fs.readFileSync(path.join(ROOT, 'tools', 'check-wasi-runtime.sh'), 'utf8');
   for (const source of [
     'runtime/travel.c', 'runtime/drift.c', 'runtime/widescreen.c',
-    'runtime/framerate.c', 'runtime/showoff.c', 'runtime/stance.c',
-    'runtime/savegame.c', 'runtime/web/gpu_web.c', 'runtime/web/status_web.c'
+    'runtime/framerate.c', 'runtime/stance.c', 'runtime/savegame.c',
+    'runtime/web/gpu_web.c', 'runtime/web/status_web.c'
   ]) assert.ok(check.includes(source), `WASI check compiles ${source}`);
+  const showoff = fs.readFileSync(runtimePath('showoff.c'), 'utf8');
+  assert.ok(showoff.includes('void drift_pad(void);'));
+  assert.ok(showoff.includes('drift_pad();'));
 });
