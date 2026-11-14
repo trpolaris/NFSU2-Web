@@ -357,22 +357,3 @@ void sub_0041ace0(CPU *c){
     if (on_track()){ c->eax &= ~0xffu; POP32(c->eip); return; }
     sub_0041ace0_orig(c);
 }
-
-/* The free-roam SwitchTrack setup: preserve the selected start before the
- * game's setup reads it, then replace its default city track afterwards. */
-void sub_00540780_orig(CPU *c);
-void sub_00540780(CPU *c){
-    travel_presetup();
-    sub_00540780_orig(c);
-    travel_setup();
-}
-
-/* A same-region trip still needs the game to rebuild the track's full world. */
-void sub_00581820_orig(CPU *c);
-void sub_00581820(CPU *c){
-    if (travel_full()){
-        uint32_t keep = rd32(G_TRACKINFO), other = rd32(G_TRACKINFOS);
-        if (other && other != keep) MR32(G_TRACKINFO) = other;
-    }
-    sub_00581820_orig(c);
-}
