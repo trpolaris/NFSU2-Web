@@ -10,6 +10,13 @@ const runtimePath = (name) => path.join(ROOT, '..', 'runtime', name);
 const mem = fs.readFileSync(runtimePath('mem.c'), 'utf8');
 const span = fs.readFileSync(runtimePath('guest_span.h'), 'utf8');
 const overrides = fs.readFileSync(runtimePath('overrides.c'), 'utf8');
+const intro = fs.readFileSync(runtimePath('intro.c'), 'utf8');
+const modpacks = fs.readFileSync(runtimePath('modpacks.c'), 'utf8');
+const dinputKbd = fs.readFileSync(runtimePath('dinput_kbd.c'), 'utf8');
+const dinputPad = fs.readFileSync(runtimePath('dinput_pad.c'), 'utf8');
+const horn = fs.readFileSync(runtimePath('horn.c'), 'utf8');
+const hornHeader = fs.readFileSync(runtimePath('horn.h'), 'utf8');
+const roam = fs.readFileSync(runtimePath('roam_game.c'), 'utf8');
 
 test('WebAssembly runtime build includes newly integrated look and carspot modules', () => {
   const runtime = /^RT="([^"]+)"/m.exec(build)?.[1];
@@ -52,4 +59,21 @@ test('WASM guest-span globals are defined and the unsupported upper window stays
 test('carpaint diagnostic state is owned and wired to model rendering', () => {
   assert.ok(overrides.includes('int g_carpaint_watch = 0;'));
   assert.ok(overrides.includes('if (g_carpaint_watch && carpaint_model) carpaint_model(item);'));
+});
+
+test('runtime APIs referenced by WASM features have a single provider', () => {
+  assert.ok(intro.includes('void intro_frame(CPU *c)'));
+  assert.ok(modpacks.includes('void modparts_deleted(const char *name)'));
+  assert.ok(dinputKbd.includes('unsigned dikbd_site_key(const char *env, unsigned dflt)'));
+  assert.ok(dinputKbd.includes('int dikbd_ours(unsigned dik, const char *what)'));
+  assert.ok(dinputPad.includes('int pad_look_stick(void)'));
+  assert.ok(horn.includes('void horn_mute(int on)'));
+  assert.ok(hornHeader.includes('void horn_mute(int on);'));
+  for (const symbol of [
+    'void roam_game_hold(int on)',
+    'int roam_game_online_here(void)',
+    'int roam_game_names_here(void)',
+    'int roam_game_names(CPU *c, uint32_t *objects, int max)',
+    'int roam_game_slot_kind(uint32_t car, const char **name)'
+  ]) assert.ok(roam.includes(symbol), `roam_game.c provides ${symbol}`);
 });
