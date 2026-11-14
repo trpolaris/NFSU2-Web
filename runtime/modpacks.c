@@ -106,6 +106,12 @@ static int switched_on(const char *env){
     return modpacks_switch_enabled(getenv(env));
 }
 
+/* stance.c: whether remote players' modded visual parts are hidden. */
+int modpacks_others_original(void){
+    const char *value = getenv("NFSU2_OTHERS_MOD_PARTS");
+    return value && !strcasecmp(value, "original");
+}
+
 /* MODPACKS/PARTS.BIN, read and checked once; 0: none (or not as tools/modpacks.py writes it, logged) */
 static int load(void){
     if (g.loaded) return g.nparts > 0;
