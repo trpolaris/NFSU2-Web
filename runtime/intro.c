@@ -86,6 +86,9 @@ static int intro_mode(void){
     return g_mode;
 }
 
+/* features.c calls the intro feature once per game frame. */
+void intro_frame(CPU *c){ (void)c; (void)intro_mode(); }
+
 static const char *msg_name(uint32_t m){
     switch (m){
     case MSG_PAD_ACCEPT: return "PAD_ACCEPT";
