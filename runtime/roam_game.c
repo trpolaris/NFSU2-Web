@@ -2166,6 +2166,15 @@ static uint32_t tag_obj(CPU *c, int k, uint32_t pkg){
     if (!g_tag.obj[k]) rlog("[roam] f=%ld no %s in the HUD: one name fewer over friends' cars\n", rh_frame(), nm);
     return g_tag.obj[k];
 }
+/* splitscreen.c: this name label already has a per-view world position. */
+int roam_game_placed(uint32_t data){
+    if (!data) return 0;
+    for (int i = 0; i < TAG_ALL; i++){
+        uint32_t obj = g_tag.obj[i];
+        if (g_tag.shown[i] && obj && ok(obj, 0x34u) && rd32(obj + 0x2cu) == data) return 1;
+    }
+    return 0;
+}
 static void tag_text_rgb(CPU *c, int k, uint32_t obj, const char *name, uint32_t rgb){
     if (!strcmp(g_tag.text[k], name) && g_tag.rgb[k] == rgb) return;
     snprintf(g_tag.text[k], sizeof g_tag.text[k], "%s", name);
@@ -7138,6 +7147,50 @@ int roam_game_slot_kind(uint32_t car, const char **name){
         return 0;
     }
     return -1;
+}
+
+/* The browser status page: Engage is available for our outrun or multiplayer race actions. */
+int roam_game_engage(void){
+    if (!O.on || !g_net_ok || !g_in_roam) return 0;
+#if DUELS
+    if (g_du.icon || g_du.st != DU_IDLE) return 1;
+#endif
+#if MPRACES
+    if (g_mp.st != MP_IDLE || mp_spot_here() || mp_joinable()) return 1;
+#endif
+    return 0;
+}
+
+/* The browser status page: a friend within the dual-horn playback range. */
+int roam_game_near(void){
+    if (!O.on || !g_net_ok || !g_in_roam || !g_lp_ok) return 0;
+    for (int i = 0; i < g_npv; i++){
+        const PeerView *v = &g_pv[i];
+        if (!v->visible || v->paused || !v->have_pose) continue;
+        float dx = v->pose.p[0] - g_lp[0], dy = v->pose.p[1] - g_lp[1], dz = v->pose.p[2] - g_lp[2];
+        if (dx * dx + dy * dy + dz * dz < 250.f * 250.f) return 1;
+    }
+    return 0;
+}
+
+/* The browser HUD avoids offering a countdown in a crowded car meet until
+ * this player's car has remained at the same place for the meet's 60 s dwell. */
+int roam_game_nocount(void){
+#if MPRACES
+    if (!O.on || !g_net_ok || !g_in_roam || !player_car()) return 0;
+    return du_crowd() >= DU_CROWD && !meet_parked(NSLOT, roam_plat_now_us());
+#else
+    return 0;
+#endif
+}
+
+/* savegame.c: do not save while in or travelling to/from a multiplayer lobby. */
+int roam_game_in_lobby(void){
+#if MPRACES
+    return O.on && g_net_ok && g_in_roam && g_mp.st != MP_IDLE;
+#else
+    return 0;
+#endif
 }
 
 /* ---- report at exit ----------------------------------------------------------------------------- */
