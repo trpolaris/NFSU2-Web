@@ -90,19 +90,35 @@ test('travel.c is connected to the main loop and the Windows companion stays cit
   assert.match(roamGame, /#ifndef ROAM_HOST_WIN[\s\S]*?__attribute__\(\(weak\)\) uint32_t travel_room\(void\)\s*\{\s*return 0;\s*\}/);
 });
 
-test('travel.c overrides and instruction hook remain covered by the generated-lift stamp', () => {
+test('travel and co-op share one owner for the free-roam setup/reload overrides', () => {
   const travel = read('runtime/travel.c');
+  const coop = read('runtime/coop.c');
   const stamp = read('tools/genstamp.sh');
   const gencheck = read('web/tools/gencheck.sh');
   const wasmBuild = read('web/build.sh');
 
-  assert.match(travel, /case HOOK_SITE\(0x00602eef\)/);
-  for (const address of ['0041ace0', '00540780', '00581820']) {
-    assert.match(travel, new RegExp('sub_' + address + '\\(CPU \\*c\\)'));
-    assert.match(travel, new RegExp('sub_' + address + '_orig'));
+  assert.match(travel, /case HOOK_SITE\\(0x00602eef\\)/);
+  assert.match(travel, /void sub_0041ace0\\(CPU \\*c\\)/);
+  assert.match(travel, /void sub_0041ace0_orig\\(CPU \\*c\\);/);
+
+  // Travel behavior stays in travel.c; the combined Co-op/Travel wrappers live only in coop.c.
+  assert.match(travel, /void travel_presetup\\(void\\)/);
+  assert.match(travel, /void travel_setup\\(void\\)/);
+  assert.match(travel, /int travel_full\\(void\\)/);
+  for (const address of ['00540780', '00581820']) {
+    const definition = new RegExp('void sub_' + address + '\\\\(CPU \\\\*c\\\\)\\\\s*\\\\{');
+    const owners = ['runtime/travel.c', 'runtime/coop.c']
+      .filter((file) => definition.test(read(file)));
+    assert.deepEqual(owners, ['runtime/coop.c'], address + ' has exactly one runtime owner');
+    assert.match(coop, new RegExp('void sub_' + address + '_orig\\\\(CPU \\\\*c\\\\);'));
   }
+
+  assert.match(coop, /cameras_setup\\(\\);[\\s\\S]*?travel_presetup\\(\\);[\\s\\S]*?sub_00540780_orig\\(c\\);[\\s\\S]*?travel_setup\\(\\);/);
+  assert.match(coop, /int trip = travel_full\\(\\);/);
+  assert.match(coop, /if \\(trip\\) fprintf\\(stderr/);
   assert.match(stamp, /HOOK_SITE/);
-  assert.match(gencheck, /tools\/genstamp\.sh sources/);
+  assert.match(gencheck, /tools\\/genstamp\\.sh sources/);
   assert.match(gencheck, /hooks/);
-  assert.match(wasmBuild, /web\/tools\/gencheck\.sh/);
+  assert.match(wasmBuild, /web\\/tools\\/gencheck\\.sh/);
 });
+
