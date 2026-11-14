@@ -665,6 +665,49 @@ void modparts_car_moved(int p, uint32_t from, uint32_t hf, uint32_t to, uint32_t
     stance_car_moved(p, hf, ht);
 }
 
+/* garage.c: a profile was deleted.  Drop only that profile's sidecar data and
+ * in-memory caches; another profile's waiting entries and active car records
+ * must remain untouched. */
+void modparts_deleted(const char *name){
+    if (!name || !*name) return;
+    int changed = 0;
+
+    for (int p = 0; p < 2; p++) if (g_wait_name[p][0] && !strcasecmp(g_wait_name[p], name)){
+        g_wait[p].n = 0;
+        g_wait_name[p][0] = 0;
+        g_add[p].n = 0;
+        if (g_mk.on && g_mk.p == p) g_mk.on = 0;
+        changed = 1;
+    }
+    for (int i = 0; i < 4; i++) if (g_mb[i].seq && !strcasecmp(g_mb[i].name, name)){
+        g_mb[i].name[0] = 0;
+        g_mb[i].fp = 0;
+        g_mb[i].l.n = 0;
+        g_mb[i].seq = 0;
+        changed = 1;
+    }
+    for (int i = 0; i < g_ncnt; i++) if (!strcasecmp(g_cnt[i].name, name)){
+        if (i + 1 < g_ncnt) memmove(&g_cnt[i], &g_cnt[i + 1], (size_t)(g_ncnt - i - 1) * sizeof g_cnt[0]);
+        g_ncnt--;
+        memset(&g_cnt[g_ncnt], 0, sizeof g_cnt[0]);
+        changed = 1;
+        i--;
+    }
+    if (g_staged.on && !strcasecmp(g_staged.name, name)){
+        g_staged.on = 0;
+        g_staged.name[0] = 0;
+        changed = 1;
+    }
+    for (int i = 0; i < g_nforeign; i++) if (!strcasecmp(g_foreign[i], name)){
+        if (i + 1 < g_nforeign) memmove(g_foreign[i], g_foreign[i + 1], (size_t)(g_nforeign - i - 1) * sizeof g_foreign[0]);
+        g_nforeign--;
+        g_foreign[g_nforeign][0] = 0;
+        changed = 1;
+        i--;
+    }
+    if (changed) fprintf(stderr, "[mods] %s: deleted profile's cached mod-part state cleared\\n", name);
+}
+
 /* --- the parts kept beside the profile */
 /* the cars' mod parts now (hide: the stand-ins put in for the while; every mod part goes out of the cars even when
  * the list is full; a car of a car type this game has not, as it was for the payload, keeps all its keys), the
