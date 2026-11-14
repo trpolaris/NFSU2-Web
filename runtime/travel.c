@@ -147,6 +147,15 @@ void travel_ask_friend(uint32_t name, int spot){
 }
 uint32_t travel_room(void){ return spot_at(T.spot) ? SPOTS[T.spot - 1].key : 0u; }
 
+/* savegame.c: when the career is on a race-track map, save the city place
+ * from which the player travelled rather than the temporary track place. */
+int travel_city(float p[3], uint16_t *h){
+    if (!p || !h || !T.city_ok || !on_track()) return 0;
+    memcpy(p, T.city, sizeof T.city);
+    *h = T.city_h;
+    return 1;
+}
+
 static int why_not(int k){
     if (T.going) return WHY_GOING;
     uint32_t race = rd32(G_RACE), player = rd32(G_PLAYER1), car = player_car(), track = rd32(G_RACEPARAMS);
