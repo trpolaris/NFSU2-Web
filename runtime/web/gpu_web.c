@@ -40,6 +40,7 @@ int  hfr_mailbox(void);          /* framerate.c */
 int  hfr_display_live(void);
 double hfr_frame_input_ms(void);
 void hfr_note_vsync(double ts, double dur);
+int split_render_limit(void); /* splitscreen.c: view count for shared highlight state */
 
 /* ---- shared-memory waits (wasm atomics on the shared linear memory) ---- */
 static inline int32_t ald(int32_t *p){ return __atomic_load_n(p, __ATOMIC_SEQ_CST); }
