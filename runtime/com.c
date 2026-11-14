@@ -771,6 +771,12 @@ static void rs_apply(void){
 static uint64_t g_rt_set=0, g_rt_screen=0;
 static uint64_t g_rt_tex=0;
 static uint32_t g_bb_w = 1280, g_bb_h = 720;   /* back buffer size */
+
+/* splitscreen.c: the current device backbuffer used by the view layout. */
+void com_backbuffer_size(unsigned *width, unsigned *height){
+    if (width) *width = g_bb_w;
+    if (height) *height = g_bb_h;
+}
 /* The game's Full Scene Anti-Aliasing option (Options > Display). WebGPU
  * guarantees four samples as its first multisample count; the device uses
  * two NONMASKABLE levels (off/on) and one 4_SAMPLES level. Phones and the
