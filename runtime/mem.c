@@ -37,6 +37,14 @@ uint8_t g_cbits[1u<<15] = {0};
 
 void mprot_arm(uint32_t);
 #ifdef __wasm__
+/*
+ * The optional upper guest-heap window is intentionally disabled for now.
+ * heap.c's VA manager and runtime/web/sbrk.c still share the contiguous
+ * [0, GUEST_END) layout; advertising a second span before both allocators can
+ * reserve it would let guest allocations collide with the runtime heap.
+ */
+uint32_t g_gwin_lo = 0, g_gwin_hi = 0;
+
 /* wasm: the guest span [0, GUEST_END) is ordinary linear memory, readable,
  * writable and zero from the start.  Committing only keeps the bitmap
  * (mem_is_committed, genexec, autotest probes) and the statistics; release

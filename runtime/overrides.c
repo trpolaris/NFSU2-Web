@@ -21,6 +21,10 @@
 void guest_backtrace(CPU*,int);
 __attribute__((weak)) int damage_texlist_engine(uint32_t ride);
 
+/* carpaint.c's optional multiplayer paint diagnostic, toggled by "roam mp paint". */
+int g_carpaint_watch = 0;
+__attribute__((weak)) void carpaint_model(uint32_t mdl);
+
 uint64_t g_cycle_break = 0, g_oob_node = 0, g_depth_guard = 0;
 static uint64_t guard_total = 0, guard_cap = 0;
 static CPU *g_guard_cpu = 0;
@@ -1876,8 +1880,9 @@ void sub_00489ba0(CPU *restrict c){
 void plates_model(uint32_t item, uint32_t keep[2]);
 void sub_005c5930_orig(CPU *c);
 void sub_005c5930(CPU *c){
-    uint32_t keep[2] = {0, 0};
-    plates_model(MR32(c->esp + 4u), keep);
+    uint32_t item = MR32(c->esp + 4u), keep[2] = {0, 0};
+    plates_model(item, keep);
     sub_005c5930_orig(c);
+    if (g_carpaint_watch && carpaint_model) carpaint_model(item);
     if (keep[0]) MR32(keep[0]) = keep[1];
 }

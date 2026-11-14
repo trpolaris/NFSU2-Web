@@ -102,7 +102,7 @@ done
 # C++ parts of the runtime (damagecore.cpp: the crash damage, the .asi's own code): libc++ without exceptions
 CXX="$WASI/bin/clang++"
 for f in damagecore; do
-  $CXX $TARGET $OPT $FEAT -std=c++17 -fno-exceptions -fno-rtti -fno-strict-aliasing -fno-delete-null-pointer-checks     -Iruntime -c -o "$OUT/rt/$f.o" "runtime/$f.cpp" & pids="$pids $!"
+  "$CXX" $TARGET $OPT $FEAT -std=c++17 -fno-exceptions -fno-rtti -fno-strict-aliasing -fno-delete-null-pointer-checks     -Iruntime -c -o "$OUT/rt/$f.o" "runtime/$f.cpp" & pids="$pids $!"
 done
 for p in $pids; do wait "$p" || { echo "runtime compile failed"; exit 1; }; done
 
@@ -120,7 +120,8 @@ if ((${#OBJS[@]} == 0)); then
 fi
 PAGES=$(( INITIAL_MB * 16 ))
 rm -f "$OUT/nfsu2.wasm"
-"$CC" $TARGET $OPT $FEAT -o "$OUT/nfsu2.wasm" "${OBJS[@]}" \
+# damagecore.o is C++; use clang++ for the final link so WASI libc++ and libc++abi are linked.
+"$CXX" $TARGET $OPT $FEAT -o "$OUT/nfsu2.wasm" "${OBJS[@]}" \
   -Wl,--import-memory,--export-memory,--shared-memory,--max-memory=4294967296 \
   -Wl,--initial-memory=$(( MIN_MB * 1048576 )),--global-base=$GUEST_END \
   -Wl,-z,stack-size=$(( 8 * 1048576 )) -Wl,--no-stack-first \

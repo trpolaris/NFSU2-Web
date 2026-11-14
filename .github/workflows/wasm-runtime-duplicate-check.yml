@@ -13,6 +13,10 @@ on:
       - 'runtime/roam_game.c'
       - 'runtime/mpcredit_store.c'
       - 'runtime/web/**'
+      - 'runtime/mem.c'
+      - 'runtime/overrides.c'
+      - 'runtime/guest_span.h'
+      - 'web/test/wasm-build-sources.test.mjs'
       - 'runtime/coop.c'
       - 'runtime/travel.c'
       - 'web/test/travel-runtime-integration.test.mjs'
@@ -31,6 +35,10 @@ on:
       - 'runtime/roam_game.c'
       - 'runtime/mpcredit_store.c'
       - 'runtime/web/**'
+      - 'runtime/mem.c'
+      - 'runtime/overrides.c'
+      - 'runtime/guest_span.h'
+      - 'web/test/wasm-build-sources.test.mjs'
       - 'runtime/coop.c'
       - 'runtime/travel.c'
       - 'web/test/travel-runtime-integration.test.mjs'
@@ -56,8 +64,8 @@ jobs:
 
       - name: Reject duplicate RT and WEB source ownership
         run: python3 tools/check_runtime_source_ownership.py
-      - name: Test travel/co-op guest wrapper ownership
-        run: node --test web/test/travel-runtime-integration.test.mjs
+      - name: Test WASM linker configuration and runtime source ownership
+        run: node --test web/test/wasm-build-sources.test.mjs web/test/travel-runtime-integration.test.mjs
 
       - name: Test browser boolean environment parser
         run: |

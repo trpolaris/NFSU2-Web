@@ -1,25 +1,13 @@
-/* guest_span.h -- where the guest's memory is on wasm.
+/* guest_span.h -- bounds checks for guest addresses in wasm.
  *
- * The guest owns [0, GUEST_END) of the linear memory (cpu.h); the runtime's
- * data, heap and stacks live above it.  On a computer whose browser gave the
- * game a memory of 2 GB from the start (the page asks for it: host/process.ts,
- * NFSU2_HEAP_WINDOW=1), the guest heap also has a window above the runtime,
- * [GWIN_LO, GWIN_HI), kept below 2 GB in case the game reads a pointer as
- * signed: heap.c's VA manager spans both, sbrk.c (the runtime's heap) steps
- * over the window, and mem.c keeps its pages' commit bits as for the guest's
- * own.  Only guest data lives in the window, so cpu.h's g_guest alias rule
- * (no guest access reaches the runtime's data) still holds.  Phones, tablets
- * and Safari keep today's layout: g_gwin_hi is 0 there.  mem_window_init
- * (mem.c) decides once, at heap_init, and logs which. */
+ * This build currently uses one guest allocation span, [0, GUEST_END).
+ * A second guest-heap window above the runtime was planned for 2 GB memories,
+ * but is not enabled: heap.c's VA manager and runtime/web/sbrk.c do not yet
+ * reserve that second span together. mem.c therefore exports zero bounds,
+ * and guest_span() accepts only addresses in the original guest span. */
 #ifndef NFSU2_GUEST_SPAN_H
 #define NFSU2_GUEST_SPAN_H
 #include <stdint.h>
-
-#define GWIN_LO 0x50000000u            /* 1280 MB: the runtime's heap below it (it used up to ~1020 MB) */
-#define GWIN_HI 0x7FFE0000u            /* 2 GB less 128 KB: no block ends at 2^31, where a signed compare of its end
-                                          turns it negative (the game was not large-address-aware: its address space
-                                          on Windows ended at 0x7FFEFFFF) */
-#define GWIN_GUARD 0x20000u            /* the runtime's heap goes on this far past the window's top (2 GB): nobody's */
 
 #ifdef __wasm__
 extern uint32_t g_gwin_lo, g_gwin_hi;  /* the window, [lo, hi), or 0, 0 (mem.c) */

@@ -13,7 +13,9 @@ fi
 
 export WASI="${sdk_dir}"
 CC="${WASI}/bin/clang"
+CXX="${WASI}/bin/clang++"
 "${CC}" --version
+"${CXX}" --version
 
 # Fail before compilation if any web-only C source is selected by both loops.
 python3 tools/check_runtime_source_ownership.py
@@ -53,6 +55,24 @@ EOF
 "${CC}" --target=wasm32-wasip1-threads -pthread -D_WASI_EMULATED_GETPID \
   "${getpid_src}" -o "${getpid_wasm}" -lwasi-emulated-getpid
 test -s "${getpid_wasm}"
+
+# damagecore.cpp is a C++ object. The production link must use clang++ so the
+# WASI C++ ABI supplies the sized operator delete emitted by C++17 code.
+sized_delete_src="${RUNNER_TEMP}/nfsu2-wasi-sized-delete-link.cpp"
+sized_delete_wasm="${RUNNER_TEMP}/nfsu2-wasi-sized-delete-link.wasm"
+cat > "${sized_delete_src}" <<'EOF'
+#include <cstddef>
+#include <new>
+
+void release_sized(void *p) {
+  ::operator delete(p, static_cast<std::size_t>(32));
+}
+
+int main() { return 0; }
+EOF
+"${CXX}" --target=wasm32-wasip1-threads -pthread -std=c++17 \
+  -fno-exceptions -fno-rtti "${sized_delete_src}" -o "${sized_delete_wasm}"
+test -s "${sized_delete_wasm}"
 
 # The runtime's browser lobby calls this API and the native build includes
 # the same implementation. Catch declaration-only regressions before link.
