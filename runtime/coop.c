@@ -1134,6 +1134,8 @@ static void coop_rt_frame(CPU *c){
     coop_rt_go = 1;
     call(c, 0x00499b50u, coop_rt_card, 0, 0, 0);
 }
+/* Shared owner of the free-roam setup and reload wrappers: Co-op and Tracks
+ * both hook these guest functions, so keep their combined behavior here. */
 /* the free-roam setup: one local human again, human 1's port as it was; a race's setup to cameras.c (the view after a drift event) */
 void sub_00540780_orig(CPU *c);
 void sub_00540780(CPU *c){

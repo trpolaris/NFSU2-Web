@@ -74,6 +74,7 @@ test('Tracks UI events stay wired through the C mailbox, game frame and status p
   const roam = readSource('runtime/roam.c');
   const features = readSource('runtime/features.c');
   const travel = readSource('runtime/travel.c');
+  const coop = readSource('runtime/coop.c');
   const build = readSource('web/build.sh');
   const rtSources = build.match(/^RT="([^"]+)"$/m)?.[1].split(/\s+/) ?? [];
   const status = readSource('runtime/web/status_web.c');
@@ -96,8 +97,14 @@ test('Tracks UI events stay wired through the C mailbox, game frame and status p
   assert.ok(travel.includes('void sub_0041ace0_orig(CPU *c);'));
   assert.ok(travel.includes('void sub_0041ace0(CPU *c){'));
   assert.ok(travel.includes('if (on_track()){ c->eax &= ~0xffu; POP32(c->eip); return; }'));
-  assert.ok(travel.includes('void sub_00540780_orig(CPU *c);'));
-  assert.ok(travel.includes('void sub_00581820_orig(CPU *c);'));
+  // The shared guest wrappers belong to coop.c so Co-op and Travel compose
+  // their setup/reload behavior without emitting duplicate global symbols.
+  assert.ok(coop.includes('void sub_00540780_orig(CPU *c);'));
+  assert.ok(coop.includes('void sub_00581820_orig(CPU *c);'));
+  assert.ok(coop.includes('void sub_00540780(CPU *c){'));
+  assert.ok(coop.includes('void sub_00581820(CPU *c){'));
+  assert.ok(!travel.includes('void sub_00540780(CPU *c){'));
+  assert.ok(!travel.includes('void sub_00581820(CPU *c){'));
   assert.ok(rtSources.includes('travel'));
   assert.ok(!rtSources.includes('sbrk'));
   assert.ok(build.includes('WEB="$(cd runtime/web && ls *.c'));
