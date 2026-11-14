@@ -363,6 +363,7 @@ static int g_inited, g_net_ok;
 static long g_frame0;
 /* sync clock (µs): world time pulled to the host clock */
 static double g_sync; static int g_sync_paused, g_in_roam;
+static int g_photo_hold;                      /* Photo Mode: keep remote cars at their current world poses */
 static uint32_t g_step;                       /* frames (world steps) counted here: roam_game_contact's passes of one step */
 static double g_vscale = 1.0;                 /* world seconds per stamp second (velocities on the wire) */
 static int64_t g_last_host;
@@ -6960,6 +6961,7 @@ void roam_game_frame(CPU *c){
             PeerView *v = 0;
             for (int i = 0; i < g_npv; i++) if (g_pv[i].idx == s->peer && g_pv[i].id == s->peer_id) v = &g_pv[i];
             if (!v){ rh_plate_car(k, 0, ""); continue; }
+            if (g_photo_hold) continue;        /* don't move, hide or update a friend's car while Photo Mode holds it */
             if (s->plate_owner != v->id){
                 s->plate_owner = v->id;
                 snprintf(s->plate, sizeof s->plate, "%s", v->plate);
@@ -7098,6 +7100,44 @@ void roam_game_hud(CPU *c){
     mp_labels(c);
 #endif
     g_cost_hud += rh_ns() - t0;
+}
+
+/* Photo Mode integration (photo.c).  Network updates continue while the
+ * visible remote cars keep their last world poses. */
+void roam_game_hold(int on){ g_photo_hold = !!on; }
+
+int roam_game_online_here(void){
+    return O.on && g_net_ok && g_in_roam && g_npv > 0;
+}
+int roam_game_names_here(void){
+    if (!roam_game_online_here() || !O.labels) return 0;
+    for (int i = 0; i < TAG_N; i++) if (g_tag.shown[i] && g_tag.obj[i]) return 1;
+    return 0;
+}
+int roam_game_names(CPU *c, uint32_t *objects, int max){
+    (void)c;
+    if (!objects || max <= 0 || !roam_game_online_here()) return 0;
+    int n = 0;
+    for (int i = 0; i < TAG_N && n < max; i++){
+        uint32_t obj = g_tag.obj[i];
+        if (g_tag.shown[i] && obj && ok(obj, 0x70)) objects[n++] = obj;
+    }
+    return n;
+}
+/* kind: 0 another player, 1 a listed friend, 2 a crew mate; -1 if this is
+ * not one of the active free-roam cars owned by this session. */
+int roam_game_slot_kind(uint32_t car, const char **name){
+    if (name) *name = 0;
+    if (!car) return -1;
+    for (int i = 0; i < NSLOT; i++){
+        Slot *s = &g_sl[i];
+        if (s->st != SL_ACTIVE || s->hidden || s->car != car) continue;
+        if (name) *name = s->name;
+        if (s->crew) return 2;
+        if (s->peer >= 0 && s->peer < RC_TABLE && rc_peer_listed(&g_s, s->peer)) return 1;
+        return 0;
+    }
+    return -1;
 }
 
 /* ---- report at exit ----------------------------------------------------------------------------- */
