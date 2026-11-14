@@ -13,6 +13,9 @@ on:
       - 'runtime/roam_game.c'
       - 'runtime/mpcredit_store.c'
       - 'runtime/web/**'
+      - 'runtime/coop.c'
+      - 'runtime/travel.c'
+      - 'web/test/travel-runtime-integration.test.mjs'
       - 'tests/env_bool_unit.c'
       - 'tools/check_runtime_source_ownership.py'
       - 'web/tools/check-wasi-runtime.sh'
@@ -28,6 +31,9 @@ on:
       - 'runtime/roam_game.c'
       - 'runtime/mpcredit_store.c'
       - 'runtime/web/**'
+      - 'runtime/coop.c'
+      - 'runtime/travel.c'
+      - 'web/test/travel-runtime-integration.test.mjs'
       - 'tests/env_bool_unit.c'
       - 'tools/check_runtime_source_ownership.py'
       - 'web/tools/check-wasi-runtime.sh'
@@ -50,6 +56,8 @@ jobs:
 
       - name: Reject duplicate RT and WEB source ownership
         run: python3 tools/check_runtime_source_ownership.py
+      - name: Test travel/co-op guest wrapper ownership
+        run: node --test web/test/travel-runtime-integration.test.mjs
 
       - name: Test browser boolean environment parser
         run: |
